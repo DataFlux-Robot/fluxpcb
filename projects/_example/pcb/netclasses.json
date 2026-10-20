@@ -1,0 +1,18 @@
+[
+ {
+  "net_class": "spi_host",
+  "computed_z": 50.0,
+  "z_target": 50.0,
+  "deviation_pct": -0.0,
+  "ok": true,
+  "params": {
+   "width_mm": 0.3633,
+   "s_mm": 0.15,
+   "h_mm": 0.2,
+   "er": 4.4,
+   "t_mm": 0.035,
+   "style": "microstrip",
+   "differential": false
+  }
+ }
+]

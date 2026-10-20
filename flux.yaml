@@ -1,0 +1,51 @@
+# FluxNeurotransmitter pipeline definition (six-stage DAG with gates)
+version: 1
+
+stages:
+  requirements:
+    title: 需求分析
+    runner: requirements
+    outputs: [spec.yaml]
+    gates: [spec_schema, requirement_coverage]
+
+  component_selection:
+    title: 器件选型
+    runner: component_selection
+    inputs: [spec.yaml]
+    outputs: [bom.csv, bom.json]
+    gates: [bom_completeness]
+
+  schematic:
+    title: 原理图
+    runner: schematic
+    inputs: [spec.yaml, bom.json]
+    outputs: [schematic/]
+    gates: [erc_zero, netlist_topology]
+
+  pcb_layout:
+    title: PCB设计
+    runner: pcb_layout
+    inputs: [schematic/, bom.json]
+    outputs: [pcb/, stackup.yaml]
+    gates: [drc_zero, impedance_si]
+
+  acceptance_sim:
+    title: 验收仿真
+    runner: acceptance_sim
+    inputs: [pcb/, stackup.yaml, bom.json]
+    outputs: [sim/]
+    gates: [irdrop, thermal, emc_precompliance]
+
+  firmware:
+    title: 固件开发
+    runner: firmware
+    inputs: [spec.yaml, bom.json, schematic/]
+    outputs: [firmware/]
+    gates: [firmware_build, firmware_spi_loopback]
+
+gate_policy:
+  blocking: all          # all gates block release
+retry:
+  max_iterations: 3      # bounded regeneration loop on gate failure
+audit:
+  hash: sha256
