@@ -9,9 +9,6 @@ projects/*/reports/run_*.json
 projects/*/reports/latest.*
 reference/*.pdf
 tools_bin/
-projects/*/schematic/core/
-projects/*/schematic/carrier/
-projects/*/pcb/
 carrier_out/
 core_out/
 *.dsn
