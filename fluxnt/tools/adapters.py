@@ -36,28 +36,36 @@ class KicadCli(ToolAdapter):
     name = "kicad-cli"
     exe = "kicad-cli"
 
+    @staticmethod
+    def _parse_count(text: str) -> int:
+        """Parse '** ERC/DRC messages: N Errors E Warnings W' tail line."""
+        import re
+        m = re.findall(r"\*\*\s+\w+\s+messages:\s+(\d+)\s+Errors\s+(\d+)\s+Warnings\s+(\d+)",
+                       text)
+        if m:
+            return int(m[-1][0])
+        return len(re.findall(r"^\[\w+\]:", text, re.M))
+
     def erc(self, sch: Path, out_dir: Path) -> dict:
         """Run KiCad ERC, return parsed violation count."""
         out_dir.mkdir(parents=True, exist_ok=True)
         rpt = out_dir / "erc.rpt"
         r = _run([self.exe, "sch", "erc", "--exit-code-violations", "-o", str(rpt), str(sch)])
-        if r["returncode"] < 0:
-            return {"status": "blocked", "error": r["stderr"], "violations": None}
         text = rpt.read_text(encoding="utf-8", errors="replace") if rpt.exists() else r["stdout"]
-        violations = sum(1 for line in text.splitlines()
-                         if line.strip().startswith(("type ", "Found ", "{{eur"))) or (
-                    text.count(":") if text else 0)
-        return {"status": "ok", "violations": violations, "raw": text[-4000:]}
+        if r["returncode"] < 0 or ("失败" in r["stderr"] and not text):
+            return {"status": "blocked", "error": r["stderr"], "violations": None}
+        return {"status": "ok", "violations": self._parse_count(text), "raw": text[-4000:],
+                "returncode": r["returncode"]}
 
     def drc(self, pcb: Path, out_dir: Path) -> dict:
         out_dir.mkdir(parents=True, exist_ok=True)
         rpt = out_dir / "drc.rpt"
         r = _run([self.exe, "pcb", "drc", "--exit-code-violations", "-o", str(rpt), str(pcb)])
-        if r["returncode"] < 0:
-            return {"status": "blocked", "error": r["stderr"], "violations": None}
         text = rpt.read_text(encoding="utf-8", errors="replace") if rpt.exists() else r["stdout"]
-        violations = text.lower().count("violation")
-        return {"status": "ok", "violations": violations, "raw": text[-4000:]}
+        if r["returncode"] < 0 or ("失败" in r["stderr"] and not text):
+            return {"status": "blocked", "error": r["stderr"], "violations": None}
+        return {"status": "ok", "violations": self._parse_count(text), "raw": text[-4000:],
+                "returncode": r["returncode"]}
 
     def netlist(self, sch: Path, out_dir: Path) -> Path | None:
         out_dir.mkdir(parents=True, exist_ok=True)

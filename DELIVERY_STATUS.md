@@ -1,0 +1,34 @@
+# 交付状态(2026-10-21 通宵自主运行)
+
+## ✅ 已达成(真实、可验证)
+
+### 工具本体 (fluxnt)
+- 六环节DAG编排引擎+门禁反馈重试+SHA256审计,26个单元测试全绿
+- 12个机器可判定门禁;KiCad在位时ERC/DRC走真实kicad-cli裁决
+- 纯Python物理内核:IPC-2141阻抗(与教科书值对拍<5%)、FDM IR-drop/热、PDN目标阻抗
+- **KiCad 10文件格式生成器**:逆向出三条v10格式规则(无pin_names/子符号无前缀/标签无fields),原理图三件套(.kicad_sch+.kicad_sym+sym-lib-table+.kicad_pro)
+- **官方封装复用**:RJ45-HR911105A/USB-C-31-M-12/U.FL/R0603/C0603直接从KiCad官方库解析注入
+- DSN↔KiCad路由桥:pcbnew→DSN导出、Freerouting自动布线、DSN走线注入器(413段+17过孔,全部网络覆盖)
+- 便携工具链:tools_bin/(JDK25 + freerouting.jar)
+
+### hpm6e80-core 项目(锁定规格落地)
+- **核心板原理图: 真实KiCad ERC=0违例** — HPM6E80功能级符号(引脚功能来自EVK pinmux逐项核实:ESC_P0=PA组/ESC_P1=PB组/TSN=RGMII/QSPI/UART0/SWD)+JL1111×2+RTL8211E+MX25L12833F+ESP32-S31-WROOM-3U+双buck+B2B
+- **载板原理图: 真实KiCad ERC=0违例** — 3×RJ45(2×EtherCAT 100M+1×千兆TSN)+USB-C+U.FL+Bob Smith端接+CC下拉+B2B,全部公开标准引脚
+- **载板PCB: 90×55mm 4层**,官方封装布局,Freerouting自动布线(0 unrouted by router),Gerber+钻孔+贴片坐标fab包已导出(pcb/carrier/fab_DRAFT/)
+- 全流程`flux run`:6环节真实执行,五环节门禁全绿
+
+## ⛔ 未完成(如实声明)
+
+1. **drc_zero未绿**:布线注入后仍有72处track_dangling/64处unconnected——Freerouting的DSN"最后一公里"锚点(shoveFixed残留线)与KiCad焊盘锚点相差~1mm,换算器需要padstack级对齐工程。流水线内PCB stage仍生成未布线版(布线尚未集成为stage内步骤,现为独立脚本route_and_fab.py+dsn2kicad.py)
+2. **核心板PCB未开始**:HPM6E80IVM1球阵映射需要FAE注册的数据手册(公开渠道全无),原理图用功能级引脚(F###)并显式标注PINMAP-PENDING
+3. BOM六个PENDING料号(B2B连接器/buck型号需LCSC在线核实)
+4. 固件为骨架级(devicetree模板思路已实现,协议栈未写)
+
+## 复现
+
+```bash
+pip install -e . && python -m pytest tests/   # 26绿
+flux run projects/hpm6e80-core               # 六环节(需PATH含kicad-cli)
+# 原理图证据: projects/hpm6e80-core/schematic/{core,carrier}/erc.rpt
+# 载板fab包: projects/hpm6e80-core/pcb/carrier/fab_DRAFT/
+```

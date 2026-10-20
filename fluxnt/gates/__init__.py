@@ -113,7 +113,7 @@ def bom_completeness(project_dir: Path, outputs: list[str], cfg: dict) -> GateRe
 def erc_zero(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
     from fluxnt.tools.adapters import kicad_cli
     sch_dir = project_dir / "schematic"
-    schs = sorted(sch_dir.glob("*.kicad_sch")) if sch_dir.exists() else []
+    schs = sorted(sch_dir.rglob("*.kicad_sch")) if sch_dir.exists() else []
     internal = sch_dir / "erc_report.json" if sch_dir.exists() else None
     if kicad_cli.available() and schs:
         total = 0
@@ -177,7 +177,7 @@ def netlist_topology(project_dir: Path, outputs: list[str], cfg: dict) -> GateRe
 def drc_zero(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
     from fluxnt.tools.adapters import kicad_cli
     pcb_dir = project_dir / "pcb"
-    pcbs = sorted(pcb_dir.glob("*.kicad_pcb")) if pcb_dir.exists() else []
+    pcbs = sorted(pcb_dir.rglob("*.kicad_pcb")) if pcb_dir.exists() else []
     internal = pcb_dir / "drc_report.json" if pcb_dir.exists() else None
     if kicad_cli.available() and pcbs:
         total, details = 0, {}
