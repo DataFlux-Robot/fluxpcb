@@ -34,52 +34,50 @@ class Grid2D:
 
 def solve_irdrop(grid: Grid2D, v_in: float, copper_sigma: float = 5.8e7,
                  copper_thickness_mm: float = 0.035, sink_current_a: float = 1.0,
-                 iterations: int = 3000) -> dict:
-    """DC IR-drop: solve Laplace on the conductor with one edge fed at v_in,
-    sources drawing sink_current_a total (weighted), insulated elsewhere.
+                 iterations: int = 8000) -> dict:
+    """DC IR-drop on a copper plane: node equation Σ_j G(V_j - V_i) = I_i solved
+    by Jacobi iteration.
 
-    Returns dict with max/mean rail drop and the potential field.
+    - edge conductance G = sigma*t (S per square) between adjacent conductor cells
+    - left conductor edge pinned at v_in (feed); insulated (Neumann) elsewhere
+      via reflective padding
+    - sinks inject their current at their cells (I_i, amps)
+    Solid planes give genuinely small drops; bottlenecks appear once the real
+    copper mask (from KiCad polygons) is supplied via grid.mask.
     """
     ny, nx = grid.shape
     mask = grid.mask if grid.mask is not None else np.ones((ny, nx))
-    sheet_rho = 1.0 / (copper_sigma * copper_thickness_mm * 1e-3)  # ohm per square
-    # inject sources into conductance network as current sinks
-    src_map = np.zeros((ny, nx))
-    total_src = len(grid.sources)
-    if total_src == 0:
-        ix, iy = nx // 2, ny // 2
-        src_map[iy, ix] = 1.0
-        total_src = 1
-    for ix, iy, w in grid.sources or []:
-        src_map[iy, ix] += w
-    src_map /= max(src_map.sum(), 1e-12)
-    src_map *= sink_current_a
+    g_sq = copper_sigma * copper_thickness_mm * 1e-3      # S per square
 
-    v = np.full((ny, nx), v_in)
-    src_mask = src_map > 0
-    for _ in range(iterations):
-        v_new = v.copy()
-        # 5-point stencil, von Neumann at insulated boundaries
-        v_pad = np.pad(v, 1, mode="edge")
-        lap = (v_pad[:-2, 1:-1] + v_pad[2:, 1:-1] + v_pad[1:-1, :-2] + v_pad[1:-1, 2:]) / 4
-        v_new = np.where(mask > 0, lap, v)
-        # feed edge (left column of conductor) at v_in
-        v_new[:, 0] = np.where(mask[:, 0] > 0, v_in, v_new[:, 0])
-        # current sinks force local drop via resistance model: approximate as
-        # distributed negative source scaled by sheet resistance (relaxation form)
-        v_new = v_new - src_map * sheet_rho * 0.02 * (mask > 0)
-        if np.max(np.abs(v_new - v)) < 1e-9:
+    src = np.zeros((ny, nx))
+    if grid.sources:
+        for ix, iy, w in grid.sources:
+            src[iy, ix] += w
+    else:
+        src[ny // 2, nx // 2] = 1.0
+    src *= sink_current_a / max(src.sum(), 1e-12)
+
+    v = np.full((ny, nx), float(v_in))
+    for it in range(iterations):
+        v_pad = np.pad(v, 1, mode="edge")   # reflective = insulated boundary
+        nb_sum = (v_pad[:-2, 1:-1] + v_pad[2:, 1:-1]
+                  + v_pad[1:-1, :-2] + v_pad[1:-1, 2:])
+        # V_i = (Σ V_j - I_i/G) / n_neighbors(≈4 with reflective pad)
+        v_new = (nb_sum - src / g_sq) / 4.0
+        v_new = np.where(mask > 0, v_new, v)
+        v_new[:, 0] = np.where(mask[:, 0] > 0, v_in, v_new[:, 0])  # feed edge
+        if np.max(np.abs(v_new - v)) < 1e-12:
             v = v_new
             break
         v = v_new
     drop = (v_in - v) * (mask > 0)
-    active = (mask > 0)
     return {
         "v_in": v_in,
-        "max_drop_v": float(np.max(drop[active])) if active.any() else 0.0,
-        "mean_drop_v": float(np.mean(drop[active])) if active.any() else 0.0,
+        "max_drop_v": float(np.max(drop)) if mask.any() else 0.0,
+        "mean_drop_v": float(np.mean(drop[mask > 0])) if mask.any() else 0.0,
         "field": v,
         "mask": mask,
+        "iterations": it + 1,
     }
 
 

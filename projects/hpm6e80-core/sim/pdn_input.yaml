@@ -1,0 +1,97 @@
+rails:
+- name: 3V3
+  v: 3.3
+  max_transient_a: 2.4
+  ripple_pct: 3.0
+  decaps:
+  - &id001
+    c_f: 100
+    esl_nh: 1.0
+  - *id001
+  - *id001
+  - *id001
+  - &id002
+    c_f: 10
+    esl_nh: 0.8
+  - *id002
+  - *id002
+  - *id002
+  - &id003
+    c_f: 1
+    esl_nh: 0.6
+  - *id003
+  - *id003
+  - *id003
+  probe_freqs_mhz:
+  - 1
+  - 10
+  - 100
+- name: 1V8
+  v: 1.8
+  max_transient_a: 0.8
+  ripple_pct: 3.0
+  decaps:
+  - &id004
+    c_f: 100
+    esl_nh: 1.0
+  - *id004
+  - *id004
+  - *id004
+  - &id005
+    c_f: 10
+    esl_nh: 0.8
+  - *id005
+  - *id005
+  - *id005
+  - &id006
+    c_f: 1
+    esl_nh: 0.6
+  - *id006
+  - *id006
+  - *id006
+  probe_freqs_mhz:
+  - 1
+  - 10
+  - 100
+- name: 1V1
+  v: 1.1
+  max_transient_a: 1.6
+  ripple_pct: 3.0
+  decaps:
+  - &id007
+    c_f: 100
+    esl_nh: 1.0
+  - *id007
+  - *id007
+  - *id007
+  - &id008
+    c_f: 10
+    esl_nh: 0.8
+  - *id008
+  - *id008
+  - *id008
+  - &id009
+    c_f: 1
+    esl_nh: 0.6
+  - *id009
+  - *id009
+  - *id009
+  probe_freqs_mhz:
+  - 1
+  - 10
+  - 100
+return_path_checks:
+- name: ethercat_p0
+  adjacent_reference_layer: true
+- name: ethercat_p1
+  adjacent_reference_layer: true
+- name: mdi_p0
+  adjacent_reference_layer: true
+- name: mdi_p1
+  adjacent_reference_layer: true
+- name: mdi_tsn
+  adjacent_reference_layer: true
+- name: tsn_gige
+  adjacent_reference_layer: true
+- name: spi_host
+  adjacent_reference_layer: true

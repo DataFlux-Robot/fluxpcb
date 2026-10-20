@@ -1,0 +1,19 @@
+total_power_w: 3.1
+t_amb: 25.0
+tj_limit_c: 85.0
+sources:
+- x: 20
+  y: 15
+  weight: 1.6
+- x: 20
+  y: 15
+  weight: 0.15
+- x: 20
+  y: 15
+  weight: 0.15
+- x: 20
+  y: 15
+  weight: 0.3
+- x: 20
+  y: 15
+  weight: 0.9
