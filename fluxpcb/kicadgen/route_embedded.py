@@ -159,19 +159,89 @@ def add_track(sx, sy, ex, ey, layer_id, net):
     return t
 
 
-def add_via(x, y, net):
+def _on_tht_pad(x, y, net_code):
+    """True when (x,y) sits on a same-net through-hole pad — the pad itself
+    spans both layers, no via needed (avoids co-located drill holes)."""
+    for fp in board.GetFootprints():
+        for pad in fp.Pads():
+            try:
+                if pad.GetNetCode() != net_code:
+                    continue
+                if pad.GetAttribute() != pcbnew.PAD_ATTRIB_THROUGH_HOLE:
+                    continue
+                p = pad.GetPosition()
+                if abs(p.x / mm - x) < 0.4 and abs(p.y / mm - y) < 0.4:
+                    return True
+            except AttributeError:
+                continue
+    return False
+
+
+def add_via(x, y, net, nc):
+    if _on_tht_pad(x, y, nc):
+        return None
     v = pcbnew.PCB_VIA(board)
     v.SetPosition(pcbnew.VECTOR2I(int(x * mm), int(y * mm)))
-    v.SetWidth(int(0.6 * mm), int(0.3 * mm))
+    v.SetWidth(int(0.6 * mm))
+    v.SetDrill(int(0.3 * mm))
     v.SetNet(net)
     board.Add(v)
     return v
+
+
+def normalize_vias():
+    """Enforce 0.6/0.3 on every via (FR injection and history can leave
+    zero-annular 0.3/0.3 drills that fail via_diameter/annular_width)."""
+    fixed = 0
+    for item in board.GetTracks():
+        if item.Type() != pcbnew.PCB_VIA_T:
+            continue
+        try:
+            # KiCad 10: via GetWidth() REQUIRES a layer argument (asserts
+            # headless otherwise); vias span F..B so F_Cu represents them
+            if item.GetWidth(pcbnew.F_Cu) < int(0.6 * mm):
+                item.SetWidth(int(0.6 * mm))
+                fixed += 1
+            if item.GetDrillValue() < int(0.3 * mm):
+                item.SetDrill(int(0.3 * mm))
+                fixed += 1
+        except (AttributeError, TypeError):
+            continue
+    return fixed
 
 
 def incremental(seg, net_code, layer_id):
     """Register a freshly added segment as an obstacle for later checks."""
     s, e = seg.GetStart(), seg.GetEnd()
     return (net_code, (s.x / mm, s.y / mm), (e.x / mm, e.y / mm))
+
+
+# board edge keepout: tracks/vias must stay >= 0.55mm inside the outline
+_bb = board.GetBoardEdgesBoundingBox()
+EDGE = (_bb.GetX() / mm, _bb.GetY() / mm,
+        (_bb.GetX() + _bb.GetWidth()) / mm, (_bb.GetY() + _bb.GetHeight()) / mm)
+EDGE_KEEP = 0.55
+
+
+def edge_ok(x1, y1, x2, y2):
+    for x, y in ((x1, y1), (x2, y2)):
+        if not (EDGE[0] + EDGE_KEEP <= x <= EDGE[2] - EDGE_KEEP and
+                EDGE[1] + EDGE_KEEP <= y <= EDGE[3] - EDGE_KEEP):
+            return False
+    return True
+
+
+def via_ok(x, y, net_code, rects):
+    """A via needs pad-edge clearance 0.3(own radius)+0.25 = 0.55mm."""
+    if not (EDGE[0] + EDGE_KEEP <= x <= EDGE[2] - EDGE_KEEP and
+            EDGE[1] + EDGE_KEEP <= y <= EDGE[3] - EDGE_KEEP):
+        return False
+    for net, rect in rects:
+        if net == net_code:
+            continue
+        if pt_rect_dist(x, y, rect) < 0.55:
+            return False
+    return True
 
 
 added = failed = skipped = 0
@@ -197,6 +267,10 @@ with open(PAIRS) as f:
             strategies.append((lay, x2, y1))    # L: horizontal-first
             strategies.append((lay, x1, y2))    # L: vertical-first
             strategies.append((lay, (x1 + x2) / 2, y1))  # Z-ish
+        # lane offsets: parallel same-row pins (USB pairs, bus groups) would
+        # otherwise run collinear H-first legs into each other — stagger them
+        for off in (1.27, -1.27, 2.54):
+            strategies.append((l1, x2, y1 + off))
         # opposite-layer with via at the far end
         other = 1 - l1
         strategies.append((other, x2, y1))
@@ -206,6 +280,14 @@ with open(PAIRS) as f:
         for lay, mx, my in strategies:
             lid = pcbnew.F_Cu if lay == 0 else pcbnew.B_Cu
             segs, rects = collect_obstacles(lid)
+            if not edge_ok(x1, y1, x2, y2) or not edge_ok(mx, my, mx, my):
+                continue
+            need_via_start = (lay != l1)
+            need_via_end = (lay != l2)
+            if need_via_start and not via_ok(x1, y1, nc, rects):
+                continue
+            if need_via_end and not via_ok(x2, y2, nc, rects):
+                continue
             ok1 = clear(x1, y1, mx, my, lid, nc, segs, rects)
             # check leg2 with leg1 as a virtual obstacle — add only if both pass
             if ok1 and (abs(mx - x1) >= 0.01 or abs(my - y1) >= 0.01):
@@ -216,9 +298,9 @@ with open(PAIRS) as f:
             add_track(x1, y1, mx, my, lid, net)
             add_track(mx, my, x2, y2, lid, net)
             if lay != l1:  # needed a layer switch: via at start
-                add_via(x1, y1, net)
+                add_via(x1, y1, net, nc)
             if lay != l2:
-                add_via(x2, y2, net)
+                add_via(x2, y2, net, nc)
             routed = True
             added += 1
             break
@@ -247,6 +329,8 @@ for item in board.GetTracks():
 for item in orphans:
     board.Remove(item)
 
+via_fixed = normalize_vias()
+
 board.Save(PCB)
-print("ROUTES_ADDED={} SKIPPED={} ORPHANS_REMOVED={} KINDS={}".format(
-    added, skipped, len(orphans), orphan_kinds))
+print("ROUTES_ADDED={} SKIPPED={} ORPHANS_REMOVED={} VIAS_FIXED={} KINDS={}".format(
+    added, skipped, len(orphans), via_fixed, orphan_kinds))

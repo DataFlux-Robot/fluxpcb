@@ -70,10 +70,17 @@ def ensure_calibration(pcb_path: Path) -> None:
     try:
         data = json.loads(pro.read_text(encoding="utf-8"))
         changed = False
-        boards = data.get("boards") or {}
-        settings = boards.get("design_settings") if isinstance(boards, dict) else None
-        if settings is None and isinstance(boards, dict) and "3dviewports" in boards:
-            settings = boards  # design_settings IS the boards value (v10 layout)
+        # v10 project files nest under "board" (single) — tolerate "boards" too
+        settings = None
+        for key in ("board", "boards"):
+            node = data.get(key)
+            if isinstance(node, dict):
+                if isinstance(node.get("design_settings"), dict):
+                    settings = node["design_settings"]
+                    break
+                if "rule_severities" in node:      # design_settings IS the node
+                    settings = node
+                    break
         if settings is None:
             return
         sev = settings.setdefault("rule_severities", {})
@@ -120,6 +127,112 @@ def _kipy(kipy: str, script: Path, *args: str, timeout: int = 600) -> tuple[int,
     return p.returncode, (p.stdout + p.stderr)
 
 
+_DSN2KICAD = Path(__file__).resolve().parent.parent / "dsn2kicad.py"
+
+
+def _freerouting_tools() -> tuple[str | None, str | None]:
+    """(java, freerouting.jar) when bundled under tools_bin/."""
+    root = Path(__file__).resolve().parent.parent        # <repo>/fluxpcb/.. = repo
+    jar = root / "tools_bin" / "freerouting.jar"
+    for jre in (root / "tools_bin" / "jdk25" / "bin" / "java.exe",
+                root / "tools_bin" / "jdk25" / "bin" / "java"):
+        if jar.exists() and jre.exists():
+            return str(jre), str(jar)
+    return None, None
+
+
+def _pin_freerouting_config() -> None:
+    """Force the deterministic, crash-free router configuration.
+
+    Freerouting 2.x persists state in its config file; the multi-threaded
+    optimizer (their own known-broken feature) crashes the batch save with
+    a SearchTreeObject NPE. Pin: single-thread optimizer, no MT feature
+    flag, no analytics (avoids network-dependent flakiness).
+    """
+    import json
+    for cfg in (Path.home() / "AppData" / "Roaming" / "freerouting" / "freerouting.json",
+                Path.home() / ".config" / "freerouting" / "freerouting.json"):
+        if not cfg.exists():
+            continue
+        try:
+            data = json.loads(cfg.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            continue
+        changed = False
+        router = data.setdefault("router", {})
+        opt = router.setdefault("optimizer", {})
+        if opt.get("max_threads") != 1:
+            opt["max_threads"] = 1
+            changed = True
+        flags = data.setdefault("feature_flags", {})
+        if flags.get("multi_threading") is not False:
+            flags["multi_threading"] = False
+            changed = True
+        udd = data.setdefault("usage_and_diagnostic_data", {})
+        if udd.get("disable_analytics") is not True:
+            udd["disable_analytics"] = True
+            changed = True
+        if changed:
+            try:
+                cfg.write_text(json.dumps(data, ensure_ascii=False, indent=2),
+                               encoding="utf-8")
+            except OSError:
+                pass
+
+
+def route_with_freerouting(pcb_path: Path, kipy: str, log=print) -> dict:
+    """Heavy-duty pass: pcbnew DSN export -> freerouting -> routed-DSN
+    injection via dsn2kicad (SES import hangs headless; DSN write-back works).
+    """
+    java, jar = _freerouting_tools()
+    if not java:
+        return {"ok": False, "error": "freerouting 未捆绑(tools_bin缺失)"}
+    work = pcb_path.parent
+    dsn = work / (pcb_path.stem + ".dsn")
+    routed = work / ("routed-" + pcb_path.stem + ".dsn")
+    if routed.exists():
+        routed.unlink()                       # stale/0-byte protection
+    rc, out = _kipy_run(kipy,
+                        f"import pcbnew; b = pcbnew.LoadBoard(r'{pcb_path}'); "
+                        f"ok = pcbnew.ExportSpecctraDSN(b, r'{dsn}'); print('DSN_OK' if ok else 'DSN_FAIL')")
+    if "DSN_OK" not in out:
+        return {"ok": False, "error": f"DSN导出失败: {out[-200:]}"}
+    # freerouting silently writes a 0-byte file when -de/-do get absolute
+    # Windows paths — always pass bare filenames with cwd=work. Its config
+    # pins the single-thread optimizer (the MT one NPEs during batch save).
+    _pin_freerouting_config()
+    last_err = ""
+    for attempt in range(1, 4):
+        if routed.exists():
+            routed.unlink()
+        p = subprocess.run([java, "-jar", jar,
+                            "-de", dsn.name, "-do", routed.name,
+                            "-mp", "40", "-l", "en"],
+                           capture_output=True, text=True, timeout=3600, cwd=str(work))
+        if routed.exists() and routed.stat().st_size > 0:
+            break
+        tail = (p.stdout + p.stderr)[-200:].replace("\n", " ")
+        last_err = f"rc={p.returncode} {tail}"
+        log(f"  [route] freerouting attempt {attempt} 失败, 重试…")
+    if not (routed.exists() and routed.stat().st_size > 0):
+        return {"ok": False, "error": f"freerouting无产出: {last_err}"}
+    if not (routed.exists() and routed.stat().st_size > 0):
+        tail = (p.stdout + p.stderr)[-300:].replace("\n", " ")
+        return {"ok": False, "error": f"freerouting无产出: rc={p.returncode} {tail}"}
+    import sys
+    sys.path.insert(0, str(_DSN2KICAD.parent))
+    from dsn2kicad import convert
+    stats = convert(routed, pcb_path)
+    log(f"  [route] freerouting注入: {stats}")
+    return {"ok": True, "stats": stats}
+
+
+def _kipy_run(kipy: str, code: str, timeout: int = 600) -> tuple[int, str]:
+    p = subprocess.run([kipy, "-c", code], capture_output=True, text=True,
+                       timeout=timeout)
+    return p.returncode, (p.stdout + p.stderr)
+
+
 def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
     """Route a generated board to DRC-clean (calibrated severities).
 
@@ -136,6 +249,16 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
     rpt = pcb_path.parent / "drc.rpt"
     steps: list[str] = []
     last = {"unconnected": -1, "shorting": -1}
+
+    # heavy-duty pass first when freerouting is bundled, then the in-process
+    # L-router finishes residue; both bounded
+    fr = route_with_freerouting(pcb_path, kipy, log=log)
+    if fr.get("ok"):
+        steps.append(f"freerouting: {fr.get('stats')}")
+    else:
+        steps.append(f"freerouting跳过: {fr.get('error', '')[:80]}")
+        log(f"  [route] freerouting跳过: {fr.get('error', '')[:100]}")
+
     for it in range(1, max_iterations + 1):
         drc = run_drc(kicad_cli, pcb_path, rpt)
         last = {"unconnected": drc["unconnected"], "shorting": drc["shorting"]}
@@ -155,12 +278,18 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
                 log(f"  [route] embedded: {out.strip().splitlines()[-1][:90] if out.strip() else 'no output'}")
         if drc["shorting"] > 0:
             rc, out = _kipy(kipy, _CLEANUP, str(pcb_path), str(rpt))
-            ok = "SHORTS_REMOVED" in out
+            ok = "VIOLATIONS_REMOVED" in out
             steps.append(f"shorts_cleanup rc={rc} {'ok' if ok else out[:120]}")
             log(f"  [route] cleanup: {out.strip().splitlines()[-1][:90] if out.strip() else 'no output'}")
 
-    # final DRC for the report
+    # final DRC for the report, then one last scrubber pass — the loop's
+    # route->cleanup ordering converges one scrub behind
     drc = run_drc(kicad_cli, pcb_path, rpt)
+    if drc["shorting"] or "[clearance]" in drc["text"]             or "[holes_co_located]" in drc["text"]             or "[copper_edge_clearance]" in drc["text"]:
+        rc, out = _kipy(kipy, _CLEANUP, str(pcb_path), str(rpt))
+        lastline = out.strip().splitlines()[-1][:60] if out.strip() else ""
+        steps.append(f"final cleanup rc={rc} {lastline}")
+        drc = run_drc(kicad_cli, pcb_path, rpt)
     last = {"unconnected": drc["unconnected"], "shorting": drc["shorting"]}
     clean = last["unconnected"] == 0 and last["shorting"] == 0
     steps.append(f"final: unconn={last['unconnected']} shorts={last['shorting']}")

@@ -227,5 +227,41 @@
     "verified": true,
     "verified_at": "2026-10-21",
     "verify_source": "item.szlcsc.com/3175223.html"
+  },
+  {
+    "role": "header_1x8",
+    "mpn": "KH-2.54PH180-1X8P-L11.5",
+    "value": "HDR-14",
+    "package": "THT_2.54",
+    "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x14_P2.54mm_Vertical",
+    "datasheet": "doc/pinheader.pdf",
+    "description": "2.54mm 1x8 vertical pin header (kinghelm)",
+    "stock": 0,
+    "price": "",
+    "basic": false,
+    "alternatives": [],
+    "verified": false,
+    "verified_at": "2026-10-21",
+    "verify_source": "item.szlcsc.com/3175228.html",
+    "verify_note": "同系列1x4P=C2905435/1x14P=C2905490,此8P规格下单前核实C号",
+    "lcsc": ""
+  },
+  {
+    "role": "header_1x10",
+    "mpn": "KH-2.54PH180-1X10P-L11.5",
+    "value": "HDR-14",
+    "package": "THT_2.54",
+    "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x14_P2.54mm_Vertical",
+    "datasheet": "doc/pinheader.pdf",
+    "description": "2.54mm 1x10 vertical pin header (kinghelm)",
+    "stock": 0,
+    "price": "",
+    "basic": false,
+    "alternatives": [],
+    "verified": false,
+    "verified_at": "2026-10-21",
+    "verify_source": "item.szlcsc.com/3175228.html",
+    "verify_note": "同系列1x4P=C2905435/1x14P=C2905490,此10P规格下单前核实C号",
+    "lcsc": ""
   }
 ]

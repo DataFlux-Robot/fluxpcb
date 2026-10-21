@@ -101,19 +101,30 @@ def devboard_roles(spec: dict) -> list[dict]:
     """
     cons = spec.get("constraints") or {}
     buttons = max(1, int(cons.get("buttons", 2)))
+    leds = max(1, int(cons.get("leds", 2)))
+    prog = bool(cons.get("prog_header", True))
+    rows = int((cons.get("headers") or {}).get("rows", 2))
+    header_role = {8: "header_1x08", 10: "header_1x10", 14: "header_1x14"}         .get(int((cons.get("headers") or {}).get("pins_per_row", 14)), "header_1x14")
     roles: list[dict] = [
         {"role": "module", "refs": ["MOD1"]},
         {"role": "usb_c", "refs": ["J4"]},
         {"role": "ldo", "refs": ["U1"]},
         {"role": "button", "refs": [f"SW{i+1}" for i in range(buttons)]},
         {"role": "led", "value": "RED", "refs": ["D1"]},
-        {"role": "led", "value": "BLUE", "refs": ["D2"]},
-        {"role": "res", "value": "10k", "refs": ["R2", "R3"]},      # EN/IO0 pull-ups
-        {"role": "res", "value": "1k", "refs": ["R1", "R4"]},       # LED series
-        {"role": "res", "value": "5.1k", "refs": ["R5", "R6"]},     # USB-C CC
-        {"role": "cap", "value": "10uF", "refs": ["C1", "C2"]},     # LDO in/out
-        {"role": "cap", "value": "100nF", "refs": ["C3"]},          # EN filter
-        {"role": "header_1x14", "refs": ["J1", "J2"]},
-        {"role": "header_1x04", "refs": ["J3"]},
     ]
+    if leds > 1:
+        roles.append({"role": "led", "value": "BLUE", "refs": ["D2"]})
+    roles += [
+        # EN pull-up always; IO0 pull-up only with a boot button
+        {"role": "res", "value": "10k",
+         "refs": ["R2"] + (["R3"] if buttons > 1 else [])},
+        {"role": "res", "value": "1k",
+         "refs": ["R1"] + (["R4"] if leds > 1 else [])},           # LED series
+        {"role": "res", "value": "5.1k", "refs": ["R5", "R6"]},    # USB-C CC
+        {"role": "cap", "value": "10uF", "refs": ["C1", "C2"]},    # LDO in/out
+        {"role": "cap", "value": "100nF", "refs": ["C3"]},         # EN filter
+        {"role": header_role, "refs": [f"J{i+1}" for i in range(rows)]},
+    ]
+    if prog:
+        roles.append({"role": "header_1x04", "refs": ["J3"]})
     return roles
