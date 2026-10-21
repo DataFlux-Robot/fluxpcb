@@ -44,17 +44,42 @@ flux gate projects/esp32s31-dev --only impedance_si,irdrop   # 单独跑门禁
 - [x] Phase B1 — ESP32-S31开发板:ERC=0,DRC=0,12/12门禁绿,Gerber导出 ✅
 - [ ] Phase B2 — HPM6E80核心板(球阵映射待FAE数据手册)
 
+---
+
 ## 项目案例
 
-![ESP32-S31 Dev Board — Top](gallery/esp32s31-dev/pcb_top.svg)
+### 案例 1:ESP32-S31 开发板
 
-![ESP32-S31 Dev Board — Bottom](gallery/esp32s31-dev/pcb_bottom.svg)
+**Prompt:**
 
-> 🟢 **首个完整设计案例**:树莓派Zero尺寸ESP32-S31开发板(65×30mm 2层) — 12/12门禁全绿,KiCad ERC=0,DRC=0,Gerber已导出可直接下单 → [gallery/esp32s31-dev/](gallery/esp32s31-dev/prompt.md)
+> 只绘制一个树莓派Zero大小的esp32 s31开发板
 
-| 项目 | 板卡 | 门禁 | 详情 |
-|---|---|---|---|
-| [esp32s31-dev](gallery/esp32s31-dev/prompt.md) | ESP32-S31 WiFi6开发板 65×30mm | 12/12 🟢 | [PCB下载](gallery/esp32s31-dev/esp32s31-dev-pcb.zip) |
+**效果展示:**
+
+![顶层装配视图](gallery/esp32s31-dev/render_assembly_top.svg)
+
+<details>
+<summary>查看更多渲染图</summary>
+
+![底层装配视图](gallery/esp32s31-dev/render_assembly_bottom.svg)
+
+![顶层铜箔布线](gallery/esp32s31-dev/render_copper_top.svg)
+
+![顶层丝印标注](gallery/esp32s31-dev/render_silk_top.svg)
+
+</details>
+
+**验证结果:** 12/12门禁全绿 · KiCad ERC=0 · DRC=0 · Gerber已导出
+
+| | |
+|---|---|
+| 板卡 | ESP32-S31 WiFi6开发板,65×30mm,2层 |
+| 主控 | ESP32-S31-WROOM-3U(RISC-V双核320MHz) |
+| 接口 | USB-C(供电+数据) · 28 GPIO · 烧录口 |
+| 📦 下载 | [完整PCB项目](gallery/esp32s31-dev/esp32s31-dev-pcb.zip)(144KB) |
+| 📋 详情 | [gallery/esp32s31-dev/prompt.md](gallery/esp32s31-dev/prompt.md) |
+
+---
 
 ## License
 
