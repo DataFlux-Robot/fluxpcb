@@ -24,6 +24,77 @@ def f(v):
     return s if s else "0"
 
 
+def weld_endpoints(segments, vias, tol_mm=0.005):
+    """Merge near-coincident (<5um) chain endpoints (and via points) so KiCad
+    connectivity closes across the router's 0.1um anchor steps."""
+    import math
+    pat = re.compile(
+        r'(\(segment \(start )([-0-9.]+) ([-0-9.]+)(\) \(end )([-0-9.]+) ([-0-9.]+)(\).*)')
+    via_pat = re.compile(r'(\(via \(at )([-0-9.]+) ([-0-9.]+)(\).*)')
+
+    pts = []
+    parsed = []
+    for ln in segments:
+        m = pat.match(ln)
+        parsed.append(m)
+        if m:
+            pts.append((float(m.group(2)), float(m.group(3))))
+            pts.append((float(m.group(5)), float(m.group(6))))
+    via_parsed = []
+    for ln in vias:
+        m = via_pat.match(ln)
+        via_parsed.append(m)
+        if m:
+            pts.append((float(m.group(2)), float(m.group(3))))
+
+    parent = list(range(len(pts)))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    # grid-bucket to avoid O(n^2) worst case (small n anyway)
+    buckets = {}
+    cell = tol_mm
+    for i, (x, y) in enumerate(pts):
+        buckets.setdefault((math.floor(x / cell), math.floor(y / cell)), []).append(i)
+    for (bx, by), idxs in buckets.items():
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                for j in buckets.get((bx + dx, by + dy), []):
+                    for i in idxs:
+                        if i < j and (abs(pts[i][0] - pts[j][0]) <= tol_mm and
+                                      abs(pts[i][1] - pts[j][1]) <= tol_mm):
+                            ri, rj = find(i), find(j)
+                            if ri != rj:
+                                parent[rj] = ri
+    reps = {}
+    for i in range(len(pts)):
+        reps.setdefault(find(i), pts[i])
+
+    out = []
+    k = 0
+    for ln, m in zip(segments, parsed):
+        if not m:
+            out.append(ln)
+            continue
+        x1, y1 = reps[find(2 * k)]
+        x2, y2 = reps[find(2 * k + 1)]
+        k += 1
+        out.append(m.group(1) + f(x1) + " " + f(y1) + m.group(4) +
+                   f(x2) + " " + f(y2) + m.group(7))
+    vout = []
+    for ln, m in zip(vias, via_parsed):
+        if not m:
+            vout.append(ln)
+            continue
+        x, y = reps[find(len(pts) - len(vias) + vout.__len__())] if False else None
+        vout.append(ln)  # via positions unchanged; welding only affects segments
+    return out
+
+
 def convert(dsn_path: Path, pcb_path: Path) -> dict:
     txt = dsn_path.read_text(encoding="utf-8", errors="replace")
     # net name -> number from the pcb file
@@ -41,23 +112,32 @@ def convert(dsn_path: Path, pcb_path: Path) -> dict:
             r'\(net ([^\s)]+)', txt):
         layer_raw, width, coords_raw, net = m.groups()
         net = net.strip('"')
-        block = txt[m.start():m.end() + 60]
-        if "shoveFixed" in block:
-            stats["skipped_shove_fixed"] = stats.get("skipped_shove_fixed", 0) + 1
-            continue
         layer = LAYER_MAP.get(layer_raw)
         if layer is None:
             continue
         w_mm = float(width) / 1000.0
         nums = [float(x) for x in coords_raw.replace("\n", " ").split()]
-        pairs = [(nums[i], nums[i + 1], nums[i + 2], nums[i + 3])
-                 for i in range(0, len(nums) - 3, 4)]
+        verts = [(nums[i], nums[i + 1]) for i in range(0, len(nums) - 1, 2)]
+        if len(verts) >= 3:
+            steps = [((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2) ** 0.5
+                     for a, b in zip(verts, verts[1:])]
+            frac_tiny = sum(1 for s in steps if s < 5.0) / len(steps)
+        else:
+            frac_tiny = 1.0
+        if frac_tiny > 0.3:
+            # artifact wire (anchor-stub noise): pair form, no chaining
+            pairs = [(nums[i], nums[i + 1], nums[i + 2], nums[i + 3])
+                     for i in range(0, len(nums) - 3, 4)]
+        else:
+            # clean route: vertex chain
+            pairs = [(v1[0], v1[1], v2[0], v2[1])
+                     for v1, v2 in zip(verts, verts[1:])]
         nn = net_nums.get(net, "0")
         nm = net if net else ""
         stats["wires"] += 1
         for x1, y1, x2, y2 in pairs:
             length = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
-            if length < 0.05:  # exact-zero only; sub-um stubs are pad anchors
+            if length < 5.0:  # drop <5um noise segments (coords are in um here)
                 stats["skipped_degenerate"] += 1
                 continue
             segments.append(
@@ -93,6 +173,7 @@ def convert(dsn_path: Path, pcb_path: Path) -> dict:
         for m in re.finditer(r'\(via\s+"([^"]+)"\s+"[^"]+"\s*\(net ([^\s)]+)', txt):
             pass  # counted via_specs only
 
+    segments = weld_endpoints(segments, vias)
     inject = "\n".join(segments + vias)
     if inject:
         pcb_txt = pcb_txt.rstrip()

@@ -1,0 +1,87 @@
+project: esp32s31-dev
+requirements:
+- id: FR-001
+  text: 65x30mm Pi-Zero尺寸2层板
+  priority: must
+  covered_by:
+  - constraints
+- id: FR-002
+  text: ESP32-S31-WROOM-3U模块+官方引脚表
+  priority: must
+  covered_by:
+  - bom
+- id: FR-003
+  text: USB-C 5V供电+原生USB数据+CC下拉
+  priority: must
+  covered_by:
+  - J4
+- id: FR-004
+  text: AP2112K-3.3电源
+  priority: must
+  covered_by:
+  - U1
+- id: FR-005
+  text: RESET/BOOT按键+双LED
+  priority: must
+  covered_by:
+  - SW1
+  - SW2
+- id: FR-006
+  text: 2x14 GPIO排针+4p烧录排针
+  priority: must
+  covered_by:
+  - J1
+  - J2
+  - J3
+- id: FR-007
+  text: 双面GND铺铜
+  priority: must
+  covered_by:
+  - zones
+power:
+  input: USB-C 5V
+  rails:
+  - cu_mm: 0.035
+    current_a: 0.5
+    max_drop_pct: 3.0
+    name: 3V3
+    sinks:
+    - weight: 1.0
+      x: 32
+      y: 15
+    v: 3.3
+  total_w: 1.5
+interfaces:
+- connections:
+  - USB_DP
+  - USB_DM
+  differential: true
+  h_mm: 0.2
+  high_speed: true
+  impedance_ohm: 90
+  name: usb20
+  s_mm: 0.2
+  style: microstrip
+  tolerance_pct: 15
+  type: usb2-fs
+- connections:
+  - 3V3
+  - GND
+  mcu:
+    family: esp32s31
+    pins:
+      en: '5'
+      io0: '8'
+      rx0: '69'
+      tx0: '68'
+      usb_dm: '41'
+      usb_dp: '40'
+  name: mcu
+  power_w: 0.6
+  type: mcu
+constraints:
+  er: 4.4
+  layers: 2
+  size_mm:
+  - 65
+  - 30

@@ -1,0 +1,14 @@
+layers: 2
+er: 4.4
+layer_order:
+- L1
+- L2
+impedance_targets:
+- net_class: usb20
+  style: microstrip
+  z_target: 90.0
+  tolerance_pct: 15
+  differential: true
+  h_mm: 0.2
+  s_mm: 0.2
+  er: 4.4

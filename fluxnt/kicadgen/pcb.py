@@ -102,13 +102,17 @@ class Fp:
         self.pad_nets = pad_nets or {}
 
     def inject(self, netmap: dict[str, tuple[int, str]]):
-        """netmap: net name -> (number, name). Insert position/uuid and pad nets."""
+        """netmap: net name -> (number, name). Insert position/uuid and pad nets.
+
+        Footprint rotation is BAKED into pads (position, size swap, pad angle)
+        and the footprint saved with rot=0 — this mirrors what KiCad's own
+        saver does and avoids transform ambiguity in DRC.
+        """
         tree = self.tree
-        # uuid + at after (layer ...)
         layer_i = next(i for i, (k, v) in enumerate(tree) if k == "n" and v[0][1] == "layer")
         tree.insert(layer_i + 1, ("n", [("a", "uuid"), ("s", uid())]))
         tree.insert(layer_i + 2, ("n", [("a", "at"), ("a", _f(self.x)),
-                                        ("a", _f(self.y)), ("a", _f(self.rot))]))
+                                        ("a", _f(self.y)), ("a", "0")]))
         # Reference / Value
         for prop in _find_all(tree, "property"):
             key = prop[1][1]
@@ -116,6 +120,34 @@ class Fp:
                 prop[2] = ("s", self.ref)
             elif key == "Value":
                 prop[2] = ("s", self.value)
+        # bake rotation into pads
+        rot = int(self.rot) % 360
+        if rot:
+            for pad in _find_all(tree, "pad"):
+                for node in pad:
+                    if node[0] != "n":
+                        continue
+                    head = node[1][0][1] if node[1] and node[1][0][0] == "a" else None
+                    if head == "at":
+                        vals = [it for it in node[1][1:]]
+                        x, y = float(vals[0][1]), float(vals[1][1])
+                        ang = float(vals[2][1]) if len(vals) > 2 else 0.0
+                        if rot == 90:
+                            x, y = y, -x
+                        elif rot == 180:
+                            x, y = -x, -y
+                        elif rot == 270:
+                            x, y = -y, x
+                        new = [("a", "at"), ("a", _f(x)), ("a", _f(y))]
+                        if len(vals) > 2:            # original pad had an angle
+                            new.append(("a", _f((ang + rot) % 360)))
+                        node[1][:] = new
+                    elif head == "size":
+                        vals = node[1][1:]
+                        w, h = float(vals[0][1]), float(vals[1][1])
+                        if rot in (90, 270):
+                            w, h = h, w
+                        node[1][:] = [("a", "size"), ("a", _f(w)), ("a", _f(h))]
         # pad nets
         for pad in _find_all(tree, "pad"):
             num = pad[1][1]
@@ -123,7 +155,6 @@ class Fp:
             if not netname or netname not in netmap:
                 continue
             nn, nm = netmap[netname]
-            # drop stale net, insert fresh after (layers ...) or at pad end
             pad[:] = [it for it in pad if not (it[0] == "n" and it[1] and it[1][0][1] == "net")]
             layers = next((i for i, it in enumerate(pad)
                            if it[0] == "n" and it[1] and it[1][0][1] == "layers"), len(pad) - 1)
@@ -183,6 +214,22 @@ class Board:
         self.footprints.append(fp)
         return fp
 
+    def ground_zones(self, net_name: str = "GND") -> list[str]:
+        """Full-board GND pours on F.Cu and B.Cu (2-layer standard practice)."""
+        n = self.nets.get(net_name, 0)
+        w, h = _f(self.w), _f(self.h)
+        zones = []
+        for layer in ("F.Cu", "B.Cu"):
+            zones.append(
+                f'\t(zone (net {n}) (net_name "{net_name}") '
+                f'(layer "{layer}") (uuid "{uid()}") (hatch edge 0.508) '
+                f'(connect_pads (clearance 0.25)) (min_thickness 0.2) '
+                f'(filled_areas_thickness no) '
+                f'(fill (thermal_gap 0.5) (thermal_bridge_width 0.5)) '
+                f'(polygon (pts (xy 0.2 0.2) (xy {w} -0.2) (xy {w} {h}) '
+                f'(xy 0.2 {h}))))')
+        return zones
+
     def to_text(self) -> str:
         netmap = {n: (i, n) for n, i in self.nets.items()}
         fps = []
@@ -221,6 +268,7 @@ class Board:
                 f"\t(net 0 \"\")\n" +
                 "\n".join(self.net_lines[1:]) + "\n" +
                 "\n".join(fps) + "\n" +
+                "\n".join(self.ground_zones()) + "\n" +
                 outline + "\n)\n")
         return text
 

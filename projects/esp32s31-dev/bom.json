@@ -1,0 +1,10 @@
+[
+ {
+  "ref": "U1",
+  "mpn": "GENERIC",
+  "lcsc": "C000000",
+  "footprint": "GENERIC",
+  "datasheet": "doc/generic.pdf",
+  "value": "seed"
+ }
+]

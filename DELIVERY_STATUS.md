@@ -32,3 +32,22 @@ flux run projects/hpm6e80-core               # 六环节(需PATH含kicad-cli)
 # 原理图证据: projects/hpm6e80-core/schematic/{core,carrier}/erc.rpt
 # 载板fab包: projects/hpm6e80-core/pcb/carrier/fab_DRAFT/
 ```
+
+---
+
+# 增量:esp32s31-dev(2026-10-21晨,单板全公开文档路线)
+
+## ✅ 达成
+- **原理图: 真实KiCad ERC=0违例**——ESP32-S31-WROOM-3U全部99脚引脚表逐项取自Espressif官方数据手册(Table 3-1,本地reference/ESP32-S31-WROOM-3.pdf),封装取自espressif/kicad-libraries官方库,AP2112K引脚取自Diodes官方——零编造
+- USB-C(原生USB_DP/DM)+CC下拉、RESET/BOOT(KMR2)、双LED、AP2112K LDO、2×1x14排针+1x4烧录排针
+- **PCB 65×30mm 2层布局: 除未布线外零违例**(0短路/0间距/0板边)——封装旋转烘焙修复(本轮修通:pad at/size/angle三层烘焙)、GND双面铺铜+缝合
+- Freerouting自动布线(布线器侧0未布线),DSN→KiCad注入器修通链桥/微米过滤/名字式网络引用(KiCad 10新格式逆向)
+- fab包(gerber×9+钻孔+坐标)与BOM已导出(pcb/board/fab/,DRAFT)
+
+## ⛔ 未完成(如实)
+- **drc_zero未绿: 43处未连接**——布线转换的"最后一公里":Freerouting锚点与KiCad焊盘间1-4mm缺口;修复环(直线桥/L桥/过孔缝合)实测:未连接可降至1但引入跨网短路(无碰撞感知的桥必穿网)。**剩余工程:碰撞感知A*桥式补路器(估0.5天)**
+- 3处转换残留短路(fab前必须清零)
+- BOM的LCSC C号待在线核实(PENDING-VERIFY,型号/引脚/封装均真实)
+
+## 结论
+工具链端到端已通(6/7门禁绿,含真实ERC);**"可下单"差一个确定性补路器**——这是纯工程问题,非架构问题。

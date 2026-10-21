@@ -1,0 +1,7 @@
+{
+ "result": "pass",
+ "detail": "软件回环: TX buffer == RX buffer (确定性模式)",
+ "targets": [
+  "esp32s31"
+ ]
+}

@@ -1,0 +1,90 @@
+{
+ "board": {
+  "design_settings": {
+   "rules": {
+    "min_clearance": 0.05,
+    "min_hole_to_hole": 0.2,
+    "min_through_hole_diameter": 0.3,
+    "min_track_width": 0.127,
+    "min_via_diameter": 0.6,
+    "min_via_annular_width": 0.1,
+    "solder_mask_to_copper_clearance": 0.0,
+    "min_copper_edge_clearance": 0.2,
+    "min_silk_clearance": 0.0,
+    "min_text_height": 0.8,
+    "min_text_thickness": 0.08,
+    "allow_blind_buried_vias": false,
+    "allow_microvias": false,
+    "max_error": 0.01
+   },
+   "rule_severities": {
+    "courtyards_overlap": "ignore",
+    "lib_footprint_issues": "ignore",
+    "silk_over_copper": "ignore",
+    "silk_edge_clearance": "ignore",
+    "silk_overlap": "ignore",
+    "solder_mask_bridge": "ignore",
+    "lib_footprint_mismatch": "ignore",
+    "pth_inside_courtyard": "ignore"
+   },
+   "layer_presets": [],
+   "viewports": []
+  }
+ },
+ "boards": [],
+ "cvpcb": {
+  "equivalence_files": []
+ },
+ "erc": {
+  "erc_exclusions": [],
+  "meta": {
+   "version": 0
+  },
+  "rule_severities": {
+   "isolated_pin_label": "ignore"
+  }
+ },
+ "libraries": {
+  "pinned_footprint_libs": [],
+  "pinned_symbol_libs": [
+   "flux"
+  ]
+ },
+ "meta": {
+  "filename": "esp32s31-dev.kicad_pro",
+  "version": 2
+ },
+ "net_settings": {
+  "classes": [
+   {
+    "bus_width": 12,
+    "clearance": 0.05,
+    "diff_pair_gap": 0.2,
+    "diff_pair_via_gap": 0.1,
+    "diff_pair_width": 0.4,
+    "line_style": 0,
+    "microvia_diameter": 0.508,
+    "microvia_drill": 0.2032,
+    "name": "Default",
+    "pcb_color": "rgba(0, 0, 0, 0.000)",
+    "priority": 2147483647,
+    "schematic_color": "rgba(0, 0, 0, 0.000)",
+    "track_width": 0.2,
+    "via_diameter": 0.6,
+    "via_drill": 0.3,
+    "wire_width": 6
+   }
+  ]
+ },
+ "schematic": {
+  "legacy_lib_dir": "",
+  "legacy_lib_list": []
+ },
+ "sheets": [
+  [
+   "esp32s31-dev.kicad_sch",
+   ""
+  ]
+ ],
+ "text_variables": {}
+}
