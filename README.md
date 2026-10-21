@@ -2,6 +2,12 @@
 
 **全自动AI电路设计流水线** — 需求分析 → 器件选型 → 原理图 → PCB设计 → 验收仿真 → 固件开发,六环节一键贯通,每一步都有机器可判定的验证门禁。
 
+![ESP32-S31 Dev Board — Top](gallery/esp32s31-dev/pcb_top.svg)
+
+![ESP32-S31 Dev Board — Bottom](gallery/esp32s31-dev/pcb_bottom.svg)
+
+> 🟢 **首个完整设计案例**:树莓派Zero尺寸ESP32-S31开发板(65×30mm 2层) — 12/12门禁全绿,KiCad ERC=0,DRC=0,Gerber已导出可直接下单 → [gallery/esp32s31-dev/](gallery/esp32s31-dev/prompt.md)
+
 ```
 需求 ──▶ spec.yaml ──▶ BOM ──▶ 原理图 ──▶ PCB ──▶ 仿真验证 ──▶ 固件
          ▲            ▲        ▲          ▲         ▲           ▲
@@ -20,16 +26,16 @@
 
 ```bash
 pip install -e .
-flux run projects/_example       # 端到端跑通示例项目(六环节+门禁)
-flux report projects/_example    # 查看审计报告
-flux gate projects/_example --only impedance_si,irdrop   # 单独跑门禁
+flux run projects/esp32s31-dev        # 端到端跑通示例项目(六环节+门禁)
+flux report projects/esp32s31-dev    # 查看审计报告
+flux gate projects/esp32s31-dev --only impedance_si,irdrop   # 单独跑门禁
 ```
 
 ## 工具链(全部可选,缺失时相关门禁进入blocked状态)
 
 | 工具 | 用途 | 环节 |
 |---|---|---|
-| KiCad 8+ (kicad-cli) | 原理图/PCB生成、ERC、DRC、网表 | 原理图/PCB设计 |
+| KiCad 10+ (kicad-cli) | 原理图/PCB生成、ERC、DRC、网表 | 原理图/PCB设计 |
 | ngspice | 电路功能仿真+蒙特卡洛 | 验收仿真 |
 | openEMS + gerber2ems | 阻抗/S参数/EM场终验 | 验收仿真 |
 | Freerouting | 自动布线(DSN/SES) | PCB设计 |
@@ -40,8 +46,15 @@ flux gate projects/_example --only impedance_si,irdrop   # 单独跑门禁
 
 ## 项目状态
 
-- [x] Phase A — 工具本体:编排引擎+门禁框架+物理内核+CLI
-- [ ] Phase B — 首个设计案例:HPM6E80×ESP32-S31核心板(树莓派Zero尺寸,EtherCAT×2+TSN)
+- [x] Phase A — 工具本体:编排引擎+门禁框架+物理内核+CLI(26个单元测试全绿)
+- [x] Phase B1 — ESP32-S31开发板:ERC=0,DRC=0,12/12门禁绿,Gerber导出 ✅
+- [ ] Phase B2 — HPM6E80核心板(球阵映射待FAE数据手册)
+
+## Gallery
+
+| 项目 | 板卡 | 门禁 | 详情 |
+|---|---|---|---|
+| [esp32s31-dev](gallery/esp32s31-dev/prompt.md) | ESP32-S31 WiFi6开发板 65×30mm | 12/12 🟢 | [PCB下载](gallery/esp32s31-dev/esp32s31-dev-pcb.zip) |
 
 ## License
 
