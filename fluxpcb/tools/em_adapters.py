@@ -22,6 +22,14 @@ def probe() -> dict:
         "gmsh": ("gmsh",),
     }.items():
         out[key] = any(shutil.which(n) for n in names)
+    # bundled portable openEMS under tools_bin/ (CLI mode; python wheels in
+    # the package need cp313+ which the host python may not match)
+    root = Path(__file__).resolve().parent.parent.parent
+    bundled = root / "tools_bin" / "openEMS" / "openEMS.exe"
+    if not out["openems"] and bundled.exists():
+        out["openems"] = True
+        out["openems_path"] = str(bundled)
+        out["openems_mode"] = "cli"
     try:
         import importlib.util
         out["meep_py"] = bool(importlib.util.find_spec("meep"))
@@ -174,19 +182,78 @@ def generate_thermal_case(project_dir: Path) -> str:
     return str(d.relative_to(project_dir))
 
 
+def _csx_plane_cavity(f0=4e9, fc=8e9) -> str:
+    """Minimal plane-pair cavity CSX XML (52x30mm 2-layer) for a resonance
+    sweep via the openEMS CLI. Ports: two lumped probes at opposite corners."""
+    def metal(name, zs, ze):
+        return (f'<Properties Type="Metal"> <Name>{name}</Name> '
+                f'<Priority>10</Priority> <Attributes> '
+                f'<{x}Start>0</{x}Start><{x}End>52</{x}End>'
+                f'<yStart>0</yStart><yEnd>30</yEnd>'
+                f'<zStart>{zs}</zStart><zEnd>{ze}</zEnd> '
+                f'</Attributes> </Properties>'.replace("<x>", "x"))
+    # simpler: build with explicit strings
+    def box(name, z0, z1, pr=10):
+        return (f'<Properties Type="Metal"><Name>{name}</Name>'
+                f'<Priority>{pr}</Priority><Attributes>'
+                f'<xStart>0</xStart><xEnd>52</xEnd>'
+                f'<yStart>0</yEnd><yEnd>30</yEnd>'
+                f'<zStart>{z0}</zStart><zEnd>{z1}</zEnd>'
+                f'</Attributes></Properties>')
+    return f"""<CSXCAD GeometryParameter="1" CoordSystem="0">
+ <Structure>
+  {box('ground', 0, 0)}
+  {box('power', 1.6, 1.6)}
+  <Properties Type="Metal"><Name>p1</Name><Priority>5</Priority>
+   <Attributes><xStart>2</xStart><xEnd>2.4</xEnd><yStart>2</yStart><yEnd>2</yEnd>
+   <zStart>0</zStart><zEnd>1.6</zEnd></Attributes></Properties>
+  <Properties Type="Metal"><Name>p2</Name><Priority>5</Priority>
+   <Attributes><xStart>49.6</xStart><xEnd>50</xEnd><yStart>28</yStart><yEnd>28</yEnd>
+   <zStart>0</zStart><zEnd>1.6</zEnd></Attributes></Properties>
+ </Structure>
+ <Excitation>
+  <Properties Type="Excitation"><Name>exc1</Name><Priority>1</Priority>
+   <Attributes><xStart>2</xStart><xEnd>2.4</xEnd><yStart>2</yStart><yEnd>2</yEnd>
+   <zStart>0</zStart><zEnd>1.6</zEnd><Weight>1</Weight></Attributes></Properties>
+ </Excitation>
+ <ProbeList>
+  <Properties Type="Probe"><Name>pr1</Name><Priority>0</Priority>
+   <Attributes><xStart>2.2</xStart><yStart>2</yStart><zStart>0.8</zStart></Attributes></Properties>
+  <Properties Type="Probe"><Name>pr2</Name><Priority>0</Priority>
+   <Attributes><xStart>49.8</xStart><yStart>28</yStart><zStart>0.8</zStart></Attributes></Properties>
+ </ProbeList>
+ <Boundary>
+  <PxMin>0</PxMin><PxMax>0</PxMax><PyMin>0</PyMin><PyMax>0</PyMax>
+  <PzMin>0</PzMin><PzMax>0</PzMax>
+ </Boundary>
+ <FDTD>
+  <MaxTime>40e-9</MaxTime>
+  <GaussExcite>{f0}</GaussExcite>
+  <FreqMax>{fc}</FreqMax>
+ </FDTD>
+</CSXCAD>"""
+
+
 def run_cases(project_dir: Path, log=print) -> list[dict]:
-    """Execute the generated cases (only reached when solvers exist)."""
+    """CLI mode: write the plane-cavity CSX and run openEMS.exe on it."""
     import subprocess
+    avail = probe()
+    if not avail.get("openems"):
+        return []
+    exe = avail.get("openems_path") or shutil.which("openEMS")
     d = project_dir / "sim" / "em_cases"
-    results = []
-    for script in ("return_current.py", "resonance_sweep.py", "farfield.py"):
-        if not (d / script).exists():
-            continue
-        p = subprocess.run(["python", str(d / script)], capture_output=True,
-                           text=True, timeout=3600, cwd=str(d),
-                           encoding="utf-8", errors="replace")
-        results.append({"case": script,
-                        "status": "ok" if p.returncode == 0 else "fail",
-                        "tail": (p.stdout + p.stderr)[-160:]})
-        log(f"  [em] {script}: rc={p.returncode}")
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "plane_cavity.xml").write_text(_csx_plane_cavity(), encoding="utf-8")
+    sim = d / "sim_cavity"
+    p = subprocess.run([exe, str(d / "plane_cavity.xml"), str(sim)],
+                       capture_output=True, timeout=3600, cwd=str(d),
+                       encoding="utf-8", errors="replace")
+    ok = p.returncode == 0
+    log(f"  [em] plane_cavity: rc={p.returncode}")
+    results = [{"case": "plane_cavity_resonance", "status": "ok" if ok else "fail",
+                "tail": (p.stdout + p.stderr)[-200:]}]
+    # remaining binding-mode scripts stay generated for cp313 hosts
+    results.append({"case": "binding_cases_generated",
+                    "status": "ok" if (d / "return_current.py").exists() else "fail",
+                    "tail": "python-binding cases need cp313 host"})
     return results

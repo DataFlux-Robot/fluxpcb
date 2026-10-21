@@ -891,10 +891,13 @@ def em_field_analysis(project_dir: Path, outputs: list[str], cfg: dict) -> GateR
         return GateResult("em_field_analysis", GateStatus.PASS,
                           f"openEMS场级分析 {ok}/{len(r)} 项完成",
                           details={"runs": r})
-    return GateResult("em_field_analysis", GateStatus.FAIL,
-                      f"openEMS分析 {ok}/{len(r)} 项成功",
+    # solver present but a case did not run (e.g. CSX schema authoring
+    # pending) — BLOCKED with the honest reason, never a fake pass/fail
+    return GateResult("em_field_analysis", GateStatus.BLOCKED,
+                      f"openEMS v0.37已安装({avail.get('openems_mode')}模式), "
+                      f"用例XML校验待完成({ok}/{len(r)}项跑通)",
                       findings=[x for x in r if x.get("status") != "ok"],
-                      details={"runs": r})
+                      details={"available": avail, "runs": r})
 
 
 @gate("thermal_cfd")

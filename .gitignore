@@ -16,3 +16,4 @@ core_out/
 *.rpt
 ses_import.log
 ses_import.err
+tools_bin/openEMS/
