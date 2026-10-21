@@ -202,13 +202,15 @@ def route_with_freerouting(pcb_path: Path, kipy: str, log=print) -> dict:
     # pins the single-thread optimizer (the MT one NPEs during batch save).
     _pin_freerouting_config()
     last_err = ""
-    for attempt in range(1, 4):
+    for attempt in range(1, 3):
         if routed.exists():
             routed.unlink()
-        p = subprocess.run([java, "-jar", jar,
+        # headless: an NPE inside freerouting otherwise raises a MODAL AWT
+        # dialog headless-pipelines hang on for the full timeout
+        p = subprocess.run([java, "-Djava.awt.headless=true", "-jar", jar,
                             "-de", dsn.name, "-do", routed.name,
                             "-mp", "40", "-l", "en"],
-                           capture_output=True, text=True, timeout=3600, cwd=str(work))
+                           capture_output=True, text=True, timeout=600, cwd=str(work))
         if routed.exists() and routed.stat().st_size > 0:
             break
         tail = (p.stdout + p.stderr)[-200:].replace("\n", " ")
@@ -250,9 +252,24 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
     steps: list[str] = []
     last = {"unconnected": -1, "shorting": -1}
 
+    import os
+    light = os.environ.get("FLUXNT_ROUTE_LIGHT") == "1"
+
+    # fast path: an already-clean board (e.g. released green board under
+    # re-verify) skips the whole chain — also protects it from re-routing
+    drc0 = run_drc(kicad_cli, pcb_path, rpt)
+    if drc0["unconnected"] == 0 and drc0["shorting"] == 0             and "[clearance]" not in drc0["text"]:
+        steps.append("initial DRC clean — routing skipped")
+        log("  [route] initial DRC clean, skip")
+        return {"iterations": 0, "unconnected": 0, "shorting": 0,
+                "clean": True, "steps": steps}
+    if light:
+        max_iterations = min(max_iterations, 1)
+
     # heavy-duty pass first when freerouting is bundled, then the in-process
     # L-router finishes residue; both bounded
-    fr = route_with_freerouting(pcb_path, kipy, log=log)
+    fr = ({"ok": False, "error": "light mode"}
+          if light else route_with_freerouting(pcb_path, kipy, log=log))
     if fr.get("ok"):
         steps.append(f"freerouting: {fr.get('stats')}")
     else:

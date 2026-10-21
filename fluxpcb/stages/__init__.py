@@ -253,6 +253,18 @@ def stage_pcb_layout(ctx: StageContext) -> None:
         except Exception as e:
             ctx.note(f'KiCad PCB生成失败,保留种子: {e}')
 
+    # parametric dev-board family generation (W3): spec.family selects the
+    # generator; existing boards are never overwritten (green-board safety)
+    if (spec.get("constraints") or {}).get("family") == "esp32s31-devboard":
+        from fluxpcb.kicadgen.devboard import DevBoardParams, write_all
+        params = DevBoardParams.from_spec(spec)
+        board_file = d / "pcb" / "board" / f"{params.name}.kicad_pcb"
+        if not board_file.exists():
+            out = write_all(params, d)
+            ctx.note(f"板族PCB已生成(规则布局): {out['pcb']}")
+        else:
+            ctx.note(f"板族PCB已存在,跳过重新生成: {board_file.name}")
+
     # in-pipeline auto-routing for any generated board (W2): bounded
     # DRC -> L-route -> shorts-cleanup loop; hand-fixable residue stays
     # visible via calibrated severities instead of being faked away.

@@ -476,3 +476,143 @@ def firmware_spi_loopback(project_dir: Path, outputs: list[str], cfg: dict) -> G
                           f"SPI回环通过: {rep.get('detail', '')}", details=rep)
     return GateResult("firmware_spi_loopback", GateStatus.FAIL,
                       f"SPI回环失败: {rep.get('detail', '')}", details=rep)
+
+
+# ---------------------------------------------------------------- pcb placement
+def _sexpr_blocks(txt: str, head: str) -> list[str]:
+    """Balanced-paren extraction of every (head ...) block."""
+    blocks, i, key = [], 0, "(" + head
+    while True:
+        i = txt.find(key, i)
+        if i < 0:
+            break
+        depth, j = 0, i
+        in_str = False
+        while j < len(txt):
+            c = txt[j]
+            if in_str:
+                if c == '"':
+                    in_str = False
+            elif c == '"':
+                in_str = True
+            elif c == "(":
+                depth += 1
+            elif c == ")":
+                depth -= 1
+                if depth == 0:
+                    break
+            j += 1
+        blocks.append(txt[i:j + 1])
+        i = j + 1
+    return blocks
+
+
+def _fp_boxes(pcb_path: Path, with_names: bool = False):
+    """ref -> (x0, y0, x1, y1) global pad-bbox per footprint.
+    with_names: -> (ref -> (bbox, footprint_name)) for connector typing."""
+    import re
+    txt = pcb_path.read_text(encoding="utf-8", errors="replace")
+    boxes = {}
+    for blk in _sexpr_blocks(txt, "footprint "):
+        at = re.search(r"\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?", blk)
+        ref = re.search(r'\(property "Reference" "([^"]+)"', blk)
+        if not at or not ref:
+            continue
+        fx, fy = float(at.group(1)), float(at.group(2))
+        frot = float(at.group(3) or 0)
+        xs, ys = [fx], [fy]
+        for pm in re.finditer(
+                r'\(pad "[^"]+"[^\n]*\n\s*\(at ([-\d.]+) ([-\d.]+)[^\n]*\)\n\s*\(size ([\d.]+) ([\d.]+)', blk):
+            px, py = float(pm.group(1)), float(pm.group(2))
+            hw, hh = float(pm.group(3)) / 2, float(pm.group(4)) / 2
+            if frot:
+                import math as _m
+                a = _m.radians(frot)
+                px, py = fx + px * _m.cos(a) + py * _m.sin(a), fy - px * _m.sin(a) + py * _m.cos(a)
+            else:
+                px, py = fx + px, fy + py
+            xs += [px - hw, px + hw]
+            ys += [py - hh, py + hh]
+        bbox = (min(xs), min(ys), max(xs), max(ys))
+        name_m = re.match(r'\(footprint\s+"([^"]+)"', blk)
+        boxes[ref.group(1)] = (bbox, name_m.group(1)) if with_names else bbox
+    return boxes
+
+
+@gate("placement_quality")
+def placement_quality(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
+    """Rule-based placement scorecard: zero overlap, decaps near their IC,
+    connectors at board edge, sane density."""
+    import json
+    import re as _re
+    pcb_dir = project_dir / "pcb"
+    pcbs = sorted(pcb_dir.rglob("*.kicad_pcb")) if pcb_dir.exists() else []
+    if not pcbs:
+        return GateResult("placement_quality", GateStatus.BLOCKED, "无PCB文件")
+    findings, details = [], {}
+    for pcb in pcbs:
+        boxes_named = _fp_boxes(pcb, with_names=True)
+        boxes = {r: b for r, (b, _) in boxes_named.items()}
+        txt = pcb.read_text(encoding="utf-8", errors="replace")
+        edge = _re.search(
+            r'\(gr_rect[^\n]*\n\s*\(start ([-\d.]+) ([-\d.]+)\)\n\s*\(end ([-\d.]+) ([-\d.]+)\)',
+            txt)
+        W = H = None
+        if edge:
+            W = abs(float(edge.group(3)) - float(edge.group(1)))
+            H = abs(float(edge.group(4)) - float(edge.group(2)))
+        refs = sorted(boxes)
+        # overlap
+        overlaps = []
+        for i, a in enumerate(refs):
+            for b in refs[i + 1:]:
+                A, B = boxes[a], boxes[b]
+                if A[0] < B[2] and B[0] < A[2] and A[1] < B[3] and B[1] < A[3]:
+                    overlaps.append((a, b))
+        for a, b in overlaps[:8]:
+            findings.append({"issue": f"封装重叠: {a} <-> {b}"})
+        # decap distance: C* bulk caps (10uF) within 8mm of an IC (U*/MOD*)
+        decap_far = []
+        for r in refs:
+            if not r.startswith("C"):
+                continue
+            rx, ry = (boxes[r][0] + boxes[r][2]) / 2, (boxes[r][1] + boxes[r][3]) / 2
+            near = any(
+                abs((boxes[i][0] + boxes[i][2]) / 2 - rx) +
+                abs((boxes[i][1] + boxes[i][3]) / 2 - ry) < 8.0
+                for i in refs if i.startswith(("U", "MOD")))
+            if not near:
+                decap_far.append(r)
+        for r in decap_far[:6]:
+            findings.append({"issue": f"去耦电容 {r} 距任何IC > 8mm"})
+        # connector edge distance < 4mm when board size known
+        conn_far = []
+        if W and H:
+            for r in refs:
+                if not r.startswith("J"):
+                    continue
+                # breakout pin headers legitimately sit mid-board next to
+                # the module (Pi-Zero style); edge rule targets power/data
+                # connectors (USB, barrel, ...)
+                if "PinHeader" in boxes_named[r][1]:
+                    continue
+                x0, y0, x1, y1 = boxes[r]
+                d = min(x0, y0, W - x1, H - y1)
+                if d > 4.0:
+                    conn_far.append((r, round(d, 1)))
+        for r, d in conn_far[:6]:
+            findings.append({"issue": f"连接器 {r} 离板边 {d}mm (>4mm)"})
+        density = None
+        if W and H and W * H > 0:
+            area = sum((b[2] - b[0]) * (b[3] - b[1]) for b in boxes.values())
+            density = round(area / (W * H), 3)
+        details[pcb.name] = {"footprints": len(refs), "overlaps": len(overlaps),
+                             "decap_far": decap_far, "conn_far": conn_far,
+                             "density": density, "board_mm": [W, H]}
+    if findings:
+        return GateResult("placement_quality", GateStatus.FAIL,
+                          f"{len(findings)} 项布局质量问题", findings=findings,
+                          details=details)
+    return GateResult("placement_quality", GateStatus.PASS,
+                      "布局质量: 0重叠/去耦就近/连接器贴边",
+                      details=details)
