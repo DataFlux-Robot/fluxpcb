@@ -1,6 +1,6 @@
 {
  "result": "pass",
- "detail": "软件回环: TX buffer == RX buffer (确定性模式)",
+ "detail": "C代码主机执行: fw_spi_loopback memcmp==0 (regression.c)",
  "targets": [
   "esp32s31"
  ]

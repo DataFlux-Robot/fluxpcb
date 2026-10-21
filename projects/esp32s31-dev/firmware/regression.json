@@ -1,0 +1,14 @@
+{
+ "targets": [
+  {
+   "family": "esp32s31",
+   "build": "ok",
+   "main": "firmware\\esp32s31\\main\\main.c",
+   "regression": {
+    "family": "esp32s31",
+    "status": "ok",
+    "output_tail": "REGRESSION_PASS checks=14\n"
+   }
+  }
+ ]
+}

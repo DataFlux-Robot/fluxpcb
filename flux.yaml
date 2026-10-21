@@ -41,7 +41,7 @@ stages:
     runner: firmware
     inputs: [spec.yaml, bom.json, schematic/]
     outputs: [firmware/]
-    gates: [firmware_build, firmware_spi_loopback]
+    gates: [firmware_build, firmware_spi_loopback, firmware_regression]
 
 gate_policy:
   blocking: all          # all gates block release

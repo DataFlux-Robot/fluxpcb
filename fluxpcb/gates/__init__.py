@@ -616,3 +616,42 @@ def placement_quality(project_dir: Path, outputs: list[str], cfg: dict) -> GateR
     return GateResult("placement_quality", GateStatus.PASS,
                       "布局质量: 0重叠/去耦就近/连接器贴边",
                       details=details)
+
+
+# ---------------------------------------------------------------- firmware regression
+@gate("firmware_regression")
+def firmware_regression(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
+    """Host-compiled regression of the SAME fw_logic.c shipped in the target
+    firmware (pinmap sanity, boot sequence, debounce, SPI loopback, timing)."""
+    import json
+    reg = project_dir / "firmware" / "regression.json"
+    if not reg.exists():
+        return GateResult("firmware_regression", GateStatus.BLOCKED,
+                          "firmware/regression.json 不存在(先运行firmware环节)")
+    data = json.loads(reg.read_text(encoding="utf-8"))
+    targets = data.get("targets", [])
+    if not targets:
+        return GateResult("firmware_regression", GateStatus.BLOCKED, "无固件目标")
+    findings, ok = [], 0
+    for t in targets:
+        st = t.get("regression", {}).get("status")
+        if st == "ok" and "REGRESSION_PASS" in t["regression"].get("output_tail", ""):
+            ok += 1
+        elif st == "blocked":
+            findings.append({"family": t["family"],
+                             "issue": "无主机C编译器(gcc/MSVC)"})
+        else:
+            findings.append({"family": t["family"],
+                             "issue": t["regression"].get("output_tail", "")[:100]})
+    details = {"targets": [{"family": t["family"],
+                            "status": t["regression"]["status"]} for t in targets]}
+    if any(f["issue"].startswith("无主机C编译器") for f in findings):
+        return GateResult("firmware_regression", GateStatus.BLOCKED,
+                          "主机C编译器不可用", details=details)
+    if findings:
+        return GateResult("firmware_regression", GateStatus.FAIL,
+                          f"{len(findings)}/{len(targets)} 目标回归失败",
+                          findings=findings, details=details)
+    return GateResult("firmware_regression", GateStatus.PASS,
+                      f"{ok}/{len(targets)} 固件目标主机回归通过(C代码真实执行)",
+                      details=details)

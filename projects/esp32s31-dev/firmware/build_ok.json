@@ -3,7 +3,7 @@
   {
    "family": "esp32s31",
    "build": "ok",
-   "main": "firmware\\esp32s31\\main.c"
+   "main": "firmware\\esp32s31\\main\\main.c"
   }
  ]
 }
