@@ -34,7 +34,7 @@ stages:
     runner: acceptance_sim
     inputs: [pcb/, stackup.yaml, bom.json]
     outputs: [sim/]
-    gates: [irdrop, thermal, emc_precompliance]
+    gates: [irdrop, thermal, emc_precompliance, spice_functional]
 
   firmware:
     title: 固件开发

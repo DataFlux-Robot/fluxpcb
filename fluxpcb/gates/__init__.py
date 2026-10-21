@@ -356,6 +356,28 @@ def irdrop(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
     if findings:
         return GateResult("irdrop", GateStatus.FAIL, f"{len(findings)} 条电源轨压降超标",
                           findings=findings, details=details)
+    # field dump for the dashboard (worst rail re-solved with its field)
+    try:
+        import json as _json
+        worst = max(details.items(), key=lambda kv: kv[1]["drop_pct"])[0]
+        rail_w = next(r for r in cfgf.get("rails", []) if r["name"] == worst)
+        g = Grid2D(width_mm=cfgf.get("board_w_mm", 65), height_mm=cfgf.get("board_h_mm", 30),
+                   nx=min(cfgf.get("nx", 120), 120), ny=min(cfgf.get("ny", 60), 60))
+        g.sources = [(g.index(s["x"], s["y"])[0], g.index(s["x"], s["y"])[1],
+                      s.get("weight", 1.0)) for s in rail_w.get("sinks", [])]
+        rw = solve_irdrop(g, v_in=rail_w["v"], sink_current_a=rail_w["current_a"],
+                          copper_thickness_mm=rail_w.get("cu_mm", 0.035))
+        (project_dir / "sim").mkdir(exist_ok=True)
+        (project_dir / "sim" / "irdrop_field.json").write_text(
+            _json.dumps({"rail": worst, **details[worst],
+                         "grid": {"nx": g.nx, "ny": g.ny,
+                                  "dx_mm": round(g.width_mm / g.nx, 4),
+                                  "dy_mm": round(g.height_mm / g.ny, 4)},
+                         "field": [[round(float(v), 6) for v in row]
+                                   for row in rw.get("field", [])]},
+                         ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
     return GateResult("irdrop", GateStatus.PASS,
                       f"{len(details)} 条电源轨IR-drop全部≤限值", details=details)
 
@@ -380,6 +402,23 @@ def thermal(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
     if r["t_max_c"] > limit:
         return GateResult("thermal", GateStatus.FAIL,
                           f"最高结温 {r['t_max_c']:.1f}℃ > {limit}℃", details=details)
+    # field dump for the dashboard
+    try:
+        import json as _json
+        (project_dir / "sim").mkdir(exist_ok=True)
+        (project_dir / "sim" / "thermal_field.json").write_text(
+            _json.dumps({"t_max_c": round(r["t_max_c"], 2),
+                         "t_mean_c": round(r.get("t_mean_c", 0), 2),
+                         "tj_limit_c": limit, "t_amb_c": cfgf.get("t_amb", 25.0),
+                         "hotspot_xy": [int(x) for x in r.get("hotspot_xy", [0, 0])],
+                         "grid": {"nx": g.nx, "ny": g.ny,
+                                  "dx_mm": round(g.width_mm / g.nx, 4),
+                                  "dy_mm": round(g.height_mm / g.ny, 4)},
+                         "field": [[round(float(v), 3) for v in row]
+                                   for row in r.get("field", [])]},
+                         ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
     return GateResult("thermal", GateStatus.PASS,
                       f"最高结温 {r['t_max_c']:.1f}℃ ≤ {limit}℃", details=details)
 
@@ -655,3 +694,30 @@ def firmware_regression(project_dir: Path, outputs: list[str], cfg: dict) -> Gat
     return GateResult("firmware_regression", GateStatus.PASS,
                       f"{ok}/{len(targets)} 固件目标主机回归通过(C代码真实执行)",
                       details=details)
+
+
+# ---------------------------------------------------------------- spice functional
+@gate("spice_functional")
+def spice_functional(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
+    """ngspice transient Monte-Carlo of the LDO power chain (caps/ESR +-20%,
+    20 runs): dropout and ripple vs limits. Evidence: sim/spice_mc.json."""
+    import json
+    ev = project_dir / "sim" / "spice_mc.json"
+    if not ev.exists():
+        return GateResult("spice_functional", GateStatus.BLOCKED,
+                          "sim/spice_mc.json 不存在(验收仿真环节未跑SPICE)")
+    data = json.loads(ev.read_text(encoding="utf-8"))
+    if data.get("pass"):
+        return GateResult("spice_functional", GateStatus.PASS,
+                          f"LDO瞬态MC {data['n_ok']}次: 最低{data['v_min_v']}V "
+                          f"(压降{data['drop_pct']}%<= {data['drop_limit_pct']}%), "
+                          f"纹波{data['ripple_v_max']}V",
+                          details={k: data[k] for k in
+                                   ("n_runs", "n_ok", "v_min_v", "drop_pct",
+                                    "ripple_v_max", "drop_limit_pct")})
+    findings = [{"issue": f"压降{data.get('drop_pct')}% > {data.get('drop_limit_pct')}% "
+                          f"或纹波{data.get('ripple_v_max')}V超限"}]
+    return GateResult("spice_functional", GateStatus.FAIL,
+                      "LDO瞬态MC超限", findings=findings,
+                      details={k: data.get(k) for k in
+                               ("n_ok", "v_min_v", "drop_pct", "ripple_v_max")})

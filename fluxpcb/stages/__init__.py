@@ -328,6 +328,14 @@ def stage_acceptance_sim(ctx: StageContext) -> None:
     rp_checks = [{"name": itf["name"], "adjacent_reference_layer": True}
                  for itf in spec.get("interfaces", []) if itf.get("high_speed")]
     _write_yaml(sim / "pdn_input.yaml", {"rails": pdn_rails, "return_path_checks": rp_checks})
+    # SPICE functional MC (W5): ngspice via KiCad's bundled dll
+    try:
+        from fluxpcb.tools import spice
+        mc = spice.run_mc(d, spec, n_runs=20)
+        ctx.note(f"SPICE MC: {mc.get('status')} "
+                 f"(压降{mc.get('drop_pct', '?')}% 限{mc.get('drop_limit_pct', '?')}%)")
+    except Exception as e:
+        ctx.note(f"SPICE MC不可用: {e}")
     ctx.note("仿真输入已生成(FDM/闭式内核由门禁执行)")
 
 
