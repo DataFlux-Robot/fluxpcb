@@ -1,4 +1,4 @@
-# FluxNeurotransmitter — hpm6e80-core 设计需求
+# FluxPCB — hpm6e80-core 设计需求
 
 树莓派Zero尺寸的HPM6E80工业控制核心板 + 载板,由六环节全自动流水线设计。
 

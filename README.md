@@ -1,4 +1,4 @@
-# FluxNeurotransmitter
+# FluxPCB
 
 **全自动AI电路设计流水线** — 需求分析 → 器件选型 → 原理图 → PCB设计 → 验收仿真 → 固件开发,六环节一键贯通,每一步都有机器可判定的验证门禁。
 
@@ -23,7 +23,30 @@ pip install -e .
 flux run projects/esp32s31-dev        # 端到端跑通示例项目(六环节+门禁)
 flux report projects/esp32s31-dev    # 查看审计报告
 flux gate projects/esp32s31-dev --only impedance_si,irdrop   # 单独跑门禁
+flux verify projects/esp32s31-dev    # 只复检门禁(对磁盘产物,不重新生成)
+flux dashboard projects              # 本地Grounding Map可视化面板 → http://127.0.0.1:8765
 ```
+
+## Grounding Map 可视化面板
+
+`flux dashboard` 启动零依赖本地网页(127.0.0.1,离线可用),实时监控六环节流水线:
+
+- **流水线轨道** — 六环节卡片:状态/迭代轮数/耗时/产物数,门禁红绿灯
+- **门禁证据** — 点击环节查看每个门禁的物理指标条(结温余量、IR-drop%、PDN阻抗),结论可追溯到带SHA256的产物
+- **Grounding Map** — 每条需求(FR-xxx) → 覆盖它的设计元素 → 裁决门禁,未覆盖需求高亮
+- **LIVE LOG** — 流水线运行时逐事件滚动(`flux run` 与面板可同时开)
+
+![Grounding Map](docs/images/grounding-map.png)
+
+## Claude Code 集成(/fluxpcb)
+
+仓库自带 `.claude/commands/fluxpcb.md`,在 Claude Code 中打开本仓库后:
+
+```
+/fluxpcb 树莓派Zero大小的ESP32开发板,带USB-C和双排针
+```
+
+一句话需求 → 自动建项目、写spec、跑六环节流水线、修门禁(有界重试)、导出fab包、汇报结果。规则内置于命令:不得编造datasheet外的引脚、不得调门禁阈值放水。
 
 ## 工具链(全部可选,缺失时相关门禁进入blocked状态)
 

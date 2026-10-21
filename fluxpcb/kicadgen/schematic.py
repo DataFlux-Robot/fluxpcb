@@ -150,7 +150,7 @@ class Schematic:
                 _prop("Value", base, 0, 7.62, hide=True),
                 _prop("Footprint", "", 0, 5.08, hide=True),
                 _prop("Datasheet", "", 0, 2.54, hide=True),
-                _prop("Description", "FluxNeurotransmitter module symbol", 0, 0, hide=True),
+                _prop("Description", "FluxPCB module symbol", 0, 0, hide=True),
                 [bare("symbol"), f"{base}_0_1",
                  [bare("rectangle"), [bare("start"), -7.62, 10.16],
                   [bare("end"), 7.62, -10.16],
@@ -233,7 +233,7 @@ class Schematic:
                  [bare("title"), self.title],
                  [bare("date"), "2026-10-20"],
                  [bare("rev"), "A"],
-                 [bare("company"), "FluxNeurotransmitter"]],
+                 [bare("company"), "FluxPCB"]],
                 [bare("lib_symbols")] + [self._lib_symbol(sd)
                                           for sd in self.symdefs.values()] + [self._lib_symbol(pwr_flag_def)],
                 *pwr_flags,
@@ -248,7 +248,7 @@ def write(sch: Schematic, path) -> None:
     resolves library nicknames without warnings."""
     from pathlib import Path
 
-    from fluxnt.kicadgen.schematic import _render, bare
+    from fluxpcb.kicadgen.schematic import _render, bare
 
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
@@ -275,7 +275,7 @@ def write(sch: Schematic, path) -> None:
                  '\t(version 7)\n'
                  '\t(lib (name "flux")(type "KiCad")'
                  '(uri "${KIPRJMOD}/flux.kicad_sym")(options "")'
-                 '(descr "FluxNeurotransmitter generated symbols"))\n'
+                 '(descr "FluxPCB generated symbols"))\n'
                  ')\n')
     (p.parent / "sym-lib-table").write_text(sym_table, encoding="utf-8",
                                             newline="\n")

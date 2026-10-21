@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fluxnt.models import GateResult, GateStatus
+from fluxpcb.models import GateResult, GateStatus
 
 _REGISTRY: dict[str, callable] = {}
 
@@ -111,7 +111,7 @@ def bom_completeness(project_dir: Path, outputs: list[str], cfg: dict) -> GateRe
 # ------------------------------------------------------------ schematic
 @gate("erc_zero")
 def erc_zero(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
-    from fluxnt.tools.adapters import kicad_cli
+    from fluxpcb.tools.adapters import kicad_cli
     sch_dir = project_dir / "schematic"
     schs = sorted(sch_dir.rglob("*.kicad_sch")) if sch_dir.exists() else []
     internal = sch_dir / "erc_report.json" if sch_dir.exists() else None
@@ -175,7 +175,7 @@ def netlist_topology(project_dir: Path, outputs: list[str], cfg: dict) -> GateRe
 # ------------------------------------------------------------ pcb
 @gate("drc_zero")
 def drc_zero(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
-    from fluxnt.tools.adapters import kicad_cli
+    from fluxpcb.tools.adapters import kicad_cli
     pcb_dir = project_dir / "pcb"
     pcbs = sorted(pcb_dir.rglob("*.kicad_pcb")) if pcb_dir.exists() else []
     internal = pcb_dir / "drc_report.json" if pcb_dir.exists() else None
@@ -206,7 +206,7 @@ def drc_zero(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
 def impedance_si(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
     """IPC-2141 closed-form impedance vs targets in stackup.yaml; plus length-match
     assertions when pcb/netclasses.json provides measured lengths."""
-    from fluxnt.tools.ipc2141 import ImpedanceTarget, solve_for_width
+    from fluxpcb.tools.ipc2141 import ImpedanceTarget, solve_for_width
     stackup = _read_yaml(project_dir / "stackup.yaml")
     if stackup is None:
         stackup = _read_yaml(project_dir / "pcb" / "stackup.yaml")
@@ -261,7 +261,7 @@ def impedance_si(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult
 # ------------------------------------------------------------ acceptance sim
 @gate("irdrop")
 def irdrop(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
-    from fluxnt.tools.fdm import Grid2D, solve_irdrop
+    from fluxpcb.tools.fdm import Grid2D, solve_irdrop
     cfgf = _read_yaml(project_dir / "sim" / "irdrop_input.yaml")
     if cfgf is None:
         return GateResult("irdrop", GateStatus.BLOCKED, "sim/irdrop_input.yaml 不存在")
@@ -290,7 +290,7 @@ def irdrop(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
 
 @gate("thermal")
 def thermal(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
-    from fluxnt.tools.fdm import Grid2D, solve_thermal
+    from fluxpcb.tools.fdm import Grid2D, solve_thermal
     cfgf = _read_yaml(project_dir / "sim" / "thermal_input.yaml")
     if cfgf is None:
         return GateResult("thermal", GateStatus.BLOCKED, "sim/thermal_input.yaml 不存在")

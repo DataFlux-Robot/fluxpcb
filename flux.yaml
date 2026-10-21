@@ -1,4 +1,4 @@
-# FluxNeurotransmitter pipeline definition (six-stage DAG with gates)
+# FluxPCB pipeline definition (six-stage DAG with gates)
 version: 1
 
 stages:

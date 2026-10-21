@@ -3,9 +3,9 @@ import math
 
 import pytest
 
-from fluxnt.tools.ipc2141 import (ImpedanceTarget, edge_coupled_microstrip_zdiff,
+from fluxpcb.tools.ipc2141 import (ImpedanceTarget, edge_coupled_microstrip_zdiff,
                                   microstrip_z0, solve_for_width, stripline_z0)
-from fluxnt.tools.fdm import Grid2D, solve_irdrop, solve_thermal
+from fluxpcb.tools.fdm import Grid2D, solve_irdrop, solve_thermal
 
 
 class TestIPC2141:

@@ -2,7 +2,7 @@
 
 ## ✅ 已达成(真实、可验证)
 
-### 工具本体 (fluxnt)
+### 工具本体 (fluxpcb)
 - 六环节DAG编排引擎+门禁反馈重试+SHA256审计,26个单元测试全绿
 - 12个机器可判定门禁;KiCad在位时ERC/DRC走真实kicad-cli裁决
 - 纯Python物理内核:IPC-2141阻抗(与教科书值对拍<5%)、FDM IR-drop/热、PDN目标阻抗

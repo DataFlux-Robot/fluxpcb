@@ -1,0 +1,20 @@
+{"t": 1792552730.484, "ev": "verify_start", "project": "esp32s31-dev"}
+{"t": 1792552730.499, "ev": "gate", "stage": "requirements", "gate": "spec_schema", "status": "pass", "summary": "spec结构合法, 7条需求"}
+{"t": 1792552730.499, "ev": "gate", "stage": "requirements", "gate": "requirement_coverage", "status": "pass", "summary": "全部需求已映射设计元素"}
+{"t": 1792552730.5, "ev": "stage_end", "stage": "requirements", "status": "ok", "duration_s": 0.0, "artifacts": 1}
+{"t": 1792552730.503, "ev": "gate", "stage": "component_selection", "gate": "bom_completeness", "status": "pass", "summary": "1 行BOM全部完整"}
+{"t": 1792552730.54, "ev": "stage_end", "stage": "component_selection", "status": "ok", "duration_s": 0.0, "artifacts": 2}
+{"t": 1792552731.123, "ev": "gate", "stage": "schematic", "gate": "erc_zero", "status": "pass", "summary": "KiCad ERC 零违例"}
+{"t": 1792552731.124, "ev": "gate", "stage": "schematic", "gate": "netlist_topology", "status": "pass", "summary": "4 项连接断言全部回读通过"}
+{"t": 1792552731.129, "ev": "stage_end", "stage": "schematic", "status": "ok", "duration_s": 0.6, "artifacts": 9}
+{"t": 1792552733.783, "ev": "gate", "stage": "pcb_layout", "gate": "drc_zero", "status": "pass", "summary": "KiCad DRC 零违例"}
+{"t": 1792552733.783, "ev": "gate", "stage": "pcb_layout", "gate": "impedance_si", "status": "pass", "summary": "1 项阻抗/等长全部达标"}
+{"t": 1792552733.807, "ev": "stage_end", "stage": "pcb_layout", "status": "ok", "duration_s": 2.7, "artifacts": 44}
+{"t": 1792552735.525, "ev": "gate", "stage": "acceptance_sim", "gate": "irdrop", "status": "pass", "summary": "1 条电源轨IR-drop全部≤限值"}
+{"t": 1792552735.526, "ev": "gate", "stage": "acceptance_sim", "gate": "thermal", "status": "pass", "summary": "最高结温 28.3℃ ≤ 85.0℃"}
+{"t": 1792552735.526, "ev": "gate", "stage": "acceptance_sim", "gate": "emc_precompliance", "status": "pass", "summary": "PDN目标阻抗与回流路径检查全部通过"}
+{"t": 1792552735.529, "ev": "stage_end", "stage": "acceptance_sim", "status": "ok", "duration_s": 1.7, "artifacts": 3}
+{"t": 1792552735.579, "ev": "gate", "stage": "firmware", "gate": "firmware_build", "status": "pass", "summary": "1 个固件目标构建通过 [证据=阶段内构建(idf.py缺席,降级)]"}
+{"t": 1792552735.579, "ev": "gate", "stage": "firmware", "gate": "firmware_spi_loopback", "status": "pass", "summary": "SPI回环通过: 软件回环: TX buffer == RX buffer (确定性模式)"}
+{"t": 1792552735.582, "ev": "stage_end", "stage": "firmware", "status": "ok", "duration_s": 0.1, "artifacts": 3}
+{"t": 1792552735.588, "ev": "run_end", "released": true, "report": "reports\\run_20261021_111855.json"}

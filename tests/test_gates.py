@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from fluxnt.gates import run_gate, all_gates
-from fluxnt.models import GateStatus
+from fluxpcb.gates import run_gate, all_gates
+from fluxpcb.models import GateStatus
 
 
 @pytest.fixture

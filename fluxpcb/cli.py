@@ -6,11 +6,11 @@ import json
 import sys
 from pathlib import Path
 
-from fluxnt import __version__
-from fluxnt.engine import run_pipeline
-from fluxnt.gates import run_gate
-from fluxnt.models import GateStatus
-from fluxnt.tools.adapters import probe_all
+from fluxpcb import __version__
+from fluxpcb.engine import run_pipeline, verify_only
+from fluxpcb.gates import run_gate
+from fluxpcb.models import GateStatus
+from fluxpcb.tools.adapters import probe_all
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -66,7 +66,7 @@ bom_seed:
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="flux",
-                                 description="FluxNeurotransmitter 全自动电路设计流水线")
+                                 description="FluxPCB 全自动电路设计流水线")
     ap.add_argument("--version", action="version", version=__version__)
     sub = ap.add_subparsers(dest="cmd", required=True)
 
@@ -88,6 +88,16 @@ def main(argv=None):
     p_gate.add_argument("--only", nargs="+", required=True)
 
     sub.add_parser("probe", help="探测外部工具链可用性")
+
+    p_ver = sub.add_parser("verify", help="仅复检门禁(对磁盘产物,不重新生成)")
+    p_ver.add_argument("dir", type=Path)
+    p_ver.add_argument("--pipeline", type=Path, default=None)
+
+    p_dash = sub.add_parser("dashboard", help="启动本地Grounding Map可视化面板")
+    p_dash.add_argument("dir", type=Path, nargs="?", default=ROOT / "projects",
+                        help="projects根目录或单个项目目录")
+    p_dash.add_argument("--port", type=int, default=8765)
+    p_dash.add_argument("--no-open", action="store_true", help="不自动打开浏览器")
 
     args = ap.parse_args(argv)
 
@@ -127,6 +137,20 @@ def main(argv=None):
 
     if args.cmd == "probe":
         print(json.dumps(probe_all(), ensure_ascii=False, indent=1))
+        return 0
+
+    if args.cmd == "verify":
+        pipeline = args.pipeline or (ROOT / "flux.yaml")
+        report = verify_only(args.dir, pipeline)
+        print(report.markdown())
+        return 0 if report.released else 1
+
+    if args.cmd == "dashboard":
+        from fluxpcb.dashboard import serve
+        root = args.dir.resolve()
+        if (root / "project.yaml").exists():  # single project dir -> its parent
+            root = root.parent
+        serve(root, port=args.port, open_browser=not args.no_open)
         return 0
     return 0
 

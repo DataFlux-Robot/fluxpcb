@@ -5,7 +5,7 @@ import sys
 import uuid as uuidlib
 from pathlib import Path
 
-from fluxnt.kicadgen.pcb import parse, render
+from fluxpcb.kicadgen.pcb import parse, render
 
 LAYER_MAP = {
     "top_copper": "F.Cu", "bottom_copper": "B.Cu",

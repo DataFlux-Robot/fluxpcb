@@ -8,8 +8,8 @@ import time
 
 import pcbnew
 
-BOARD = r"E:\DATA\vscode\ZCODE\flux-neurotransmitter\projects\hpm6e80-core\pcb\carrier\hpm6e80-carrier.kicad_pcb"
-SES = r"E:\DATA\vscode\ZCODE\flux-neurotransmitter\projects\hpm6e80-core\pcb\carrier\carrier.ses"
+BOARD = r"E:\DATA\vscode\ZCODE\fluxpcb\projects\hpm6e80-core\pcb\carrier\hpm6e80-carrier.kicad_pcb"
+SES = r"E:\DATA\vscode\ZCODE\fluxpcb\projects\hpm6e80-core\pcb\carrier\carrier.ses"
 
 user32 = ctypes.windll.user32
 WM_CLOSE = 0x0010

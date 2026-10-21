@@ -10,7 +10,7 @@ Parts:
 """
 from __future__ import annotations
 
-from fluxnt.kicadgen.schematic import Pin, SymDef
+from fluxpcb.kicadgen.schematic import Pin, SymDef
 
 
 def P(num, name, etype="passive"):
@@ -80,7 +80,7 @@ C_0603 = SymDef("flux:C_0603", [P(1, "A"), P(2, "B")], ref_prefix="C")
 def carrier_schematic():
     """Assemble the complete carrier-board schematic with verified-standard
     pinouts and full connectivity. Returns a ready Schematic object."""
-    from fluxnt.kicadgen.schematic import Schematic, SymInst
+    from fluxpcb.kicadgen.schematic import Schematic, SymInst
 
     sch = Schematic(title="hpm6e80-carrier", project="hpm6e80-carrier")
     for sd in (RJ45_100M, RJ45_GBE, USB_C_16P, UFL_ANT, B2B_2X20, R_0603, C_0603):

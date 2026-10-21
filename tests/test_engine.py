@@ -4,8 +4,8 @@ from pathlib import Path
 
 import yaml
 
-from fluxnt.engine import run_pipeline
-from fluxnt.models import GateStatus, StageStatus
+from fluxpcb.engine import run_pipeline
+from fluxpcb.models import GateStatus, StageStatus
 
 
 def _make_project(tmp_path: Path) -> Path:

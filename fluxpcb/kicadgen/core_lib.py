@@ -9,8 +9,8 @@ All other parts use public standard pinouts.
 """
 from __future__ import annotations
 
-from fluxnt.kicadgen.schematic import Pin, Schematic, SymDef, SymInst
-from fluxnt.kicadgen.parts_lib import B2B_2X20, C_0603, R_0603, USB_C_16P, P
+from fluxpcb.kicadgen.schematic import Pin, Schematic, SymDef, SymInst
+from fluxpcb.kicadgen.parts_lib import B2B_2X20, C_0603, R_0603, USB_C_16P, P
 
 
 def F(n, name, etype="passive"):

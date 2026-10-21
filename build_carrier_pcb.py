@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Build the hpm6e80 carrier board PCB from official footprints."""
-from fluxnt.kicadgen.pcb import Board, Fp, _f, parse, render, uid
+from fluxpcb.kicadgen.pcb import Board, Fp, _f, parse, render, uid
 
 NETS = [
     "MDI_P0_TX+", "MDI_P0_TX-", "MDI_P0_RX+", "MDI_P0_RX-",
@@ -114,7 +114,7 @@ def build_board():
 
 
 def main():
-    from fluxnt.kicadgen.pcb import write
+    from fluxpcb.kicadgen.pcb import write
     write(build_board(), "carrier_out/hpm6e80-carrier.kicad_pcb")
     print("carrier PCB written")
 

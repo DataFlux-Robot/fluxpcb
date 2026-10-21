@@ -23,9 +23,9 @@ def run_kicad(*args, timeout=600):
 
 def build_schematics(project_dir: Path) -> dict:
     """Core + carrier schematics with real ERC evidence."""
-    from fluxnt.kicadgen.core_lib import core_schematic
-    from fluxnt.kicadgen.parts_lib import carrier_schematic
-    from fluxnt.kicadgen.schematic import write as sch_write
+    from fluxpcb.kicadgen.core_lib import core_schematic
+    from fluxpcb.kicadgen.parts_lib import carrier_schematic
+    from fluxpcb.kicadgen.schematic import write as sch_write
 
     ev = {"kicad_cli": bool(_kicad()), "boards": {}}
     jobs = (("core", core_schematic()), ("carrier", carrier_schematic()))
@@ -52,7 +52,7 @@ def build_carrier_pcb(project_dir: Path) -> dict:
 
     pcb_dir = project_dir / "pcb" / "carrier"
     pcb_dir.mkdir(parents=True, exist_ok=True)
-    from fluxnt.kicadgen.pcb import write as pcb_write
+    from fluxpcb.kicadgen.pcb import write as pcb_write
     board = mod.build_board()
     pcb_write(board, pcb_dir / "hpm6e80-carrier.kicad_pcb")
     # project file + lib tables

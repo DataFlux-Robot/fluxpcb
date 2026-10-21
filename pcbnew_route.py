@@ -30,7 +30,7 @@ def kipy_run_file(script: str, pcb: str, pairs: str, timeout=600) -> tuple[int, 
 
 def route_bridges(pcb_path: Path, pairs_file: Path) -> str:
     """Return the command to run the embedded routing script."""
-    embedded = Path(__file__).parent / "fluxnt" / "kicadgen" / "route_embedded.py"
+    embedded = Path(__file__).parent / "fluxpcb" / "kicadgen" / "route_embedded.py"
     return str(embedded)
 
 

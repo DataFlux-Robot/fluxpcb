@@ -245,7 +245,7 @@ class Board:
 \t(generator_version "10.0")
 \t(general (thickness 1.6) (legacy_teardrops no))
 \t(paper "A4")
-\t(title_block (title "{self.title}") (company "FluxNeurotransmitter"))
+\t(title_block (title "{self.title}") (company "FluxPCB"))
 \t(layers
 {chr(10).join(chr(9)+chr(9)+l[1:1] for l in [])}
 \t)
@@ -258,7 +258,7 @@ class Board:
                 f"\t(general (thickness 1.6) (legacy_teardrops no))\n"
                 f"\t(paper \"A4\")\n"
                 f"\t(title_block (title \"{self.title}\") "
-                f"(company \"FluxNeurotransmitter\"))\n"
+                f"(company \"FluxPCB\"))\n"
                 f"\t(layers\n{layers_block}\n\t)\n"
                 f"\t(setup\n{stackup_4l()}"
                 f"\t\t(pad_to_mask_clearance 0.05)\n"

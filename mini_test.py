@@ -3,7 +3,7 @@
 import subprocess
 from pathlib import Path
 
-from fluxnt.kicadgen.pcb import Board, Fp, parse, render, uid, _f
+from fluxpcb.kicadgen.pcb import Board, Fp, parse, render, uid, _f
 
 KICAD = r"C:\Users\zhang\AppData\Local\Programs\KiCad\10.0\bin\kicad-cli.exe"
 D = Path("mini_test")

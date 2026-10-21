@@ -10,9 +10,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fluxnt.kicadgen.pcb import Board, Fp
-from fluxnt.kicadgen.parts_lib import P
-from fluxnt.kicadgen.schematic import Pin, Schematic, SymDef, SymInst
+from fluxpcb.kicadgen.pcb import Board, Fp
+from fluxpcb.kicadgen.parts_lib import P
+from fluxpcb.kicadgen.schematic import Pin, Schematic, SymDef, SymInst
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -166,7 +166,7 @@ class EspFp(Fp):
     def __init__(self, lib_dir: Path, lib: str, name: str, ref: str, value: str,
                  x: float, y: float, rot: float = 0.0, pad_nets=None):
         self.path = Path(lib_dir) / f"{lib}.pretty" / f"{name}.kicad_mod"
-        from fluxnt.kicadgen.pcb import parse
+        from fluxpcb.kicadgen.pcb import parse
         self.tree = parse(self.path.read_text(encoding="utf-8",
                                               errors="replace"))
         self.tree[1] = ("s", f"{lib}:{name}")
@@ -253,8 +253,8 @@ def board() -> Board:
 
 
 def write_all(project_dir: Path) -> dict:
-    from fluxnt.kicadgen.schematic import write as sch_write
-    from fluxnt.kicadgen.pcb import write as pcb_write
+    from fluxpcb.kicadgen.schematic import write as sch_write
+    from fluxpcb.kicadgen.pcb import write as pcb_write
     sch_dir = project_dir / "schematic" / "board"
     sch_write(schematic(), sch_dir / "esp32s31-dev.kicad_sch")
     pcb_dir = project_dir / "pcb" / "board"

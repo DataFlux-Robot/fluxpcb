@@ -114,7 +114,7 @@ class RunReport:
         return out
 
     def markdown(self) -> str:
-        lines = [f"# FluxNeurotransmitter 运行报告 — {self.project}", ""]
+        lines = [f"# FluxPCB 运行报告 — {self.project}", ""]
         verdict = "🟢 RELEASED(全门禁通过)" if self.released else "🔴 NOT RELEASED"
         lines.append(f"**结论: {verdict}**")
         lines.append("")
