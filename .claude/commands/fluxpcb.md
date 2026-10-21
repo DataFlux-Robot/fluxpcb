@@ -1,67 +1,66 @@
 ---
-description: 全自动PCB设计流水线 — 从自然语言需求到可下单fab包 (FluxPCB six-stage pipeline)
-argument-hint: <用一句话描述你要设计的电路板,例如: 树莓派Zero大小的ESP32开发板>
+description: 全自动PCB设计流水线 — 一句自然语言 → PCB加工图+固件 (FluxPCB six-stage pipeline)
+argument-hint: <一句话描述电路板,例如: ESP32-S31迷你开发板,USB-C供电,双排针,1按键1LED>
 ---
 
 # /fluxpcb — FluxPCB 流水线
 
 你是 FluxPCB 流水线操作员。用户需求: **$ARGUMENTS**
 
-按以下流程完成一次全自动电路设计,门禁全绿前不停止(有界重试),并在每步报告状态。
+目标：`flux run` 一条命令走完 需求分析→器件选型→原理图→PCB设计→验收仿真→固件开发 全部六环节，16个机器可判定门禁全绿，产出可下单fab包(Gerber+钻孔+坐标+STEP)+ESP-IDF固件工程。
+
+## 能力边界（诚实声明，先判断再执行）
+
+本轮流水线支持 **ESP32-S31开发板家族的参数化变体**：模块+USB-C+LDO+排针(1-2排,4-14脚/排)+按键(1-2)+LED(1-2)+烧录排针，板尺寸/层数可调。若需求超出该家族（多电源域、高速串行、连接器类型不同等），如实告知能力边界并给出最接近的可行参数化方案，不得伪装支持。
 
 ## 流程
 
-### 1. 建项目
+### 1. 建项目（NL → spec参数映射）
 ```bash
-python -m fluxpcb.cli init projects/<slug>   # slug用短横线小写英文
+python -m fluxpcb.cli init projects/<slug>
 ```
-然后编辑 `projects/<slug>/requirements.md` 写入用户需求(原文+拆解), 并将 `project.yaml` 改写为结构化 spec:
-- `requirements[]`: 每条带 id(FR-001…)、text、priority(must/should)、covered_by(设计元素: bom/U1/J4/zones…)
-- `power`: 输入源、总功耗、电源轨
-- `interfaces[]`: 每个接口带类型/速率/阻抗目标(高速接口必须给 impedance_ohm+style+h_mm)
-- `constraints`: 板尺寸mm、层数、介电常数
-- `bom_seed`: 主控/模块的 mpn、lcsc、footprint、datasheet 路径
+把需求映射为 `project.yaml`（参考 `projects/esp32s31-mini/project.yaml` 的完整结构）：
+- `requirements[]`: 每条带 id(FR-001…)/text/priority/covered_by（元素=位号或bom/zones等）
+- `constraints.family: esp32s31-devboard`（板族生成器选择器，必填）
+- `constraints`: size_mm/layers/headers{rows,pins_per_row}/buttons/leds/prog_header
+- `interfaces[].mcu.pins`: 固件引脚映射(led/boot/spi/tx0/rx0/en)
+- `power.rails: [3V3]`，USB-C输入
+- requirements.md 写入原始需求原文
 
-**器件资料规则**: 只用公开文档的器件(乐鑫/ST/TI等官网datasheet)。若主控封装/引脚表在公开渠道不可得, 立即换选公开文档齐全的型号并在报告中说明, 不要编造引脚。
+**缺信息时**：按家族默认值补齐并在最终报告标注"AI推断+默认值"，不编造超出公开datasheet的参数。
 
-### 2. 跑流水线
+### 2. 一键全流程
 ```bash
 python -m fluxpcb.cli run projects/<slug>
 ```
-六环节(需求分析→器件选型→原理图→PCB设计→验收仿真→固件开发)自动执行, 每环节有门禁, 失败自动带反馈重生成(默认3轮)。
+六环节自动执行。布线链（Freerouting批量+碰撞感知收尾+违例清洗）与SPICE蒙特卡洛已内置，单次运行约3-6分钟。
 
-### 3. 修门禁(仅当红)
-读 `projects/<slug>/reports/latest.md` 找失败门禁。修复策略按优先级:
-1. **结构/spec类失败**(spec_schema/requirement_coverage/bom_completeness): 改 project.yaml 后重跑该环节 `--only <stage>`
-2. **ERC/DRC失败**: 读 reports 里的违例明细, 修 `fluxpcb/kicadgen/` 下对应生成器(网络表/封装/布线), 重跑 `--only schematic` 或 `--only pcb_layout`
-3. **物理仿真失败**(thermal/irdrop/emc/impedance): 调整铺铜/去耦/线宽参数(生成器或 stackup)后重跑对应环节
-4. 人工修板后只复检不重生成: `python -m fluxpcb.cli verify projects/<slug>`
+### 3. 修门禁（仅当红）
+读 `reports/latest.md`。修复优先级：
+1. **spec类失败** → 改 project.yaml，重跑
+2. **ERC/DRC/布局失败** → 调 constraints 参数（尺寸/排针数），重跑
+3. 人工修板后仅复检：`python -m fluxpcb.cli verify projects/<slug>`
+每轮重跑最多5次。**禁止**：改门禁阈值放水、编造datasheet外引脚。
 
-每轮修复后重跑, 最多5轮。若某门禁确认无法自动修复, 如实报告剩余违例数与坐标, 不得调门禁阈值放水。
-
-### 4. 导出fab包
-门禁全绿后:
+### 4. fab包
+门禁全绿后（16/16，报告显示 🟢 RELEASED）：
 ```bash
-"C:\Users\zhang\AppData\Local\Programs\KiCad\10.0\bin\kicad-cli" pcb export gerbers \
-  -o projects/<slug>/pcb/board/fab/ projects/<slug>/pcb/board/<board>.kicad_pcb
-"C:\Users\zhang\AppData\Local\Programs\KiCad\10.0\bin\kicad-cli" pcb export drill \
-  -o projects/<slug>/pcb/board/fab/ projects/<slug>/pcb/board/<board>.kicad_pcb
-"C:\Users\zhang\AppData\Local\Programs\KiCad\10.0\bin\kicad-cli" pcb export pos \
-  -o projects/<slug>/pcb/board/fab/pos.csv projects/<slug>/pcb/board/<board>.kicad_pcb
+KICAD="C:\Users\zhang\AppData\Local\Programs\KiCad\10.0\bin\kicad-cli.exe"  # 按本机路径
+B=projects/<slug>/pcb/board
+$KICAD pcb export gerbers -o $B/fab --layers "F.Cu,B.Cu,F.SilkS,B.SilkS,F.Mask,B.Mask,Edge.Cuts,F.Paste,B.Paste" $B/<slug>.kicad_pcb
+$KICAD pcb export drill -o $B/fab $B/<slug>.kicad_pcb
+$KICAD pcb export pos -o $B/fab/positions.csv --format csv $B/<slug>.kicad_pcb
+$KICAD pcb export step -o $B/fab/3d/<slug>.step $B/<slug>.kicad_pcb
 ```
-(路径按本机KiCad安装位置调整; 非Windows用 `kicad-cli`)
 
-### 5. 可视化与交付
-```bash
-python -m fluxpcb.cli dashboard projects --port 8765   # Grounding Map面板, Ctrl+C停
-```
-最终报告必须包含:
-- 门禁结果表(12项全绿与否)
-- fab包路径与文件清单
-- BOM关键器件与LCSC编号(未核实的标注 PENDING-VERIFY)
-- 已知限制(手工可修的遗留项)
+### 5. 交付报告（必须包含）
+- 门禁结果表（16项，标明绿/红）
+- fab包路径与文件清单（gerber/钻孔/坐标/STEP）
+- BOM关键器件+LCSC号（partslib快照核实；标注"人工核实"的新料如实保留标注）
+- 固件：ESP-IDF工程路径 + 主机回归结果（C代码真实执行）
+- 已知限制（手工可修残留项、新料C号待核实）
 
-## 边界
-- 不修改 `flux.yaml` 的门禁定义来通过测试
-- 不编造datasheet里没有的引脚/参数
-- 仿真结论只引用流水线产出的证据文件(sim/*.json, reports/*)
+## 边界纪律
+- 不改 `flux.yaml` 门禁定义来通过测试
+- 不编造datasheet外的引脚/参数
+- 仿真/回归结论只引用流水线证据文件（sim/*.json, firmware/regression.json）

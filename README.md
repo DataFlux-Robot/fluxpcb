@@ -20,12 +20,15 @@
 
 ```bash
 pip install -e .
-flux run projects/esp32s31-dev        # 端到端跑通示例项目(六环节+门禁)
-flux report projects/esp32s31-dev    # 查看审计报告
+flux run projects/esp32s31-mini      # 一条命令: 自动布局+自动布线+16门禁全绿 → RELEASED
+flux run projects/esp32s31-dev       # 旗舰案例(树莓派Zero尺寸)
+flux report projects/esp32s31-mini  # 查看审计报告
 flux gate projects/esp32s31-dev --only impedance_si,irdrop   # 单独跑门禁
-flux verify projects/esp32s31-dev    # 只复检门禁(对磁盘产物,不重新生成)
+flux verify projects/esp32s31-mini  # 只复检门禁(对磁盘产物,不重新生成)
 flux dashboard projects              # 本地Grounding Map可视化面板 → http://127.0.0.1:8765
 ```
+
+**一句话 → 加工图+固件**：esp32s31-mini 由自然语言需求("ESP32-S31迷你开发板：USB-C供电+双排针+1按键+1LED")出发，`flux run` 一条命令完成：partslib真实选型(17个LCSC C号) → 规则式自动布局 → **流水线内自动布线**(Freerouting批量+碰撞感知L形收尾+违例清洗) → ngspice蒙特卡洛 → ESP-IDF固件+主机C回归 → fab包(Gerber+钻孔+坐标+STEP 3D)。
 
 ## Grounding Map 可视化面板
 
@@ -59,7 +62,7 @@ flux dashboard projects              # 本地Grounding Map可视化面板 → ht
 | ESP-IDF / hpm-sdk | 固件真实编译门禁 | 固件开发 |
 | LCSC/JLC API | 器件选型与BOM | 器件选型 |
 
-内置纯Python物理内核(无外部依赖即可运行):IPC-2141阻抗闭式解、FDM IR-drop/热场求解、IPC-2152载流、PDN目标阻抗法。
+内置纯Python物理内核(无外部依赖即可运行):IPC-2141阻抗闭式解、FDM IR-drop/热场求解、PDN目标阻抗法。SPICE由KiCad自带的ngspice.dll经ctypes驱动(无需额外安装),LDO电源链瞬态蒙特卡洛(20次,电容/ESR容差采样)。固件纯逻辑(引导序列/去抖/SPI回环/时序)与目标固件共享同一份C源码,在主机编译器上真实执行回归。
 
 ## 项目状态
 
@@ -103,6 +106,17 @@ flux dashboard projects              # 本地Grounding Map可视化面板 → ht
 | 📋 详情 | [gallery/esp32s31-dev/prompt.md](gallery/esp32s31-dev/prompt.md) |
 
 ---
+
+
+### 案例 2:esp32s31-mini(全自动演示)
+
+**Prompt**: `ESP32-S31迷你开发板:USB-C供电 + 双排针(2×8P 2.54mm) + 1个RESET按键 + 1个电源LED,板子尽量小(约52×30mm),2层板`
+
+**一条命令**: `flux run projects/esp32s31-mini` → **16/16门禁全绿 🟢 RELEASED**
+
+规则式自动布局(功能分区+1.27网格+去耦就近) + 流水线内自动布线(Freerouting批量+碰撞感知收尾+违例清洗,DRC零违例) + ngspice LDO瞬态蒙特卡洛 + ESP-IDF固件主机C回归,产出fab包(Gerber+钻孔+坐标+STEP 3D)。
+
+详见 [gallery/esp32s31-mini](gallery/esp32s31-mini/prompt.md)。
 
 ## License
 

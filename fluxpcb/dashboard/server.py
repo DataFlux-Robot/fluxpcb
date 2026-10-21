@@ -88,12 +88,13 @@ def _grounding(project_dir: Path) -> dict:
             key = str(c)
             # map design element -> most relevant gate
             gate_name = {
-                "bom": "bom_completeness", "component": "bom_completeness",
+                "bom": "bom_lcsc_verified", "component": "bom_completeness",
                 "schematic": "erc_zero", "netlist": "netlist_topology",
-                "pcb": "drc_zero", "layout": "drc_zero", "constraints": "drc_zero",
-                "zones": "drc_zero", "stackup": "impedance_si", "impedance": "impedance_si",
-                "thermal": "thermal", "irdrop": "irdrop", "power": "irdrop",
-                "emc": "emc_precompliance", "firmware": "firmware_build",
+                "pcb": "placement_quality", "layout": "placement_quality",
+                "constraints": "drc_zero", "zones": "drc_zero",
+                "stackup": "impedance_si", "impedance": "impedance_si",
+                "thermal": "thermal", "irdrop": "irdrop", "power": "spice_functional",
+                "emc": "emc_precompliance", "firmware": "firmware_regression",
                 "software": "firmware_build",
             }.get(key.lower())
             if gate_name is None and re.fullmatch(r"[A-Z]{1,3}\d+.*", key):
