@@ -199,9 +199,12 @@ def stage_schematic(ctx: StageContext) -> None:
                 from fluxpcb.kicadgen.schematic import write as sch_write
                 params = devboard.DevBoardParams.from_spec(spec)
                 sdir = d / "schematic" / "board"
-                sch_write(devboard.schematic(params),
-                          sdir / f"{params.name}.kicad_sch")
-                ctx.note(f"板族原理图已生成: {params.name}.kicad_sch")
+                sch_file = sdir / f"{params.name}.kicad_sch"
+                if sch_file.exists():
+                    ctx.note(f"板族原理图已存在,跳过重新生成: {sch_file.name}")
+                else:
+                    sch_write(devboard.schematic(params), sch_file)
+                    ctx.note(f"板族原理图已生成: {params.name}.kicad_sch")
             except Exception as e:
                 ctx.note(f"板族原理图生成失败: {e}")
         else:
@@ -342,11 +345,53 @@ def stage_acceptance_sim(ctx: StageContext) -> None:
     # SPICE functional MC (W5): ngspice via KiCad's bundled dll
     try:
         from fluxpcb.tools import spice
-        mc = spice.run_mc(d, spec, n_runs=20)
+        mc = spice.run_mc(d, spec, n_runs=200)
         ctx.note(f"SPICE MC: {mc.get('status')} "
-                 f"(压降{mc.get('drop_pct', '?')}% 限{mc.get('drop_limit_pct', '?')}%)")
+                 f"(压降{mc.get('drop_pct', '?')}% 限{mc.get('drop_limit_pct', '?')}% "
+                 f"分布p5={mc.get('dist', {}).get('v_min_p5', '?')})")
+        sc = spice.run_subcircuits(d, spec)
+        ctx.note(f"子电路TB: {sc.get('status')} "
+                 + " ".join(f"{k}={'过' if v.get('pass') else '败'}"
+                            for k, v in sc.get('tbs', {}).items()))
     except Exception as e:
         ctx.note(f"SPICE MC不可用: {e}")
+    # S1: geometry-aware DC solve on the routed copper
+    try:
+        from fluxpcb.tools import dcsolve
+        r = dcsolve.run_dc(d, spec)
+        ok = [x for x in r.get("rails", []) if x.get("status") == "ok"]
+        if ok:
+            ctx.note(f"几何DC解: {len(ok)}轨 "
+                     + "; ".join(f"{x['rail']} 压降{x['drop_pct']}% "
+                                 f"Jmax{x['j_max_a_mm2']}A/mm2" for x in ok))
+        else:
+            ctx.note(f"几何DC解失败: {r.get('rails')}")
+    except Exception as e:
+        ctx.note(f"几何DC解不可用: {e}")
+    # S2: plane cavity modes
+    try:
+        from fluxpcb.tools import cavity
+        cv = cavity.run(d, spec)
+        ctx.note(f"平面腔模: 首谐振{cv.get('first_resonance_mhz')}MHz "
+                 f"(带限{cv.get('band_limit_mhz')}MHz)")
+    except Exception as e:
+        ctx.note(f"腔模分析不可用: {e}")
+    # S3: PDN Z(f) AC sweep
+    try:
+        from fluxpcb.tools import pdn_ac
+        pz = pdn_ac.run(d, spec)
+        ctx.note(f"PDN AC: {pz.get('status')} Zmax={pz.get('z_max_ohm')}Ω "
+                 f"目标={pz.get('z_target_ohm')}Ω")
+    except Exception as e:
+        ctx.note(f"PDN AC不可用: {e}")
+    # S4: return path screen
+    try:
+        from fluxpcb.tools import returnpath
+        rp = returnpath.run(d, spec)
+        ctx.note(f"回流筛: 集中度{rp.get('worst_concentration_pct')}% "
+                 f"(阈值{rp.get('threshold_pct')}%)")
+    except Exception as e:
+        ctx.note(f"回流筛不可用: {e}")
     ctx.note("仿真输入已生成(FDM/闭式内核由门禁执行)")
 
 

@@ -94,8 +94,12 @@ def _grounding(project_dir: Path) -> dict:
                 "constraints": "drc_zero", "zones": "drc_zero",
                 "stackup": "impedance_si", "impedance": "impedance_si",
                 "thermal": "thermal", "irdrop": "irdrop", "power": "spice_functional",
-                "emc": "emc_precompliance", "firmware": "firmware_regression",
+                "emc": "pdn_impedance_ac", "firmware": "firmware_regression",
                 "software": "firmware_build",
+                "irdrop_geom": "dc_irdrop_geom", "crowding": "dc_current_density",
+                "cavity": "plane_cavity_resonance", "resonance": "plane_cavity_resonance",
+                "pdn": "pdn_impedance_ac", "return": "return_path",
+                "em": "em_field_analysis", "cfd": "thermal_cfd",
             }.get(key.lower())
             if gate_name is None and re.fullmatch(r"[A-Z]{1,3}\d+.*", key):
                 gate_name = "erc_zero"  # 器件位号(U1/J4/SW1): 原理图连接性门禁覆盖

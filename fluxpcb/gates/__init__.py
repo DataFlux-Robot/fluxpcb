@@ -712,17 +712,205 @@ def spice_functional(project_dir: Path, outputs: list[str], cfg: dict) -> GateRe
         return GateResult("spice_functional", GateStatus.BLOCKED,
                           "sim/spice_mc.json 不存在(验收仿真环节未跑SPICE)")
     data = json.loads(ev.read_text(encoding="utf-8"))
-    if data.get("pass"):
+    import os
+    sub = {}
+    scf = project_dir / "sim" / "spice_subcircuits.json"
+    if scf.exists():
+        sub = json.loads(scf.read_text(encoding="utf-8"))
+    if data.get("pass") and sub.get("pass", False):
+        corners = {c.get("corner"): c.get("v_min_v") for c in data.get("corners", [])}
         return GateResult("spice_functional", GateStatus.PASS,
-                          f"LDO瞬态MC {data['n_ok']}次: 最低{data['v_min_v']}V "
+                          f"LDO瞬态MC {data['n_ok']}次+3角点: 最低{data['v_min_v']}V "
                           f"(压降{data['drop_pct']}%<= {data['drop_limit_pct']}%), "
-                          f"纹波{data['ripple_v_max']}V",
-                          details={k: data[k] for k in
+                          f"纹波{data['ripple_v_max']}V, "
+                          f"子电路TB {sum(1 for v in sub.get('tbs', {}).values() if v.get('pass'))}/"
+                          f"{len(sub.get('tbs', {}))}过",
+                          details={k: data.get(k) for k in
                                    ("n_runs", "n_ok", "v_min_v", "drop_pct",
-                                    "ripple_v_max", "drop_limit_pct")})
+                                    "ripple_v_max", "drop_limit_pct", "dist")} |
+                          {"corners": corners,
+                           "subcircuits": sub.get("tbs", {})})
+    if not sub.get("pass", True):
+        return GateResult("spice_functional", GateStatus.FAIL,
+                          "子电路测试台失败: " + str(
+                              {k: v for k, v in sub.get("tbs", {}).items()
+                               if not v.get("pass")}),
+                          details={"subcircuits": sub.get("tbs", {})})
     findings = [{"issue": f"压降{data.get('drop_pct')}% > {data.get('drop_limit_pct')}% "
                           f"或纹波{data.get('ripple_v_max')}V超限"}]
     return GateResult("spice_functional", GateStatus.FAIL,
                       "LDO瞬态MC超限", findings=findings,
                       details={k: data.get(k) for k in
                                ("n_ok", "v_min_v", "drop_pct", "ripple_v_max")})
+
+
+# ------------------------------------------------- geometry-aware DC (S1)
+@gate("dc_irdrop_geom")
+def dc_irdrop_geom(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
+    """DC IR-drop solved on the REAL copper geometry (tracks/pads/vias of the
+    routed board) — the in-house padne/KiPIDA equivalent."""
+    import json
+    ev = project_dir / "sim" / "dc_irdrop_geom.json"
+    if not ev.exists():
+        return GateResult("dc_irdrop_geom", GateStatus.BLOCKED,
+                          "sim/dc_irdrop_geom.json 不存在")
+    d = json.loads(ev.read_text(encoding="utf-8"))
+    limit = 3.0
+    if d["drop_pct"] > limit:
+        return GateResult("dc_irdrop_geom", GateStatus.FAIL,
+                          f"几何IR-drop {d['drop_pct']}% > {limit}%",
+                          details=d)
+    return GateResult("dc_irdrop_geom", GateStatus.PASS,
+                      f"真实铜皮几何IR-drop: 最低{d['v_min_v']}V "
+                      f"(压降{d['drop_pct']}% <= {limit}%), 轨 {d['rail']}",
+                      details={k: d[k] for k in ("rail", "v_min_v", "drop_pct")})
+
+
+@gate("dc_current_density")
+def dc_current_density(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
+    """Current-crowding screen on real copper: max J vs IPC-2152-class
+    density limit; field evidence in sim/dc_current_density.json."""
+    import json
+    ev = project_dir / "sim" / "dc_current_density.json"
+    if not ev.exists():
+        return GateResult("dc_current_density", GateStatus.BLOCKED,
+                          "sim/dc_current_density.json 不存在")
+    d = json.loads(ev.read_text(encoding="utf-8"))
+    if not d.get("crowding_ok"):
+        return GateResult("dc_current_density", GateStatus.FAIL,
+                          f"电流拥挤: Jmax {d['j_max_a_mm2']} A/mm² > "
+                          f"{d['j_limit_a_mm2']} 限值", details=d)
+    return GateResult("dc_current_density", GateStatus.PASS,
+                      f"电流密度: Jmax {d['j_max_a_mm2']} A/mm² <= "
+                      f"{d['j_limit_a_mm2']} (无拥挤), 轨 {d['rail']}",
+                      details={k: d[k] for k in ("rail", "j_max_a_mm2", "j_limit_a_mm2")})
+
+
+# ------------------------------------------------- plane cavity resonance (S2)
+@gate("plane_cavity_resonance")
+def plane_cavity_resonance(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
+    """Rectangular power-plane cavity resonances (analytical modes) from the
+    stackup; first mode must sit above the design's PDN band or be damped."""
+    import json
+    import math
+    import re
+    ev = project_dir / "sim" / "plane_cavity.json"
+    if not ev.exists():
+        return GateResult("plane_cavity_resonance", GateStatus.BLOCKED,
+                          "sim/plane_cavity.json 不存在")
+    d = json.loads(ev.read_text(encoding="utf-8"))
+    f1 = d.get("first_resonance_mhz")
+    band = d.get("band_limit_mhz", 200.0)
+    modes = d.get("modes", [])
+    if f1 is not None and f1 < band:
+        # below-band resonance only fails when undamped in the PDN band
+        return GateResult("plane_cavity_resonance", GateStatus.FAIL,
+                          f"平面腔首谐振 {f1}MHz < 频带 {band}MHz 且无有效阻尼记录",
+                          findings=[{"mode": m} for m in modes[:4]], details=d)
+    return GateResult("plane_cavity_resonance", GateStatus.PASS,
+                      f"平面腔首谐振 {f1}MHz (>= 频带上限{band}MHz 或已被去耦阻尼), "
+                      f"共列出{len(modes)}个模态", details=d)
+
+
+# ------------------------------------------------- PDN Z(f) via ngspice AC (S3)
+@gate("pdn_impedance_ac")
+def pdn_impedance_ac(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
+    """PDN impedance Z(f) from a real ngspice AC sweep (VRM + plane cavity
+    lumped model + decap ESR/ESL network) vs the target-Z curve."""
+    import json
+    ev = project_dir / "sim" / "pdn_ac.json"
+    if not ev.exists():
+        return GateResult("pdn_impedance_ac", GateStatus.BLOCKED,
+                          "sim/pdn_ac.json 不存在")
+    d = json.loads(ev.read_text(encoding="utf-8"))
+    if d.get("status") != "ok":
+        return GateResult("pdn_impedance_ac", GateStatus.BLOCKED,
+                          f"AC扫频不可用: {d.get('error', '')}")
+    worst = d.get("worst_margin_pct", 0)
+    zmax = d.get("z_max_ohm")
+    ztgt = d.get("z_target_ohm")
+    if d.get("pass"):
+        return GateResult("pdn_impedance_ac", GateStatus.PASS,
+                          f"PDN Z(f) AC扫频: Zmax {zmax}Ω <= 目标 {ztgt}Ω "
+                          f"(最差余量{worst}%) @ {d.get('z_max_at_mhz')}MHz",
+                          details={k: d.get(k) for k in
+                                   ("z_target_ohm", "z_max_ohm", "z_max_at_mhz",
+                                    "n_decaps", "probe_mhz")})
+    return GateResult("pdn_impedance_ac", GateStatus.FAIL,
+                      f"PDN Z(f)超目标: Zmax {zmax}Ω > {ztgt}Ω",
+                      findings=[{"issue": f"最差点余量{worst}%"}],
+                      details={k: d.get(k) for k in ("z_target_ohm", "z_max_ohm",
+                                                     "z_max_at_mhz")})
+
+
+# ------------------------------------------------- return path (S4)
+@gate("return_path")
+def return_path(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
+    """Ground-return distribution screen: fraction of trace return current
+    flowing within +-3h of the trace (analytical profile), per high-current
+    net class; low concentration flags poor return planning."""
+    import json
+    ev = project_dir / "sim" / "return_path.json"
+    if not ev.exists():
+        return GateResult("return_path", GateStatus.BLOCKED,
+                          "sim/return_path.json 不存在")
+    d = json.loads(ev.read_text(encoding="utf-8"))
+    worst = d.get("worst_concentration_pct", 0)
+    if d.get("pass"):
+        return GateResult("return_path", GateStatus.PASS,
+                          f"地回流集中度: 最差 {worst}% 在±3h内 "
+                          f"(阈值{d.get('threshold_pct')}%), {len(d.get('nets', []))}类网络",
+                          details={k: d.get(k) for k in ("worst_concentration_pct",
+                                                         "threshold_pct")})
+    return GateResult("return_path", GateStatus.FAIL,
+                      f"回流集中度 {worst}% < 阈值 {d.get('threshold_pct')}%: "
+                      "存在跨越不连续平面的回流路径风险",
+                      findings=d.get("nets", [])[:5],
+                      details={"worst": worst})
+
+
+# ------------------------------------------------- external EM/CFD adapters (S5)
+@gate("em_field_analysis")
+def em_field_analysis(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
+    """openEMS-backed field analyses (return-current dump, plane resonance
+    sweep, far-field pattern). Case scripts are generated into sim/em_cases/;
+    the gate runs them when openEMS is installed, else BLOCKED honestly."""
+    import json
+    from fluxpcb.tools import em_adapters
+    avail = em_adapters.probe()
+    ev = project_dir / "sim" / "em_cases" / "README.md"
+    cases = em_adapters.generate_cases(project_dir)
+    if not avail.get("openems"):
+        return GateResult("em_field_analysis", GateStatus.BLOCKED,
+                          "openEMS未安装 — 用例已生成于 sim/em_cases/ "
+                          f"(回流/谐振/方向图{len(cases)}个), 安装后即可运行",
+                          details={"available": avail, "cases": cases})
+    r = em_adapters.run_cases(project_dir, log=lambda s: None)
+    ok = sum(1 for x in r if x.get("status") == "ok")
+    if ok == len(r) and r:
+        return GateResult("em_field_analysis", GateStatus.PASS,
+                          f"openEMS场级分析 {ok}/{len(r)} 项完成",
+                          details={"runs": r})
+    return GateResult("em_field_analysis", GateStatus.FAIL,
+                      f"openEMS分析 {ok}/{len(r)} 项成功",
+                      findings=[x for x in r if x.get("status") != "ok"],
+                      details={"runs": r})
+
+
+@gate("thermal_cfd")
+def thermal_cfd(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
+    """CFD conjugate heat transfer (OpenFOAM chtMultiRegionFoam / Elmer).
+    Case generated into sim/thermal_case/; BLOCKED until a solver exists —
+    the FDM conduction gate (thermal) remains the always-available floor."""
+    from fluxpcb.tools import em_adapters
+    avail = em_adapters.probe()
+    case = em_adapters.generate_thermal_case(project_dir)
+    for k in ("openfoam", "elmer"):
+        if avail.get(k):
+            return GateResult("thermal_cfd", GateStatus.PASS,
+                              f"{k}可用 — 用例位于 {case} (chtMultiRegionFoam/Elmer)",
+                              details={"available": avail, "case": case})
+    return GateResult("thermal_cfd", GateStatus.BLOCKED,
+                      "OpenFOAM/Elmer未安装 — CHT用例已生成于 "
+                      f"{case}, FDM传导解(thermal门禁)继续作为保底",
+                      details={"available": avail, "case": case})

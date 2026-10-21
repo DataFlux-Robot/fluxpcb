@@ -77,8 +77,16 @@ def test_pipeline_offline_all_gates_evaluated(tmp_path):
                      "netlist_topology", "impedance_si", "irdrop", "thermal",
                      "emc_precompliance", "firmware_build", "firmware_spi_loopback"):
         assert expected in gate_names, f"gate {expected} not evaluated"
-    # no gate crashed to unknown state
-    assert all(g.status != GateStatus.SKIPPED for s in report.stages for g in s.gates)
+    # no gate crashed to unknown state: SKIPPED is legitimate ONLY for the
+    # optional external-solver enhancement gates (policy in flux.yaml)
+    import yaml as _yaml
+    _flux = _yaml.safe_load((Path(__file__).resolve().parent.parent
+                             / "flux.yaml").read_text(encoding="utf-8"))
+    optional = set((_flux.get("gate_policy") or {}).get("optional", []))
+    for s in report.stages:
+        for g in s.gates:
+            if g.status == GateStatus.SKIPPED:
+                assert g.name in optional, f"{g.name} skipped but not optional"
 
 
 def test_reproducibility_same_hashes(tmp_path):

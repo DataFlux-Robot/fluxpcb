@@ -41,6 +41,7 @@ def run_pipeline(project_dir: Path, pipeline_path: Path | None = None,
     pipeline = load_pipeline(pipeline_path)
     max_iter = int((pipeline.get("retry") or {}).get("max_iterations", 3))
     stages_cfg = pipeline.get("stages", {})
+    optional_gates = set((pipeline.get("gate_policy") or {}).get("optional", []))
 
     report = RunReport(project=project_dir.name)
     project_dir.mkdir(parents=True, exist_ok=True)
@@ -71,6 +72,9 @@ def run_pipeline(project_dir: Path, pipeline_path: Path | None = None,
             run.gates = [gate_mod.run_gate(g, project_dir, cfg.get("outputs", []), cfg)
                          for g in cfg.get("gates", [])]
             for g in run.gates:
+                if g.status == GateStatus.BLOCKED and g.name in optional_gates:
+                    g.status = GateStatus.SKIPPED
+                    g.summary += " [可选增强门禁: 求解器缺席, 用例已生成]"
                 emit_event(project_dir, "gate", stage=name, gate=g.name,
                            status=g.status.value, summary=g.summary)
             failed = [g for g in run.gates if g.status == GateStatus.FAIL]
@@ -118,6 +122,7 @@ def verify_only(project_dir: Path, pipeline_path: Path | None = None) -> RunRepo
         pipeline_path = Path(__file__).resolve().parent.parent / "flux.yaml"
     pipeline = load_pipeline(pipeline_path)
     stages_cfg = pipeline.get("stages", {})
+    optional_gates = set((pipeline.get("gate_policy") or {}).get("optional", []))
 
     report = RunReport(project=project_dir.name)
     report.started = time.time()
@@ -130,6 +135,9 @@ def verify_only(project_dir: Path, pipeline_path: Path | None = None) -> RunRepo
         run.gates = [gate_mod.run_gate(g, project_dir, cfg.get("outputs", []), cfg)
                      for g in cfg.get("gates", [])]
         for g in run.gates:
+            if g.status == GateStatus.BLOCKED and g.name in optional_gates:
+                g.status = GateStatus.SKIPPED
+                g.summary += " [可选增强门禁: 求解器缺席, 用例已生成]"
             emit_event(project_dir, "gate", stage=name, gate=g.name,
                        status=g.status.value, summary=g.summary)
         if any(g.status == GateStatus.FAIL for g in run.gates):

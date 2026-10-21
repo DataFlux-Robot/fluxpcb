@@ -34,7 +34,9 @@ stages:
     runner: acceptance_sim
     inputs: [pcb/, stackup.yaml, bom.json]
     outputs: [sim/]
-    gates: [irdrop, thermal, emc_precompliance, spice_functional]
+    gates: [irdrop, thermal, emc_precompliance, spice_functional,
+            dc_irdrop_geom, dc_current_density, plane_cavity_resonance,
+            pdn_impedance_ac, return_path, em_field_analysis, thermal_cfd]
 
   firmware:
     title: 固件开发
@@ -45,6 +47,10 @@ stages:
 
 gate_policy:
   blocking: all          # all gates block release
+  # optional enhancement gates: external solvers (openEMS/CFD) — blocked
+  # becomes skipped-with-note when the solver is absent; core physics
+  # gates above remain strictly blocking
+  optional: [em_field_analysis, thermal_cfd]
 retry:
   max_iterations: 3      # bounded regeneration loop on gate failure
 audit:
