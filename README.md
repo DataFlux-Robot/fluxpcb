@@ -110,13 +110,36 @@ flux dashboard projects              # 本地Grounding Map可视化面板 → ht
 
 ### 案例 2:esp32s31-mini(全自动演示)
 
-**Prompt**: `ESP32-S31迷你开发板:USB-C供电 + 双排针(2×8P 2.54mm) + 1个RESET按键 + 1个电源LED,板子尽量小(约52×30mm),2层板`
+**Prompt:**
 
-**一条命令**: `flux run projects/esp32s31-mini` → **16/16门禁全绿 🟢 RELEASED**
+> ESP32-S31迷你开发板:USB-C供电 + 双排针(2×8P 2.54mm) + 1个RESET按键 + 1个电源LED,板子尽量小(约52×30mm),2层板
 
-规则式自动布局(功能分区+1.27网格+去耦就近) + 流水线内自动布线(Freerouting批量+碰撞感知收尾+违例清洗,DRC零违例) + ngspice LDO瞬态蒙特卡洛 + ESP-IDF固件主机C回归,产出fab包(Gerber+钻孔+坐标+STEP 3D)。
+**效果展示**(规则式自动布局 + 流水线内自动布线的直接产物):
 
-详见 [gallery/esp32s31-mini](gallery/esp32s31-mini/prompt.md)。
+![顶层装配视图](gallery/esp32s31-mini/render_assembly_top.svg)
+
+<details>
+<summary>查看更多渲染图</summary>
+
+![底层装配视图](gallery/esp32s31-mini/render_assembly_bottom.svg)
+
+![双面铜箔布线](gallery/esp32s31-mini/render_copper.svg)
+
+</details>
+
+**验证结果:** 16/16门禁全绿 🟢 RELEASED · ERC=0 · DRC=0 · ngspice MC压降2.79%≤5% · 固件主机C回归通过
+
+**一条命令**: `flux run projects/esp32s31-mini` — 规则式自动布局(功能分区+1.27网格+去耦就近) + 流水线内自动布线(Freerouting批量+碰撞感知收尾+违例清洗) + ngspice LDO瞬态蒙特卡洛 + ESP-IDF固件主机C回归。
+
+| | |
+|---|---|
+| 板卡 | ESP32-S31开发板,52×30mm,2层,全自动布局布线 |
+| 主控 | ESP32-S31-WROOM-3U(RISC-V双核320MHz) |
+| 接口 | USB-C(供电+数据) · 16 GPIO(2×8排针) · 烧录口 |
+| 📦 下载 | [fab包(Gerber+钻孔+坐标+STEP)](gallery/esp32s31-mini/esp32s31-mini-pcb.zip) |
+| 📋 详情 | [gallery/esp32s31-mini/prompt.md](gallery/esp32s31-mini/prompt.md) |
+
+---
 
 ## License
 
