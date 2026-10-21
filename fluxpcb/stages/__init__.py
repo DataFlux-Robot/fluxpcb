@@ -189,15 +189,28 @@ def stage_schematic(ctx: StageContext) -> None:
                 {"violations": violations, "engine": "stage-internal-lint",
                  "nets": len(set(nets)), "components": len(bom)})
     ctx.note(f"网表种子{len(set(nets))}网络,阶段内ERC违例{violations}")
-    # real KiCad generation when available (core + carrier boards)
+    # real KiCad generation when available
     import shutil as _sh
     if _sh.which("kicad-cli"):
-        try:
-            from fluxpcb import boards
-            boards.build_schematics(d)
-            ctx.note("真实KiCad原理图已生成(core+carrier)并采集ERC证据")
-        except Exception as e:
-            ctx.note(f"KiCad原理图生成失败,保留种子网表: {e}")
+        family = (spec.get("constraints") or {}).get("family")
+        if family == "esp32s31-devboard":
+            try:
+                from fluxpcb.kicadgen import devboard
+                from fluxpcb.kicadgen.schematic import write as sch_write
+                params = devboard.DevBoardParams.from_spec(spec)
+                sdir = d / "schematic" / "board"
+                sch_write(devboard.schematic(params),
+                          sdir / f"{params.name}.kicad_sch")
+                ctx.note(f"板族原理图已生成: {params.name}.kicad_sch")
+            except Exception as e:
+                ctx.note(f"板族原理图生成失败: {e}")
+        else:
+            try:
+                from fluxpcb import boards
+                boards.build_schematics(d)
+                ctx.note("真实KiCad原理图已生成(core+carrier)并采集ERC证据")
+            except Exception as e:
+                ctx.note(f"KiCad原理图生成失败,保留种子网表: {e}")
 
 
 
@@ -243,27 +256,25 @@ def stage_pcb_layout(ctx: StageContext) -> None:
     _write_yaml(d / "stackup.yaml", stackup)
     pdir = d / "pcb"
     _write_json(pdir / "drc_report.json", {"violations": 0, "engine": "stage-internal"})
-    # real carrier PCB + DRC evidence when KiCad available
+    # board generation: parametric family OR legacy hpm carrier — never both
     import shutil as _sh2
-    if _sh2.which('kicad-cli'):
+    if (spec.get("constraints") or {}).get("family") == "esp32s31-devboard":
+        if _sh2.which('kicad-cli'):
+            from fluxpcb.kicadgen.devboard import DevBoardParams, write_all
+            params = DevBoardParams.from_spec(spec)
+            board_file = d / "pcb" / "board" / f"{params.name}.kicad_pcb"
+            if not board_file.exists():
+                out = write_all(params, d)
+                ctx.note(f"板族PCB已生成(规则布局): {out['pcb']}")
+            else:
+                ctx.note(f"板族PCB已存在,跳过重新生成: {board_file.name}")
+    elif _sh2.which('kicad-cli'):
         try:
             from fluxpcb import boards
             ev = boards.build_carrier_pcb(d)
             ctx.note(f'载板PCB已生成,DRC证据: {ev}')
         except Exception as e:
             ctx.note(f'KiCad PCB生成失败,保留种子: {e}')
-
-    # parametric dev-board family generation (W3): spec.family selects the
-    # generator; existing boards are never overwritten (green-board safety)
-    if (spec.get("constraints") or {}).get("family") == "esp32s31-devboard":
-        from fluxpcb.kicadgen.devboard import DevBoardParams, write_all
-        params = DevBoardParams.from_spec(spec)
-        board_file = d / "pcb" / "board" / f"{params.name}.kicad_pcb"
-        if not board_file.exists():
-            out = write_all(params, d)
-            ctx.note(f"板族PCB已生成(规则布局): {out['pcb']}")
-        else:
-            ctx.note(f"板族PCB已存在,跳过重新生成: {board_file.name}")
 
     # in-pipeline auto-routing for any generated board (W2): bounded
     # DRC -> L-route -> shorts-cleanup loop; hand-fixable residue stays

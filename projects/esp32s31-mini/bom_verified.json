@@ -1,0 +1,48 @@
+{
+ "parts": {
+  "MOD1": {
+   "status": "manual-verify",
+   "note": "ESP32-S31为2025新量产型号,立创C号暂未公开索引;下单前于szlcsc.com搜索ESP32-S31核实。替代路线:ESP32-S3-WROOM-1"
+  },
+  "J4": {
+   "status": "snapshot"
+  },
+  "U1": {
+   "status": "snapshot"
+  },
+  "SW1": {
+   "status": "snapshot"
+  },
+  "D1": {
+   "status": "snapshot"
+  },
+  "R2": {
+   "status": "snapshot"
+  },
+  "R1": {
+   "status": "snapshot"
+  },
+  "R5": {
+   "status": "snapshot"
+  },
+  "R6": {
+   "status": "snapshot"
+  },
+  "C1": {
+   "status": "snapshot"
+  },
+  "C2": {
+   "status": "snapshot"
+  },
+  "C3": {
+   "status": "snapshot"
+  },
+  "J3": {
+   "status": "snapshot"
+  }
+ },
+ "online": 0,
+ "snapshot": 12,
+ "manual_verify": 1,
+ "network": false
+}

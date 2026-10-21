@@ -610,16 +610,21 @@ def placement_quality(project_dir: Path, outputs: list[str], cfg: dict) -> GateR
                     overlaps.append((a, b))
         for a, b in overlaps[:8]:
             findings.append({"issue": f"封装重叠: {a} <-> {b}"})
-        # decap distance: C* bulk caps (10uF) within 8mm of an IC (U*/MOD*)
+        # decap distance: cap center within 8mm (euclidean) of any IC bbox
         decap_far = []
+        ics = [i for i in refs if i.startswith(("U", "MOD"))]
         for r in refs:
             if not r.startswith("C"):
                 continue
             rx, ry = (boxes[r][0] + boxes[r][2]) / 2, (boxes[r][1] + boxes[r][3]) / 2
-            near = any(
-                abs((boxes[i][0] + boxes[i][2]) / 2 - rx) +
-                abs((boxes[i][1] + boxes[i][3]) / 2 - ry) < 8.0
-                for i in refs if i.startswith(("U", "MOD")))
+            near = False
+            for i in ics:
+                x0, y0, x1, y1 = boxes[i]
+                dx = max(x0 - rx, 0, rx - x1)
+                dy = max(y0 - ry, 0, ry - y1)
+                if (dx * dx + dy * dy) ** 0.5 < 8.0:
+                    near = True
+                    break
             if not near:
                 decap_far.append(r)
         for r in decap_far[:6]:

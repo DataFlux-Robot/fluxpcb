@@ -164,6 +164,7 @@ def _led_net(i: int) -> str:
 def schematic(p: DevBoardParams) -> Schematic:
     sch = Schematic(title=p.name, project=p.name)
     nets = _mod_nets(p)
+    nc: set[str] = set()
     header_ios = {n for row in p.header_nets() for n in row}
     sch.add_def(legacy._module_symbol())
     sch.add_def(SymDef("flux:USB_C_16P", [P("A4", "VBUS"), P("A9", "VBUS"),
@@ -175,7 +176,8 @@ def schematic(p: DevBoardParams) -> Schematic:
                                           P("A5", "CC1"), P("B5", "CC2"),
                                           P("S1", "SH")], ref_prefix="J"))
     sch.add_def(SymDef("flux:AP2112K", [
-        P(1, "VIN"), P(2, "GND"), P(3, "EN"), P(5, "VOUT")], ref_prefix="U"))
+        P(1, "VIN", "power_in"), P(2, "GND", "power_in"),
+        P(3, "EN"), P(5, "VOUT", "power_out")], ref_prefix="U"))
     sch.add_def(SymDef("flux:LED", [P(1, "A"), P(2, "K")], ref_prefix="D"))
     sch.add_def(SymDef("flux:R_0603", [P(1, "A"), P(2, "B")], ref_prefix="R"))
     sch.add_def(SymDef("flux:C_0603", [P(1, "A"), P(2, "B")], ref_prefix="C"))
@@ -187,8 +189,16 @@ def schematic(p: DevBoardParams) -> Schematic:
 
     led_r_refs = ["R1"] + (["R4"] if p.leds > 1 else [])
     x0, y0 = 50.8, 127.0
+    # module pins neither netted nor rails -> explicit no-connect
+    used = set(nets)
+    for name, num in legacy.MOD_PINS.items():
+        if name in ("GND", "3V3"):
+            continue
+        for n in (num if isinstance(num, list) else [num]):
+            if str(n) not in used:
+                nc.add(str(n))
     sch.place(SymInst("MOD1", "flux:ESP32-S31-WROOM-3U", "ESP32-S31-WROOM-3U",
-                      x=30.48, y=127.0, pin_nets=nets))
+                      x=30.48, y=127.0, pin_nets=nets, nc_pins=nc))
     sch.place(SymInst("J4", "flux:USB_C_16P", "USB-C", x=x0, y=y0,
                       pin_nets={"A4": "5V", "A9": "5V", "B4": "5V", "B9": "5V",
                                 "A1": "GND", "A12": "GND", "B1": "GND", "B12": "GND",

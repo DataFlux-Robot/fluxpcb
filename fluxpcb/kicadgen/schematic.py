@@ -52,6 +52,7 @@ class SymInst:
     x: float = 0.0
     y: float = 0.0
     pin_nets: dict[str, str] = field(default_factory=dict)
+    nc_pins: set[str] = field(default_factory=set)   # explicitly unused pins
 
 
 _KEYWORDS = {
@@ -118,6 +119,7 @@ class Schematic:
         self.instances: list[tuple[SymInst, SymDef]] = []
         self.rails: list[str] = []            # nets needing PWR_FLAG
         self.labels: list[tuple[str, float, float]] = []
+        self.nc_marks: list[tuple[float, float]] = []
 
     def add_def(self, sd: SymDef) -> SymDef:
         self.symdefs[sd.lib_name] = sd
@@ -131,6 +133,8 @@ class Schematic:
             if net:
                 # symbol local +y up -> sheet +y down
                 self.labels.append((net, round(si.x + p.x, 3), round(si.y - p.y, 3)))
+            elif p.number in si.nc_pins:
+                self.nc_marks.append((round(si.x + p.x, 3), round(si.y - p.y, 3)))
 
     def _lib_symbol(self, sd: SymDef) -> list:
         base = sd.lib_name.split(":")[-1]
@@ -239,6 +243,9 @@ class Schematic:
                 *pwr_flags,
                 *[self._instance(si, sd) for si, sd in self.instances],
                 *[self._global_label(n, x, y) for n, x, y in self.labels],
+                *[[bare("no_connect"),
+                   [bare("at"), x, y],
+                   [bare("uuid"), uid()]] for x, y in self.nc_marks],
                 ]
         return _render(root, 0) + "\n"
 

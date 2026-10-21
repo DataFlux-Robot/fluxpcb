@@ -1,0 +1,86 @@
+project: esp32s31-mini
+requirements:
+- id: FR-001
+  text: ESP32-S31-WROOM-3U模组为核心,USB-C 5V供电
+  priority: must
+  covered_by:
+  - bom
+  - MOD1
+  - J4
+- id: FR-002
+  text: AP2112K-3.3稳压到3V3,输入输出各10uF+100nF去耦
+  priority: must
+  covered_by:
+  - U1
+  - C1
+  - C2
+  - C3
+- id: FR-003
+  text: 双排针2x8P 2.54mm引出电源与GPIO
+  priority: must
+  covered_by:
+  - J1
+  - J2
+- id: FR-004
+  text: 1个RESET按键(EN)+10k上拉
+  priority: must
+  covered_by:
+  - SW1
+  - R2
+- id: FR-005
+  text: 1个电源LED(红,1k限流)
+  priority: must
+  covered_by:
+  - D1
+  - R1
+- id: FR-006
+  text: USB-C CC1/CC2各5.1k下拉
+  priority: must
+  covered_by:
+  - R5
+  - R6
+- id: FR-007
+  text: 4P烧录排针(3V3/GND/TX0/RX0),GND铺铜
+  priority: should
+  covered_by:
+  - J3
+  - zones
+power:
+  input: USB-C 5V
+  total_w: 1.5
+  rails:
+  - 3V3
+interfaces:
+- name: usb
+  type: usb
+  high_speed: true
+  connections:
+  - USB_DP
+  - USB_DM
+  - 5V
+  - GND
+  mcu:
+    family: esp32s31
+    pins:
+      spi_mosi: 11
+      spi_miso: 13
+      spi_sck: 12
+      spi_cs: 10
+      tx0: 68
+      rx0: 69
+      en: 5
+      boot: 8
+      led: 9
+constraints:
+  family: esp32s31-devboard
+  size_mm:
+  - 52
+  - 30
+  layers: 2
+  er: 4.4
+  headers:
+    rows: 2
+    pins_per_row: 8
+  buttons: 1
+  leds: 1
+  prog_header: true

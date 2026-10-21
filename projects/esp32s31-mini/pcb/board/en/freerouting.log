@@ -1,0 +1,1470 @@
+2026-10-21 16:02:12.536 INFO   Freerouting v2.4.1 (build-date: 2026-09-03)
+2026-10-21 16:02:12.539 DEBUG  [startup] user-data path : C:\Users\zhang\AppData\Roaming\freerouting  (source: default (OS standard user-data path))
+2026-10-21 16:02:12.540 DEBUG  [startup] log file       : E:\DATA\vscode\ZCODE\flux-neurotransmitter\projects\esp32s31-mini\pcb\board\en\freerouting.log
+2026-10-21 16:02:12.585 DEBUG  Settings loaded from 'C:\Users\zhang\AppData\Roaming\freerouting\freerouting.json'.
+2026-10-21 16:02:12.585 WARN   [startup] freerouting.json contains a stale 'logging.file.location' value: 'C:\Users\zhang\AppData\Local\Temp\miniL_mg2z4nsg\pcb\board\en\freerouting.log'. The actual log file is being written to 'E:\DATA\vscode\ZCODE\flux-neurotransmitter\projects\esp32s31-mini\pcb\board\en\freerouting.log' (as resolved at startup). The stale value will be corrected in freerouting.json on next save. If you see this in Docker, the old JSON was written by an earlier version that stored the host path; the fix is to delete freerouting.json so it is regenerated with the correct path.
+2026-10-21 16:02:12.610 DEBUG  Version: 2.4.1,2026-09-03
+2026-10-21 16:02:12.610 DEBUG  Command line arguments: '-de esp32s31-mini.dsn -do routed-esp32s31-mini.dsn -mp 40 -l en'
+2026-10-21 16:02:12.610 DEBUG  Architecture: Windows 11,amd64,10.0
+2026-10-21 16:02:12.610 DEBUG  Java: 25.0.4.1,Microsoft
+2026-10-21 16:02:12.610 DEBUG  System Language: zh,zh_CN
+2026-10-21 16:02:12.612 DEBUG  Hardware: 16 CPU cores, 157633 CPU score, 6116 MB RAM
+2026-10-21 16:02:12.612 DEBUG  UTC Time: 2026-10-21T08:02:12.594727100Z
+2026-10-21 16:02:12.612 DEBUG  GUI Language: en
+2026-10-21 16:02:12.612 DEBUG  Host: N/A
+2026-10-21 16:02:12.613 WARN   Couldn't get screen resolution. If you are running in a headless environment, disable the GUI by setting gui.enabled to false.
+2026-10-21 16:02:12.616 DEBUG  Analytics are disabled
+2026-10-21 16:02:13.755 DEBUG  Loaded router settings from: C:\Users\zhang\AppData\Roaming\freerouting\freerouting.json
+2026-10-21 16:02:13.756 DEBUG  Applied CLI router setting: router.max_passes = 40
+2026-10-21 16:02:13.756 DEBUG  Applied CLI router setting: router.enabled = true (implicit from -de/-do batch mode)
+2026-10-21 16:02:13.757 DEBUG  No router settings found in environment variables
+2026-10-21 16:02:13.804 DEBUG  Set DEFAULT clearance (all layers): 2000 (0.05 mm) from DSN value 200.0
+2026-10-21 16:02:13.810 DEBUG  Set clearance (all layers): smd_smd = 500 (0.0125 mm), classes [2,2]
+2026-10-21 16:02:13.811 DEBUG  Set default trace width (all layers): DSN=200.0 → board=2000 (0.05 mm)
+2026-10-21 16:02:13.831 DEBUG  Loaded router settings from DSN file: esp32s31-mini.dsn (2 layers)
+2026-10-21 16:02:13.839 DEBUG  Set DEFAULT clearance (all layers): 2000 (0.05 mm) from DSN value 200.0
+2026-10-21 16:02:13.840 DEBUG  Set clearance (all layers): smd_smd = 500 (0.0125 mm), classes [2,2]
+2026-10-21 16:02:13.840 DEBUG  Set default trace width (all layers): DSN=200.0 → board=2000 (0.05 mm)
+2026-10-21 16:02:13.843 DEBUG  Loaded router settings from DSN file: esp32s31-mini.dsn (2 layers)
+2026-10-21 16:02:13.845 DEBUG  Merging settings from 5 sources:
+2026-10-21 16:02:13.845 DEBUG    - Default Settings (priority 0): base settings
+2026-10-21 16:02:13.847 DEBUG    - freerouting.json (priority 10): 2 fields changed
+2026-10-21 16:02:13.847 DEBUG    - DSN file: esp32s31-mini.dsn (priority 20): 4 fields changed
+2026-10-21 16:02:13.847 DEBUG    - Environment Variables (priority 55): 0 fields changed
+2026-10-21 16:02:13.847 DEBUG    - CLI Arguments (priority 60): 0 fields changed
+2026-10-21 16:02:13.847 DEBUG  Settings merged successfully from 5 source(s)
+2026-10-21 16:02:14.086 INFO   [B054D8\A6DEF6] Loading board file 'esp32s31-mini.dsn'...
+2026-10-21 16:02:14.093 DEBUG  Set DEFAULT clearance (all layers): 2000 (0.05 mm) from DSN value 200.0
+2026-10-21 16:02:14.093 DEBUG  Set clearance (all layers): smd_smd = 500 (0.0125 mm), classes [2,2]
+2026-10-21 16:02:14.093 DEBUG  Set default trace width (all layers): DSN=200.0 → board=2000 (0.05 mm)
+2026-10-21 16:02:14.144 DEBUG  applyBoardSpecificOptimizations changed parameters:
+  Layer 0: bendCost: null -> 0.0; preferredDirectionHorizontal: null -> true; undesiredDirectionTraceCost: 1.0 -> 2.7;
+  Layer 1: bendCost: null -> 0.0; preferredDirectionHorizontal: null -> false; undesiredDirectionTraceCost: 1.0 -> 1.6;
+2026-10-21 16:02:14.147 DEBUG  Applied copper-to-edge clearance override: 500.0 um (5000 board units).
+2026-10-21 16:02:14.154 DEBUG  Set DEFAULT clearance (all layers): 2000 (0.05 mm) from DSN value 200.0
+2026-10-21 16:02:14.155 DEBUG  Set clearance (all layers): smd_smd = 500 (0.0125 mm), classes [2,2]
+2026-10-21 16:02:14.155 DEBUG  Set default trace width (all layers): DSN=200.0 → board=2000 (0.05 mm)
+2026-10-21 16:02:14.157 DEBUG  Loaded router settings from DSN file: esp32s31-mini.dsn (2 layers)
+2026-10-21 16:02:14.158 DEBUG  Merging settings from 6 sources:
+2026-10-21 16:02:14.158 DEBUG    - Default Settings (priority 0): base settings
+2026-10-21 16:02:14.158 DEBUG    - freerouting.json (priority 10): 2 fields changed
+2026-10-21 16:02:14.159 DEBUG    - DSN file: esp32s31-mini.dsn (priority 20): 4 fields changed
+2026-10-21 16:02:14.159 DEBUG    - Environment Variables (priority 55): 0 fields changed
+2026-10-21 16:02:14.159 DEBUG    - CLI Arguments (priority 60): 0 fields changed
+2026-10-21 16:02:14.159 DEBUG    - API Settings (priority 70): 24 fields changed
+2026-10-21 16:02:14.159 DEBUG  Settings merged successfully from 6 source(s)
+2026-10-21 16:02:14.160 DEBUG  applyBoardSpecificOptimizations changed parameters:
+  Layer 0: undesiredDirectionTraceCost: 1.0 -> 2.7;
+  Layer 1: undesiredDirectionTraceCost: 1.0 -> 1.6;
+2026-10-21 16:02:14.161 INFO   [B054D8\A6DEF6] Job 'B054D8\A6DEF6' started at 2026-10-21T08:02:14.160765900Z.
+2026-10-21 16:02:14.260 DEBUG  [B054D8\A6DEF6] Checking fanout pre-pass. settings.fanout.enabled=true, smdPins=148
+2026-10-21 16:02:14.368 INFO   [B054D8\A6DEF6] Fanout stage started on board '623cc8a4d7bfbb0209ced5c9870c1dc6' with 42 of 148 SMD pins needing fanout (19 already connected, 87 netless).
+2026-10-21 16:02:14.477 INFO   New version available: v2.5.0
+2026-10-21 16:02:14.871 DEBUG  FoundConnectionInserter: insert trace failed for net #20 at corner 10/10 on layer 0, trace width: 1000, from corner: 9, okPoint: (144050,-251548), target: (144050,-265400)
+2026-10-21 16:02:15.161 DEBUG  FoundConnectionInserter: insert trace failed for net #7 at corner 4/4 on layer 0, trace width: 1000, from corner: 1, okPoint: (65247,-164398), target: (11300,-160900)
+2026-10-21 16:02:15.960 INFO   [B054D8\A6DEF6] Fanout pass #1 on board '3dcaff0f17f695ab0182c9b6d69c034e' completed in 1.52 seconds with 38 SMD pins fanouted, 1 not routed, 0 insert errors, +28 extra vias (0 SMD pins still to check in pass, ripup costs=100).
+2026-10-21 16:02:16.333 DEBUG  FoundConnectionInserter: insert trace failed for net #20 at corner 8/9 on layer 0, trace width: 1000, from corner: 7, okPoint: (435439,-145334), target: (454416,-145334)
+2026-10-21 16:02:16.574 INFO   [B054D8\A6DEF6] Fanout pass #2 on board '60beeb01102705f5a92feea40b6d49ed' completed in 0.61 seconds with 5 SMD pins fanouted, 0 not routed, 0 insert errors, +0 extra vias (0 SMD pins still to check in pass, ripup costs=200).
+2026-10-21 16:02:16.830 INFO   [B054D8\A6DEF6] Fanout pass #3 on board '2a0c9fb95ea3f86930ea11236c8d0b3a' completed in 0.25 seconds with 2 SMD pins fanouted, 0 not routed, 0 insert errors, +2 extra vias (0 SMD pins still to check in pass, ripup costs=300).
+2026-10-21 16:02:17.035 INFO   [B054D8\A6DEF6] Fanout pass #4 on board '2a0c9fb95ea3f86930ea11236c8d0b3a' completed in 0.20 seconds with 0 SMD pins fanouted, 0 not routed, 0 insert errors, +0 extra vias (0 SMD pins still to check in pass, ripup costs=400).
+2026-10-21 16:02:17.076 INFO   [B054D8\A6DEF6] Fanout stage completed: started with 61 total SMD pins, completed in 2.65 seconds, escaped pins: 60/61 (98.4%), using 2.72 total CPU seconds, 4.71 GB total allocated, and 367.3 MB peak heap usage.
+2026-10-21 16:02:17.085 INFO   [B054D8\A6DEF6] Auto-routing stage started on board '2a0c9fb95ea3f86930ea11236c8d0b3a' for 26 unrouted items.
+2026-10-21 16:02:17.224 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 6/22)
+2026-10-21 16:02:17.224 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 7/11)
+2026-10-21 16:02:17.224 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 7/11)
+2026-10-21 16:02:17.224 DEBUG  Queuing item for routing: Pin on net 'CC2' (connected: 5/8)
+2026-10-21 16:02:17.224 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 5/22)
+2026-10-21 16:02:17.224 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 4/7)
+2026-10-21 16:02:17.224 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 5/15)
+2026-10-21 16:02:17.225 DEBUG  Queuing item for routing: Pin on net 'RX0' (connected: 5/6)
+2026-10-21 16:02:17.225 DEBUG  Queuing item for routing: Pin on net 'TX0' (connected: 6/7)
+2026-10-21 16:02:17.225 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 4/11)
+2026-10-21 16:02:17.225 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 4/11)
+2026-10-21 16:02:17.225 DEBUG  Queuing item for routing: Pin on net 'IO11' (connected: 4/5)
+2026-10-21 16:02:17.225 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 4/5)
+2026-10-21 16:02:17.225 DEBUG  Queuing item for routing: Pin on net 'IO9' (connected: 4/5)
+2026-10-21 16:02:17.226 DEBUG  Queuing item for routing: Pin on net 'IO8' (connected: 5/6)
+2026-10-21 16:02:17.226 DEBUG  Queuing item for routing: Pin on net 'IO7' (connected: 5/6)
+2026-10-21 16:02:17.226 DEBUG  Queuing item for routing: Pin on net 'IO6' (connected: 5/6)
+2026-10-21 16:02:17.227 DEBUG  Queuing item for routing: Pin on net 'IO5' (connected: 4/5)
+2026-10-21 16:02:17.227 DEBUG  Queuing item for routing: Pin on net 'IO4' (connected: 4/5)
+2026-10-21 16:02:17.227 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 5/6)
+2026-10-21 16:02:17.227 DEBUG  Queuing item for routing: Pin on net 'IO2' (connected: 5/6)
+2026-10-21 16:02:17.227 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 4/15)
+2026-10-21 16:02:17.227 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 8/23)
+2026-10-21 16:02:17.227 DEBUG  Queuing item for routing: Pin on net 'RX0' (connected: 1/6)
+2026-10-21 16:02:17.228 DEBUG  Queuing item for routing: Pin on net 'TX0' (connected: 1/7)
+2026-10-21 16:02:17.228 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/23)
+2026-10-21 16:02:17.228 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 5/15)
+2026-10-21 16:02:17.228 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 10/22)
+2026-10-21 16:02:17.228 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 3/23)
+2026-10-21 16:02:17.228 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 8/23)
+2026-10-21 16:02:17.229 DEBUG  Queuing item for routing: Pin on net 'IO5' (connected: 1/5)
+2026-10-21 16:02:17.229 DEBUG  Queuing item for routing: Pin on net 'IO4' (connected: 1/5)
+2026-10-21 16:02:17.229 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/6)
+2026-10-21 16:02:17.229 DEBUG  Queuing item for routing: Pin on net 'IO2' (connected: 1/6)
+2026-10-21 16:02:17.229 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 1/15)
+2026-10-21 16:02:17.229 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/22)
+2026-10-21 16:02:17.229 DEBUG  Queuing item for routing: Pin on net 'IO11' (connected: 1/5)
+2026-10-21 16:02:17.229 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 1/5)
+2026-10-21 16:02:17.230 DEBUG  Queuing item for routing: Pin on net 'IO9' (connected: 1/5)
+2026-10-21 16:02:17.230 DEBUG  Queuing item for routing: Pin on net 'IO8' (connected: 1/6)
+2026-10-21 16:02:17.230 DEBUG  Queuing item for routing: Pin on net 'IO7' (connected: 1/6)
+2026-10-21 16:02:17.230 DEBUG  Queuing item for routing: Pin on net 'IO6' (connected: 1/6)
+2026-10-21 16:02:17.230 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 3/7)
+2026-10-21 16:02:17.230 DEBUG  Queuing item for routing: Pin on net 'CC2' (connected: 3/8)
+2026-10-21 16:02:17.230 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 3/23)
+2026-10-21 16:02:17.289 DEBUG  [B054D8\A6DEF6] Pass #1: 26 incompletes across 45 items to route
+2026-10-21 16:02:17.289 DEBUG  [B054D8\A6DEF6]   Net '5V' has 3 incomplete(s)
+2026-10-21 16:02:17.289 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 4 incomplete(s)
+2026-10-21 16:02:17.290 DEBUG  [B054D8\A6DEF6]   Net 'CC2' has 1 incomplete(s)
+2026-10-21 16:02:17.290 DEBUG  [B054D8\A6DEF6]   Net 'IO6' has 1 incomplete(s)
+2026-10-21 16:02:17.290 DEBUG  [B054D8\A6DEF6]   Net 'IO7' has 1 incomplete(s)
+2026-10-21 16:02:17.290 DEBUG  [B054D8\A6DEF6]   Net 'IO8' has 1 incomplete(s)
+2026-10-21 16:02:17.290 DEBUG  [B054D8\A6DEF6]   Net 'IO9' has 1 incomplete(s)
+2026-10-21 16:02:17.290 DEBUG  [B054D8\A6DEF6]   Net 'IO10' has 1 incomplete(s)
+2026-10-21 16:02:17.290 DEBUG  [B054D8\A6DEF6]   Net 'IO11' has 1 incomplete(s)
+2026-10-21 16:02:17.290 DEBUG  [B054D8\A6DEF6]   Net 'EN' has 3 incomplete(s)
+2026-10-21 16:02:17.290 DEBUG  [B054D8\A6DEF6]   Net 'TX0' has 1 incomplete(s)
+2026-10-21 16:02:17.290 DEBUG  [B054D8\A6DEF6]   Net 'RX0' has 1 incomplete(s)
+2026-10-21 16:02:17.290 DEBUG  [B054D8\A6DEF6]   Net 'IO2' has 1 incomplete(s)
+2026-10-21 16:02:17.290 DEBUG  [B054D8\A6DEF6]   Net 'IO3' has 1 incomplete(s)
+2026-10-21 16:02:17.290 DEBUG  [B054D8\A6DEF6]   Net 'IO4' has 1 incomplete(s)
+2026-10-21 16:02:17.290 DEBUG  [B054D8\A6DEF6]   Net 'IO5' has 1 incomplete(s)
+2026-10-21 16:02:17.290 DEBUG  [B054D8\A6DEF6]   Net 'USB_DP' has 1 incomplete(s)
+2026-10-21 16:02:17.291 DEBUG  [B054D8\A6DEF6]   Net 'USB_DM' has 1 incomplete(s)
+2026-10-21 16:02:17.291 DEBUG  [B054D8\A6DEF6]   Net 'CC1' has 1 incomplete(s)
+2026-10-21 16:02:17.592 DEBUG  FoundConnectionInserter: insert trace failed for net #14 at corner 34/34 on layer 1, trace width: 1000, from corner: 6, okPoint: (231800,-75002), target: (241300,-279400)
+2026-10-21 16:02:17.606 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between pin #3 of component #12 and polylinetrace, polylinetrace, polylinetrace, via, pin #68 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:18.348 DEBUG  FoundConnectionInserter: insert trace failed for net #5 at corner 54/54 on layer 1, trace width: 1000, from corner: 45, okPoint: (240837,-77398), target: (266700,-88900)
+2026-10-21 16:02:18.358 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between pin #1 of component #6 and polylinetrace, polylinetrace, polylinetrace, via, pin #11 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:19.784 DEBUG  FoundConnectionInserter: insert trace failed for net #5 at corner 26/26 on layer 1, trace width: 1000, from corner: 7, okPoint: (252815,-54000), target: (61911,-132251)
+2026-10-21 16:02:19.792 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, via, pin #11 of component #13 and pin #1 of component #6, because the new connection could not be inserted.
+2026-10-21 16:02:19.794 DEBUG  [B054D8\A6DEF6] Pass #1: Failed to route Pin on net 'IO6' (4 items remaining, 1 failures). State: FAILED
+2026-10-21 16:02:20.028 INFO   [B054D8\A6DEF6] Auto-routing pass #1 on board '2a0c9fb95ea3f86930ea11236c8d0b3a' was completed in 2.81 seconds with score 878.12 (7 unrouted and 4 violations), using 4.86 CPU seconds and the job allocated 9.90 GB of memory so far.
+2026-10-21 16:02:20.161 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 4/8)
+2026-10-21 16:02:20.165 DEBUG  Queuing item for routing: Pin on net 'RX0' (connected: 1/2)
+2026-10-21 16:02:20.166 DEBUG  Queuing item for routing: Pin on net 'TX0' (connected: 4/5)
+2026-10-21 16:02:20.166 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 4/8)
+2026-10-21 16:02:20.167 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 4/5)
+2026-10-21 16:02:20.167 DEBUG  Queuing item for routing: Pin on net 'IO7' (connected: 4/5)
+2026-10-21 16:02:20.167 DEBUG  Queuing item for routing: Pin on net 'IO6' (connected: 1/2)
+2026-10-21 16:02:20.167 DEBUG  Queuing item for routing: Pin on net 'IO5' (connected: 4/5)
+2026-10-21 16:02:20.168 DEBUG  Queuing item for routing: Pin on net 'RX0' (connected: 1/2)
+2026-10-21 16:02:20.168 DEBUG  Queuing item for routing: Pin on net 'TX0' (connected: 1/5)
+2026-10-21 16:02:20.168 DEBUG  Queuing item for routing: Pin on net 'IO5' (connected: 1/5)
+2026-10-21 16:02:20.168 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 1/5)
+2026-10-21 16:02:20.168 DEBUG  Queuing item for routing: Pin on net 'IO7' (connected: 1/5)
+2026-10-21 16:02:20.169 DEBUG  Queuing item for routing: Pin on net 'IO6' (connected: 1/2)
+2026-10-21 16:02:20.223 DEBUG  [B054D8\A6DEF6] Pass #2: 7 incompletes across 14 items to route
+2026-10-21 16:02:20.223 DEBUG  [B054D8\A6DEF6]   Net 'IO6' has 1 incomplete(s)
+2026-10-21 16:02:20.223 DEBUG  [B054D8\A6DEF6]   Net 'IO7' has 1 incomplete(s)
+2026-10-21 16:02:20.223 DEBUG  [B054D8\A6DEF6]   Net 'IO10' has 1 incomplete(s)
+2026-10-21 16:02:20.223 DEBUG  [B054D8\A6DEF6]   Net 'TX0' has 1 incomplete(s)
+2026-10-21 16:02:20.223 DEBUG  [B054D8\A6DEF6]   Net 'RX0' has 1 incomplete(s)
+2026-10-21 16:02:20.223 DEBUG  [B054D8\A6DEF6]   Net 'IO5' has 1 incomplete(s)
+2026-10-21 16:02:20.223 DEBUG  [B054D8\A6DEF6]   Net 'USB_DM' has 1 incomplete(s)
+2026-10-21 16:02:20.588 DEBUG  FoundConnectionInserter: insert trace failed for net #14 at corner 16/16 on layer 0, trace width: 1000, from corner: 6, okPoint: (224302,-68398), target: (281147,-61999)
+2026-10-21 16:02:20.595 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between pin #3 of component #12 and pin #68 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:21.886 INFO   [B054D8\A6DEF6] Auto-routing pass #2 on board 'f8b0b1aa4369febdb296a9ef21ea0857' was completed in 1.73 seconds with score 924.99 (4 unrouted and 4 violations), using 6.83 CPU seconds and the job allocated 16.12 GB of memory so far.
+2026-10-21 16:02:22.036 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 5/9)
+2026-10-21 16:02:22.037 DEBUG  Queuing item for routing: Pin on net 'RX0' (connected: 3/4)
+2026-10-21 16:02:22.037 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 4/9)
+2026-10-21 16:02:22.037 DEBUG  Queuing item for routing: Pin on net 'IO9' (connected: 4/5)
+2026-10-21 16:02:22.038 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/2)
+2026-10-21 16:02:22.038 DEBUG  Queuing item for routing: Pin on net 'RX0' (connected: 1/4)
+2026-10-21 16:02:22.038 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/2)
+2026-10-21 16:02:22.038 DEBUG  Queuing item for routing: Pin on net 'IO9' (connected: 1/5)
+2026-10-21 16:02:22.100 DEBUG  [B054D8\A6DEF6] Pass #3: 4 incompletes across 8 items to route
+2026-10-21 16:02:22.100 DEBUG  [B054D8\A6DEF6]   Net 'IO9' has 1 incomplete(s)
+2026-10-21 16:02:22.100 DEBUG  [B054D8\A6DEF6]   Net 'RX0' has 1 incomplete(s)
+2026-10-21 16:02:22.100 DEBUG  [B054D8\A6DEF6]   Net 'IO3' has 1 incomplete(s)
+2026-10-21 16:02:22.100 DEBUG  [B054D8\A6DEF6]   Net 'USB_DM' has 1 incomplete(s)
+2026-10-21 16:02:22.889 INFO   [B054D8\A6DEF6] Auto-routing pass #3 on board '3ef38bf9495e10070fe3aec419fe1014' was completed in 0.86 seconds with score 940.61 (3 unrouted and 4 violations), using 7.81 CPU seconds and the job allocated 19.37 GB of memory so far.
+2026-10-21 16:02:23.047 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 4/5)
+2026-10-21 16:02:23.047 DEBUG  Queuing item for routing: Pin on net 'IO7' (connected: 4/5)
+2026-10-21 16:02:23.047 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 4/5)
+2026-10-21 16:02:23.048 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/5)
+2026-10-21 16:02:23.049 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 1/5)
+2026-10-21 16:02:23.049 DEBUG  Queuing item for routing: Pin on net 'IO7' (connected: 1/5)
+2026-10-21 16:02:23.112 DEBUG  [B054D8\A6DEF6] Pass #4: 3 incompletes across 6 items to route
+2026-10-21 16:02:23.112 DEBUG  [B054D8\A6DEF6]   Net 'IO7' has 1 incomplete(s)
+2026-10-21 16:02:23.112 DEBUG  [B054D8\A6DEF6]   Net 'IO10' has 1 incomplete(s)
+2026-10-21 16:02:23.112 DEBUG  [B054D8\A6DEF6]   Net 'IO3' has 1 incomplete(s)
+2026-10-21 16:02:23.644 INFO   [B054D8\A6DEF6] Auto-routing pass #4 on board '1943faab186d0fcc624939eef06167fe' was completed in 0.60 seconds with score 940.61 (3 unrouted and 4 violations), using 8.80 CPU seconds and the job allocated 22.50 GB of memory so far.
+2026-10-21 16:02:23.780 DEBUG  Queuing item for routing: Pin on net 'RX0' (connected: 3/4)
+2026-10-21 16:02:23.780 DEBUG  Queuing item for routing: Pin on net 'IO11' (connected: 4/5)
+2026-10-21 16:02:23.780 DEBUG  Queuing item for routing: Pin on net 'IO9' (connected: 4/5)
+2026-10-21 16:02:23.781 DEBUG  Queuing item for routing: Pin on net 'RX0' (connected: 1/4)
+2026-10-21 16:02:23.781 DEBUG  Queuing item for routing: Pin on net 'IO11' (connected: 1/5)
+2026-10-21 16:02:23.781 DEBUG  Queuing item for routing: Pin on net 'IO9' (connected: 1/5)
+2026-10-21 16:02:23.849 DEBUG  [B054D8\A6DEF6] Pass #5: 3 incompletes across 6 items to route
+2026-10-21 16:02:23.850 DEBUG  [B054D8\A6DEF6]   Net 'IO9' has 1 incomplete(s)
+2026-10-21 16:02:23.850 DEBUG  [B054D8\A6DEF6]   Net 'IO11' has 1 incomplete(s)
+2026-10-21 16:02:23.850 DEBUG  [B054D8\A6DEF6]   Net 'RX0' has 1 incomplete(s)
+2026-10-21 16:02:24.323 INFO   [B054D8\A6DEF6] Auto-routing pass #5 on board 'fcfd1db2b70a73c41c2cbf61bd7ba19a' was completed in 0.55 seconds with score 971.86 (1 unrouted and 4 violations), using 9.78 CPU seconds and the job allocated 25.91 GB of memory so far.
+2026-10-21 16:02:24.455 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 4/5)
+2026-10-21 16:02:24.457 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 1/5)
+2026-10-21 16:02:24.521 DEBUG  [B054D8\A6DEF6] Pass #6: 1 incompletes across 2 items to route
+2026-10-21 16:02:24.521 DEBUG  [B054D8\A6DEF6]   Net 'IO10' has 1 incomplete(s)
+2026-10-21 16:02:24.898 INFO   [B054D8\A6DEF6] Auto-routing pass #6 on board 'c77743e358b4cfe0cdf2d98f10d44724' was completed in 0.45 seconds with score 971.86 (1 unrouted and 4 violations), using 9.78 CPU seconds and the job allocated 25.91 GB of memory so far.
+2026-10-21 16:02:25.042 DEBUG  Queuing item for routing: Pin on net 'IO11' (connected: 4/5)
+2026-10-21 16:02:25.043 DEBUG  Queuing item for routing: Pin on net 'IO11' (connected: 1/5)
+2026-10-21 16:02:25.109 DEBUG  [B054D8\A6DEF6] Pass #7: 1 incompletes across 2 items to route
+2026-10-21 16:02:25.109 DEBUG  [B054D8\A6DEF6]   Net 'IO11' has 1 incomplete(s)
+2026-10-21 16:02:25.502 INFO   [B054D8\A6DEF6] Auto-routing pass #7 on board '7fbcd9ba2c8cabb19bbfbfd4bc32a4f0' was completed in 0.46 seconds with score 987.49 (0 unrouted and 4 violations), using 10.77 CPU seconds and the job allocated 29.49 GB of memory so far.
+2026-10-21 16:02:25.702 INFO   [B054D8\A6DEF6] Auto-routing pass #8 on board '20c8eea362be8218584d02db71531523' was completed in 0.06 seconds with score 987.49 (0 unrouted and 4 violations), using 10.77 CPU seconds and the job allocated 29.49 GB of memory so far.
+2026-10-21 16:02:25.779 DEBUG  === Performance Profile ===
+2026-10-21 16:02:25.780 DEBUG  === Routing Parameters ===
+2026-10-21 16:02:25.780 DEBUG    Via Costs: 50, Plane Via Costs: 5
+2026-10-21 16:02:25.780 DEBUG    Layer Costs (Preferred / Against):
+2026-10-21 16:02:25.780 DEBUG      Layer 1: 1.0 / 2.7
+2026-10-21 16:02:25.780 DEBUG      Layer 2: 1.0 / 1.6
+2026-10-21 16:02:25.780 DEBUG  
+2026-10-21 16:02:25.781 DEBUG    autoroute_item                          :     4527 ms total,       83 calls,     54 ms avg
+2026-10-21 16:02:25.781 DEBUG  
+2026-10-21 16:02:25.781 DEBUG  === Pass History ===
+2026-10-21 16:02:25.781 DEBUG    Pass 1  :    7 unrouted items,     2.75 s,   100 ripup cost
+2026-10-21 16:02:25.782 DEBUG    Pass 2  :    4 unrouted items,     1.67 s,   200 ripup cost
+2026-10-21 16:02:25.782 DEBUG    Pass 3  :    3 unrouted items,     0.79 s,   300 ripup cost
+2026-10-21 16:02:25.782 DEBUG    Pass 4  :    3 unrouted items,     0.53 s,   400 ripup cost
+2026-10-21 16:02:25.782 DEBUG    Pass 5  :    1 unrouted items,     0.48 s,   500 ripup cost
+2026-10-21 16:02:25.782 DEBUG    Pass 6  :    1 unrouted items,     0.37 s,   600 ripup cost
+2026-10-21 16:02:25.782 DEBUG    Pass 7  :    0 unrouted items,     0.40 s,   700 ripup cost
+2026-10-21 16:02:25.782 DEBUG  ===========================
+2026-10-21 16:02:25.842 INFO   [B054D8\A6DEF6] Auto-routing stage completed: started with 36 unrouted nets, completed in 11.57 seconds, final score: 987.49 (0 unrouted and 4 violations), using 10.77 total CPU seconds, 29.49 GB total allocated, and 417.2 MB peak heap usage.
+2026-10-21 16:02:25.844 DEBUG  [B054D8\A6DEF6] Before optimization: Via count: 27, trace length: 6787383
+2026-10-21 16:02:25.901 INFO   [B054D8\A6DEF6] Optimization stage started on board 'c62fc5f7b2c128cb2e58743f4550fbd7' with score 987.49 (0 unrouted and 4 violations).
+2026-10-21 16:02:26.084 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/22)
+2026-10-21 16:02:26.085 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/22)
+2026-10-21 16:02:26.085 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/22)
+2026-10-21 16:02:26.148 DEBUG  [B054D8\A6DEF6] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:02:26.148 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 2 incomplete(s)
+2026-10-21 16:02:26.209 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 26/26 on layer 0, trace width: 1000, from corner: 11, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:02:26.220 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:26.220 DEBUG  [B054D8\A6DEF6] Pass #1: Failed to route Pin on net '3V3' (2 items remaining, 1 failures). State: FAILED
+2026-10-21 16:02:26.239 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:02:26.250 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:26.250 DEBUG  [B054D8\A6DEF6] Pass #1: Failed to route Pin on net '3V3' (1 items remaining, 1 failures). State: FAILED
+2026-10-21 16:02:26.356 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:02:26.356 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:02:26.415 DEBUG  [B054D8\A6DEF6] Pass #2: 1 incompletes across 2 items to route
+2026-10-21 16:02:26.415 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:26.451 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:02:26.462 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:26.462 DEBUG  [B054D8\A6DEF6] Pass #2: Failed to route Pin on net '3V3' (2 items remaining, 1 failures). State: FAILED
+2026-10-21 16:02:26.491 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:02:26.498 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:26.498 DEBUG  [B054D8\A6DEF6] Pass #2: Failed to route Pin on net '3V3' (1 items remaining, 2 failures). State: FAILED
+2026-10-21 16:02:26.590 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:02:26.590 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:02:26.656 DEBUG  [B054D8\A6DEF6] Pass #3: 1 incompletes across 2 items to route
+2026-10-21 16:02:26.656 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:26.694 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:02:26.701 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:26.701 DEBUG  [B054D8\A6DEF6] Pass #3: Failed to route Pin on net '3V3' (2 items remaining, 2 failures). State: FAILED
+2026-10-21 16:02:26.718 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:02:26.727 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:26.727 DEBUG  [B054D8\A6DEF6] Pass #3: Failed to route Pin on net '3V3' (1 items remaining, 3 failures). State: FAILED
+2026-10-21 16:02:26.840 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:02:26.841 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:02:26.904 DEBUG  [B054D8\A6DEF6] Pass #4: 1 incompletes across 2 items to route
+2026-10-21 16:02:26.904 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:26.943 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:02:26.954 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:26.954 DEBUG  [B054D8\A6DEF6] Pass #4: Failed to route Pin on net '3V3' (2 items remaining, 3 failures). State: FAILED
+2026-10-21 16:02:26.978 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:02:26.990 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:26.990 DEBUG  [B054D8\A6DEF6] Pass #4: Failed to route Pin on net '3V3' (1 items remaining, 4 failures). State: FAILED
+2026-10-21 16:02:27.090 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:02:27.091 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:02:27.145 DEBUG  [B054D8\A6DEF6] Pass #5: 1 incompletes across 2 items to route
+2026-10-21 16:02:27.145 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:27.171 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:02:27.180 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:27.180 DEBUG  [B054D8\A6DEF6] Pass #5: Failed to route Pin on net '3V3' (2 items remaining, 4 failures). State: FAILED
+2026-10-21 16:02:27.196 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:02:27.206 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:27.206 DEBUG  [B054D8\A6DEF6] Pass #5: Failed to route Pin on net '3V3' (1 items remaining, 5 failures). State: FAILED
+2026-10-21 16:02:27.296 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:02:27.296 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:02:27.364 DEBUG  [B054D8\A6DEF6] Pass #6: 1 incompletes across 2 items to route
+2026-10-21 16:02:27.364 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:27.393 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:02:27.400 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:27.401 DEBUG  [B054D8\A6DEF6] Pass #6: Failed to route Pin on net '3V3' (2 items remaining, 5 failures). State: FAILED
+2026-10-21 16:02:27.427 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:02:27.434 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:27.434 DEBUG  [B054D8\A6DEF6] Pass #6: Failed to route Pin on net '3V3' (1 items remaining, 6 failures). State: FAILED
+2026-10-21 16:02:27.650 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/22)
+2026-10-21 16:02:27.650 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/22)
+2026-10-21 16:02:27.650 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/22)
+2026-10-21 16:02:27.711 DEBUG  [B054D8\A6DEF6] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:02:27.711 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 2 incomplete(s)
+2026-10-21 16:02:27.760 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 26/26 on layer 0, trace width: 1000, from corner: 11, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:02:27.767 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:27.767 DEBUG  [B054D8\A6DEF6] Pass #1: Failed to route Pin on net '3V3' (2 items remaining, 2 failures). State: FAILED
+2026-10-21 16:02:27.785 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:02:27.793 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:27.793 DEBUG  [B054D8\A6DEF6] Pass #1: Failed to route Pin on net '3V3' (1 items remaining, 7 failures). State: FAILED
+2026-10-21 16:02:27.887 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:02:27.888 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:02:27.956 DEBUG  [B054D8\A6DEF6] Pass #2: 1 incompletes across 2 items to route
+2026-10-21 16:02:27.956 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:27.992 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:02:28.000 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:28.000 DEBUG  [B054D8\A6DEF6] Pass #2: Failed to route Pin on net '3V3' (2 items remaining, 6 failures). State: FAILED
+2026-10-21 16:02:28.025 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:02:28.033 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:28.033 DEBUG  [B054D8\A6DEF6] Pass #2: Failed to route Pin on net '3V3' (1 items remaining, 8 failures). State: FAILED
+2026-10-21 16:02:28.126 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:02:28.126 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:02:28.186 DEBUG  [B054D8\A6DEF6] Pass #3: 1 incompletes across 2 items to route
+2026-10-21 16:02:28.187 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:28.221 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:02:28.232 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:28.232 DEBUG  [B054D8\A6DEF6] Pass #3: Failed to route Pin on net '3V3' (2 items remaining, 7 failures). State: FAILED
+2026-10-21 16:02:28.254 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:02:28.263 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:28.263 DEBUG  [B054D8\A6DEF6] Pass #3: Failed to route Pin on net '3V3' (1 items remaining, 9 failures). State: FAILED
+2026-10-21 16:02:28.357 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:02:28.357 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:02:28.413 DEBUG  [B054D8\A6DEF6] Pass #4: 1 incompletes across 2 items to route
+2026-10-21 16:02:28.413 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:28.441 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:02:28.448 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:28.448 DEBUG  [B054D8\A6DEF6] Pass #4: Failed to route Pin on net '3V3' (2 items remaining, 8 failures). State: FAILED
+2026-10-21 16:02:28.463 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:02:28.474 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:28.474 DEBUG  [B054D8\A6DEF6] Pass #4: Failed to route Pin on net '3V3' (1 items remaining, 10 failures). State: FAILED
+2026-10-21 16:02:28.557 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:02:28.557 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:02:28.608 DEBUG  [B054D8\A6DEF6] Pass #5: 1 incompletes across 2 items to route
+2026-10-21 16:02:28.609 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:28.635 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:02:28.643 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:28.643 DEBUG  [B054D8\A6DEF6] Pass #5: Failed to route Pin on net '3V3' (2 items remaining, 9 failures). State: FAILED
+2026-10-21 16:02:28.665 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:02:28.675 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:28.675 DEBUG  [B054D8\A6DEF6] Pass #5: Failed to route Pin on net '3V3' (1 items remaining, 11 failures). State: FAILED
+2026-10-21 16:02:28.762 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:02:28.762 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:02:28.822 DEBUG  [B054D8\A6DEF6] Pass #6: 1 incompletes across 2 items to route
+2026-10-21 16:02:28.822 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:28.851 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:02:28.861 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:28.861 DEBUG  [B054D8\A6DEF6] Pass #6: Failed to route Pin on net '3V3' (2 items remaining, 10 failures). State: FAILED
+2026-10-21 16:02:28.877 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:02:28.884 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:28.884 DEBUG  [B054D8\A6DEF6] Pass #6: Failed to route Pin on net '3V3' (1 items remaining, 12 failures). State: FAILED
+2026-10-21 16:02:29.087 DEBUG  Queuing item for routing: Pin on net 'IO2' (connected: 1/2)
+2026-10-21 16:02:29.088 DEBUG  Queuing item for routing: Pin on net 'IO2' (connected: 1/2)
+2026-10-21 16:02:29.143 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:29.143 DEBUG  [B054D8\A6DEF6]   Net 'IO2' has 1 incomplete(s)
+2026-10-21 16:02:29.426 DEBUG  Queuing item for routing: Pin on net 'IO7' (connected: 1/2)
+2026-10-21 16:02:29.427 DEBUG  Queuing item for routing: Pin on net 'IO7' (connected: 1/2)
+2026-10-21 16:02:29.481 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:29.481 DEBUG  [B054D8\A6DEF6]   Net 'IO7' has 1 incomplete(s)
+2026-10-21 16:02:29.647 DEBUG  FoundConnectionInserter: insert trace failed for net #6 at corner 15/32 on layer 1, trace width: 1000, from corner: 14, okPoint: (201807,-47981), target: (248371,-47981)
+2026-10-21 16:02:29.655 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between pin #2 of component #6 and pin #12 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:29.655 DEBUG  [B054D8\A6DEF6] Pass #1: Failed to route Pin on net 'IO7' (2 items remaining, 1 failures). State: FAILED
+2026-10-21 16:02:30.042 DEBUG  Queuing item for routing: Pin on net 'IO5' (connected: 1/2)
+2026-10-21 16:02:30.043 DEBUG  Queuing item for routing: Pin on net 'IO5' (connected: 1/2)
+2026-10-21 16:02:30.104 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:30.104 DEBUG  [B054D8\A6DEF6]   Net 'IO5' has 1 incomplete(s)
+2026-10-21 16:02:30.447 DEBUG  Queuing item for routing: Pin on net 'IO4' (connected: 1/2)
+2026-10-21 16:02:30.447 DEBUG  Queuing item for routing: Pin on net 'IO4' (connected: 1/2)
+2026-10-21 16:02:30.507 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:30.507 DEBUG  [B054D8\A6DEF6]   Net 'IO4' has 1 incomplete(s)
+2026-10-21 16:02:30.867 DEBUG  Queuing item for routing: Pin on net 'IO9' (connected: 1/2)
+2026-10-21 16:02:30.868 DEBUG  Queuing item for routing: Pin on net 'IO9' (connected: 1/2)
+2026-10-21 16:02:30.969 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:30.969 DEBUG  [B054D8\A6DEF6]   Net 'IO9' has 1 incomplete(s)
+2026-10-21 16:02:31.567 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 1/2)
+2026-10-21 16:02:31.569 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 1/2)
+2026-10-21 16:02:31.636 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:31.636 DEBUG  [B054D8\A6DEF6]   Net 'IO10' has 1 incomplete(s)
+2026-10-21 16:02:31.950 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/2)
+2026-10-21 16:02:31.950 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/2)
+2026-10-21 16:02:32.015 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:32.015 DEBUG  [B054D8\A6DEF6]   Net 'IO3' has 1 incomplete(s)
+2026-10-21 16:02:32.327 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/2)
+2026-10-21 16:02:32.328 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/2)
+2026-10-21 16:02:32.384 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:32.384 DEBUG  [B054D8\A6DEF6]   Net 'IO3' has 1 incomplete(s)
+2026-10-21 16:02:32.688 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/2)
+2026-10-21 16:02:32.688 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/2)
+2026-10-21 16:02:32.741 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:32.741 DEBUG  [B054D8\A6DEF6]   Net 'IO3' has 1 incomplete(s)
+2026-10-21 16:02:33.043 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/2)
+2026-10-21 16:02:33.043 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/2)
+2026-10-21 16:02:33.111 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:33.111 DEBUG  [B054D8\A6DEF6]   Net 'IO3' has 1 incomplete(s)
+2026-10-21 16:02:33.392 DEBUG  Queuing item for routing: Pin on net 'IO2' (connected: 1/2)
+2026-10-21 16:02:33.392 DEBUG  Queuing item for routing: Pin on net 'IO2' (connected: 1/2)
+2026-10-21 16:02:33.446 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:33.447 DEBUG  [B054D8\A6DEF6]   Net 'IO2' has 1 incomplete(s)
+2026-10-21 16:02:33.718 DEBUG  Queuing item for routing: Pin on net 'IO2' (connected: 1/2)
+2026-10-21 16:02:33.719 DEBUG  Queuing item for routing: Pin on net 'IO2' (connected: 1/2)
+2026-10-21 16:02:33.784 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:33.784 DEBUG  [B054D8\A6DEF6]   Net 'IO2' has 1 incomplete(s)
+2026-10-21 16:02:34.056 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 4/5)
+2026-10-21 16:02:34.056 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 1/5)
+2026-10-21 16:02:34.113 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:34.113 DEBUG  [B054D8\A6DEF6]   Net 'USB_DP' has 1 incomplete(s)
+2026-10-21 16:02:34.464 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 4/5)
+2026-10-21 16:02:34.465 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/5)
+2026-10-21 16:02:34.518 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:34.518 DEBUG  [B054D8\A6DEF6]   Net 'USB_DM' has 1 incomplete(s)
+2026-10-21 16:02:34.583 DEBUG  FoundConnectionInserter: via placement blocked by clearance/shove limits for net #21
+2026-10-21 16:02:34.593 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between pin #40 of component #13 and polylinetrace, polylinetrace, pin #12 of component #15, pin #4 of component #15, because the new connection could not be inserted.
+2026-10-21 16:02:34.593 DEBUG  [B054D8\A6DEF6] Pass #1: Failed to route Pin on net 'USB_DM' (2 items remaining, 1 failures). State: FAILED
+2026-10-21 16:02:34.831 DEBUG  Queuing item for routing: Pin on net 'IO6' (connected: 1/2)
+2026-10-21 16:02:34.832 DEBUG  Queuing item for routing: Pin on net 'IO6' (connected: 1/2)
+2026-10-21 16:02:34.889 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:34.889 DEBUG  [B054D8\A6DEF6]   Net 'IO6' has 1 incomplete(s)
+2026-10-21 16:02:34.963 DEBUG  FoundConnectionInserter: insert trace failed for net #5 at corner 17/17 on layer 1, trace width: 1000, from corner: 10, okPoint: (250800,-51998), target: (266700,-88900)
+2026-10-21 16:02:34.973 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between pin #1 of component #6 and pin #11 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:34.973 DEBUG  [B054D8\A6DEF6] Pass #1: Failed to route Pin on net 'IO6' (2 items remaining, 2 failures). State: FAILED
+2026-10-21 16:02:35.006 DEBUG  FoundConnectionInserter: insert trace failed for net #5 at corner 20/20 on layer 1, trace width: 1000, from corner: 4, okPoint: (255198,-54000), target: (182850,-99176)
+2026-10-21 16:02:35.014 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between via, polylinetrace, pin #11 of component #13 and pin #1 of component #6, because the new connection could not be inserted.
+2026-10-21 16:02:35.014 DEBUG  [B054D8\A6DEF6] Pass #1: Failed to route Pin on net 'IO6' (1 items remaining, 2 failures). State: FAILED
+2026-10-21 16:02:35.108 DEBUG  Queuing item for routing: Pin on net 'IO6' (connected: 1/2)
+2026-10-21 16:02:35.109 DEBUG  Queuing item for routing: Pin on net 'IO6' (connected: 1/2)
+2026-10-21 16:02:35.163 DEBUG  [B054D8\A6DEF6] Pass #2: 1 incompletes across 2 items to route
+2026-10-21 16:02:35.163 DEBUG  [B054D8\A6DEF6]   Net 'IO6' has 1 incomplete(s)
+2026-10-21 16:02:35.627 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 4/5)
+2026-10-21 16:02:35.627 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/5)
+2026-10-21 16:02:35.683 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:35.683 DEBUG  [B054D8\A6DEF6]   Net 'USB_DM' has 1 incomplete(s)
+2026-10-21 16:02:35.995 DEBUG  Queuing item for routing: Pin on net 'IO8' (connected: 1/2)
+2026-10-21 16:02:35.996 DEBUG  Queuing item for routing: Pin on net 'IO8' (connected: 1/2)
+2026-10-21 16:02:36.048 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:36.048 DEBUG  [B054D8\A6DEF6]   Net 'IO8' has 1 incomplete(s)
+2026-10-21 16:02:36.559 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 1/2)
+2026-10-21 16:02:36.560 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 1/2)
+2026-10-21 16:02:36.612 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:36.612 DEBUG  [B054D8\A6DEF6]   Net 'IO10' has 1 incomplete(s)
+2026-10-21 16:02:36.862 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 1/2)
+2026-10-21 16:02:36.863 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 1/2)
+2026-10-21 16:02:36.916 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:36.917 DEBUG  [B054D8\A6DEF6]   Net 'IO10' has 1 incomplete(s)
+2026-10-21 16:02:37.190 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 10/11)
+2026-10-21 16:02:37.190 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 1/11)
+2026-10-21 16:02:37.262 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:37.262 DEBUG  [B054D8\A6DEF6]   Net 'EN' has 1 incomplete(s)
+2026-10-21 16:02:37.529 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:02:37.529 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:02:37.583 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:37.583 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:37.610 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:02:37.617 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:37.617 DEBUG  [B054D8\A6DEF6] Pass #1: Failed to route Pin on net '3V3' (2 items remaining, 11 failures). State: FAILED
+2026-10-21 16:02:37.638 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:02:37.646 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:37.646 DEBUG  [B054D8\A6DEF6] Pass #1: Failed to route Pin on net '3V3' (1 items remaining, 13 failures). State: FAILED
+2026-10-21 16:02:37.728 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:02:37.729 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:02:37.781 DEBUG  [B054D8\A6DEF6] Pass #2: 1 incompletes across 2 items to route
+2026-10-21 16:02:37.781 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:37.806 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:02:37.814 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:37.814 DEBUG  [B054D8\A6DEF6] Pass #2: Failed to route Pin on net '3V3' (2 items remaining, 12 failures). State: FAILED
+2026-10-21 16:02:37.828 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:02:37.835 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:37.835 DEBUG  [B054D8\A6DEF6] Pass #2: Failed to route Pin on net '3V3' (1 items remaining, 14 failures). State: FAILED
+2026-10-21 16:02:37.917 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:02:37.917 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:02:37.969 DEBUG  [B054D8\A6DEF6] Pass #3: 1 incompletes across 2 items to route
+2026-10-21 16:02:37.969 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:37.998 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:02:38.007 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:38.007 DEBUG  [B054D8\A6DEF6] Pass #3: Failed to route Pin on net '3V3' (2 items remaining, 13 failures). State: FAILED
+2026-10-21 16:02:38.033 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:02:38.043 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:38.043 DEBUG  [B054D8\A6DEF6] Pass #3: Failed to route Pin on net '3V3' (1 items remaining, 15 failures). State: FAILED
+2026-10-21 16:02:38.124 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:02:38.124 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:02:38.178 DEBUG  [B054D8\A6DEF6] Pass #4: 1 incompletes across 2 items to route
+2026-10-21 16:02:38.178 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:38.205 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:02:38.213 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:38.213 DEBUG  [B054D8\A6DEF6] Pass #4: Failed to route Pin on net '3V3' (2 items remaining, 14 failures). State: FAILED
+2026-10-21 16:02:38.230 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:02:38.240 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:38.240 DEBUG  [B054D8\A6DEF6] Pass #4: Failed to route Pin on net '3V3' (1 items remaining, 16 failures). State: FAILED
+2026-10-21 16:02:38.332 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:02:38.333 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:02:38.390 DEBUG  [B054D8\A6DEF6] Pass #5: 1 incompletes across 2 items to route
+2026-10-21 16:02:38.390 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:38.419 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:02:38.430 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:38.430 DEBUG  [B054D8\A6DEF6] Pass #5: Failed to route Pin on net '3V3' (2 items remaining, 15 failures). State: FAILED
+2026-10-21 16:02:38.459 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:02:38.466 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:38.466 DEBUG  [B054D8\A6DEF6] Pass #5: Failed to route Pin on net '3V3' (1 items remaining, 17 failures). State: FAILED
+2026-10-21 16:02:38.554 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:02:38.555 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:02:38.610 DEBUG  [B054D8\A6DEF6] Pass #6: 1 incompletes across 2 items to route
+2026-10-21 16:02:38.610 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:38.640 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:02:38.648 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:38.648 DEBUG  [B054D8\A6DEF6] Pass #6: Failed to route Pin on net '3V3' (2 items remaining, 16 failures). State: FAILED
+2026-10-21 16:02:38.665 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:02:38.673 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:38.673 DEBUG  [B054D8\A6DEF6] Pass #6: Failed to route Pin on net '3V3' (1 items remaining, 18 failures). State: FAILED
+2026-10-21 16:02:38.864 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 4/5)
+2026-10-21 16:02:38.864 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 1/5)
+2026-10-21 16:02:38.918 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:38.918 DEBUG  [B054D8\A6DEF6]   Net 'USB_DP' has 1 incomplete(s)
+2026-10-21 16:02:39.005 DEBUG  FoundConnectionInserter: insert trace failed for net #20 at corner 12/12 on layer 0, trace width: 1000, from corner: 0, okPoint: (226952,-290106), target: (144050,-265400)
+2026-10-21 16:02:39.021 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between pin #39 of component #13 and polylinetrace, polylinetrace, pin #11 of component #15, pin #3 of component #15, because the new connection could not be inserted.
+2026-10-21 16:02:39.021 DEBUG  [B054D8\A6DEF6] Pass #1: Failed to route Pin on net 'USB_DP' (2 items remaining, 1 failures). State: FAILED
+2026-10-21 16:02:39.310 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 4/5)
+2026-10-21 16:02:39.311 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/5)
+2026-10-21 16:02:39.365 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:39.365 DEBUG  [B054D8\A6DEF6]   Net 'USB_DM' has 1 incomplete(s)
+2026-10-21 16:02:39.657 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 4/5)
+2026-10-21 16:02:39.658 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 1/5)
+2026-10-21 16:02:39.713 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:39.713 DEBUG  [B054D8\A6DEF6]   Net 'USB_DP' has 1 incomplete(s)
+2026-10-21 16:02:40.041 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 22/27)
+2026-10-21 16:02:40.041 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/27)
+2026-10-21 16:02:40.105 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:40.105 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:40.373 DEBUG  Queuing item for routing: Pin on net 'TX0' (connected: 1/2)
+2026-10-21 16:02:40.373 DEBUG  Queuing item for routing: Pin on net 'TX0' (connected: 1/2)
+2026-10-21 16:02:40.433 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:40.433 DEBUG  [B054D8\A6DEF6]   Net 'TX0' has 1 incomplete(s)
+2026-10-21 16:02:40.709 DEBUG  Queuing item for routing: Pin on net 'IO11' (connected: 1/2)
+2026-10-21 16:02:40.710 DEBUG  Queuing item for routing: Pin on net 'IO11' (connected: 1/2)
+2026-10-21 16:02:40.765 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:40.765 DEBUG  [B054D8\A6DEF6]   Net 'IO11' has 1 incomplete(s)
+2026-10-21 16:02:41.055 DEBUG  Queuing item for routing: Pin on net 'RX0' (connected: 1/2)
+2026-10-21 16:02:41.055 DEBUG  Queuing item for routing: Pin on net 'RX0' (connected: 1/2)
+2026-10-21 16:02:41.114 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:41.114 DEBUG  [B054D8\A6DEF6]   Net 'RX0' has 1 incomplete(s)
+2026-10-21 16:02:41.161 DEBUG  FoundConnectionInserter: insert trace failed for net #14 at corner 10/25 on layer 0, trace width: 1000, from corner: 9, okPoint: (228352,-141599), target: (228319,-141632)
+2026-10-21 16:02:41.172 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between pin #3 of component #12 and pin #68 of component #13, because the new connection could not be inserted.
+2026-10-21 16:02:41.172 DEBUG  [B054D8\A6DEF6] Pass #1: Failed to route Pin on net 'RX0' (2 items remaining, 3 failures). State: FAILED
+2026-10-21 16:02:41.467 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 22/24)
+2026-10-21 16:02:41.467 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/24)
+2026-10-21 16:02:41.467 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/24)
+2026-10-21 16:02:41.520 DEBUG  [B054D8\A6DEF6] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:02:41.520 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 2 incomplete(s)
+2026-10-21 16:02:41.526 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 13/13 on layer 0, trace width: 1000, from corner: 4, okPoint: (266237,-77398), target: (283850,-88900)
+2026-10-21 16:02:41.533 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between pin of component #8, pin of component #5 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, pin of component #12, pin of component #9, pin #1 of component #7, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:41.533 DEBUG  [B054D8\A6DEF6] Pass #1: Failed to route Pin on net '3V3' (3 items remaining, 17 failures). State: FAILED
+2026-10-21 16:02:41.783 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 19/23)
+2026-10-21 16:02:41.783 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 4/23)
+2026-10-21 16:02:41.841 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:41.841 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:42.103 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 20/21)
+2026-10-21 16:02:42.104 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/21)
+2026-10-21 16:02:42.166 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:42.166 DEBUG  [B054D8\A6DEF6]   Net '5V' has 1 incomplete(s)
+2026-10-21 16:02:42.457 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 22/24)
+2026-10-21 16:02:42.457 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/24)
+2026-10-21 16:02:42.457 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/24)
+2026-10-21 16:02:42.512 DEBUG  [B054D8\A6DEF6] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:02:42.512 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 2 incomplete(s)
+2026-10-21 16:02:42.522 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 13/13 on layer 0, trace width: 1000, from corner: 4, okPoint: (266237,-77398), target: (283850,-88900)
+2026-10-21 16:02:42.528 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between pin of component #8, pin of component #5 and polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, pin of component #12, pin of component #9, pin #1 of component #7, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:42.528 DEBUG  [B054D8\A6DEF6] Pass #1: Failed to route Pin on net '3V3' (3 items remaining, 18 failures). State: FAILED
+2026-10-21 16:02:42.775 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 10/13)
+2026-10-21 16:02:42.776 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 3/13)
+2026-10-21 16:02:42.829 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:42.830 DEBUG  [B054D8\A6DEF6]   Net 'EN' has 1 incomplete(s)
+2026-10-21 16:02:43.117 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 22/24)
+2026-10-21 16:02:43.117 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/24)
+2026-10-21 16:02:43.117 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/24)
+2026-10-21 16:02:43.170 DEBUG  [B054D8\A6DEF6] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:02:43.173 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 2 incomplete(s)
+2026-10-21 16:02:43.181 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 13/13 on layer 0, trace width: 1000, from corner: 4, okPoint: (266237,-77398), target: (283850,-88900)
+2026-10-21 16:02:43.188 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between pin of component #8, pin of component #5 and polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, pin of component #12, pin of component #9, pin #1 of component #7, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:43.188 DEBUG  [B054D8\A6DEF6] Pass #1: Failed to route Pin on net '3V3' (3 items remaining, 19 failures). State: FAILED
+2026-10-21 16:02:43.458 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 19/23)
+2026-10-21 16:02:43.458 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 4/23)
+2026-10-21 16:02:43.513 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:43.513 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:43.746 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 19/23)
+2026-10-21 16:02:43.746 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 4/23)
+2026-10-21 16:02:43.801 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:43.801 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:44.044 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 24/25)
+2026-10-21 16:02:44.044 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/25)
+2026-10-21 16:02:44.100 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:44.100 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:44.339 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 19/23)
+2026-10-21 16:02:44.340 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 4/23)
+2026-10-21 16:02:44.389 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:44.389 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:44.629 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 19/23)
+2026-10-21 16:02:44.629 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 4/23)
+2026-10-21 16:02:44.683 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:44.684 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:44.916 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 22/23)
+2026-10-21 16:02:44.917 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/23)
+2026-10-21 16:02:44.969 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:44.969 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:45.214 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 1/11)
+2026-10-21 16:02:45.214 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 1/11)
+2026-10-21 16:02:45.215 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 9/11)
+2026-10-21 16:02:45.271 DEBUG  [B054D8\A6DEF6] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:02:45.271 DEBUG  [B054D8\A6DEF6]   Net 'EN' has 2 incomplete(s)
+2026-10-21 16:02:45.520 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 1/11)
+2026-10-21 16:02:45.520 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 1/11)
+2026-10-21 16:02:45.522 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 9/11)
+2026-10-21 16:02:45.575 DEBUG  [B054D8\A6DEF6] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:02:45.575 DEBUG  [B054D8\A6DEF6]   Net 'EN' has 2 incomplete(s)
+2026-10-21 16:02:45.818 DEBUG  Queuing item for routing: Pin on net 'LED_PWR' (connected: 1/2)
+2026-10-21 16:02:45.818 DEBUG  Queuing item for routing: Pin on net 'LED_PWR' (connected: 1/2)
+2026-10-21 16:02:45.872 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:45.872 DEBUG  [B054D8\A6DEF6]   Net 'LED_PWR' has 1 incomplete(s)
+2026-10-21 16:02:46.095 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 22/23)
+2026-10-21 16:02:46.095 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/23)
+2026-10-21 16:02:46.148 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:46.148 DEBUG  [B054D8\A6DEF6]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:02:46.413 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 17/19)
+2026-10-21 16:02:46.415 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/19)
+2026-10-21 16:02:46.415 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/19)
+2026-10-21 16:02:46.468 DEBUG  [B054D8\A6DEF6] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:02:46.468 DEBUG  [B054D8\A6DEF6]   Net '5V' has 2 incomplete(s)
+2026-10-21 16:02:46.760 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 17/19)
+2026-10-21 16:02:46.761 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/19)
+2026-10-21 16:02:46.761 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/19)
+2026-10-21 16:02:46.814 DEBUG  [B054D8\A6DEF6] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:02:46.814 DEBUG  [B054D8\A6DEF6]   Net '5V' has 2 incomplete(s)
+2026-10-21 16:02:47.091 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 17/19)
+2026-10-21 16:02:47.093 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/19)
+2026-10-21 16:02:47.093 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/19)
+2026-10-21 16:02:47.156 DEBUG  [B054D8\A6DEF6] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:02:47.156 DEBUG  [B054D8\A6DEF6]   Net '5V' has 2 incomplete(s)
+2026-10-21 16:02:47.444 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 17/19)
+2026-10-21 16:02:47.445 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/19)
+2026-10-21 16:02:47.445 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/19)
+2026-10-21 16:02:47.496 DEBUG  [B054D8\A6DEF6] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:02:47.496 DEBUG  [B054D8\A6DEF6]   Net '5V' has 2 incomplete(s)
+2026-10-21 16:02:47.763 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 1/11)
+2026-10-21 16:02:47.764 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 1/11)
+2026-10-21 16:02:47.764 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 9/11)
+2026-10-21 16:02:47.814 DEBUG  [B054D8\A6DEF6] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:02:47.814 DEBUG  [B054D8\A6DEF6]   Net 'EN' has 2 incomplete(s)
+2026-10-21 16:02:48.070 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 4/5)
+2026-10-21 16:02:48.071 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/5)
+2026-10-21 16:02:48.123 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:48.123 DEBUG  [B054D8\A6DEF6]   Net 'USB_DM' has 1 incomplete(s)
+2026-10-21 16:02:48.429 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 4/5)
+2026-10-21 16:02:48.430 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/5)
+2026-10-21 16:02:48.482 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:48.482 DEBUG  [B054D8\A6DEF6]   Net 'USB_DM' has 1 incomplete(s)
+2026-10-21 16:02:48.778 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 12/13)
+2026-10-21 16:02:48.778 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 1/13)
+2026-10-21 16:02:48.834 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:48.834 DEBUG  [B054D8\A6DEF6]   Net 'EN' has 1 incomplete(s)
+2026-10-21 16:02:49.051 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 4/5)
+2026-10-21 16:02:49.051 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 1/5)
+2026-10-21 16:02:49.105 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:49.105 DEBUG  [B054D8\A6DEF6]   Net 'USB_DP' has 1 incomplete(s)
+2026-10-21 16:02:49.441 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 1/2)
+2026-10-21 16:02:49.442 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 1/2)
+2026-10-21 16:02:49.497 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:49.497 DEBUG  [B054D8\A6DEF6]   Net 'CC1' has 1 incomplete(s)
+2026-10-21 16:02:49.527 DEBUG  FoundConnectionInserter: via placement blocked by clearance/shove limits for net #22
+2026-10-21 16:02:49.534 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between pin of component #4 and pin #2 of component #15, because the new connection could not be inserted.
+2026-10-21 16:02:49.534 DEBUG  [B054D8\A6DEF6] Pass #1: Failed to route Pin on net 'CC1' (2 items remaining, 1 failures). State: FAILED
+2026-10-21 16:02:49.776 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 1/2)
+2026-10-21 16:02:49.777 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 1/2)
+2026-10-21 16:02:49.828 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:49.828 DEBUG  [B054D8\A6DEF6]   Net 'CC1' has 1 incomplete(s)
+2026-10-21 16:02:50.082 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 1/2)
+2026-10-21 16:02:50.083 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 1/2)
+2026-10-21 16:02:50.141 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:50.142 DEBUG  [B054D8\A6DEF6]   Net 'CC1' has 1 incomplete(s)
+2026-10-21 16:02:50.462 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 1/2)
+2026-10-21 16:02:50.463 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 1/2)
+2026-10-21 16:02:50.527 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:50.527 DEBUG  [B054D8\A6DEF6]   Net 'CC1' has 1 incomplete(s)
+2026-10-21 16:02:50.846 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 9/12)
+2026-10-21 16:02:50.847 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 2/12)
+2026-10-21 16:02:50.848 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/12)
+2026-10-21 16:02:50.908 DEBUG  [B054D8\A6DEF6] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:02:50.908 DEBUG  [B054D8\A6DEF6]   Net '5V' has 2 incomplete(s)
+2026-10-21 16:02:50.951 DEBUG  FoundConnectionInserter: insert trace failed for net #2 at corner 31/31 on layer 0, trace width: 1000, from corner: 26, okPoint: (422561,-119932), target: (454850,-127900)
+2026-10-21 16:02:50.959 DEBUG  [B054D8\A6DEF6] Autorouter Failed to route connection between pin #9 of component #15, pin #6 of component #15, pin of component #7 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #14 of component #15, pin #1 of component #15, pin of component #10, pin #2 of component #1, pin of component #1, because the new connection could not be inserted.
+2026-10-21 16:02:50.959 DEBUG  [B054D8\A6DEF6] Pass #1: Failed to route Pin on net '5V' (3 items remaining, 1 failures). State: FAILED
+2026-10-21 16:02:51.297 DEBUG  Queuing item for routing: Pin on net 'CC2' (connected: 1/2)
+2026-10-21 16:02:51.298 DEBUG  Queuing item for routing: Pin on net 'CC2' (connected: 1/2)
+2026-10-21 16:02:51.354 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:51.354 DEBUG  [B054D8\A6DEF6]   Net 'CC2' has 1 incomplete(s)
+2026-10-21 16:02:51.619 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/3)
+2026-10-21 16:02:51.619 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/3)
+2026-10-21 16:02:51.619 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/3)
+2026-10-21 16:02:51.673 DEBUG  [B054D8\A6DEF6] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:02:51.673 DEBUG  [B054D8\A6DEF6]   Net 'USB_DM' has 2 incomplete(s)
+2026-10-21 16:02:52.024 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 2/15)
+2026-10-21 16:02:52.024 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 13/15)
+2026-10-21 16:02:52.081 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:52.081 DEBUG  [B054D8\A6DEF6]   Net '5V' has 1 incomplete(s)
+2026-10-21 16:02:52.350 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/3)
+2026-10-21 16:02:52.350 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/3)
+2026-10-21 16:02:52.351 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/3)
+2026-10-21 16:02:52.406 DEBUG  [B054D8\A6DEF6] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:02:52.407 DEBUG  [B054D8\A6DEF6]   Net 'USB_DM' has 2 incomplete(s)
+2026-10-21 16:02:52.722 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/3)
+2026-10-21 16:02:52.722 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/3)
+2026-10-21 16:02:52.723 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/3)
+2026-10-21 16:02:52.771 DEBUG  [B054D8\A6DEF6] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:02:52.771 DEBUG  [B054D8\A6DEF6]   Net 'USB_DM' has 2 incomplete(s)
+2026-10-21 16:02:53.070 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 2/15)
+2026-10-21 16:02:53.071 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 13/15)
+2026-10-21 16:02:53.120 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:53.120 DEBUG  [B054D8\A6DEF6]   Net '5V' has 1 incomplete(s)
+2026-10-21 16:02:53.402 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 7/8)
+2026-10-21 16:02:53.402 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 1/8)
+2026-10-21 16:02:53.452 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:53.452 DEBUG  [B054D8\A6DEF6]   Net 'USB_DP' has 1 incomplete(s)
+2026-10-21 16:02:53.655 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 1/2)
+2026-10-21 16:02:53.656 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 1/2)
+2026-10-21 16:02:53.704 DEBUG  [B054D8\A6DEF6] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:02:53.704 DEBUG  [B054D8\A6DEF6]   Net 'CC1' has 1 incomplete(s)
+2026-10-21 16:02:53.975 INFO   [B054D8\A6DEF6] Optimizer pass #1 on board '2b32cc7c540b826d54b9c28384a8b0ee' was completed in 27.89 seconds with the score of 987.49 (0 unrouted and 4 violations).
+2026-10-21 16:02:54.028 INFO   [B054D8\A6DEF6] Stopping optimizer because the improvement in this pass (0.0000%) is below the threshold (1.00%).
+2026-10-21 16:02:54.081 INFO   [B054D8\A6DEF6] Optimization stage completed: started with score 987.49 (0 unrouted and 4 violations), completed in 28.13 seconds, final score: 987.49 (0 unrouted and 4 violations), using 27.50 total CPU seconds, 113.47 GB total allocated, and 392.7 MB peak heap usage.
+2026-10-21 16:02:54.084 INFO   [B054D8\A6DEF6] Job 'B054D8\A6DEF6' finished with state: COMPLETED (elapsed: 39.92 seconds, finished at UTC: 2026-10-21T08:02:54.083460200Z).
+2026-10-21 16:02:54.398 INFO   Saving output file 'E:\DATA\vscode\ZCODE\flux-neurotransmitter\projects\esp32s31-mini\pcb\board\routed-esp32s31-mini.dsn' (DSN)...
+2026-10-21 16:02:55.507 INFO   Freerouting v2.4.1 (build-date: 2026-09-03)
+2026-10-21 16:02:55.511 DEBUG  [startup] user-data path : C:\Users\zhang\AppData\Roaming\freerouting  (source: default (OS standard user-data path))
+2026-10-21 16:02:55.511 DEBUG  [startup] log file       : E:\DATA\vscode\ZCODE\flux-neurotransmitter\projects\esp32s31-mini\pcb\board\en\freerouting.log
+2026-10-21 16:02:55.556 DEBUG  Settings loaded from 'C:\Users\zhang\AppData\Roaming\freerouting\freerouting.json'.
+2026-10-21 16:02:55.556 WARN   [startup] freerouting.json contains a stale 'logging.file.location' value: 'C:\Users\zhang\AppData\Local\Temp\miniL_mg2z4nsg\pcb\board\en\freerouting.log'. The actual log file is being written to 'E:\DATA\vscode\ZCODE\flux-neurotransmitter\projects\esp32s31-mini\pcb\board\en\freerouting.log' (as resolved at startup). The stale value will be corrected in freerouting.json on next save. If you see this in Docker, the old JSON was written by an earlier version that stored the host path; the fix is to delete freerouting.json so it is regenerated with the correct path.
+2026-10-21 16:02:55.571 DEBUG  Version: 2.4.1,2026-09-03
+2026-10-21 16:02:55.572 DEBUG  Command line arguments: '-de esp32s31-mini.dsn -do routed-esp32s31-mini.dsn -mp 40 -l en'
+2026-10-21 16:02:55.572 DEBUG  Architecture: Windows 11,amd64,10.0
+2026-10-21 16:02:55.572 DEBUG  Java: 25.0.4.1,Microsoft
+2026-10-21 16:02:55.572 DEBUG  System Language: zh,zh_CN
+2026-10-21 16:02:55.574 DEBUG  Hardware: 16 CPU cores, 141466 CPU score, 6116 MB RAM
+2026-10-21 16:02:55.574 DEBUG  UTC Time: 2026-10-21T08:02:55.556941300Z
+2026-10-21 16:02:55.575 DEBUG  GUI Language: en
+2026-10-21 16:02:55.575 DEBUG  Host: N/A
+2026-10-21 16:02:55.575 WARN   Couldn't get screen resolution. If you are running in a headless environment, disable the GUI by setting gui.enabled to false.
+2026-10-21 16:02:55.579 DEBUG  Analytics are disabled
+2026-10-21 16:02:56.722 DEBUG  Loaded router settings from: C:\Users\zhang\AppData\Roaming\freerouting\freerouting.json
+2026-10-21 16:02:56.723 DEBUG  Applied CLI router setting: router.max_passes = 40
+2026-10-21 16:02:56.723 DEBUG  Applied CLI router setting: router.enabled = true (implicit from -de/-do batch mode)
+2026-10-21 16:02:56.723 DEBUG  No router settings found in environment variables
+2026-10-21 16:02:56.772 DEBUG  Set DEFAULT clearance (all layers): 2000 (0.05 mm) from DSN value 200.0
+2026-10-21 16:02:56.778 DEBUG  Set clearance (all layers): smd_smd = 500 (0.0125 mm), classes [2,2]
+2026-10-21 16:02:56.780 DEBUG  Set default trace width (all layers): DSN=200.0 → board=2000 (0.05 mm)
+2026-10-21 16:02:56.799 DEBUG  Loaded router settings from DSN file: esp32s31-mini.dsn (2 layers)
+2026-10-21 16:02:56.808 DEBUG  Set DEFAULT clearance (all layers): 2000 (0.05 mm) from DSN value 200.0
+2026-10-21 16:02:56.811 DEBUG  Set clearance (all layers): smd_smd = 500 (0.0125 mm), classes [2,2]
+2026-10-21 16:02:56.811 DEBUG  Set default trace width (all layers): DSN=200.0 → board=2000 (0.05 mm)
+2026-10-21 16:02:56.814 DEBUG  Loaded router settings from DSN file: esp32s31-mini.dsn (2 layers)
+2026-10-21 16:02:56.815 DEBUG  Merging settings from 5 sources:
+2026-10-21 16:02:56.815 DEBUG    - Default Settings (priority 0): base settings
+2026-10-21 16:02:56.817 DEBUG    - freerouting.json (priority 10): 2 fields changed
+2026-10-21 16:02:56.817 DEBUG    - DSN file: esp32s31-mini.dsn (priority 20): 4 fields changed
+2026-10-21 16:02:56.818 DEBUG    - Environment Variables (priority 55): 0 fields changed
+2026-10-21 16:02:56.818 DEBUG    - CLI Arguments (priority 60): 0 fields changed
+2026-10-21 16:02:56.818 DEBUG  Settings merged successfully from 5 source(s)
+2026-10-21 16:02:57.054 INFO   [19ED33\BB82EC] Loading board file 'esp32s31-mini.dsn'...
+2026-10-21 16:02:57.063 DEBUG  Set DEFAULT clearance (all layers): 2000 (0.05 mm) from DSN value 200.0
+2026-10-21 16:02:57.063 DEBUG  Set clearance (all layers): smd_smd = 500 (0.0125 mm), classes [2,2]
+2026-10-21 16:02:57.063 DEBUG  Set default trace width (all layers): DSN=200.0 → board=2000 (0.05 mm)
+2026-10-21 16:02:57.117 DEBUG  applyBoardSpecificOptimizations changed parameters:
+  Layer 0: bendCost: null -> 0.0; preferredDirectionHorizontal: null -> true; undesiredDirectionTraceCost: 1.0 -> 2.7;
+  Layer 1: bendCost: null -> 0.0; preferredDirectionHorizontal: null -> false; undesiredDirectionTraceCost: 1.0 -> 1.6;
+2026-10-21 16:02:57.119 DEBUG  Applied copper-to-edge clearance override: 500.0 um (5000 board units).
+2026-10-21 16:02:57.127 DEBUG  Set DEFAULT clearance (all layers): 2000 (0.05 mm) from DSN value 200.0
+2026-10-21 16:02:57.128 DEBUG  Set clearance (all layers): smd_smd = 500 (0.0125 mm), classes [2,2]
+2026-10-21 16:02:57.128 DEBUG  Set default trace width (all layers): DSN=200.0 → board=2000 (0.05 mm)
+2026-10-21 16:02:57.131 DEBUG  Loaded router settings from DSN file: esp32s31-mini.dsn (2 layers)
+2026-10-21 16:02:57.131 DEBUG  Merging settings from 6 sources:
+2026-10-21 16:02:57.132 DEBUG    - Default Settings (priority 0): base settings
+2026-10-21 16:02:57.132 DEBUG    - freerouting.json (priority 10): 2 fields changed
+2026-10-21 16:02:57.132 DEBUG    - DSN file: esp32s31-mini.dsn (priority 20): 4 fields changed
+2026-10-21 16:02:57.132 DEBUG    - Environment Variables (priority 55): 0 fields changed
+2026-10-21 16:02:57.132 DEBUG    - CLI Arguments (priority 60): 0 fields changed
+2026-10-21 16:02:57.133 DEBUG    - API Settings (priority 70): 24 fields changed
+2026-10-21 16:02:57.133 DEBUG  Settings merged successfully from 6 source(s)
+2026-10-21 16:02:57.133 DEBUG  applyBoardSpecificOptimizations changed parameters:
+  Layer 0: undesiredDirectionTraceCost: 1.0 -> 2.7;
+  Layer 1: undesiredDirectionTraceCost: 1.0 -> 1.6;
+2026-10-21 16:02:57.135 INFO   [19ED33\BB82EC] Job '19ED33\BB82EC' started at 2026-10-21T08:02:57.134043500Z.
+2026-10-21 16:02:57.224 DEBUG  [19ED33\BB82EC] Checking fanout pre-pass. settings.fanout.enabled=true, smdPins=148
+2026-10-21 16:02:57.309 INFO   [19ED33\BB82EC] Fanout stage started on board '623cc8a4d7bfbb0209ced5c9870c1dc6' with 42 of 148 SMD pins needing fanout (19 already connected, 87 netless).
+2026-10-21 16:02:57.739 DEBUG  FoundConnectionInserter: insert trace failed for net #20 at corner 10/10 on layer 0, trace width: 1000, from corner: 9, okPoint: (144050,-251548), target: (144050,-265400)
+2026-10-21 16:02:57.874 INFO   New version available: v2.5.0
+2026-10-21 16:02:58.024 DEBUG  FoundConnectionInserter: insert trace failed for net #7 at corner 4/4 on layer 0, trace width: 1000, from corner: 1, okPoint: (65247,-164398), target: (11300,-160900)
+2026-10-21 16:02:58.854 INFO   [19ED33\BB82EC] Fanout pass #1 on board '3dcaff0f17f695ab0182c9b6d69c034e' completed in 1.49 seconds with 38 SMD pins fanouted, 1 not routed, 0 insert errors, +28 extra vias (0 SMD pins still to check in pass, ripup costs=100).
+2026-10-21 16:02:59.142 DEBUG  FoundConnectionInserter: insert trace failed for net #20 at corner 8/9 on layer 0, trace width: 1000, from corner: 7, okPoint: (435439,-145334), target: (454416,-145334)
+2026-10-21 16:02:59.349 INFO   [19ED33\BB82EC] Fanout pass #2 on board '60beeb01102705f5a92feea40b6d49ed' completed in 0.49 seconds with 5 SMD pins fanouted, 0 not routed, 0 insert errors, +0 extra vias (0 SMD pins still to check in pass, ripup costs=200).
+2026-10-21 16:02:59.610 INFO   [19ED33\BB82EC] Fanout pass #3 on board '2a0c9fb95ea3f86930ea11236c8d0b3a' completed in 0.26 seconds with 2 SMD pins fanouted, 0 not routed, 0 insert errors, +2 extra vias (0 SMD pins still to check in pass, ripup costs=300).
+2026-10-21 16:02:59.808 INFO   [19ED33\BB82EC] Fanout pass #4 on board '2a0c9fb95ea3f86930ea11236c8d0b3a' completed in 0.20 seconds with 0 SMD pins fanouted, 0 not routed, 0 insert errors, +0 extra vias (0 SMD pins still to check in pass, ripup costs=400).
+2026-10-21 16:02:59.865 INFO   [19ED33\BB82EC] Fanout stage completed: started with 61 total SMD pins, completed in 2.51 seconds, escaped pins: 60/61 (98.4%), using 2.48 total CPU seconds, 4.71 GB total allocated, and 431.5 MB peak heap usage.
+2026-10-21 16:02:59.873 INFO   [19ED33\BB82EC] Auto-routing stage started on board '2a0c9fb95ea3f86930ea11236c8d0b3a' for 26 unrouted items.
+2026-10-21 16:03:00.039 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 6/22)
+2026-10-21 16:03:00.040 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 7/11)
+2026-10-21 16:03:00.040 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 7/11)
+2026-10-21 16:03:00.040 DEBUG  Queuing item for routing: Pin on net 'CC2' (connected: 5/8)
+2026-10-21 16:03:00.040 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 5/22)
+2026-10-21 16:03:00.040 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 4/7)
+2026-10-21 16:03:00.041 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 5/15)
+2026-10-21 16:03:00.041 DEBUG  Queuing item for routing: Pin on net 'RX0' (connected: 5/6)
+2026-10-21 16:03:00.041 DEBUG  Queuing item for routing: Pin on net 'TX0' (connected: 6/7)
+2026-10-21 16:03:00.041 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 4/11)
+2026-10-21 16:03:00.041 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 4/11)
+2026-10-21 16:03:00.041 DEBUG  Queuing item for routing: Pin on net 'IO11' (connected: 4/5)
+2026-10-21 16:03:00.041 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 4/5)
+2026-10-21 16:03:00.041 DEBUG  Queuing item for routing: Pin on net 'IO9' (connected: 4/5)
+2026-10-21 16:03:00.041 DEBUG  Queuing item for routing: Pin on net 'IO8' (connected: 5/6)
+2026-10-21 16:03:00.042 DEBUG  Queuing item for routing: Pin on net 'IO7' (connected: 5/6)
+2026-10-21 16:03:00.042 DEBUG  Queuing item for routing: Pin on net 'IO6' (connected: 5/6)
+2026-10-21 16:03:00.042 DEBUG  Queuing item for routing: Pin on net 'IO5' (connected: 4/5)
+2026-10-21 16:03:00.042 DEBUG  Queuing item for routing: Pin on net 'IO4' (connected: 4/5)
+2026-10-21 16:03:00.042 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 5/6)
+2026-10-21 16:03:00.042 DEBUG  Queuing item for routing: Pin on net 'IO2' (connected: 5/6)
+2026-10-21 16:03:00.042 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 4/15)
+2026-10-21 16:03:00.042 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 8/23)
+2026-10-21 16:03:00.042 DEBUG  Queuing item for routing: Pin on net 'RX0' (connected: 1/6)
+2026-10-21 16:03:00.042 DEBUG  Queuing item for routing: Pin on net 'TX0' (connected: 1/7)
+2026-10-21 16:03:00.043 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/23)
+2026-10-21 16:03:00.043 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 5/15)
+2026-10-21 16:03:00.043 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 10/22)
+2026-10-21 16:03:00.043 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 3/23)
+2026-10-21 16:03:00.043 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 8/23)
+2026-10-21 16:03:00.043 DEBUG  Queuing item for routing: Pin on net 'IO5' (connected: 1/5)
+2026-10-21 16:03:00.043 DEBUG  Queuing item for routing: Pin on net 'IO4' (connected: 1/5)
+2026-10-21 16:03:00.043 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/6)
+2026-10-21 16:03:00.043 DEBUG  Queuing item for routing: Pin on net 'IO2' (connected: 1/6)
+2026-10-21 16:03:00.043 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 1/15)
+2026-10-21 16:03:00.044 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/22)
+2026-10-21 16:03:00.044 DEBUG  Queuing item for routing: Pin on net 'IO11' (connected: 1/5)
+2026-10-21 16:03:00.044 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 1/5)
+2026-10-21 16:03:00.044 DEBUG  Queuing item for routing: Pin on net 'IO9' (connected: 1/5)
+2026-10-21 16:03:00.044 DEBUG  Queuing item for routing: Pin on net 'IO8' (connected: 1/6)
+2026-10-21 16:03:00.044 DEBUG  Queuing item for routing: Pin on net 'IO7' (connected: 1/6)
+2026-10-21 16:03:00.044 DEBUG  Queuing item for routing: Pin on net 'IO6' (connected: 1/6)
+2026-10-21 16:03:00.044 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 3/7)
+2026-10-21 16:03:00.044 DEBUG  Queuing item for routing: Pin on net 'CC2' (connected: 3/8)
+2026-10-21 16:03:00.044 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 3/23)
+2026-10-21 16:03:00.098 DEBUG  [19ED33\BB82EC] Pass #1: 26 incompletes across 45 items to route
+2026-10-21 16:03:00.098 DEBUG  [19ED33\BB82EC]   Net '5V' has 3 incomplete(s)
+2026-10-21 16:03:00.098 DEBUG  [19ED33\BB82EC]   Net '3V3' has 4 incomplete(s)
+2026-10-21 16:03:00.099 DEBUG  [19ED33\BB82EC]   Net 'CC2' has 1 incomplete(s)
+2026-10-21 16:03:00.099 DEBUG  [19ED33\BB82EC]   Net 'IO6' has 1 incomplete(s)
+2026-10-21 16:03:00.099 DEBUG  [19ED33\BB82EC]   Net 'IO7' has 1 incomplete(s)
+2026-10-21 16:03:00.099 DEBUG  [19ED33\BB82EC]   Net 'IO8' has 1 incomplete(s)
+2026-10-21 16:03:00.099 DEBUG  [19ED33\BB82EC]   Net 'IO9' has 1 incomplete(s)
+2026-10-21 16:03:00.099 DEBUG  [19ED33\BB82EC]   Net 'IO10' has 1 incomplete(s)
+2026-10-21 16:03:00.099 DEBUG  [19ED33\BB82EC]   Net 'IO11' has 1 incomplete(s)
+2026-10-21 16:03:00.099 DEBUG  [19ED33\BB82EC]   Net 'EN' has 3 incomplete(s)
+2026-10-21 16:03:00.099 DEBUG  [19ED33\BB82EC]   Net 'TX0' has 1 incomplete(s)
+2026-10-21 16:03:00.099 DEBUG  [19ED33\BB82EC]   Net 'RX0' has 1 incomplete(s)
+2026-10-21 16:03:00.099 DEBUG  [19ED33\BB82EC]   Net 'IO2' has 1 incomplete(s)
+2026-10-21 16:03:00.099 DEBUG  [19ED33\BB82EC]   Net 'IO3' has 1 incomplete(s)
+2026-10-21 16:03:00.099 DEBUG  [19ED33\BB82EC]   Net 'IO4' has 1 incomplete(s)
+2026-10-21 16:03:00.099 DEBUG  [19ED33\BB82EC]   Net 'IO5' has 1 incomplete(s)
+2026-10-21 16:03:00.099 DEBUG  [19ED33\BB82EC]   Net 'USB_DP' has 1 incomplete(s)
+2026-10-21 16:03:00.099 DEBUG  [19ED33\BB82EC]   Net 'USB_DM' has 1 incomplete(s)
+2026-10-21 16:03:00.099 DEBUG  [19ED33\BB82EC]   Net 'CC1' has 1 incomplete(s)
+2026-10-21 16:03:00.432 DEBUG  FoundConnectionInserter: insert trace failed for net #14 at corner 34/34 on layer 1, trace width: 1000, from corner: 6, okPoint: (231800,-75002), target: (241300,-279400)
+2026-10-21 16:03:00.444 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between pin #3 of component #12 and polylinetrace, polylinetrace, polylinetrace, via, pin #68 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:01.283 DEBUG  FoundConnectionInserter: insert trace failed for net #5 at corner 54/54 on layer 1, trace width: 1000, from corner: 45, okPoint: (240837,-77398), target: (266700,-88900)
+2026-10-21 16:03:01.295 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between pin #1 of component #6 and polylinetrace, polylinetrace, polylinetrace, via, pin #11 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:02.962 DEBUG  FoundConnectionInserter: insert trace failed for net #5 at corner 26/26 on layer 1, trace width: 1000, from corner: 7, okPoint: (252815,-54000), target: (61911,-132251)
+2026-10-21 16:03:02.972 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, via, pin #11 of component #13 and pin #1 of component #6, because the new connection could not be inserted.
+2026-10-21 16:03:02.974 DEBUG  [19ED33\BB82EC] Pass #1: Failed to route Pin on net 'IO6' (4 items remaining, 1 failures). State: FAILED
+2026-10-21 16:03:03.224 INFO   [19ED33\BB82EC] Auto-routing pass #1 on board '2a0c9fb95ea3f86930ea11236c8d0b3a' was completed in 3.19 seconds with score 878.12 (7 unrouted and 4 violations), using 5.78 CPU seconds and the job allocated 12.51 GB of memory so far.
+2026-10-21 16:03:03.372 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 4/8)
+2026-10-21 16:03:03.372 DEBUG  Queuing item for routing: Pin on net 'RX0' (connected: 1/2)
+2026-10-21 16:03:03.372 DEBUG  Queuing item for routing: Pin on net 'TX0' (connected: 4/5)
+2026-10-21 16:03:03.372 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 4/8)
+2026-10-21 16:03:03.373 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 4/5)
+2026-10-21 16:03:03.373 DEBUG  Queuing item for routing: Pin on net 'IO7' (connected: 4/5)
+2026-10-21 16:03:03.373 DEBUG  Queuing item for routing: Pin on net 'IO6' (connected: 1/2)
+2026-10-21 16:03:03.373 DEBUG  Queuing item for routing: Pin on net 'IO5' (connected: 4/5)
+2026-10-21 16:03:03.374 DEBUG  Queuing item for routing: Pin on net 'RX0' (connected: 1/2)
+2026-10-21 16:03:03.374 DEBUG  Queuing item for routing: Pin on net 'TX0' (connected: 1/5)
+2026-10-21 16:03:03.374 DEBUG  Queuing item for routing: Pin on net 'IO5' (connected: 1/5)
+2026-10-21 16:03:03.374 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 1/5)
+2026-10-21 16:03:03.375 DEBUG  Queuing item for routing: Pin on net 'IO7' (connected: 1/5)
+2026-10-21 16:03:03.375 DEBUG  Queuing item for routing: Pin on net 'IO6' (connected: 1/2)
+2026-10-21 16:03:03.428 DEBUG  [19ED33\BB82EC] Pass #2: 7 incompletes across 14 items to route
+2026-10-21 16:03:03.428 DEBUG  [19ED33\BB82EC]   Net 'IO6' has 1 incomplete(s)
+2026-10-21 16:03:03.428 DEBUG  [19ED33\BB82EC]   Net 'IO7' has 1 incomplete(s)
+2026-10-21 16:03:03.428 DEBUG  [19ED33\BB82EC]   Net 'IO10' has 1 incomplete(s)
+2026-10-21 16:03:03.428 DEBUG  [19ED33\BB82EC]   Net 'TX0' has 1 incomplete(s)
+2026-10-21 16:03:03.429 DEBUG  [19ED33\BB82EC]   Net 'RX0' has 1 incomplete(s)
+2026-10-21 16:03:03.429 DEBUG  [19ED33\BB82EC]   Net 'IO5' has 1 incomplete(s)
+2026-10-21 16:03:03.429 DEBUG  [19ED33\BB82EC]   Net 'USB_DM' has 1 incomplete(s)
+2026-10-21 16:03:03.767 DEBUG  FoundConnectionInserter: insert trace failed for net #14 at corner 16/16 on layer 0, trace width: 1000, from corner: 6, okPoint: (224302,-68398), target: (281147,-61999)
+2026-10-21 16:03:03.775 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between pin #3 of component #12 and pin #68 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:05.056 INFO   [19ED33\BB82EC] Auto-routing pass #2 on board 'f8b0b1aa4369febdb296a9ef21ea0857' was completed in 1.69 seconds with score 924.99 (4 unrouted and 4 violations), using 6.72 CPU seconds and the job allocated 15.57 GB of memory so far.
+2026-10-21 16:03:05.179 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 5/9)
+2026-10-21 16:03:05.180 DEBUG  Queuing item for routing: Pin on net 'RX0' (connected: 3/4)
+2026-10-21 16:03:05.180 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 4/9)
+2026-10-21 16:03:05.180 DEBUG  Queuing item for routing: Pin on net 'IO9' (connected: 4/5)
+2026-10-21 16:03:05.180 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/2)
+2026-10-21 16:03:05.181 DEBUG  Queuing item for routing: Pin on net 'RX0' (connected: 1/4)
+2026-10-21 16:03:05.181 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/2)
+2026-10-21 16:03:05.181 DEBUG  Queuing item for routing: Pin on net 'IO9' (connected: 1/5)
+2026-10-21 16:03:05.238 DEBUG  [19ED33\BB82EC] Pass #3: 4 incompletes across 8 items to route
+2026-10-21 16:03:05.238 DEBUG  [19ED33\BB82EC]   Net 'IO9' has 1 incomplete(s)
+2026-10-21 16:03:05.238 DEBUG  [19ED33\BB82EC]   Net 'RX0' has 1 incomplete(s)
+2026-10-21 16:03:05.238 DEBUG  [19ED33\BB82EC]   Net 'IO3' has 1 incomplete(s)
+2026-10-21 16:03:05.238 DEBUG  [19ED33\BB82EC]   Net 'USB_DM' has 1 incomplete(s)
+2026-10-21 16:03:05.976 INFO   [19ED33\BB82EC] Auto-routing pass #3 on board '3ef38bf9495e10070fe3aec419fe1014' was completed in 0.80 seconds with score 940.61 (3 unrouted and 4 violations), using 7.72 CPU seconds and the job allocated 18.78 GB of memory so far.
+2026-10-21 16:03:06.108 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 4/5)
+2026-10-21 16:03:06.109 DEBUG  Queuing item for routing: Pin on net 'IO7' (connected: 4/5)
+2026-10-21 16:03:06.109 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 4/5)
+2026-10-21 16:03:06.109 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/5)
+2026-10-21 16:03:06.109 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 1/5)
+2026-10-21 16:03:06.109 DEBUG  Queuing item for routing: Pin on net 'IO7' (connected: 1/5)
+2026-10-21 16:03:06.164 DEBUG  [19ED33\BB82EC] Pass #4: 3 incompletes across 6 items to route
+2026-10-21 16:03:06.164 DEBUG  [19ED33\BB82EC]   Net 'IO7' has 1 incomplete(s)
+2026-10-21 16:03:06.164 DEBUG  [19ED33\BB82EC]   Net 'IO10' has 1 incomplete(s)
+2026-10-21 16:03:06.164 DEBUG  [19ED33\BB82EC]   Net 'IO3' has 1 incomplete(s)
+2026-10-21 16:03:06.687 INFO   [19ED33\BB82EC] Auto-routing pass #4 on board '1943faab186d0fcc624939eef06167fe' was completed in 0.58 seconds with score 940.61 (3 unrouted and 4 violations), using 8.69 CPU seconds and the job allocated 22.26 GB of memory so far.
+2026-10-21 16:03:06.829 DEBUG  Queuing item for routing: Pin on net 'RX0' (connected: 3/4)
+2026-10-21 16:03:06.830 DEBUG  Queuing item for routing: Pin on net 'IO11' (connected: 4/5)
+2026-10-21 16:03:06.830 DEBUG  Queuing item for routing: Pin on net 'IO9' (connected: 4/5)
+2026-10-21 16:03:06.831 DEBUG  Queuing item for routing: Pin on net 'RX0' (connected: 1/4)
+2026-10-21 16:03:06.831 DEBUG  Queuing item for routing: Pin on net 'IO11' (connected: 1/5)
+2026-10-21 16:03:06.831 DEBUG  Queuing item for routing: Pin on net 'IO9' (connected: 1/5)
+2026-10-21 16:03:06.894 DEBUG  [19ED33\BB82EC] Pass #5: 3 incompletes across 6 items to route
+2026-10-21 16:03:06.894 DEBUG  [19ED33\BB82EC]   Net 'IO9' has 1 incomplete(s)
+2026-10-21 16:03:06.894 DEBUG  [19ED33\BB82EC]   Net 'IO11' has 1 incomplete(s)
+2026-10-21 16:03:06.894 DEBUG  [19ED33\BB82EC]   Net 'RX0' has 1 incomplete(s)
+2026-10-21 16:03:07.354 INFO   [19ED33\BB82EC] Auto-routing pass #5 on board 'fcfd1db2b70a73c41c2cbf61bd7ba19a' was completed in 0.53 seconds with score 971.86 (1 unrouted and 4 violations), using 9.69 CPU seconds and the job allocated 25.65 GB of memory so far.
+2026-10-21 16:03:07.500 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 4/5)
+2026-10-21 16:03:07.501 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 1/5)
+2026-10-21 16:03:07.562 DEBUG  [19ED33\BB82EC] Pass #6: 1 incompletes across 2 items to route
+2026-10-21 16:03:07.562 DEBUG  [19ED33\BB82EC]   Net 'IO10' has 1 incomplete(s)
+2026-10-21 16:03:07.914 INFO   [19ED33\BB82EC] Auto-routing pass #6 on board 'c77743e358b4cfe0cdf2d98f10d44724' was completed in 0.42 seconds with score 971.86 (1 unrouted and 4 violations), using 9.69 CPU seconds and the job allocated 25.65 GB of memory so far.
+2026-10-21 16:03:08.071 DEBUG  Queuing item for routing: Pin on net 'IO11' (connected: 4/5)
+2026-10-21 16:03:08.072 DEBUG  Queuing item for routing: Pin on net 'IO11' (connected: 1/5)
+2026-10-21 16:03:08.128 DEBUG  [19ED33\BB82EC] Pass #7: 1 incompletes across 2 items to route
+2026-10-21 16:03:08.129 DEBUG  [19ED33\BB82EC]   Net 'IO11' has 1 incomplete(s)
+2026-10-21 16:03:08.487 INFO   [19ED33\BB82EC] Auto-routing pass #7 on board '7fbcd9ba2c8cabb19bbfbfd4bc32a4f0' was completed in 0.42 seconds with score 987.49 (0 unrouted and 4 violations), using 10.66 CPU seconds and the job allocated 29.34 GB of memory so far.
+2026-10-21 16:03:08.682 INFO   [19ED33\BB82EC] Auto-routing pass #8 on board '20c8eea362be8218584d02db71531523' was completed in 0.06 seconds with score 987.49 (0 unrouted and 4 violations), using 10.66 CPU seconds and the job allocated 29.34 GB of memory so far.
+2026-10-21 16:03:08.762 DEBUG  === Performance Profile ===
+2026-10-21 16:03:08.762 DEBUG  === Routing Parameters ===
+2026-10-21 16:03:08.762 DEBUG    Via Costs: 50, Plane Via Costs: 5
+2026-10-21 16:03:08.762 DEBUG    Layer Costs (Preferred / Against):
+2026-10-21 16:03:08.762 DEBUG      Layer 1: 1.0 / 2.7
+2026-10-21 16:03:08.762 DEBUG      Layer 2: 1.0 / 1.6
+2026-10-21 16:03:08.762 DEBUG  
+2026-10-21 16:03:08.763 DEBUG    autoroute_item                          :     4737 ms total,       83 calls,     57 ms avg
+2026-10-21 16:03:08.763 DEBUG  
+2026-10-21 16:03:08.763 DEBUG  === Pass History ===
+2026-10-21 16:03:08.763 DEBUG    Pass 1  :    7 unrouted items,     3.12 s,   100 ripup cost
+2026-10-21 16:03:08.763 DEBUG    Pass 2  :    4 unrouted items,     1.63 s,   200 ripup cost
+2026-10-21 16:03:08.763 DEBUG    Pass 3  :    3 unrouted items,     0.74 s,   300 ripup cost
+2026-10-21 16:03:08.763 DEBUG    Pass 4  :    3 unrouted items,     0.52 s,   400 ripup cost
+2026-10-21 16:03:08.763 DEBUG    Pass 5  :    1 unrouted items,     0.47 s,   500 ripup cost
+2026-10-21 16:03:08.763 DEBUG    Pass 6  :    1 unrouted items,     0.36 s,   600 ripup cost
+2026-10-21 16:03:08.764 DEBUG    Pass 7  :    0 unrouted items,     0.36 s,   700 ripup cost
+2026-10-21 16:03:08.764 DEBUG  ===========================
+2026-10-21 16:03:08.818 INFO   [19ED33\BB82EC] Auto-routing stage completed: started with 36 unrouted nets, completed in 11.57 seconds, final score: 987.49 (0 unrouted and 4 violations), using 10.66 total CPU seconds, 29.34 GB total allocated, and 393.6 MB peak heap usage.
+2026-10-21 16:03:08.821 DEBUG  [19ED33\BB82EC] Before optimization: Via count: 27, trace length: 6787383
+2026-10-21 16:03:08.881 INFO   [19ED33\BB82EC] Optimization stage started on board 'c62fc5f7b2c128cb2e58743f4550fbd7' with score 987.49 (0 unrouted and 4 violations).
+2026-10-21 16:03:09.059 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/22)
+2026-10-21 16:03:09.059 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/22)
+2026-10-21 16:03:09.059 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/22)
+2026-10-21 16:03:09.114 DEBUG  [19ED33\BB82EC] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:03:09.114 DEBUG  [19ED33\BB82EC]   Net '3V3' has 2 incomplete(s)
+2026-10-21 16:03:09.170 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 26/26 on layer 0, trace width: 1000, from corner: 11, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:03:09.177 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:09.177 DEBUG  [19ED33\BB82EC] Pass #1: Failed to route Pin on net '3V3' (2 items remaining, 1 failures). State: FAILED
+2026-10-21 16:03:09.197 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:03:09.207 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:09.207 DEBUG  [19ED33\BB82EC] Pass #1: Failed to route Pin on net '3V3' (1 items remaining, 1 failures). State: FAILED
+2026-10-21 16:03:09.316 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:03:09.316 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:03:09.378 DEBUG  [19ED33\BB82EC] Pass #2: 1 incompletes across 2 items to route
+2026-10-21 16:03:09.379 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:09.413 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:03:09.421 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:09.421 DEBUG  [19ED33\BB82EC] Pass #2: Failed to route Pin on net '3V3' (2 items remaining, 1 failures). State: FAILED
+2026-10-21 16:03:09.447 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:03:09.457 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:09.457 DEBUG  [19ED33\BB82EC] Pass #2: Failed to route Pin on net '3V3' (1 items remaining, 2 failures). State: FAILED
+2026-10-21 16:03:09.554 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:03:09.555 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:03:09.611 DEBUG  [19ED33\BB82EC] Pass #3: 1 incompletes across 2 items to route
+2026-10-21 16:03:09.611 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:09.641 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:03:09.649 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:09.649 DEBUG  [19ED33\BB82EC] Pass #3: Failed to route Pin on net '3V3' (2 items remaining, 2 failures). State: FAILED
+2026-10-21 16:03:09.666 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:03:09.675 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:09.675 DEBUG  [19ED33\BB82EC] Pass #3: Failed to route Pin on net '3V3' (1 items remaining, 3 failures). State: FAILED
+2026-10-21 16:03:09.769 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:03:09.769 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:03:09.827 DEBUG  [19ED33\BB82EC] Pass #4: 1 incompletes across 2 items to route
+2026-10-21 16:03:09.827 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:09.856 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:03:09.865 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:09.865 DEBUG  [19ED33\BB82EC] Pass #4: Failed to route Pin on net '3V3' (2 items remaining, 3 failures). State: FAILED
+2026-10-21 16:03:09.882 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:03:09.893 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:09.893 DEBUG  [19ED33\BB82EC] Pass #4: Failed to route Pin on net '3V3' (1 items remaining, 4 failures). State: FAILED
+2026-10-21 16:03:10.007 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:03:10.007 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:03:10.072 DEBUG  [19ED33\BB82EC] Pass #5: 1 incompletes across 2 items to route
+2026-10-21 16:03:10.072 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:10.105 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:03:10.115 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:10.115 DEBUG  [19ED33\BB82EC] Pass #5: Failed to route Pin on net '3V3' (2 items remaining, 4 failures). State: FAILED
+2026-10-21 16:03:10.143 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:03:10.151 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:10.151 DEBUG  [19ED33\BB82EC] Pass #5: Failed to route Pin on net '3V3' (1 items remaining, 5 failures). State: FAILED
+2026-10-21 16:03:10.270 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:03:10.270 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:03:10.352 DEBUG  [19ED33\BB82EC] Pass #6: 1 incompletes across 2 items to route
+2026-10-21 16:03:10.352 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:10.384 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:03:10.395 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:10.395 DEBUG  [19ED33\BB82EC] Pass #6: Failed to route Pin on net '3V3' (2 items remaining, 5 failures). State: FAILED
+2026-10-21 16:03:10.427 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:03:10.445 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:10.445 DEBUG  [19ED33\BB82EC] Pass #6: Failed to route Pin on net '3V3' (1 items remaining, 6 failures). State: FAILED
+2026-10-21 16:03:10.678 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/22)
+2026-10-21 16:03:10.678 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/22)
+2026-10-21 16:03:10.679 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/22)
+2026-10-21 16:03:10.741 DEBUG  [19ED33\BB82EC] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:03:10.741 DEBUG  [19ED33\BB82EC]   Net '3V3' has 2 incomplete(s)
+2026-10-21 16:03:10.794 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 26/26 on layer 0, trace width: 1000, from corner: 11, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:03:10.802 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:10.803 DEBUG  [19ED33\BB82EC] Pass #1: Failed to route Pin on net '3V3' (2 items remaining, 2 failures). State: FAILED
+2026-10-21 16:03:10.820 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:03:10.831 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:10.831 DEBUG  [19ED33\BB82EC] Pass #1: Failed to route Pin on net '3V3' (1 items remaining, 7 failures). State: FAILED
+2026-10-21 16:03:10.935 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:03:10.935 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:03:10.998 DEBUG  [19ED33\BB82EC] Pass #2: 1 incompletes across 2 items to route
+2026-10-21 16:03:10.998 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:11.030 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:03:11.041 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:11.041 DEBUG  [19ED33\BB82EC] Pass #2: Failed to route Pin on net '3V3' (2 items remaining, 6 failures). State: FAILED
+2026-10-21 16:03:11.067 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:03:11.080 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:11.080 DEBUG  [19ED33\BB82EC] Pass #2: Failed to route Pin on net '3V3' (1 items remaining, 8 failures). State: FAILED
+2026-10-21 16:03:11.181 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:03:11.181 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:03:11.245 DEBUG  [19ED33\BB82EC] Pass #3: 1 incompletes across 2 items to route
+2026-10-21 16:03:11.245 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:11.281 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:03:11.293 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:11.293 DEBUG  [19ED33\BB82EC] Pass #3: Failed to route Pin on net '3V3' (2 items remaining, 7 failures). State: FAILED
+2026-10-21 16:03:11.325 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:03:11.337 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:11.337 DEBUG  [19ED33\BB82EC] Pass #3: Failed to route Pin on net '3V3' (1 items remaining, 9 failures). State: FAILED
+2026-10-21 16:03:11.432 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:03:11.433 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:03:11.488 DEBUG  [19ED33\BB82EC] Pass #4: 1 incompletes across 2 items to route
+2026-10-21 16:03:11.488 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:11.518 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:03:11.527 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:11.527 DEBUG  [19ED33\BB82EC] Pass #4: Failed to route Pin on net '3V3' (2 items remaining, 8 failures). State: FAILED
+2026-10-21 16:03:11.544 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:03:11.551 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:11.551 DEBUG  [19ED33\BB82EC] Pass #4: Failed to route Pin on net '3V3' (1 items remaining, 10 failures). State: FAILED
+2026-10-21 16:03:11.646 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:03:11.647 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:03:11.700 DEBUG  [19ED33\BB82EC] Pass #5: 1 incompletes across 2 items to route
+2026-10-21 16:03:11.700 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:11.729 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:03:11.738 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:11.738 DEBUG  [19ED33\BB82EC] Pass #5: Failed to route Pin on net '3V3' (2 items remaining, 9 failures). State: FAILED
+2026-10-21 16:03:11.753 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:03:11.763 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:11.763 DEBUG  [19ED33\BB82EC] Pass #5: Failed to route Pin on net '3V3' (1 items remaining, 11 failures). State: FAILED
+2026-10-21 16:03:11.850 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:03:11.850 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:03:11.910 DEBUG  [19ED33\BB82EC] Pass #6: 1 incompletes across 2 items to route
+2026-10-21 16:03:11.910 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:11.939 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:03:11.947 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:11.948 DEBUG  [19ED33\BB82EC] Pass #6: Failed to route Pin on net '3V3' (2 items remaining, 10 failures). State: FAILED
+2026-10-21 16:03:11.970 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:03:11.979 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:11.979 DEBUG  [19ED33\BB82EC] Pass #6: Failed to route Pin on net '3V3' (1 items remaining, 12 failures). State: FAILED
+2026-10-21 16:03:12.175 DEBUG  Queuing item for routing: Pin on net 'IO2' (connected: 1/2)
+2026-10-21 16:03:12.175 DEBUG  Queuing item for routing: Pin on net 'IO2' (connected: 1/2)
+2026-10-21 16:03:12.232 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:12.232 DEBUG  [19ED33\BB82EC]   Net 'IO2' has 1 incomplete(s)
+2026-10-21 16:03:12.519 DEBUG  Queuing item for routing: Pin on net 'IO7' (connected: 1/2)
+2026-10-21 16:03:12.519 DEBUG  Queuing item for routing: Pin on net 'IO7' (connected: 1/2)
+2026-10-21 16:03:12.576 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:12.576 DEBUG  [19ED33\BB82EC]   Net 'IO7' has 1 incomplete(s)
+2026-10-21 16:03:12.744 DEBUG  FoundConnectionInserter: insert trace failed for net #6 at corner 15/32 on layer 1, trace width: 1000, from corner: 14, okPoint: (201807,-47981), target: (248371,-47981)
+2026-10-21 16:03:12.751 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between pin #2 of component #6 and pin #12 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:12.751 DEBUG  [19ED33\BB82EC] Pass #1: Failed to route Pin on net 'IO7' (2 items remaining, 1 failures). State: FAILED
+2026-10-21 16:03:13.125 DEBUG  Queuing item for routing: Pin on net 'IO5' (connected: 1/2)
+2026-10-21 16:03:13.126 DEBUG  Queuing item for routing: Pin on net 'IO5' (connected: 1/2)
+2026-10-21 16:03:13.183 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:13.183 DEBUG  [19ED33\BB82EC]   Net 'IO5' has 1 incomplete(s)
+2026-10-21 16:03:13.519 DEBUG  Queuing item for routing: Pin on net 'IO4' (connected: 1/2)
+2026-10-21 16:03:13.519 DEBUG  Queuing item for routing: Pin on net 'IO4' (connected: 1/2)
+2026-10-21 16:03:13.581 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:13.581 DEBUG  [19ED33\BB82EC]   Net 'IO4' has 1 incomplete(s)
+2026-10-21 16:03:13.900 DEBUG  Queuing item for routing: Pin on net 'IO9' (connected: 1/2)
+2026-10-21 16:03:13.902 DEBUG  Queuing item for routing: Pin on net 'IO9' (connected: 1/2)
+2026-10-21 16:03:13.979 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:13.979 DEBUG  [19ED33\BB82EC]   Net 'IO9' has 1 incomplete(s)
+2026-10-21 16:03:14.525 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 1/2)
+2026-10-21 16:03:14.527 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 1/2)
+2026-10-21 16:03:14.589 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:14.589 DEBUG  [19ED33\BB82EC]   Net 'IO10' has 1 incomplete(s)
+2026-10-21 16:03:14.887 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/2)
+2026-10-21 16:03:14.888 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/2)
+2026-10-21 16:03:14.943 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:14.943 DEBUG  [19ED33\BB82EC]   Net 'IO3' has 1 incomplete(s)
+2026-10-21 16:03:15.232 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/2)
+2026-10-21 16:03:15.232 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/2)
+2026-10-21 16:03:15.291 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:15.291 DEBUG  [19ED33\BB82EC]   Net 'IO3' has 1 incomplete(s)
+2026-10-21 16:03:15.589 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/2)
+2026-10-21 16:03:15.589 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/2)
+2026-10-21 16:03:15.645 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:15.645 DEBUG  [19ED33\BB82EC]   Net 'IO3' has 1 incomplete(s)
+2026-10-21 16:03:15.924 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/2)
+2026-10-21 16:03:15.925 DEBUG  Queuing item for routing: Pin on net 'IO3' (connected: 1/2)
+2026-10-21 16:03:15.977 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:15.978 DEBUG  [19ED33\BB82EC]   Net 'IO3' has 1 incomplete(s)
+2026-10-21 16:03:16.272 DEBUG  Queuing item for routing: Pin on net 'IO2' (connected: 1/2)
+2026-10-21 16:03:16.273 DEBUG  Queuing item for routing: Pin on net 'IO2' (connected: 1/2)
+2026-10-21 16:03:16.332 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:16.332 DEBUG  [19ED33\BB82EC]   Net 'IO2' has 1 incomplete(s)
+2026-10-21 16:03:16.602 DEBUG  Queuing item for routing: Pin on net 'IO2' (connected: 1/2)
+2026-10-21 16:03:16.602 DEBUG  Queuing item for routing: Pin on net 'IO2' (connected: 1/2)
+2026-10-21 16:03:16.656 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:16.656 DEBUG  [19ED33\BB82EC]   Net 'IO2' has 1 incomplete(s)
+2026-10-21 16:03:16.934 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 4/5)
+2026-10-21 16:03:16.934 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 1/5)
+2026-10-21 16:03:16.987 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:16.987 DEBUG  [19ED33\BB82EC]   Net 'USB_DP' has 1 incomplete(s)
+2026-10-21 16:03:17.323 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 4/5)
+2026-10-21 16:03:17.324 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/5)
+2026-10-21 16:03:17.383 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:17.383 DEBUG  [19ED33\BB82EC]   Net 'USB_DM' has 1 incomplete(s)
+2026-10-21 16:03:17.445 DEBUG  FoundConnectionInserter: via placement blocked by clearance/shove limits for net #21
+2026-10-21 16:03:17.454 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between pin #40 of component #13 and polylinetrace, polylinetrace, pin #12 of component #15, pin #4 of component #15, because the new connection could not be inserted.
+2026-10-21 16:03:17.454 DEBUG  [19ED33\BB82EC] Pass #1: Failed to route Pin on net 'USB_DM' (2 items remaining, 1 failures). State: FAILED
+2026-10-21 16:03:17.695 DEBUG  Queuing item for routing: Pin on net 'IO6' (connected: 1/2)
+2026-10-21 16:03:17.696 DEBUG  Queuing item for routing: Pin on net 'IO6' (connected: 1/2)
+2026-10-21 16:03:17.748 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:17.748 DEBUG  [19ED33\BB82EC]   Net 'IO6' has 1 incomplete(s)
+2026-10-21 16:03:17.810 DEBUG  FoundConnectionInserter: insert trace failed for net #5 at corner 17/17 on layer 1, trace width: 1000, from corner: 10, okPoint: (250800,-51998), target: (266700,-88900)
+2026-10-21 16:03:17.818 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between pin #1 of component #6 and pin #11 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:17.818 DEBUG  [19ED33\BB82EC] Pass #1: Failed to route Pin on net 'IO6' (2 items remaining, 2 failures). State: FAILED
+2026-10-21 16:03:17.846 DEBUG  FoundConnectionInserter: insert trace failed for net #5 at corner 20/20 on layer 1, trace width: 1000, from corner: 4, okPoint: (255198,-54000), target: (182850,-99176)
+2026-10-21 16:03:17.852 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between via, polylinetrace, pin #11 of component #13 and pin #1 of component #6, because the new connection could not be inserted.
+2026-10-21 16:03:17.853 DEBUG  [19ED33\BB82EC] Pass #1: Failed to route Pin on net 'IO6' (1 items remaining, 2 failures). State: FAILED
+2026-10-21 16:03:17.952 DEBUG  Queuing item for routing: Pin on net 'IO6' (connected: 1/2)
+2026-10-21 16:03:17.952 DEBUG  Queuing item for routing: Pin on net 'IO6' (connected: 1/2)
+2026-10-21 16:03:18.009 DEBUG  [19ED33\BB82EC] Pass #2: 1 incompletes across 2 items to route
+2026-10-21 16:03:18.009 DEBUG  [19ED33\BB82EC]   Net 'IO6' has 1 incomplete(s)
+2026-10-21 16:03:18.496 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 4/5)
+2026-10-21 16:03:18.497 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/5)
+2026-10-21 16:03:18.549 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:18.549 DEBUG  [19ED33\BB82EC]   Net 'USB_DM' has 1 incomplete(s)
+2026-10-21 16:03:18.853 DEBUG  Queuing item for routing: Pin on net 'IO8' (connected: 1/2)
+2026-10-21 16:03:18.854 DEBUG  Queuing item for routing: Pin on net 'IO8' (connected: 1/2)
+2026-10-21 16:03:18.910 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:18.910 DEBUG  [19ED33\BB82EC]   Net 'IO8' has 1 incomplete(s)
+2026-10-21 16:03:19.496 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 1/2)
+2026-10-21 16:03:19.497 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 1/2)
+2026-10-21 16:03:19.553 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:19.553 DEBUG  [19ED33\BB82EC]   Net 'IO10' has 1 incomplete(s)
+2026-10-21 16:03:19.821 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 1/2)
+2026-10-21 16:03:19.822 DEBUG  Queuing item for routing: Pin on net 'IO10' (connected: 1/2)
+2026-10-21 16:03:19.882 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:19.882 DEBUG  [19ED33\BB82EC]   Net 'IO10' has 1 incomplete(s)
+2026-10-21 16:03:20.163 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 10/11)
+2026-10-21 16:03:20.164 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 1/11)
+2026-10-21 16:03:20.220 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:20.220 DEBUG  [19ED33\BB82EC]   Net 'EN' has 1 incomplete(s)
+2026-10-21 16:03:20.519 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:03:20.519 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:03:20.581 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:20.581 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:20.611 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:03:20.619 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:20.619 DEBUG  [19ED33\BB82EC] Pass #1: Failed to route Pin on net '3V3' (2 items remaining, 11 failures). State: FAILED
+2026-10-21 16:03:20.640 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:03:20.648 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:20.648 DEBUG  [19ED33\BB82EC] Pass #1: Failed to route Pin on net '3V3' (1 items remaining, 13 failures). State: FAILED
+2026-10-21 16:03:20.730 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:03:20.731 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:03:20.782 DEBUG  [19ED33\BB82EC] Pass #2: 1 incompletes across 2 items to route
+2026-10-21 16:03:20.782 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:20.810 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:03:20.817 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:20.817 DEBUG  [19ED33\BB82EC] Pass #2: Failed to route Pin on net '3V3' (2 items remaining, 12 failures). State: FAILED
+2026-10-21 16:03:20.833 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:03:20.840 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:20.840 DEBUG  [19ED33\BB82EC] Pass #2: Failed to route Pin on net '3V3' (1 items remaining, 14 failures). State: FAILED
+2026-10-21 16:03:20.921 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:03:20.921 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:03:20.977 DEBUG  [19ED33\BB82EC] Pass #3: 1 incompletes across 2 items to route
+2026-10-21 16:03:20.977 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:21.010 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:03:21.017 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:21.017 DEBUG  [19ED33\BB82EC] Pass #3: Failed to route Pin on net '3V3' (2 items remaining, 13 failures). State: FAILED
+2026-10-21 16:03:21.047 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:03:21.054 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:21.055 DEBUG  [19ED33\BB82EC] Pass #3: Failed to route Pin on net '3V3' (1 items remaining, 15 failures). State: FAILED
+2026-10-21 16:03:21.135 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:03:21.135 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:03:21.187 DEBUG  [19ED33\BB82EC] Pass #4: 1 incompletes across 2 items to route
+2026-10-21 16:03:21.187 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:21.215 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:03:21.223 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:21.223 DEBUG  [19ED33\BB82EC] Pass #4: Failed to route Pin on net '3V3' (2 items remaining, 14 failures). State: FAILED
+2026-10-21 16:03:21.240 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:03:21.248 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:21.248 DEBUG  [19ED33\BB82EC] Pass #4: Failed to route Pin on net '3V3' (1 items remaining, 16 failures). State: FAILED
+2026-10-21 16:03:21.340 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:03:21.347 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:03:21.404 DEBUG  [19ED33\BB82EC] Pass #5: 1 incompletes across 2 items to route
+2026-10-21 16:03:21.404 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:21.437 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:03:21.450 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:21.450 DEBUG  [19ED33\BB82EC] Pass #5: Failed to route Pin on net '3V3' (2 items remaining, 15 failures). State: FAILED
+2026-10-21 16:03:21.473 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:03:21.481 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:21.481 DEBUG  [19ED33\BB82EC] Pass #5: Failed to route Pin on net '3V3' (1 items remaining, 17 failures). State: FAILED
+2026-10-21 16:03:21.564 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/25)
+2026-10-21 16:03:21.565 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 20/25)
+2026-10-21 16:03:21.618 DEBUG  [19ED33\BB82EC] Pass #6: 1 incompletes across 2 items to route
+2026-10-21 16:03:21.618 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:21.648 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 28/28 on layer 0, trace width: 1000, from corner: 13, okPoint: (208552,-34400), target: (309625,-38100)
+2026-10-21 16:03:21.654 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1 and polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:21.654 DEBUG  [19ED33\BB82EC] Pass #6: Failed to route Pin on net '3V3' (2 items remaining, 16 failures). State: FAILED
+2026-10-21 16:03:21.670 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 11/11 on layer 0, trace width: 1000, from corner: 6, okPoint: (212300,-32398), target: (205552,-47400)
+2026-10-21 16:03:21.677 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, pin of component #12, pin of component #9, pin of component #8, pin #1 of component #7, pin of component #5, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:21.677 DEBUG  [19ED33\BB82EC] Pass #6: Failed to route Pin on net '3V3' (1 items remaining, 18 failures). State: FAILED
+2026-10-21 16:03:21.865 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 4/5)
+2026-10-21 16:03:21.866 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 1/5)
+2026-10-21 16:03:21.918 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:21.918 DEBUG  [19ED33\BB82EC]   Net 'USB_DP' has 1 incomplete(s)
+2026-10-21 16:03:21.999 DEBUG  FoundConnectionInserter: insert trace failed for net #20 at corner 12/12 on layer 0, trace width: 1000, from corner: 0, okPoint: (226952,-290106), target: (144050,-265400)
+2026-10-21 16:03:22.005 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between pin #39 of component #13 and polylinetrace, polylinetrace, pin #11 of component #15, pin #3 of component #15, because the new connection could not be inserted.
+2026-10-21 16:03:22.005 DEBUG  [19ED33\BB82EC] Pass #1: Failed to route Pin on net 'USB_DP' (2 items remaining, 1 failures). State: FAILED
+2026-10-21 16:03:22.237 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 4/5)
+2026-10-21 16:03:22.238 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/5)
+2026-10-21 16:03:22.301 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:22.302 DEBUG  [19ED33\BB82EC]   Net 'USB_DM' has 1 incomplete(s)
+2026-10-21 16:03:22.602 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 4/5)
+2026-10-21 16:03:22.602 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 1/5)
+2026-10-21 16:03:22.655 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:22.655 DEBUG  [19ED33\BB82EC]   Net 'USB_DP' has 1 incomplete(s)
+2026-10-21 16:03:22.987 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 22/27)
+2026-10-21 16:03:22.987 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 5/27)
+2026-10-21 16:03:23.039 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:23.039 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:23.280 DEBUG  Queuing item for routing: Pin on net 'TX0' (connected: 1/2)
+2026-10-21 16:03:23.282 DEBUG  Queuing item for routing: Pin on net 'TX0' (connected: 1/2)
+2026-10-21 16:03:23.343 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:23.343 DEBUG  [19ED33\BB82EC]   Net 'TX0' has 1 incomplete(s)
+2026-10-21 16:03:23.626 DEBUG  Queuing item for routing: Pin on net 'IO11' (connected: 1/2)
+2026-10-21 16:03:23.627 DEBUG  Queuing item for routing: Pin on net 'IO11' (connected: 1/2)
+2026-10-21 16:03:23.678 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:23.678 DEBUG  [19ED33\BB82EC]   Net 'IO11' has 1 incomplete(s)
+2026-10-21 16:03:23.948 DEBUG  Queuing item for routing: Pin on net 'RX0' (connected: 1/2)
+2026-10-21 16:03:23.950 DEBUG  Queuing item for routing: Pin on net 'RX0' (connected: 1/2)
+2026-10-21 16:03:24.010 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:24.011 DEBUG  [19ED33\BB82EC]   Net 'RX0' has 1 incomplete(s)
+2026-10-21 16:03:24.057 DEBUG  FoundConnectionInserter: insert trace failed for net #14 at corner 10/25 on layer 0, trace width: 1000, from corner: 9, okPoint: (228352,-141599), target: (228319,-141632)
+2026-10-21 16:03:24.064 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between pin #3 of component #12 and pin #68 of component #13, because the new connection could not be inserted.
+2026-10-21 16:03:24.071 DEBUG  [19ED33\BB82EC] Pass #1: Failed to route Pin on net 'RX0' (2 items remaining, 3 failures). State: FAILED
+2026-10-21 16:03:24.359 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 22/24)
+2026-10-21 16:03:24.359 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/24)
+2026-10-21 16:03:24.359 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/24)
+2026-10-21 16:03:24.422 DEBUG  [19ED33\BB82EC] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:03:24.423 DEBUG  [19ED33\BB82EC]   Net '3V3' has 2 incomplete(s)
+2026-10-21 16:03:24.429 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 13/13 on layer 0, trace width: 1000, from corner: 4, okPoint: (266237,-77398), target: (283850,-88900)
+2026-10-21 16:03:24.437 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between pin of component #8, pin of component #5 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, pin of component #12, pin of component #9, pin #1 of component #7, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:24.437 DEBUG  [19ED33\BB82EC] Pass #1: Failed to route Pin on net '3V3' (3 items remaining, 17 failures). State: FAILED
+2026-10-21 16:03:24.686 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 19/23)
+2026-10-21 16:03:24.686 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 4/23)
+2026-10-21 16:03:24.740 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:24.740 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:24.980 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 20/21)
+2026-10-21 16:03:24.982 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/21)
+2026-10-21 16:03:25.035 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:25.035 DEBUG  [19ED33\BB82EC]   Net '5V' has 1 incomplete(s)
+2026-10-21 16:03:25.323 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 22/24)
+2026-10-21 16:03:25.323 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/24)
+2026-10-21 16:03:25.323 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/24)
+2026-10-21 16:03:25.378 DEBUG  [19ED33\BB82EC] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:03:25.379 DEBUG  [19ED33\BB82EC]   Net '3V3' has 2 incomplete(s)
+2026-10-21 16:03:25.390 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 13/13 on layer 0, trace width: 1000, from corner: 4, okPoint: (266237,-77398), target: (283850,-88900)
+2026-10-21 16:03:25.398 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between pin of component #8, pin of component #5 and polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, pin of component #12, pin of component #9, pin #1 of component #7, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:25.398 DEBUG  [19ED33\BB82EC] Pass #1: Failed to route Pin on net '3V3' (3 items remaining, 18 failures). State: FAILED
+2026-10-21 16:03:25.633 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 10/13)
+2026-10-21 16:03:25.634 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 3/13)
+2026-10-21 16:03:25.687 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:25.687 DEBUG  [19ED33\BB82EC]   Net 'EN' has 1 incomplete(s)
+2026-10-21 16:03:25.912 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 22/24)
+2026-10-21 16:03:25.912 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/24)
+2026-10-21 16:03:25.912 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/24)
+2026-10-21 16:03:25.964 DEBUG  [19ED33\BB82EC] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:03:25.964 DEBUG  [19ED33\BB82EC]   Net '3V3' has 2 incomplete(s)
+2026-10-21 16:03:25.972 DEBUG  FoundConnectionInserter: insert trace failed for net #3 at corner 13/13 on layer 0, trace width: 1000, from corner: 4, okPoint: (266237,-77398), target: (283850,-88900)
+2026-10-21 16:03:25.978 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between pin of component #8, pin of component #5 and polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, polylinetrace, via, polylinetrace, polylinetrace, pin #3 of component #13, pin #2 of component #13, pin of component #12, pin of component #9, pin #1 of component #7, pin #4 of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:25.978 DEBUG  [19ED33\BB82EC] Pass #1: Failed to route Pin on net '3V3' (3 items remaining, 19 failures). State: FAILED
+2026-10-21 16:03:26.208 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 19/23)
+2026-10-21 16:03:26.208 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 4/23)
+2026-10-21 16:03:26.272 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:26.272 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:26.532 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 19/23)
+2026-10-21 16:03:26.532 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 4/23)
+2026-10-21 16:03:26.588 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:26.588 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:26.811 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 24/25)
+2026-10-21 16:03:26.811 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/25)
+2026-10-21 16:03:26.865 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:26.865 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:27.096 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 19/23)
+2026-10-21 16:03:27.096 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 4/23)
+2026-10-21 16:03:27.148 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:27.148 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:27.400 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 19/23)
+2026-10-21 16:03:27.400 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 4/23)
+2026-10-21 16:03:27.465 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:27.465 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:27.724 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 22/23)
+2026-10-21 16:03:27.724 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/23)
+2026-10-21 16:03:27.783 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:27.783 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:28.055 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 1/11)
+2026-10-21 16:03:28.055 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 1/11)
+2026-10-21 16:03:28.056 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 9/11)
+2026-10-21 16:03:28.115 DEBUG  [19ED33\BB82EC] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:03:28.115 DEBUG  [19ED33\BB82EC]   Net 'EN' has 2 incomplete(s)
+2026-10-21 16:03:28.383 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 1/11)
+2026-10-21 16:03:28.383 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 1/11)
+2026-10-21 16:03:28.384 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 9/11)
+2026-10-21 16:03:28.440 DEBUG  [19ED33\BB82EC] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:03:28.440 DEBUG  [19ED33\BB82EC]   Net 'EN' has 2 incomplete(s)
+2026-10-21 16:03:28.690 DEBUG  Queuing item for routing: Pin on net 'LED_PWR' (connected: 1/2)
+2026-10-21 16:03:28.690 DEBUG  Queuing item for routing: Pin on net 'LED_PWR' (connected: 1/2)
+2026-10-21 16:03:28.744 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:28.744 DEBUG  [19ED33\BB82EC]   Net 'LED_PWR' has 1 incomplete(s)
+2026-10-21 16:03:28.968 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 22/23)
+2026-10-21 16:03:28.968 DEBUG  Queuing item for routing: Pin on net '3V3' (connected: 1/23)
+2026-10-21 16:03:29.022 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:29.022 DEBUG  [19ED33\BB82EC]   Net '3V3' has 1 incomplete(s)
+2026-10-21 16:03:29.265 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 17/19)
+2026-10-21 16:03:29.267 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/19)
+2026-10-21 16:03:29.267 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/19)
+2026-10-21 16:03:29.316 DEBUG  [19ED33\BB82EC] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:03:29.316 DEBUG  [19ED33\BB82EC]   Net '5V' has 2 incomplete(s)
+2026-10-21 16:03:29.626 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 17/19)
+2026-10-21 16:03:29.627 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/19)
+2026-10-21 16:03:29.627 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/19)
+2026-10-21 16:03:29.675 DEBUG  [19ED33\BB82EC] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:03:29.675 DEBUG  [19ED33\BB82EC]   Net '5V' has 2 incomplete(s)
+2026-10-21 16:03:29.922 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 17/19)
+2026-10-21 16:03:29.924 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/19)
+2026-10-21 16:03:29.924 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/19)
+2026-10-21 16:03:29.977 DEBUG  [19ED33\BB82EC] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:03:29.977 DEBUG  [19ED33\BB82EC]   Net '5V' has 2 incomplete(s)
+2026-10-21 16:03:30.265 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 17/19)
+2026-10-21 16:03:30.266 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/19)
+2026-10-21 16:03:30.266 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/19)
+2026-10-21 16:03:30.317 DEBUG  [19ED33\BB82EC] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:03:30.317 DEBUG  [19ED33\BB82EC]   Net '5V' has 2 incomplete(s)
+2026-10-21 16:03:30.602 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 1/11)
+2026-10-21 16:03:30.602 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 1/11)
+2026-10-21 16:03:30.602 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 9/11)
+2026-10-21 16:03:30.659 DEBUG  [19ED33\BB82EC] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:03:30.659 DEBUG  [19ED33\BB82EC]   Net 'EN' has 2 incomplete(s)
+2026-10-21 16:03:30.915 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 4/5)
+2026-10-21 16:03:30.915 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/5)
+2026-10-21 16:03:30.968 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:30.969 DEBUG  [19ED33\BB82EC]   Net 'USB_DM' has 1 incomplete(s)
+2026-10-21 16:03:31.298 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 4/5)
+2026-10-21 16:03:31.298 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/5)
+2026-10-21 16:03:31.359 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:31.359 DEBUG  [19ED33\BB82EC]   Net 'USB_DM' has 1 incomplete(s)
+2026-10-21 16:03:31.679 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 12/13)
+2026-10-21 16:03:31.679 DEBUG  Queuing item for routing: Pin on net 'EN' (connected: 1/13)
+2026-10-21 16:03:31.728 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:31.728 DEBUG  [19ED33\BB82EC]   Net 'EN' has 1 incomplete(s)
+2026-10-21 16:03:32.024 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 4/5)
+2026-10-21 16:03:32.025 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 1/5)
+2026-10-21 16:03:32.083 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:32.084 DEBUG  [19ED33\BB82EC]   Net 'USB_DP' has 1 incomplete(s)
+2026-10-21 16:03:32.435 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 1/2)
+2026-10-21 16:03:32.436 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 1/2)
+2026-10-21 16:03:32.492 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:32.492 DEBUG  [19ED33\BB82EC]   Net 'CC1' has 1 incomplete(s)
+2026-10-21 16:03:32.526 DEBUG  FoundConnectionInserter: via placement blocked by clearance/shove limits for net #22
+2026-10-21 16:03:32.533 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between pin of component #4 and pin #2 of component #15, because the new connection could not be inserted.
+2026-10-21 16:03:32.533 DEBUG  [19ED33\BB82EC] Pass #1: Failed to route Pin on net 'CC1' (2 items remaining, 1 failures). State: FAILED
+2026-10-21 16:03:32.776 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 1/2)
+2026-10-21 16:03:32.777 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 1/2)
+2026-10-21 16:03:32.826 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:32.826 DEBUG  [19ED33\BB82EC]   Net 'CC1' has 1 incomplete(s)
+2026-10-21 16:03:33.080 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 1/2)
+2026-10-21 16:03:33.081 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 1/2)
+2026-10-21 16:03:33.134 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:33.134 DEBUG  [19ED33\BB82EC]   Net 'CC1' has 1 incomplete(s)
+2026-10-21 16:03:33.377 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 1/2)
+2026-10-21 16:03:33.378 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 1/2)
+2026-10-21 16:03:33.431 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:33.431 DEBUG  [19ED33\BB82EC]   Net 'CC1' has 1 incomplete(s)
+2026-10-21 16:03:33.688 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 9/12)
+2026-10-21 16:03:33.689 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 2/12)
+2026-10-21 16:03:33.691 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 1/12)
+2026-10-21 16:03:33.743 DEBUG  [19ED33\BB82EC] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:03:33.743 DEBUG  [19ED33\BB82EC]   Net '5V' has 2 incomplete(s)
+2026-10-21 16:03:33.787 DEBUG  FoundConnectionInserter: insert trace failed for net #2 at corner 31/31 on layer 0, trace width: 1000, from corner: 26, okPoint: (422561,-119932), target: (454850,-127900)
+2026-10-21 16:03:33.794 DEBUG  [19ED33\BB82EC] Autorouter Failed to route connection between pin #9 of component #15, pin #6 of component #15, pin of component #7 and polylinetrace, polylinetrace, polylinetrace, polylinetrace, pin #14 of component #15, pin #1 of component #15, pin of component #10, pin #2 of component #1, pin of component #1, because the new connection could not be inserted.
+2026-10-21 16:03:33.794 DEBUG  [19ED33\BB82EC] Pass #1: Failed to route Pin on net '5V' (3 items remaining, 1 failures). State: FAILED
+2026-10-21 16:03:34.082 DEBUG  Queuing item for routing: Pin on net 'CC2' (connected: 1/2)
+2026-10-21 16:03:34.083 DEBUG  Queuing item for routing: Pin on net 'CC2' (connected: 1/2)
+2026-10-21 16:03:34.132 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:34.132 DEBUG  [19ED33\BB82EC]   Net 'CC2' has 1 incomplete(s)
+2026-10-21 16:03:34.402 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/3)
+2026-10-21 16:03:34.402 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/3)
+2026-10-21 16:03:34.403 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/3)
+2026-10-21 16:03:34.456 DEBUG  [19ED33\BB82EC] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:03:34.457 DEBUG  [19ED33\BB82EC]   Net 'USB_DM' has 2 incomplete(s)
+2026-10-21 16:03:34.776 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 2/15)
+2026-10-21 16:03:34.777 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 13/15)
+2026-10-21 16:03:34.830 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:34.830 DEBUG  [19ED33\BB82EC]   Net '5V' has 1 incomplete(s)
+2026-10-21 16:03:35.067 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/3)
+2026-10-21 16:03:35.067 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/3)
+2026-10-21 16:03:35.067 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/3)
+2026-10-21 16:03:35.118 DEBUG  [19ED33\BB82EC] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:03:35.118 DEBUG  [19ED33\BB82EC]   Net 'USB_DM' has 2 incomplete(s)
+2026-10-21 16:03:35.438 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/3)
+2026-10-21 16:03:35.438 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/3)
+2026-10-21 16:03:35.438 DEBUG  Queuing item for routing: Pin on net 'USB_DM' (connected: 1/3)
+2026-10-21 16:03:35.491 DEBUG  [19ED33\BB82EC] Pass #1: 2 incompletes across 3 items to route
+2026-10-21 16:03:35.491 DEBUG  [19ED33\BB82EC]   Net 'USB_DM' has 2 incomplete(s)
+2026-10-21 16:03:35.798 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 2/15)
+2026-10-21 16:03:35.798 DEBUG  Queuing item for routing: Pin on net '5V' (connected: 13/15)
+2026-10-21 16:03:35.850 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:35.850 DEBUG  [19ED33\BB82EC]   Net '5V' has 1 incomplete(s)
+2026-10-21 16:03:36.089 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 7/8)
+2026-10-21 16:03:36.089 DEBUG  Queuing item for routing: Pin on net 'USB_DP' (connected: 1/8)
+2026-10-21 16:03:36.144 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:36.144 DEBUG  [19ED33\BB82EC]   Net 'USB_DP' has 1 incomplete(s)
+2026-10-21 16:03:36.355 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 1/2)
+2026-10-21 16:03:36.357 DEBUG  Queuing item for routing: Pin on net 'CC1' (connected: 1/2)
+2026-10-21 16:03:36.409 DEBUG  [19ED33\BB82EC] Pass #1: 1 incompletes across 2 items to route
+2026-10-21 16:03:36.409 DEBUG  [19ED33\BB82EC]   Net 'CC1' has 1 incomplete(s)
+2026-10-21 16:03:36.692 INFO   [19ED33\BB82EC] Optimizer pass #1 on board '2b32cc7c540b826d54b9c28384a8b0ee' was completed in 27.64 seconds with the score of 987.49 (0 unrouted and 4 violations).
+2026-10-21 16:03:36.744 INFO   [19ED33\BB82EC] Stopping optimizer because the improvement in this pass (0.0000%) is below the threshold (1.00%).
+2026-10-21 16:03:36.795 INFO   [19ED33\BB82EC] Optimization stage completed: started with score 987.49 (0 unrouted and 4 violations), completed in 27.86 seconds, final score: 987.49 (0 unrouted and 4 violations), using 27.27 total CPU seconds, 113.53 GB total allocated, and 310.9 MB peak heap usage.
+2026-10-21 16:03:36.796 INFO   [19ED33\BB82EC] Job '19ED33\BB82EC' finished with state: COMPLETED (elapsed: 39.66 seconds, finished at UTC: 2026-10-21T08:03:36.796507600Z).
+2026-10-21 16:03:36.874 INFO   Saving output file 'E:\DATA\vscode\ZCODE\flux-neurotransmitter\projects\esp32s31-mini\pcb\board\routed-esp32s31-mini.dsn' (DSN)...

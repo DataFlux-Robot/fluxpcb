@@ -1,0 +1,34 @@
+{"t": 1792569722.37, "ev": "run_start", "project": "esp32s31-mini"}
+{"t": 1792569722.371, "ev": "stage_start", "stage": "requirements", "iter": 1}
+{"t": 1792569722.398, "ev": "gate", "stage": "requirements", "gate": "spec_schema", "status": "pass", "summary": "spec结构合法, 7条需求"}
+{"t": 1792569722.401, "ev": "gate", "stage": "requirements", "gate": "requirement_coverage", "status": "pass", "summary": "全部需求已映射设计元素"}
+{"t": 1792569722.402, "ev": "stage_end", "stage": "requirements", "status": "ok", "duration_s": 0.0, "artifacts": 1}
+{"t": 1792569722.403, "ev": "stage_start", "stage": "component_selection", "iter": 1}
+{"t": 1792569730.11, "ev": "gate", "stage": "component_selection", "gate": "bom_completeness", "status": "pass", "summary": "13 行BOM全部完整, 1行C号需人工核实(新料未上架)"}
+{"t": 1792569730.112, "ev": "gate", "stage": "component_selection", "gate": "bom_lcsc_verified", "status": "pass", "summary": "13行C号核实: 在线0/快照12/需人工1 (JLC不可达,按快照)"}
+{"t": 1792569730.113, "ev": "stage_end", "stage": "component_selection", "status": "ok", "duration_s": 7.7, "artifacts": 2}
+{"t": 1792569730.114, "ev": "stage_start", "stage": "schematic", "iter": 1}
+{"t": 1792569730.799, "ev": "gate", "stage": "schematic", "gate": "erc_zero", "status": "pass", "summary": "KiCad ERC 零违例"}
+{"t": 1792569730.8, "ev": "gate", "stage": "schematic", "gate": "netlist_topology", "status": "pass", "summary": "4 项连接断言全部回读通过"}
+{"t": 1792569730.804, "ev": "stage_end", "stage": "schematic", "status": "ok", "duration_s": 0.7, "artifacts": 7}
+{"t": 1792569730.804, "ev": "stage_start", "stage": "pcb_layout", "iter": 1}
+{"t": 1792569824.028, "ev": "gate", "stage": "pcb_layout", "gate": "drc_zero", "status": "fail", "summary": "DRC违例 80 处"}
+{"t": 1792569824.029, "ev": "gate", "stage": "pcb_layout", "gate": "impedance_si", "status": "pass", "summary": "0 项阻抗/等长全部达标"}
+{"t": 1792569824.029, "ev": "gate", "stage": "pcb_layout", "gate": "placement_quality", "status": "pass", "summary": "布局质量: 0重叠/去耦就近/连接器贴边"}
+{"t": 1792569824.03, "ev": "stage_start", "stage": "pcb_layout", "iter": 2}
+{"t": 1792569825.938, "ev": "gate", "stage": "pcb_layout", "gate": "drc_zero", "status": "pass", "summary": "KiCad DRC 零违例"}
+{"t": 1792569825.938, "ev": "gate", "stage": "pcb_layout", "gate": "impedance_si", "status": "pass", "summary": "0 项阻抗/等长全部达标"}
+{"t": 1792569825.939, "ev": "gate", "stage": "pcb_layout", "gate": "placement_quality", "status": "pass", "summary": "布局质量: 0重叠/去耦就近/连接器贴边"}
+{"t": 1792569825.947, "ev": "stage_end", "stage": "pcb_layout", "status": "ok", "duration_s": 95.1, "artifacts": 13}
+{"t": 1792569825.947, "ev": "stage_start", "stage": "acceptance_sim", "iter": 1}
+{"t": 1792569828.709, "ev": "gate", "stage": "acceptance_sim", "gate": "irdrop", "status": "pass", "summary": "1 条电源轨IR-drop全部≤限值"}
+{"t": 1792569828.71, "ev": "gate", "stage": "acceptance_sim", "gate": "thermal", "status": "pass", "summary": "最高结温 28.3℃ ≤ 85.0℃"}
+{"t": 1792569828.711, "ev": "gate", "stage": "acceptance_sim", "gate": "emc_precompliance", "status": "pass", "summary": "PDN目标阻抗与回流路径检查全部通过"}
+{"t": 1792569828.712, "ev": "gate", "stage": "acceptance_sim", "gate": "spice_functional", "status": "pass", "summary": "LDO瞬态MC 20次: 最低3.2079V (压降2.791%<= 5.0%), 纹波0.0511V"}
+{"t": 1792569828.715, "ev": "stage_end", "stage": "acceptance_sim", "status": "ok", "duration_s": 2.8, "artifacts": 6}
+{"t": 1792569828.716, "ev": "stage_start", "stage": "firmware", "iter": 1}
+{"t": 1792569829.275, "ev": "gate", "stage": "firmware", "gate": "firmware_build", "status": "pass", "summary": "1 个固件目标构建通过 [证据=阶段内构建(idf.py缺席,降级)]"}
+{"t": 1792569829.276, "ev": "gate", "stage": "firmware", "gate": "firmware_spi_loopback", "status": "pass", "summary": "SPI回环通过: C代码主机执行: fw_spi_loopback memcmp==0 (regression.c)"}
+{"t": 1792569829.277, "ev": "gate", "stage": "firmware", "gate": "firmware_regression", "status": "pass", "summary": "1/1 固件目标主机回归通过(C代码真实执行)"}
+{"t": 1792569829.285, "ev": "stage_end", "stage": "firmware", "status": "ok", "duration_s": 0.6, "artifacts": 13}
+{"t": 1792569829.3, "ev": "run_end", "released": true, "report": "reports\\run_20261021_160349.json"}
