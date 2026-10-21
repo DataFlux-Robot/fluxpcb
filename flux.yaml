@@ -13,7 +13,7 @@ stages:
     runner: component_selection
     inputs: [spec.yaml]
     outputs: [bom.csv, bom.json]
-    gates: [bom_completeness]
+    gates: [bom_completeness, bom_lcsc_verified]
 
   schematic:
     title: 原理图

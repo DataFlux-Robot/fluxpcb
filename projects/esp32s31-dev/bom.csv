@@ -1,2 +1,20 @@
-ref,mpn,lcsc,footprint,datasheet,value
-U1,GENERIC,C000000,GENERIC,doc/generic.pdf,seed
+ref,mpn,lcsc,footprint,datasheet,value,role,package,verified,verify_note,alternatives
+MOD1,ESP32-S31-WROOM-3U,,Espressif:ESP32-S31-WROOM-3,reference/ESP32-S31-WROOM-3.pdf,ESP32-S31-WROOM-3U,module,MOD_ESP32_WROOM,False,"ESP32-S31为2025新量产型号,立创C号暂未公开索引;下单前于szlcsc.com搜索ESP32-S31核实。替代路线:ESP32-S3-WROOM-1-N8(C2913198)引脚兼容性需评估","['ESP32-S31-WROOM-3', 'ESP32-S3-WROOM-1-N8 C2913198']"
+J4,TYPE-C-31-M-12,C165948,Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12,doc/type-c-31-m-12.pdf,USB-C,usb_c,USB_C_16P_SMD,True,,[]
+U1,AP2112K-3.3TRG1,C51118,Package_TO_SOT_Smd:SOT-23-5,doc/ap2112k.pdf,AP2112K-3.3,ldo,SOT-23-5,True,,"['ME6211-3.3', 'XC6206P332']"
+SW1,KMR211GLFS,C221675,Button_Switch_SMD:SW_Push_1P1T_NO_CK_KMR2,doc/kmr2.pdf,RESET,button,KMR2,True,,['TS-1187A']
+SW2,KMR211GLFS,C221675,Button_Switch_SMD:SW_Push_1P1T_NO_CK_KMR2,doc/kmr2.pdf,RESET,button,KMR2,True,,['TS-1187A']
+D1,HL-PT-1608S52FC-L,C497918,LED_SMD:LED_0603_1608Metric,doc/led0603.pdf,RED,led,0603,True,,['HL-PT-1608S52FC-L blue C497919']
+D2,HL-PT-1608S52FC-L,C497919,LED_SMD:LED_0603_1608Metric,doc/led0603.pdf,BLUE,led,0603,False,"C497919来自鸿利品牌页对照表,下单前在商品页确认颜色参数",[]
+R2,RC0603FR-0710KL,C1432,Resistor_SMD:R_0603_1608Metric,doc/rc0603.pdf,10k,res,0603,True,,[]
+R3,RC0603FR-0710KL,C1432,Resistor_SMD:R_0603_1608Metric,doc/rc0603.pdf,10k,res,0603,True,,[]
+R1,RC0603FR-071KL,C22548,Resistor_SMD:R_0603_1608Metric,doc/rc0603.pdf,1k,res,0603,True,,[]
+R4,RC0603FR-071KL,C22548,Resistor_SMD:R_0603_1608Metric,doc/rc0603.pdf,1k,res,0603,True,,[]
+R5,RC0603FR-075K1L,C105580,Resistor_SMD:R_0603_1608Metric,doc/rc0603.pdf,5.1k,res,0603,True,,[]
+R6,RC0603FR-075K1L,C105580,Resistor_SMD:R_0603_1608Metric,doc/rc0603.pdf,5.1k,res,0603,True,,[]
+C1,CL21A106KOQNNNE,C1713,Capacitor_SMD:C_0805_2012Metric,doc/cl21a.pdf,10uF,cap,0805,True,,[]
+C2,CL21A106KOQNNNE,C1713,Capacitor_SMD:C_0805_2012Metric,doc/cl21a.pdf,10uF,cap,0805,True,,[]
+C3,CL10B104KB8NNNC,C1591,Capacitor_SMD:C_0603_1608Metric,doc/cl10b.pdf,100nF,cap,0603,True,,[]
+J1,KH-2.54PH180-1X14P-L11.5,C2905490,Connector_PinHeader_2.54mm:PinHeader_1x14_P2.54mm_Vertical,doc/pinheader.pdf,HDR-14,header_1x14,THT_2.54,True,,[]
+J2,KH-2.54PH180-1X14P-L11.5,C2905490,Connector_PinHeader_2.54mm:PinHeader_1x14_P2.54mm_Vertical,doc/pinheader.pdf,HDR-14,header_1x14,THT_2.54,True,,[]
+J3,KH-2.54PH180-1X4P-L11.5,C2905435,Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical,doc/pinheader.pdf,HDR-4,header_1x04,THT_2.54,True,,[]

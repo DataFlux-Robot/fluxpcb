@@ -1,10 +1,261 @@
 [
  {
+  "ref": "MOD1",
+  "mpn": "ESP32-S31-WROOM-3U",
+  "lcsc": "",
+  "footprint": "Espressif:ESP32-S31-WROOM-3",
+  "datasheet": "reference/ESP32-S31-WROOM-3.pdf",
+  "value": "ESP32-S31-WROOM-3U",
+  "role": "module",
+  "package": "MOD_ESP32_WROOM",
+  "verified": false,
+  "verify_note": "ESP32-S31为2025新量产型号,立创C号暂未公开索引;下单前于szlcsc.com搜索ESP32-S31核实。替代路线:ESP32-S3-WROOM-1-N8(C2913198)引脚兼容性需评估",
+  "alternatives": [
+   "ESP32-S31-WROOM-3",
+   "ESP32-S3-WROOM-1-N8 C2913198"
+  ]
+ },
+ {
+  "ref": "J4",
+  "mpn": "TYPE-C-31-M-12",
+  "lcsc": "C165948",
+  "footprint": "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12",
+  "datasheet": "doc/type-c-31-m-12.pdf",
+  "value": "USB-C",
+  "role": "usb_c",
+  "package": "USB_C_16P_SMD",
+  "verified": true,
+  "verify_note": "",
+  "alternatives": []
+ },
+ {
   "ref": "U1",
-  "mpn": "GENERIC",
-  "lcsc": "C000000",
-  "footprint": "GENERIC",
-  "datasheet": "doc/generic.pdf",
-  "value": "seed"
+  "mpn": "AP2112K-3.3TRG1",
+  "lcsc": "C51118",
+  "footprint": "Package_TO_SOT_Smd:SOT-23-5",
+  "datasheet": "doc/ap2112k.pdf",
+  "value": "AP2112K-3.3",
+  "role": "ldo",
+  "package": "SOT-23-5",
+  "verified": true,
+  "verify_note": "",
+  "alternatives": [
+   "ME6211-3.3",
+   "XC6206P332"
+  ]
+ },
+ {
+  "ref": "SW1",
+  "mpn": "KMR211GLFS",
+  "lcsc": "C221675",
+  "footprint": "Button_Switch_SMD:SW_Push_1P1T_NO_CK_KMR2",
+  "datasheet": "doc/kmr2.pdf",
+  "value": "RESET",
+  "role": "button",
+  "package": "KMR2",
+  "verified": true,
+  "verify_note": "",
+  "alternatives": [
+   "TS-1187A"
+  ]
+ },
+ {
+  "ref": "SW2",
+  "mpn": "KMR211GLFS",
+  "lcsc": "C221675",
+  "footprint": "Button_Switch_SMD:SW_Push_1P1T_NO_CK_KMR2",
+  "datasheet": "doc/kmr2.pdf",
+  "value": "RESET",
+  "role": "button",
+  "package": "KMR2",
+  "verified": true,
+  "verify_note": "",
+  "alternatives": [
+   "TS-1187A"
+  ]
+ },
+ {
+  "ref": "D1",
+  "mpn": "HL-PT-1608S52FC-L",
+  "lcsc": "C497918",
+  "footprint": "LED_SMD:LED_0603_1608Metric",
+  "datasheet": "doc/led0603.pdf",
+  "value": "RED",
+  "role": "led",
+  "package": "0603",
+  "verified": true,
+  "verify_note": "",
+  "alternatives": [
+   "HL-PT-1608S52FC-L blue C497919"
+  ]
+ },
+ {
+  "ref": "D2",
+  "mpn": "HL-PT-1608S52FC-L",
+  "lcsc": "C497919",
+  "footprint": "LED_SMD:LED_0603_1608Metric",
+  "datasheet": "doc/led0603.pdf",
+  "value": "BLUE",
+  "role": "led",
+  "package": "0603",
+  "verified": false,
+  "verify_note": "C497919来自鸿利品牌页对照表,下单前在商品页确认颜色参数",
+  "alternatives": []
+ },
+ {
+  "ref": "R2",
+  "mpn": "RC0603FR-0710KL",
+  "lcsc": "C1432",
+  "footprint": "Resistor_SMD:R_0603_1608Metric",
+  "datasheet": "doc/rc0603.pdf",
+  "value": "10k",
+  "role": "res",
+  "package": "0603",
+  "verified": true,
+  "verify_note": "",
+  "alternatives": []
+ },
+ {
+  "ref": "R3",
+  "mpn": "RC0603FR-0710KL",
+  "lcsc": "C1432",
+  "footprint": "Resistor_SMD:R_0603_1608Metric",
+  "datasheet": "doc/rc0603.pdf",
+  "value": "10k",
+  "role": "res",
+  "package": "0603",
+  "verified": true,
+  "verify_note": "",
+  "alternatives": []
+ },
+ {
+  "ref": "R1",
+  "mpn": "RC0603FR-071KL",
+  "lcsc": "C22548",
+  "footprint": "Resistor_SMD:R_0603_1608Metric",
+  "datasheet": "doc/rc0603.pdf",
+  "value": "1k",
+  "role": "res",
+  "package": "0603",
+  "verified": true,
+  "verify_note": "",
+  "alternatives": []
+ },
+ {
+  "ref": "R4",
+  "mpn": "RC0603FR-071KL",
+  "lcsc": "C22548",
+  "footprint": "Resistor_SMD:R_0603_1608Metric",
+  "datasheet": "doc/rc0603.pdf",
+  "value": "1k",
+  "role": "res",
+  "package": "0603",
+  "verified": true,
+  "verify_note": "",
+  "alternatives": []
+ },
+ {
+  "ref": "R5",
+  "mpn": "RC0603FR-075K1L",
+  "lcsc": "C105580",
+  "footprint": "Resistor_SMD:R_0603_1608Metric",
+  "datasheet": "doc/rc0603.pdf",
+  "value": "5.1k",
+  "role": "res",
+  "package": "0603",
+  "verified": true,
+  "verify_note": "",
+  "alternatives": []
+ },
+ {
+  "ref": "R6",
+  "mpn": "RC0603FR-075K1L",
+  "lcsc": "C105580",
+  "footprint": "Resistor_SMD:R_0603_1608Metric",
+  "datasheet": "doc/rc0603.pdf",
+  "value": "5.1k",
+  "role": "res",
+  "package": "0603",
+  "verified": true,
+  "verify_note": "",
+  "alternatives": []
+ },
+ {
+  "ref": "C1",
+  "mpn": "CL21A106KOQNNNE",
+  "lcsc": "C1713",
+  "footprint": "Capacitor_SMD:C_0805_2012Metric",
+  "datasheet": "doc/cl21a.pdf",
+  "value": "10uF",
+  "role": "cap",
+  "package": "0805",
+  "verified": true,
+  "verify_note": "",
+  "alternatives": []
+ },
+ {
+  "ref": "C2",
+  "mpn": "CL21A106KOQNNNE",
+  "lcsc": "C1713",
+  "footprint": "Capacitor_SMD:C_0805_2012Metric",
+  "datasheet": "doc/cl21a.pdf",
+  "value": "10uF",
+  "role": "cap",
+  "package": "0805",
+  "verified": true,
+  "verify_note": "",
+  "alternatives": []
+ },
+ {
+  "ref": "C3",
+  "mpn": "CL10B104KB8NNNC",
+  "lcsc": "C1591",
+  "footprint": "Capacitor_SMD:C_0603_1608Metric",
+  "datasheet": "doc/cl10b.pdf",
+  "value": "100nF",
+  "role": "cap",
+  "package": "0603",
+  "verified": true,
+  "verify_note": "",
+  "alternatives": []
+ },
+ {
+  "ref": "J1",
+  "mpn": "KH-2.54PH180-1X14P-L11.5",
+  "lcsc": "C2905490",
+  "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x14_P2.54mm_Vertical",
+  "datasheet": "doc/pinheader.pdf",
+  "value": "HDR-14",
+  "role": "header_1x14",
+  "package": "THT_2.54",
+  "verified": true,
+  "verify_note": "",
+  "alternatives": []
+ },
+ {
+  "ref": "J2",
+  "mpn": "KH-2.54PH180-1X14P-L11.5",
+  "lcsc": "C2905490",
+  "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x14_P2.54mm_Vertical",
+  "datasheet": "doc/pinheader.pdf",
+  "value": "HDR-14",
+  "role": "header_1x14",
+  "package": "THT_2.54",
+  "verified": true,
+  "verify_note": "",
+  "alternatives": []
+ },
+ {
+  "ref": "J3",
+  "mpn": "KH-2.54PH180-1X4P-L11.5",
+  "lcsc": "C2905435",
+  "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
+  "datasheet": "doc/pinheader.pdf",
+  "value": "HDR-4",
+  "role": "header_1x04",
+  "package": "THT_2.54",
+  "verified": true,
+  "verify_note": "",
+  "alternatives": []
  }
 ]

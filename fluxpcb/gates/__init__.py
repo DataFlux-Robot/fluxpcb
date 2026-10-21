@@ -96,16 +96,88 @@ def bom_completeness(project_dir: Path, outputs: list[str], cfg: dict) -> GateRe
         return GateResult("bom_completeness", GateStatus.BLOCKED, "bom.csv 不存在")
     with bom.open(encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
-    findings = []
+    findings, manual = [], []
     for row in rows:
         miss = [k for k in BOM_REQUIRED_FIELDS if not (row.get(k) or "").strip()]
+        if not miss:
+            continue
+        if "lcsc" in miss and (row.get("verify_note") or "").strip():
+            # part too new to be indexed anywhere — flagged, not silently missing
+            manual.append({"ref": row.get("ref", "?"),
+                           "note": row["verify_note"][:80]})
+            miss = [k for k in miss if k != "lcsc"]
         if miss:
             findings.append({"ref": row.get("ref", "?"), "missing": miss})
     if findings:
         return GateResult("bom_completeness", GateStatus.FAIL,
-                          f"{len(findings)}/{len(rows)} 行BOM不完整", findings=findings)
+                          f"{len(findings)}/{len(rows)} 行BOM不完整"
+                          + (f" (另{len(manual)}行C号需人工核实)" if manual else ""),
+                          findings=findings)
     return GateResult("bom_completeness", GateStatus.PASS,
-                      f"{len(rows)} 行BOM全部完整", details={"lines": len(rows)})
+                      f"{len(rows)} 行BOM全部完整"
+                      + (f", {len(manual)}行C号需人工核实(新料未上架)" if manual else ""),
+                      details={"lines": len(rows), "manual_verify": manual})
+
+
+@gate("bom_lcsc_verified")
+def bom_lcsc_verified(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
+    """Every BOM line's LCSC code must be real: online-verified (JLC catalog),
+    snapshot-verified (checked-in partslib), or explicitly flagged
+    manual-verify (e.g. parts too new to be indexed). Placeholders fail."""
+    import json
+    bomf = project_dir / "bom.json"
+    if not bomf.exists():
+        return GateResult("bom_lcsc_verified", GateStatus.BLOCKED, "bom.json 不存在")
+    bom = json.loads(bomf.read_text(encoding="utf-8"))
+    if not bom:
+        return GateResult("bom_lcsc_verified", GateStatus.BLOCKED, "BOM为空")
+
+    from fluxpcb.tools import jlc_catalog
+    per_part, n_online, n_snapshot, n_manual, fails = {}, 0, 0, 0, []
+    network = False
+    for row in bom:
+        ref, lcsc = row.get("ref", "?"), (row.get("lcsc") or "").strip()
+        note = (row.get("verify_note") or "").strip()
+        if lcsc.upper() in {"C000000", "PENDING-VERIFY", "PENDING", "GENERIC"}:
+            fails.append({"ref": ref, "issue": f"占位C号 '{lcsc}'"})
+            per_part[ref] = {"status": "placeholder"}
+            continue
+        if not lcsc and not note:
+            fails.append({"ref": ref, "issue": "C号为空且无核实说明"})
+            per_part[ref] = {"status": "missing"}
+            continue
+        det = jlc_catalog.detail(lcsc) if lcsc else None
+        if det and not det.get("not_found"):
+            network = True
+            per_part[ref] = {"status": "online", "stock": det.get("stock"),
+                             "price": det.get("price"), "basic": det.get("basic")}
+            n_online += 1
+        elif det is not None:                     # reachable but unknown code
+            fails.append({"ref": ref, "issue": f"C号 {lcsc} 在JLC目录未找到"})
+            per_part[ref] = {"status": "not_found"}
+        elif note:                                # offline, or too-new part
+            per_part[ref] = {"status": "manual-verify", "note": note[:80]}
+            n_manual += 1
+        elif row.get("verified"):
+            per_part[ref] = {"status": "snapshot"}
+            n_snapshot += 1
+        else:
+            fails.append({"ref": ref,
+                          "issue": f"C号 {lcsc} 无法核实(离线且无快照标记)"})
+            per_part[ref] = {"status": "unverified"}
+
+    evidence = {"parts": per_part, "online": n_online, "snapshot": n_snapshot,
+                "manual_verify": n_manual, "network": network}
+    (project_dir / "bom_verified.json").write_text(
+        json.dumps(evidence, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    if fails:
+        return GateResult("bom_lcsc_verified", GateStatus.FAIL,
+                          f"{len(fails)} 行C号无效/占位",
+                          findings=fails, details=evidence)
+    summary = (f"{len(bom)}行C号核实: 在线{n_online}/快照{n_snapshot}/需人工{n_manual}"
+               + (" (JLC不可达,按快照)" if not network else ""))
+    return GateResult("bom_lcsc_verified", GateStatus.PASS, summary, details=evidence)
 
 
 # ------------------------------------------------------------ schematic

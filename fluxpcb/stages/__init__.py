@@ -110,54 +110,49 @@ def _deterministic_spec(d: Path) -> dict:
 
 
 # ---------------------------------------------------------------- stage: component_selection
+BOM_FIELDS = ["ref", "mpn", "lcsc", "footprint", "datasheet", "value",
+              "role", "package", "verified", "verify_note", "alternatives"]
+
+
 @runner("component_selection")
 def stage_selection(ctx: StageContext) -> None:
+    """Deterministic selection from the local parts catalog (partslib).
+
+    Roles mirror the board generator's component list; passive values snap
+    to E96. Every BOM line carries its LCSC code + verification provenance —
+    the bom_lcsc_verified gate re-checks codes online (cache-degrading).
+    """
     d = ctx.project_dir
     spec = yaml.safe_load((d / "spec.yaml").read_text(encoding="utf-8"))
+    from fluxpcb import partslib
+    raw = {f'{r.get("mpn")}|{r.get("value", "")}': r for r in partslib.load_catalog()}
     bom = []
-    if llm.online:
-        r = llm.complete(
-            "你是元器件选型专家。根据spec生成BOM JSON数组,每行含 "
-            "ref/mpn/lcsc/footprint/datasheet/value。只输出JSON数组。",
-            yaml.safe_dump(spec, allow_unicode=True))
-        if r["ok"]:
-            try:
-                bom = json.loads(r["text"])
-            except json.JSONDecodeError:
-                bom = []
-    if not bom:
-        bom = _deterministic_bom(ctx, spec)
-        ctx.note("BOM由确定性模板生成(离线模式)")
+    for need in partslib.devboard_roles(spec):
+        try:
+            part = partslib.select(need["role"], need.get("value"))
+        except KeyError as e:
+            ctx.note(f"选型失败: {e}")
+            continue
+        r = raw.get(f'{part.mpn}|{part.value}')
+        for ref in need["refs"]:
+            bom.append({
+                "ref": ref, "mpn": part.mpn, "lcsc": part.lcsc,
+                "footprint": part.footprint, "datasheet": part.datasheet,
+                "value": part.value or part.mpn, "role": need["role"],
+                "package": part.package,
+                "verified": bool(part.verified),
+                "verify_note": (r or {}).get("verify_note", ""),
+                "alternatives": (r or {}).get("alternatives", []),
+            })
     _write_json(d / "bom.json", bom)
     import csv
     with (d / "bom.csv").open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=["ref", "mpn", "lcsc", "footprint",
-                                          "datasheet", "value"])
+        w = csv.DictWriter(f, fieldnames=BOM_FIELDS)
         w.writeheader()
         for row in bom:
             w.writerow({k: row.get(k, "") for k in w.fieldnames})
-
-
-def _deterministic_bom(ctx: StageContext, spec: dict) -> list[dict]:
-    d = ctx.project_dir
-    proj = yaml.safe_load((d / "project.yaml").read_text(encoding="utf-8")) \
-        if (d / "project.yaml").exists() else {}
-    known = proj.get("bom_seed", {})
-    bom = []
-    ref = 1
-    for item in spec.get("interfaces", []):
-        part = known.get(item["name"])
-        if part:
-            row = dict(part)
-            row["ref"] = row.get("ref", f"U{ref}")
-            bom.append(row)
-            ref += 1
-    if not bom and known:
-        bom = [dict(v, ref=f"U{i+1}") for i, v in enumerate(known.values())]
-    if not bom:
-        bom = [{"ref": "U1", "mpn": "GENERIC", "lcsc": "C000000",
-                "footprint": "GENERIC", "datasheet": "doc/generic.pdf", "value": "seed"}]
-    return bom
+    n_verified = sum(1 for r in bom if r["verified"])
+    ctx.note(f"BOM {len(bom)}行由partslib确定性选型, {n_verified}行C号已快照核实")
 
 
 # ---------------------------------------------------------------- stage: schematic
