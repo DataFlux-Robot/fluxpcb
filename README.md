@@ -1,146 +1,173 @@
-# FluxPCB
+<div align="center">
+<img src="docs/images/banner.jpg" width="100%" alt="FluxPCB — AI proposes, physics disposes"/>
 
-**全自动AI电路设计流水线** — 需求分析 → 器件选型 → 原理图 → PCB设计 → 验收仿真 → 固件开发,六环节一键贯通,每一步都有机器可判定的验证门禁。
+<br/>
+
+[![License](https://img.shields.io/badge/License-Apache_2.0-0d1117?style=for-the-badge&logo=apache&logoColor=white)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-≥3.10-0d1117?style=for-the-badge&logo=python&logoColor=3776AB)](https://www.python.org/)
+[![KiCad](https://img.shields.io/badge/KiCad-10+-0d1117?style=for-the-badge&logo=kicad&logoColor=314CB0)](https://www.kicad.org/)
+[![Gates](https://img.shields.io/badge/Gates-16%2F16_green-0d1117?style=for-the-badge&logo=checkmarx&logoColor=2ea043)](https://github.com/DataFlux-Robot/fluxpcb)
+[![Stars](https://img.shields.io/github/stars/DataFlux-Robot/fluxpcb?style=for-the-badge&logo=github&color=0d1117)](https://github.com/DataFlux-Robot/fluxpcb/stargazers)
+
+**English** · [简体中文](README_CN.md)
+
+</div>
+
+---
+
+## ⚡ One prompt. One command. One fab-ready board.
+
+```console
+$ flux run projects/esp32s31-mini
+
+  requirements ─▶ spec.yaml ......... ✓ 6 requirements, all mapped
+  selection    ─▶ bom.csv ........... ✓ 17 lines, LCSC-verified
+  schematic    ─▶ .kicad_sch ........ ✓ kicad-cli ERC: 0 violations
+  pcb          ─▶ .kicad_pcb ........ ✓ auto-place + auto-route, DRC: 0
+  simulation   ─▶ ngspice MC ×20 .... ✓ drop 2.79% ≤ 5% · ripple OK
+  firmware     ─▶ ESP-IDF ........... ✓ host-C regression executed
+
+  🟢 16/16 gates green — RELEASED
+  fab → Gerber + drill + pick&place + STEP   (52×30 mm, 2-layer)
+```
+
+**FluxPCB turns a sentence into a manufacturable PCB and its firmware** — and it refuses to call anything "done" until 16 machine-checkable gates agree. No gate, no glory.
+
+---
+
+## 🧠 AI proposes. Physics disposes.
+
+LLMs write beautiful netlists — and occasionally invent pin numbers. FluxPCB's rule: **the LLM generates; deterministic solvers and real EDA tools decide.** A failed gate emits structured feedback, the pipeline regenerates, retries are bounded. "Complete" is a physical verdict, not a vibe.
+
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+flowchart LR
+    A["🗣️ Natural<br/>language"] --> B["📋 spec.yaml"]
+    B --> C["🔩 Verified<br/>BOM"]
+    C --> D["📐 Schematic<br/>ERC = 0"]
+    D --> E["🟩 PCB<br/>auto place<br/>+ route"]
+    E --> F["🧪 Simulation<br/>SPICE MC · IR-drop<br/>thermal · PDN"]
+    F --> G["💾 Firmware<br/>ESP-IDF +<br/>host-C regression"]
+    G --> H["📦 Fab package<br/>Gerber · drill<br/>CPL · STEP"]
+    H -. "gate red → structured<br/>feedback → regenerate" .-> B
+```
+
+---
+
+## 🚦 16 gates. Zero opinions.
+
+Every artifact is SHA256-stamped. Every verdict links to evidence on disk. A missing tool means `BLOCKED` — **never** a fake pass.
+
+| Stage | Gates | What they actually check |
+|---|---|---|
+| 📋 Requirements | `spec_schema` `requirement_coverage` | every requirement maps to a design element |
+| 🔩 Selection | `bom_completeness` `bom_lcsc_verified` | placeholder part numbers **fail**; JLC online verify + snapshot fallback |
+| 📐 Schematic | `erc_zero` `netlist_topology` | real `kicad-cli` ERC · pin-by-pin readback of spec-mandated nets |
+| 🟩 PCB | `placement_quality` `drc_zero` `impedance_si` | overlap/decap/connector rules · real `kicad-cli` DRC · IPC-2141 + length match |
+| 🧪 Acceptance sim | `irdrop` `thermal` `emc_precompliance` `spice_functional` | FDM field solvers · PDN target impedance · ngspice Monte-Carlo (20 runs, ±20% cap/ESR) |
+| 💾 Firmware | `firmware_build` `firmware_spi_loopback` `firmware_regression` | real `idf.py build` when present · the **same** `fw_logic.c` compiled & executed on host |
+
+---
+
+## 🖥️ Grounding Map — traceability you can click
+
+Every requirement `FR-xxx` → the elements covering it → the gates that judged it. Uncovered requirements glow red; every verdict traces back to a hashed artifact.
+
+<div align="center">
+<img src="docs/images/grounding-map.png" width="760" alt="Grounding Map dashboard"/>
+</div>
+
+```bash
+flux dashboard projects    # → http://127.0.0.1:8765 · zero-dependency · offline
+```
+
+---
+
+## 🏆 From prompt to fab package
+
+<table>
+<tr>
+<td width="50%" align="center">
+<img src="gallery/esp32s31-mini/render_copper.svg" width="340"/><br/>
+<b>esp32s31-mini</b> · fully autonomous<br/>
+52×30 mm · 2-layer · auto place + route<br/>
+<code>16/16 🟢 RELEASED</code><br/>
+<a href="gallery/esp32s31-mini/esp32s31-mini-pcb.zip">⬇ fab package</a> · <a href="gallery/esp32s31-mini/prompt.md">the prompt</a>
+</td>
+<td width="50%" align="center">
+<img src="gallery/esp32s31-dev/render_assembly_top.svg" width="340"/><br/>
+<b>esp32s31-dev</b> · Pi-Zero-size flagship<br/>
+65×30 mm · 99 pins from the official Espressif datasheet<br/>
+<code>12/12 🟢 ERC=0 · DRC=0</code><br/>
+<a href="gallery/esp32s31-dev/esp32s31-dev-pcb.zip">⬇ KiCad project</a> · <a href="gallery/esp32s31-dev/prompt.md">the prompt</a>
+</td>
+</tr>
+</table>
+
+---
+
+## 🤖 Drive it from Claude Code
+
+The repo ships the `/fluxpcb` skill (`.claude/commands/fluxpcb.md`):
 
 ```
-需求 ──▶ spec.yaml ──▶ BOM ──▶ 原理图 ──▶ PCB ──▶ 仿真验证 ──▶ 固件
-         ▲            ▲        ▲          ▲         ▲           ▲
-         └────────────┴────────┴──────────┴─────────┴───────────┘
-                    门禁失败 → 结构化反馈 → 自动重生成(有界迭代)
+/fluxpcb ESP32-S31 mini dev board, USB-C power, 2×8 header, 1 button, 1 LED
 ```
 
-## 设计哲学(源自371个GitHub AI-PCB项目的实证分析)
+One sentence → project scaffold → six stages → bounded gate repair (≤5 rounds) → fab package → evidence-linked report. **Hard rules baked in: never invent pins beyond the datasheet, never loosen a gate threshold to force green.**
 
-1. **AI提议,物理裁决** — LLM负责生成,确定性求解器与EDA工具负责打分,绝不让LLM直接算物理量。
-2. **门禁即规范** — "设计完成"的唯一定义是全部门禁绿灯:ERC/DRC零错、阻抗、IR-drop、热、EMC预合规、真实工具链编译。门禁全部机器可判定,失败产生结构化反馈回流。
-3. **全程可审计** — 每个产出物带SHA256,每次运行产出完整报告,任何结论可追溯到证据。
-4. **可复现** — `flux run projects/xxx` 一条命令重放整个设计流程。
+> **Honest scope:** today's pipeline generates parameterized variants of the **ESP32-S31 dev-board family** — module + USB-C + LDO + headers (1–2 rows × 4–14 pins) + 1–2 buttons + 1–2 LEDs + programming header, with adjustable size/layers. Outside that family, the skill says so instead of pretending.
 
-## 快速开始
+---
+
+## 🚀 Quick start
+
+Only **Python ≥ 3.10** is required. Everything else degrades gracefully — absent tools flip their gates to `BLOCKED`, not green.
 
 ```bash
 pip install -e .
-flux run projects/esp32s31-mini      # 一条命令: 自动布局+自动布线+16门禁全绿 → RELEASED
-flux run projects/esp32s31-dev       # 旗舰案例(树莓派Zero尺寸)
-flux report projects/esp32s31-mini  # 查看审计报告
-flux gate projects/esp32s31-dev --only impedance_si,irdrop   # 单独跑门禁
-flux verify projects/esp32s31-mini  # 只复检门禁(对磁盘产物,不重新生成)
-flux dashboard projects              # 本地Grounding Map可视化面板 → http://127.0.0.1:8765
+
+flux run      projects/esp32s31-mini   # full pipeline → RELEASED
+flux report   projects/esp32s31-mini   # audit report, evidence-linked
+flux gate     projects/esp32s31-dev --only impedance_si,irdrop
+flux verify   projects/esp32s31-mini   # re-check gates, no regeneration
+flux dashboard projects                # Grounding Map UI
 ```
 
-**一句话 → 加工图+固件**：esp32s31-mini 由自然语言需求("ESP32-S31迷你开发板：USB-C供电+双排针+1按键+1LED")出发，`flux run` 一条命令完成：partslib真实选型(17个LCSC C号) → 规则式自动布局 → **流水线内自动布线**(Freerouting批量+碰撞感知L形收尾+违例清洗) → ngspice蒙特卡洛 → ESP-IDF固件+主机C回归 → fab包(Gerber+钻孔+坐标+STEP 3D)。
-
-## Grounding Map 可视化面板
-
-`flux dashboard` 启动零依赖本地网页(127.0.0.1,离线可用),实时监控六环节流水线:
-
-- **流水线轨道** — 六环节卡片:状态/迭代轮数/耗时/产物数,门禁红绿灯
-- **门禁证据** — 点击环节查看每个门禁的物理指标条(结温余量、IR-drop%、PDN阻抗),结论可追溯到带SHA256的产物
-- **Grounding Map** — 每条需求(FR-xxx) → 覆盖它的设计元素 → 裁决门禁,未覆盖需求高亮
-- **LIVE LOG** — 流水线运行时逐事件滚动(`flux run` 与面板可同时开)
-
-![Grounding Map](docs/images/grounding-map.png)
-
-## Claude Code 集成(/fluxpcb)
-
-仓库自带 `.claude/commands/fluxpcb.md`,在 Claude Code 中打开本仓库后:
-
-```
-/fluxpcb 树莓派Zero大小的ESP32开发板,带USB-C和双排针
-```
-
-一句话需求 → 自动建项目、写spec、跑六环节流水线、修门禁(有界重试)、导出fab包、汇报结果。规则内置于命令:不得编造datasheet外的引脚、不得调门禁阈值放水。
-
-## 工具链(全部可选,缺失时相关门禁进入blocked状态)
-
-| 工具 | 用途 | 环节 |
-|---|---|---|
-| KiCad 10+ (kicad-cli) | 原理图/PCB生成、ERC、DRC、网表 | 原理图/PCB设计 |
-| ngspice | 电路功能仿真+蒙特卡洛 | 验收仿真 |
-| openEMS + gerber2ems | 阻抗/S参数/EM场终验 | 验收仿真 |
-| Freerouting | 自动布线(DSN/SES) | PCB设计 |
-| ESP-IDF / hpm-sdk | 固件真实编译门禁 | 固件开发 |
-| LCSC/JLC API | 器件选型与BOM | 器件选型 |
-
-内置纯Python物理内核(无外部依赖即可运行):IPC-2141阻抗闭式解、FDM IR-drop/热场求解、PDN目标阻抗法。SPICE由KiCad自带的ngspice.dll经ctypes驱动(无需额外安装),LDO电源链瞬态蒙特卡洛(20次,电容/ESR容差采样)。固件纯逻辑(引导序列/去抖/SPI回环/时序)与目标固件共享同一份C源码,在主机编译器上真实执行回归。
-
-## 项目状态
-
-- [x] Phase A — 工具本体:编排引擎+门禁框架+物理内核+CLI(26个单元测试全绿)
-- [x] Phase B1 — ESP32-S31开发板:ERC=0,DRC=0,12/12门禁绿,Gerber导出 ✅
-- [ ] Phase B2 — HPM6E80核心板(球阵映射待FAE数据手册)
-
----
-
-## 项目案例
-
-### 案例 1:ESP32-S31 开发板
-
-**Prompt:**
-
-> 只绘制一个树莓派Zero大小的esp32 s31开发板
-
-**效果展示:**
-
-![顶层装配视图](gallery/esp32s31-dev/render_assembly_top.svg)
-
-<details>
-<summary>查看更多渲染图</summary>
-
-![底层装配视图](gallery/esp32s31-dev/render_assembly_bottom.svg)
-
-![顶层铜箔布线](gallery/esp32s31-dev/render_copper_top.svg)
-
-![顶层丝印标注](gallery/esp32s31-dev/render_silk_top.svg)
-
-</details>
-
-**验证结果:** 12/12门禁全绿 · KiCad ERC=0 · DRC=0 · Gerber已导出
-
-| | |
+| Optional tool | Unlocks |
 |---|---|
-| 板卡 | ESP32-S31 WiFi6开发板,65×30mm,2层 |
-| 主控 | ESP32-S31-WROOM-3U(RISC-V双核320MHz) |
-| 接口 | USB-C(供电+数据) · 28 GPIO · 烧录口 |
-| 📦 下载 | [完整PCB项目](gallery/esp32s31-dev/esp32s31-dev-pcb.zip)(144KB) |
-| 📋 详情 | [gallery/esp32s31-dev/prompt.md](gallery/esp32s31-dev/prompt.md) |
+| KiCad 10+ (`kicad-cli`) | real ERC / DRC verdicts, Gerber/drill/CPL/STEP export |
+| Freerouting | batch auto-routing (DSN/SES) |
+| ngspice (KiCad-bundled DLL) | LDO transient Monte-Carlo |
+| openEMS + gerber2ems | EM-field / S-parameter sign-off *(adapter ready, wiring in progress)* |
+| ESP-IDF / hpm-sdk | on-target firmware compile gate |
+| LCSC / JLC API | live part & price verification (snapshot fallback) |
+
+Pure-Python physics core, always on: **IPC-2141** impedance (<5% vs textbook), **FDM** IR-drop & thermal, **PDN** target impedance.
 
 ---
 
+## 📍 Status
 
-### 案例 2:esp32s31-mini(全自动演示)
+- ✅ **Phase A** — engine + gate framework + physics core + CLI · 26 unit tests green
+- ✅ **Phase B1** — ESP32-S31 dev board · ERC=0 · DRC=0 · 12/12 gates · Gerber out
+- 🔲 **Phase B2** — HPM6E80 core board (BGA ball map pending FAE datasheet)
+- 🧭 **Phase D** — see [ROADMAP.md](ROADMAP.md): board families, SA/NSGA-II placement, openEMS sign-off, MCP-server form factor, and the 7th stage (system-level co-simulation)
 
-**Prompt:**
+## 🕊️ Engineering honesty
 
-> ESP32-S31迷你开发板:USB-C供电 + 双排针(2×8P 2.54mm) + 1个RESET按键 + 1个电源LED,板子尽量小(约52×30mm),2层板
-
-**效果展示**(规则式自动布局 + 流水线内自动布线的直接产物):
-
-![顶层装配视图](gallery/esp32s31-mini/render_assembly_top.svg)
-
-<details>
-<summary>查看更多渲染图</summary>
-
-![底层装配视图](gallery/esp32s31-mini/render_assembly_bottom.svg)
-
-![双面铜箔布线](gallery/esp32s31-mini/render_copper.svg)
-
-</details>
-
-**验证结果:** 16/16门禁全绿 🟢 RELEASED · ERC=0 · DRC=0 · ngspice MC压降2.79%≤5% · 固件主机C回归通过
-
-**一条命令**: `flux run projects/esp32s31-mini` — 规则式自动布局(功能分区+1.27网格+去耦就近) + 流水线内自动布线(Freerouting批量+碰撞感知收尾+违例清洗) + ngspice LDO瞬态蒙特卡洛 + ESP-IDF固件主机C回归。
-
-| | |
-|---|---|
-| 板卡 | ESP32-S31开发板,52×30mm,2层,全自动布局布线 |
-| 主控 | ESP32-S31-WROOM-3U(RISC-V双核320MHz) |
-| 接口 | USB-C(供电+数据) · 16 GPIO(2×8排针) · 烧录口 |
-| 📦 下载 | [fab包(Gerber+钻孔+坐标+STEP)](gallery/esp32s31-mini/esp32s31-mini-pcb.zip) |
-| 📋 详情 | [gallery/esp32s31-mini/prompt.md](gallery/esp32s31-mini/prompt.md) |
+- New 2025 parts not yet indexed by LCSC → BOM says *"verify before ordering"*. Placeholders never pass.
+- Dense-board "last-mile" routing gaps stay **visible** in reports (`unconnected=ignore`), never silently closed.
+- JLC's API has bot protection (HTTP 460) → automatic fallback to the checked-in parts snapshot.
 
 ---
 
-## License
+<div align="center">
 
-Apache-2.0
+**If FluxPCB saved you a board respin — leave a ⭐. It funds the next gate.**
+
+[Report a bug](https://github.com/DataFlux-Robot/fluxpcb/issues) · [Roadmap](ROADMAP.md) · Apache-2.0 © FluxPCB contributors
+
+<a href="https://star-history.com/#DataFlux-Robot/fluxpcb&Date"><img src="https://api.star-history.com/svg?repos=DataFlux-Robot/fluxpcb&type=Date" width="520" alt="Star history"/></a>
+
+</div>
