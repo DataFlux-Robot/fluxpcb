@@ -253,6 +253,23 @@ def stage_pcb_layout(ctx: StageContext) -> None:
         except Exception as e:
             ctx.note(f'KiCad PCB生成失败,保留种子: {e}')
 
+    # in-pipeline auto-routing for any generated board (W2): bounded
+    # DRC -> L-route -> shorts-cleanup loop; hand-fixable residue stays
+    # visible via calibrated severities instead of being faked away.
+    try:
+        from fluxpcb.routing import auto_route
+        for pcb in sorted((d / "pcb").rglob("*.kicad_pcb")):
+            res = auto_route(pcb, max_iterations=3, log=lambda s: None)
+            if "error" in res:
+                ctx.note(f"自动布线跳过({pcb.name}): {res['error']}")
+            else:
+                ctx.note(f"自动布线({pcb.name}): {res['iterations']}轮, "
+                         f"剩未连接{res['unconnected']}/短路{res['shorting']}"
+                         + (" [全部闭合]" if res.get("clean") else ""))
+                _write_json(pcb.parent / "route_report.json", res)
+    except Exception as e:
+        ctx.note(f"自动布线不可用: {e}")
+
     _write_json(pdir / "netclasses.json", solved)
     ctx.note(f"{layers}层叠层规划完成, {len(solved)} 个阻抗目标已反解")
 
