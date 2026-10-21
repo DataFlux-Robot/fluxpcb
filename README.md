@@ -2,12 +2,6 @@
 
 **全自动AI电路设计流水线** — 需求分析 → 器件选型 → 原理图 → PCB设计 → 验收仿真 → 固件开发,六环节一键贯通,每一步都有机器可判定的验证门禁。
 
-![ESP32-S31 Dev Board — Top](gallery/esp32s31-dev/pcb_top.svg)
-
-![ESP32-S31 Dev Board — Bottom](gallery/esp32s31-dev/pcb_bottom.svg)
-
-> 🟢 **首个完整设计案例**:树莓派Zero尺寸ESP32-S31开发板(65×30mm 2层) — 12/12门禁全绿,KiCad ERC=0,DRC=0,Gerber已导出可直接下单 → [gallery/esp32s31-dev/](gallery/esp32s31-dev/prompt.md)
-
 ```
 需求 ──▶ spec.yaml ──▶ BOM ──▶ 原理图 ──▶ PCB ──▶ 仿真验证 ──▶ 固件
          ▲            ▲        ▲          ▲         ▲           ▲
@@ -50,7 +44,13 @@ flux gate projects/esp32s31-dev --only impedance_si,irdrop   # 单独跑门禁
 - [x] Phase B1 — ESP32-S31开发板:ERC=0,DRC=0,12/12门禁绿,Gerber导出 ✅
 - [ ] Phase B2 — HPM6E80核心板(球阵映射待FAE数据手册)
 
-## Gallery
+## 项目案例
+
+![ESP32-S31 Dev Board — Top](gallery/esp32s31-dev/pcb_top.svg)
+
+![ESP32-S31 Dev Board — Bottom](gallery/esp32s31-dev/pcb_bottom.svg)
+
+> 🟢 **首个完整设计案例**:树莓派Zero尺寸ESP32-S31开发板(65×30mm 2层) — 12/12门禁全绿,KiCad ERC=0,DRC=0,Gerber已导出可直接下单 → [gallery/esp32s31-dev/](gallery/esp32s31-dev/prompt.md)
 
 | 项目 | 板卡 | 门禁 | 详情 |
 |---|---|---|---|
