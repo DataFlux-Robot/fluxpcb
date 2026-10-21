@@ -1,0 +1,1058 @@
+{
+ "A1": {
+  "name": "PDR_ON",
+  "etype": "passive"
+ },
+ "A2": {
+  "name": "PQ6",
+  "etype": "passive"
+ },
+ "A3": {
+  "name": "OTG2_HS_DM",
+  "etype": "passive"
+ },
+ "A4": {
+  "name": "VDD33US_B",
+  "etype": "passive"
+ },
+ "A5": {
+  "name": "OTG1_HS_DM",
+  "etype": "passive"
+ },
+ "A6": {
+  "name": "UCPD1_C_C1",
+  "etype": "passive"
+ },
+ "A7": {
+  "name": "PH0-_OSC_IN",
+  "etype": "passive"
+ },
+ "A8": {
+  "name": "PC10",
+  "etype": "passive"
+ },
+ "A9": {
+  "name": "PC1",
+  "etype": "passive"
+ },
+ "A10": {
+  "name": "PC4",
+  "etype": "passive"
+ },
+ "A11": {
+  "name": "PE13",
+  "etype": "passive"
+ },
+ "A12": {
+  "name": "PE15",
+  "etype": "passive"
+ },
+ "A13": {
+  "name": "PD10",
+  "etype": "passive"
+ },
+ "A14": {
+  "name": "PD1",
+  "etype": "passive"
+ },
+ "A15": {
+  "name": "PE8",
+  "etype": "passive"
+ },
+ "A16": {
+  "name": "PE9",
+  "etype": "passive"
+ },
+ "A17": {
+  "name": "VSS_1",
+  "etype": "passive"
+ },
+ "B1": {
+  "name": "PH3",
+  "etype": "passive"
+ },
+ "B2": {
+  "name": "PH6",
+  "etype": "passive"
+ },
+ "B3": {
+  "name": "OTG2_HS_DP",
+  "etype": "passive"
+ },
+ "B4": {
+  "name": "NC_1",
+  "etype": "passive"
+ },
+ "B5": {
+  "name": "OTG1_HS_DP",
+  "etype": "passive"
+ },
+ "B6": {
+  "name": "UCPD1_C_C2",
+  "etype": "passive"
+ },
+ "B7": {
+  "name": "PH1-_OSC_OUT",
+  "etype": "passive"
+ },
+ "B8": {
+  "name": "PC11",
+  "etype": "passive"
+ },
+ "B9": {
+  "name": "PC6",
+  "etype": "passive"
+ },
+ "B10": {
+  "name": "PC5",
+  "etype": "passive"
+ },
+ "B11": {
+  "name": "PE14",
+  "etype": "passive"
+ },
+ "B12": {
+  "name": "PE12",
+  "etype": "passive"
+ },
+ "B13": {
+  "name": "PE7",
+  "etype": "passive"
+ },
+ "B14": {
+  "name": "PD15",
+  "etype": "passive"
+ },
+ "B15": {
+  "name": "PD4",
+  "etype": "passive"
+ },
+ "B16": {
+  "name": "PE10",
+  "etype": "passive"
+ },
+ "B17": {
+  "name": "PB14",
+  "etype": "passive"
+ },
+ "C1": {
+  "name": "PC15-_OSC32_O_UT",
+  "etype": "passive"
+ },
+ "C2": {
+  "name": "PH8",
+  "etype": "passive"
+ },
+ "C3": {
+  "name": "OTG1_ID",
+  "etype": "passive"
+ },
+ "C4": {
+  "name": "NC_2",
+  "etype": "passive"
+ },
+ "C5": {
+  "name": "VDDA18U_SB",
+  "etype": "passive"
+ },
+ "C6": {
+  "name": "OTG1_TX_RTUNE",
+  "etype": "passive"
+ },
+ "C7": {
+  "name": "PC9",
+  "etype": "passive"
+ },
+ "C8": {
+  "name": "PC12",
+  "etype": "passive"
+ },
+ "C9": {
+  "name": "PC7",
+  "etype": "passive"
+ },
+ "C10": {
+  "name": "PC0",
+  "etype": "passive"
+ },
+ "C11": {
+  "name": "PE5",
+  "etype": "passive"
+ },
+ "C12": {
+  "name": "PD2",
+  "etype": "passive"
+ },
+ "C13": {
+  "name": "PD12",
+  "etype": "passive"
+ },
+ "C14": {
+  "name": "PD14",
+  "etype": "passive"
+ },
+ "C15": {
+  "name": "PB13",
+  "etype": "passive"
+ },
+ "C16": {
+  "name": "PB2",
+  "etype": "passive"
+ },
+ "C17": {
+  "name": "PD13",
+  "etype": "passive"
+ },
+ "D1": {
+  "name": "PC14-_OSC32_IN",
+  "etype": "passive"
+ },
+ "D2": {
+  "name": "PH7",
+  "etype": "passive"
+ },
+ "D3": {
+  "name": "PQ3",
+  "etype": "passive"
+ },
+ "D4": {
+  "name": "PQ4",
+  "etype": "passive"
+ },
+ "D5": {
+  "name": "PQ5",
+  "etype": "passive"
+ },
+ "D6": {
+  "name": "OTG2_TX_RTUNE",
+  "etype": "passive"
+ },
+ "D7": {
+  "name": "PC8",
+  "etype": "passive"
+ },
+ "D8": {
+  "name": "PH9",
+  "etype": "passive"
+ },
+ "D9": {
+  "name": "PC2",
+  "etype": "passive"
+ },
+ "D10": {
+  "name": "PE4",
+  "etype": "passive"
+ },
+ "D11": {
+  "name": "PE6",
+  "etype": "passive"
+ },
+ "D12": {
+  "name": "PD6",
+  "etype": "passive"
+ },
+ "D13": {
+  "name": "PD0",
+  "etype": "passive"
+ },
+ "D14": {
+  "name": "PD5",
+  "etype": "passive"
+ },
+ "D15": {
+  "name": "PB9",
+  "etype": "passive"
+ },
+ "D16": {
+  "name": "PB8",
+  "etype": "passive"
+ },
+ "D17": {
+  "name": "PB15",
+  "etype": "passive"
+ },
+ "E1": {
+  "name": "VBAT",
+  "etype": "passive"
+ },
+ "E2": {
+  "name": "PWR_ON",
+  "etype": "passive"
+ },
+ "E3": {
+  "name": "PQ2",
+  "etype": "passive"
+ },
+ "E4": {
+  "name": "PQ1",
+  "etype": "passive"
+ },
+ "E5": {
+  "name": "PQ0",
+  "etype": "passive"
+ },
+ "E6": {
+  "name": "OTG2_ID",
+  "etype": "passive"
+ },
+ "E7": {
+  "name": "PH2",
+  "etype": "passive"
+ },
+ "E8": {
+  "name": "VDDIO4_1",
+  "etype": "passive"
+ },
+ "E9": {
+  "name": "VDDIO5_1",
+  "etype": "passive"
+ },
+ "E10": {
+  "name": "PC3",
+  "etype": "passive"
+ },
+ "E11": {
+  "name": "PE11",
+  "etype": "passive"
+ },
+ "E12": {
+  "name": "PD7",
+  "etype": "passive"
+ },
+ "E13": {
+  "name": "PD3",
+  "etype": "passive"
+ },
+ "E14": {
+  "name": "PD8",
+  "etype": "passive"
+ },
+ "E15": {
+  "name": "PB0",
+  "etype": "passive"
+ },
+ "E16": {
+  "name": "PB7",
+  "etype": "passive"
+ },
+ "E17": {
+  "name": "PB6",
+  "etype": "passive"
+ },
+ "F1": {
+  "name": "V08CAP",
+  "etype": "passive"
+ },
+ "F2": {
+  "name": "VSSAPMU",
+  "etype": "passive"
+ },
+ "F3": {
+  "name": "PC13",
+  "etype": "passive"
+ },
+ "F4": {
+  "name": "PH4",
+  "etype": "passive"
+ },
+ "F5": {
+  "name": "PH5",
+  "etype": "passive"
+ },
+ "F6": {
+  "name": "VDDA18A_ON",
+  "etype": "passive"
+ },
+ "F7": {
+  "name": "VSS_2",
+  "etype": "passive"
+ },
+ "F8": {
+  "name": "VDDIO4_2",
+  "etype": "passive"
+ },
+ "F9": {
+  "name": "VDDIO5_2",
+  "etype": "passive"
+ },
+ "F10": {
+  "name": "VSS_3",
+  "etype": "passive"
+ },
+ "F11": {
+  "name": "VSS_4",
+  "etype": "passive"
+ },
+ "F12": {
+  "name": "VSS_5",
+  "etype": "passive"
+ },
+ "F13": {
+  "name": "PB3",
+  "etype": "passive"
+ },
+ "F14": {
+  "name": "PE3",
+  "etype": "passive"
+ },
+ "F15": {
+  "name": "PE2",
+  "etype": "passive"
+ },
+ "F16": {
+  "name": "PE0",
+  "etype": "passive"
+ },
+ "F17": {
+  "name": "PE1",
+  "etype": "passive"
+ },
+ "G1": {
+  "name": "VDDA18P_MU",
+  "etype": "passive"
+ },
+ "G2": {
+  "name": "VFBSMPS",
+  "etype": "passive"
+ },
+ "G3": {
+  "name": "NRST",
+  "etype": "passive"
+ },
+ "G4": {
+  "name": "BOOT0",
+  "etype": "passive"
+ },
+ "G5": {
+  "name": "PQ7",
+  "etype": "passive"
+ },
+ "G6": {
+  "name": "VSSAON",
+  "etype": "passive"
+ },
+ "G12": {
+  "name": "VSS_6",
+  "etype": "passive"
+ },
+ "G13": {
+  "name": "VDD_1",
+  "etype": "passive"
+ },
+ "G14": {
+  "name": "PD11",
+  "etype": "passive"
+ },
+ "G15": {
+  "name": "PP7",
+  "etype": "passive"
+ },
+ "G16": {
+  "name": "PP6",
+  "etype": "passive"
+ },
+ "G17": {
+  "name": "PP0",
+  "etype": "passive"
+ },
+ "H1": {
+  "name": "VSSSMPS_1",
+  "etype": "passive"
+ },
+ "H2": {
+  "name": "VSSSMPS_2",
+  "etype": "passive"
+ },
+ "H3": {
+  "name": "VSSSMPS_3",
+  "etype": "passive"
+ },
+ "H4": {
+  "name": "VSSSMPS_4",
+  "etype": "passive"
+ },
+ "H5": {
+  "name": "VSSSMPS_5",
+  "etype": "passive"
+ },
+ "H6": {
+  "name": "VSSSMPS_6",
+  "etype": "passive"
+ },
+ "H12": {
+  "name": "VDD_2",
+  "etype": "passive"
+ },
+ "H13": {
+  "name": "VDD_3",
+  "etype": "passive"
+ },
+ "H14": {
+  "name": "PD9",
+  "etype": "passive"
+ },
+ "H15": {
+  "name": "PP4",
+  "etype": "passive"
+ },
+ "H16": {
+  "name": "PP1",
+  "etype": "passive"
+ },
+ "H17": {
+  "name": "PP15",
+  "etype": "passive"
+ },
+ "J1": {
+  "name": "VLXSMPS_1",
+  "etype": "passive"
+ },
+ "J2": {
+  "name": "VLXSMPS_2",
+  "etype": "passive"
+ },
+ "J3": {
+  "name": "VLXSMPS_3",
+  "etype": "passive"
+ },
+ "J4": {
+  "name": "VLXSMPS_4",
+  "etype": "passive"
+ },
+ "J5": {
+  "name": "VLXSMPS_5",
+  "etype": "passive"
+ },
+ "J6": {
+  "name": "VLXSMPS_6",
+  "etype": "passive"
+ },
+ "J12": {
+  "name": "VDD_4",
+  "etype": "passive"
+ },
+ "J13": {
+  "name": "VDD_5",
+  "etype": "passive"
+ },
+ "J14": {
+  "name": "PP5",
+  "etype": "passive"
+ },
+ "J15": {
+  "name": "PP12",
+  "etype": "passive"
+ },
+ "J16": {
+  "name": "PP3",
+  "etype": "passive"
+ },
+ "J17": {
+  "name": "PP2",
+  "etype": "passive"
+ },
+ "K1": {
+  "name": "VDDSMPS_1",
+  "etype": "passive"
+ },
+ "K2": {
+  "name": "VDDSMPS_2",
+  "etype": "passive"
+ },
+ "K3": {
+  "name": "VDDSMPS_3",
+  "etype": "passive"
+ },
+ "K4": {
+  "name": "VDDSMPS_4",
+  "etype": "passive"
+ },
+ "K5": {
+  "name": "VDDSMPS_5",
+  "etype": "passive"
+ },
+ "K6": {
+  "name": "VDDSMPS_6",
+  "etype": "passive"
+ },
+ "K12": {
+  "name": "VSS_7",
+  "etype": "passive"
+ },
+ "K13": {
+  "name": "VDD_6",
+  "etype": "passive"
+ },
+ "K14": {
+  "name": "PP13",
+  "etype": "passive"
+ },
+ "K15": {
+  "name": "PO5",
+  "etype": "passive"
+ },
+ "K16": {
+  "name": "PO1",
+  "etype": "passive"
+ },
+ "K17": {
+  "name": "PO2",
+  "etype": "passive"
+ },
+ "L1": {
+  "name": "PG7",
+  "etype": "passive"
+ },
+ "L2": {
+  "name": "PF4",
+  "etype": "passive"
+ },
+ "L3": {
+  "name": "PG6",
+  "etype": "passive"
+ },
+ "L4": {
+  "name": "PF10",
+  "etype": "passive"
+ },
+ "L5": {
+  "name": "PF6",
+  "etype": "passive"
+ },
+ "L6": {
+  "name": "VDDCORE_1",
+  "etype": "passive"
+ },
+ "L12": {
+  "name": "VDDCORE_2",
+  "etype": "passive"
+ },
+ "L13": {
+  "name": "VDDIO2_1",
+  "etype": "passive"
+ },
+ "L14": {
+  "name": "VDDIO2_2",
+  "etype": "passive"
+ },
+ "L15": {
+  "name": "PP11",
+  "etype": "passive"
+ },
+ "L16": {
+  "name": "PP8",
+  "etype": "passive"
+ },
+ "L17": {
+  "name": "PP14",
+  "etype": "passive"
+ },
+ "M1": {
+  "name": "PF7",
+  "etype": "passive"
+ },
+ "M2": {
+  "name": "PF3",
+  "etype": "passive"
+ },
+ "M3": {
+  "name": "PF5",
+  "etype": "passive"
+ },
+ "M4": {
+  "name": "PG5",
+  "etype": "passive"
+ },
+ "M5": {
+  "name": "VDDA18P_LL",
+  "etype": "passive"
+ },
+ "M6": {
+  "name": "VSSA",
+  "etype": "passive"
+ },
+ "M7": {
+  "name": "VDDCORE_3",
+  "etype": "passive"
+ },
+ "M8": {
+  "name": "VSS_8",
+  "etype": "passive"
+ },
+ "M9": {
+  "name": "VDDCORE_4",
+  "etype": "passive"
+ },
+ "M10": {
+  "name": "VSS_9",
+  "etype": "passive"
+ },
+ "M11": {
+  "name": "VDDCORE_5",
+  "etype": "passive"
+ },
+ "M12": {
+  "name": "VSS_10",
+  "etype": "passive"
+ },
+ "M13": {
+  "name": "VSS_11",
+  "etype": "passive"
+ },
+ "M14": {
+  "name": "VDDIO2_3",
+  "etype": "passive"
+ },
+ "M15": {
+  "name": "VDDIO2_4",
+  "etype": "passive"
+ },
+ "M16": {
+  "name": "PO3",
+  "etype": "passive"
+ },
+ "M17": {
+  "name": "PO0",
+  "etype": "passive"
+ },
+ "N1": {
+  "name": "PF15",
+  "etype": "passive"
+ },
+ "N2": {
+  "name": "PF14",
+  "etype": "passive"
+ },
+ "N3": {
+  "name": "PF8",
+  "etype": "passive"
+ },
+ "N4": {
+  "name": "PF2",
+  "etype": "passive"
+ },
+ "N5": {
+  "name": "VSS_12",
+  "etype": "passive"
+ },
+ "N6": {
+  "name": "VDDA18A_DC",
+  "etype": "passive"
+ },
+ "N7": {
+  "name": "VSS_13",
+  "etype": "passive"
+ },
+ "N8": {
+  "name": "VDDCORE_6",
+  "etype": "passive"
+ },
+ "N9": {
+  "name": "VSS_14",
+  "etype": "passive"
+ },
+ "N10": {
+  "name": "VDDCORE_7",
+  "etype": "passive"
+ },
+ "N11": {
+  "name": "VSS_15",
+  "etype": "passive"
+ },
+ "N12": {
+  "name": "VDDCORE_8",
+  "etype": "passive"
+ },
+ "N13": {
+  "name": "VDDIO3_1",
+  "etype": "passive"
+ },
+ "N14": {
+  "name": "PP9",
+  "etype": "passive"
+ },
+ "N15": {
+  "name": "PP10",
+  "etype": "passive"
+ },
+ "N16": {
+  "name": "PO4",
+  "etype": "passive"
+ },
+ "N17": {
+  "name": "PN4",
+  "etype": "passive"
+ },
+ "P1": {
+  "name": "PF9",
+  "etype": "passive"
+ },
+ "P2": {
+  "name": "PG4",
+  "etype": "passive"
+ },
+ "P3": {
+  "name": "PF11",
+  "etype": "passive"
+ },
+ "P4": {
+  "name": "PF1",
+  "etype": "passive"
+ },
+ "P5": {
+  "name": "CSI_REXT",
+  "etype": "passive"
+ },
+ "P6": {
+  "name": "PG14",
+  "etype": "passive"
+ },
+ "P7": {
+  "name": "PA9",
+  "etype": "passive"
+ },
+ "P8": {
+  "name": "PA6",
+  "etype": "passive"
+ },
+ "P9": {
+  "name": "PA1",
+  "etype": "passive"
+ },
+ "P10": {
+  "name": "PB11",
+  "etype": "passive"
+ },
+ "P11": {
+  "name": "VDDCORE_9",
+  "etype": "passive"
+ },
+ "P12": {
+  "name": "PA15",
+  "etype": "passive"
+ },
+ "P13": {
+  "name": "VDDIO3_2",
+  "etype": "passive"
+ },
+ "P14": {
+  "name": "PN12",
+  "etype": "passive"
+ },
+ "P15": {
+  "name": "PN6",
+  "etype": "passive"
+ },
+ "P16": {
+  "name": "PN8",
+  "etype": "passive"
+ },
+ "P17": {
+  "name": "PN0",
+  "etype": "passive"
+ },
+ "R1": {
+  "name": "PG3",
+  "etype": "passive"
+ },
+ "R2": {
+  "name": "PF13",
+  "etype": "passive"
+ },
+ "R3": {
+  "name": "PF0",
+  "etype": "passive"
+ },
+ "R4": {
+  "name": "VDDCSI",
+  "etype": "passive"
+ },
+ "R5": {
+  "name": "VDDA18C_SI",
+  "etype": "passive"
+ },
+ "R6": {
+  "name": "PG15",
+  "etype": "passive"
+ },
+ "R7": {
+  "name": "PA10",
+  "etype": "passive"
+ },
+ "R8": {
+  "name": "PA5",
+  "etype": "passive"
+ },
+ "R9": {
+  "name": "PG1",
+  "etype": "passive"
+ },
+ "R10": {
+  "name": "PB12",
+  "etype": "passive"
+ },
+ "R11": {
+  "name": "PB1",
+  "etype": "passive"
+ },
+ "R12": {
+  "name": "PA7",
+  "etype": "passive"
+ },
+ "R13": {
+  "name": "PG0",
+  "etype": "passive"
+ },
+ "R14": {
+  "name": "PA3",
+  "etype": "passive"
+ },
+ "R15": {
+  "name": "PN3",
+  "etype": "passive"
+ },
+ "R16": {
+  "name": "PN5",
+  "etype": "passive"
+ },
+ "R17": {
+  "name": "PN1",
+  "etype": "passive"
+ },
+ "T1": {
+  "name": "PF12",
+  "etype": "passive"
+ },
+ "T2": {
+  "name": "VREF-",
+  "etype": "passive"
+ },
+ "T3": {
+  "name": "CSI_CKP",
+  "etype": "passive"
+ },
+ "T4": {
+  "name": "CSI_D1P",
+  "etype": "passive"
+ },
+ "T5": {
+  "name": "CSI_D0P",
+  "etype": "passive"
+ },
+ "T6": {
+  "name": "PA14",
+  "etype": "passive"
+ },
+ "T7": {
+  "name": "PA11",
+  "etype": "passive"
+ },
+ "T8": {
+  "name": "PA2",
+  "etype": "passive"
+ },
+ "T9": {
+  "name": "PG12",
+  "etype": "passive"
+ },
+ "T10": {
+  "name": "PG10",
+  "etype": "passive"
+ },
+ "T11": {
+  "name": "PG2",
+  "etype": "passive"
+ },
+ "T12": {
+  "name": "PB4",
+  "etype": "passive"
+ },
+ "T13": {
+  "name": "PG9",
+  "etype": "passive"
+ },
+ "T14": {
+  "name": "PG8",
+  "etype": "passive"
+ },
+ "T15": {
+  "name": "PN9",
+  "etype": "passive"
+ },
+ "T16": {
+  "name": "PN7",
+  "etype": "passive"
+ },
+ "T17": {
+  "name": "PN2",
+  "etype": "passive"
+ },
+ "U1": {
+  "name": "VSS_16",
+  "etype": "passive"
+ },
+ "U2": {
+  "name": "VREF+",
+  "etype": "passive"
+ },
+ "U3": {
+  "name": "CSI_CKN",
+  "etype": "passive"
+ },
+ "U4": {
+  "name": "CSI_D1N",
+  "etype": "passive"
+ },
+ "U5": {
+  "name": "CSI_D0N",
+  "etype": "passive"
+ },
+ "U6": {
+  "name": "PA13",
+  "etype": "passive"
+ },
+ "U7": {
+  "name": "PA12",
+  "etype": "passive"
+ },
+ "U8": {
+  "name": "PA8",
+  "etype": "passive"
+ },
+ "U9": {
+  "name": "PG13",
+  "etype": "passive"
+ },
+ "U10": {
+  "name": "PA0",
+  "etype": "passive"
+ },
+ "U11": {
+  "name": "PB10",
+  "etype": "passive"
+ },
+ "U12": {
+  "name": "PB5",
+  "etype": "passive"
+ },
+ "U13": {
+  "name": "PG11",
+  "etype": "passive"
+ },
+ "U14": {
+  "name": "PA4",
+  "etype": "passive"
+ },
+ "U15": {
+  "name": "PN10",
+  "etype": "passive"
+ },
+ "U16": {
+  "name": "PN11",
+  "etype": "passive"
+ },
+ "U17": {
+  "name": "VSS_17",
+  "etype": "passive"
+ }
+}

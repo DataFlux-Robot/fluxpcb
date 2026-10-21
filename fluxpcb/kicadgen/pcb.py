@@ -175,6 +175,44 @@ LAYERS_4 = ['(0 "F.Cu" signal "top_copper")', '(31 "B.Cu" signal "bottom_copper"
             '(44 "Edge.Cuts" user)', '(45 "Margin" user)',
             '(48 "B.Fab" user)', '(49 "F.Fab" user)']
 
+# 6-layer: signal / GND / PWR / PWR / GND / signal (JLC 6L-friendly)
+LAYERS_6 = ['(0 "F.Cu" signal "top_copper")',
+            '(1 "In1.Cu" signal "ground_copper")',
+            '(2 "In2.Cu" signal "power_copper")',
+            '(3 "In3.Cu" signal "power_copper")',
+            '(4 "In4.Cu" signal "ground_copper")',
+            '(31 "B.Cu" signal "bottom_copper")',
+            '(36 "B.Paste" user)', '(37 "F.Paste" user)',
+            '(38 "B.SilkS" user "B.Silkscreen")', '(39 "F.SilkS" user "F.Silkscreen")',
+            '(40 "B.Mask" user)', '(41 "F.Mask" user)',
+            '(44 "Edge.Cuts" user)', '(45 "Margin" user)',
+            '(48 "B.Fab" user)', '(49 "F.Fab" user)']
+
+
+def _diel(n, kind, th):
+    tag = "prepreg" if kind == "pp" else "core"
+    return (f'(layer "dielectric {n}" (type {tag}) (thickness {th}) '
+            '(material "FR4") (epsilon_r 4.4) (loss_tangent 0.02))')
+
+
+def stackup_6l() -> str:
+    cu = '(layer "{}" (type copper) (thickness 0.035))'
+    mask = '(layer "{}" (type "{} Solder Mask") (color "Green") (thickness 0.01))'
+    silk = '(layer "{}" (type "{} Silk Screen") (color "White"))'
+    rows = [silk.format('F.SilkS', 'Top'), mask.format('F.Mask', 'Top'),
+            cu.format('F.Cu'), _diel(1, 'pp', 0.21),
+            '(layer "In1.Cu" (type copper) (thickness 0.035))',
+            _diel(2, 'core', 0.30),
+            '(layer "In2.Cu" (type copper) (thickness 0.035))',
+            _diel(3, 'pp', 0.21),
+            '(layer "In3.Cu" (type copper) (thickness 0.035))',
+            _diel(4, 'core', 0.30),
+            '(layer "In4.Cu" (type copper) (thickness 0.035))',
+            _diel(5, 'pp', 0.21),
+            cu.format('B.Cu'), mask.format('B.Mask', 'Bottom'),
+            silk.format('B.SilkS', 'Bottom')]
+    return "\t(stackup\n" + "".join("\t\t" + r + "\n" for r in rows) + "\t)\n"
+
 
 def stackup_4l() -> str:
     cu = '(layer "{}" (type copper) (thickness 0.035))'
@@ -200,9 +238,11 @@ def stackup_4l() -> str:
 
 
 class Board:
-    def __init__(self, title: str, w_mm: float, h_mm: float, net_names: list[str]):
+    def __init__(self, title: str, w_mm: float, h_mm: float, net_names: list[str],
+                 n_layers: int = 4):
         self.title = title
         self.w, self.h = w_mm, h_mm
+        self.n_layers = n_layers
         self.nets: dict[str, int] = {}
         self.net_lines = ['\t(net 0 "")']
         for i, n in enumerate(net_names, 1):
@@ -250,7 +290,12 @@ class Board:
 {chr(10).join(chr(9)+chr(9)+l[1:1] for l in [])}
 \t)
 '''
-        layers_block = "\n".join("\t\t" + l for l in LAYERS_4)
+        if getattr(self, "n_layers", 4) >= 6:
+            layers_block = "\n".join("\t\t" + l for l in LAYERS_6)
+            stack_txt = stackup_6l()
+        else:
+            layers_block = "\n".join("\t\t" + l for l in LAYERS_4)
+            stack_txt = stackup_4l()
         text = (f"(kicad_pcb\n"
                 f"\t(version 20241229)\n"
                 f"\t(generator \"flux_neurotransmitter\")\n"
@@ -260,7 +305,7 @@ class Board:
                 f"\t(title_block (title \"{self.title}\") "
                 f"(company \"FluxPCB\"))\n"
                 f"\t(layers\n{layers_block}\n\t)\n"
-                f"\t(setup\n{stackup_4l()}"
+                f"\t(setup\n{stack_txt}"
                 f"\t\t(pad_to_mask_clearance 0.05)\n"
                 f"\t\t(allow_soldermask_bridges_in_footprints no)\n"
                 f"\t\t(tenting front back)\n"
