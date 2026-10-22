@@ -1,16 +1,19 @@
-"""In-pipeline auto-routing: DRC -> L-routes -> shorts-cleanup, bounded loop.
+"""In-pipeline auto-routing: ratsnest -> L-routes -> shorts-cleanup, bounded loop.
 
-Chain (proven on the esp32s31-dev board):
-  1. kicad-cli DRC (refill zones, save board) with calibrated severities
-  2. unconnected pairs -> KiCad Python route_embedded.py (L-routes + vias)
+Chain:
+  1. true connectivity from pcbnew ratsnest (conn_audit.py, uncalibratable)
+     + kicad-cli DRC (refill zones, save board) for shorts/clearance only
+  2. ratsnest island pairs -> KiCad Python route_embedded.py (L-routes + vias)
   3. shorting items   -> KiCad Python shorts_cleanup.py (drop culprit tracks)
-  4. repeat until clean or max_iterations
+  4. repeat until ratsnest=0 and shorts=0, or max_iterations
 
 Severity calibration lives in the board's .kicad_pro
 (boards.design_settings.rule_severities): hand-fixable items (unconnected,
 dangling tracks, starved thermals) are 'ignore' so they don't mask real
 errors; shorting/clearance/width stay 'error'. ensure_calibration() merges
-that map into any project file deterministically.
+that map into any project file deterministically. The ratsnest audit is
+deliberately OUTSIDE this calibration — `unconnected_items=ignore` once made
+boards with 79 open nets report zero and skip routing entirely.
 """
 from __future__ import annotations
 
@@ -155,6 +158,35 @@ def _kipy(kipy: str, script: Path, *args: str, timeout: int = 600) -> tuple[int,
     return p.returncode, (p.stdout + p.stderr)
 
 
+_CONN_AUDIT = Path(__file__).resolve().parent / "kicadgen" / "conn_audit.py"
+
+
+def ratsnest_state(kipy: str, pcb: Path, log=print) -> dict | None:
+    """True connectivity from pcbnew's ratsnest (uncalibratable), plus the
+    route pairs file for route_embedded.
+
+    Replaces DRC-report parsing: `unconnected_items: ignore` removes those
+    entries from the report entirely, so the old extract_pairs() saw nothing
+    and the fast path skipped routing on boards with dozens of opens."""
+    import json as _json
+    pairs_file = pcb.parent / "ratsnest_pairs.txt"
+    try:
+        p = subprocess.run([kipy, str(_CONN_AUDIT), "--pairs", str(pcb),
+                            str(pairs_file)], capture_output=True, text=True,
+                           timeout=300)
+        data = _json.loads([l for l in (p.stdout or "").splitlines()
+                            if l.strip().startswith("{")][0])
+    except (IndexError, ValueError, subprocess.TimeoutExpired, OSError) as e:
+        log(f"  [route] conn_audit失败: {e}")
+        return None
+    pairs = []
+    if pairs_file.exists():
+        pairs = [l for l in pairs_file.read_text(encoding="utf-8").splitlines()
+                 if l.strip()]
+    return {"ratsnest": data.get("unconnected_ratsnest", -1),
+            "pairs": pairs, "audit": data}
+
+
 _DSN2KICAD = Path(__file__).resolve().parent.parent / "dsn2kicad.py"
 
 
@@ -237,18 +269,20 @@ def route_with_freerouting(pcb_path: Path, kipy: str, log=print) -> dict:
     produced_ses = False
     if ses.exists():
         ses.unlink()
+    import os as _os2
+    _fr_timeout = int(_os2.environ.get("FLUXNT_FR_TIMEOUT", "480"))
     try:
         p = subprocess.run([java, "-Djava.awt.headless=true", "-jar", jar,
                             "-de", dsn.name, "-do", ses.name,
                             "-mp", "40", "-l", "en"],
-                           capture_output=True, text=True, timeout=480,
+                           capture_output=True, text=True, timeout=_fr_timeout,
                            cwd=str(work))
         if ses.exists() and ses.stat().st_size > 0:
             produced_ses = True
         else:
             last_err = f"SES rc={p.returncode}"
     except subprocess.TimeoutExpired:
-        last_err = "SES timeout(480s)"
+        last_err = f"SES timeout({_fr_timeout}s)"
     log(f"  [route] freerouting SES: {'ok' if produced_ses else last_err}")
     if produced_ses:
         from fluxpcb.ses2kicad import inject_ses
@@ -286,11 +320,13 @@ def _kipy_run(kipy: str, code: str, timeout: int = 600) -> tuple[int, str]:
 
 
 def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
-    """Route a generated board to DRC-clean (calibrated severities).
+    """Route a generated board to TRUE connectivity (ratsnest=0) + no shorts.
 
-    Returns {"iterations", "unconnected", "shorting", "clean", "steps"}.
-    Never raises — a board that cannot be cleaned reports its residue.
-    """
+    Unconnected state comes from pcbnew's ratsnest via conn_audit (cannot be
+    calibrated away); shorting/clearance still come from the DRC report (those
+    severities stay 'error'). Returns {"iterations", "unconnected", "shorting",
+    "clean", "steps"} where unconnected IS the ratsnest open-edge count.
+    Never raises — a board that cannot be cleaned reports its residue."""
     kicad_cli, kipy = find_kicad()
     if not kicad_cli:
         return {"clean": False, "error": "kicad-cli 不可用"}
@@ -306,11 +342,14 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
     light = os.environ.get("FLUXNT_ROUTE_LIGHT") == "1"
 
     # fast path: an already-clean board (e.g. released green board under
-    # re-verify) skips the whole chain — also protects it from re-routing
+    # re-verify) skips the whole chain — also protects it from re-routing.
+    # ratsnest IS the truth here; DRC's unconnected count is calibrated away
     drc0 = run_drc(kicad_cli, pcb_path, rpt)
-    if drc0["unconnected"] == 0 and drc0["shorting"] == 0             and "[clearance]" not in drc0["text"]:
-        steps.append("initial DRC clean — routing skipped")
-        log("  [route] initial DRC clean, skip")
+    rn0 = ratsnest_state(kipy, pcb_path, log=log)
+    if (rn0 and rn0["ratsnest"] == 0 and drc0["shorting"] == 0
+            and "[clearance]" not in drc0["text"]):
+        steps.append(f"initial ratsnest clean({rn0['audit'].get('tracks')} tracks) — routing skipped")
+        log("  [route] initial ratsnest clean, skip")
         return {"iterations": 0, "unconnected": 0, "shorting": 0,
                 "clean": True, "steps": steps}
     if light:
@@ -356,17 +395,21 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
         steps.append(f"freerouting跳过: {fr.get('error', '')[:80]}")
         log(f"  [route] freerouting跳过: {fr.get('error', '')[:100]}")
 
+    it = 0
     for it in range(1, max_iterations + 1):
         drc = run_drc(kicad_cli, pcb_path, rpt)
-        last = {"unconnected": drc["unconnected"], "shorting": drc["shorting"]}
-        steps.append(f"iter{it}: unconn={drc['unconnected']} shorts={drc['shorting']}")
-        log(f"  [route] iter{it}: unconn={drc['unconnected']} shorts={drc['shorting']}")
-        if drc["unconnected"] == 0 and drc["shorting"] == 0:
+        rn = ratsnest_state(kipy, pcb_path, log=log)
+        if rn is None:
+            steps.append(f"iter{it}: conn_audit不可用")
+            break
+        last = {"unconnected": rn["ratsnest"], "shorting": drc["shorting"]}
+        steps.append(f"iter{it}: ratsnest={rn['ratsnest']} shorts={drc['shorting']}")
+        log(f"  [route] iter{it}: ratsnest={rn['ratsnest']} shorts={drc['shorting']}")
+        if rn["ratsnest"] == 0 and drc["shorting"] == 0:
             break   # fall through to the shared final DRC + scorecard block
 
-        if drc["unconnected"] > 0:
-            pairs = extract_pairs(drc["text"])
-            pairs = _rc.routing_order_pairs(pairs, net_classes)  # critical first
+        if rn["ratsnest"] > 0:
+            pairs = _rc.routing_order_pairs(rn["pairs"], net_classes)  # critical first
             if pairs:
                 pairs_file = pcb_path.parent / "pairs.txt"
                 pairs_file.write_text("\n".join(pairs), encoding="utf-8")
@@ -381,18 +424,19 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
             steps.append(f"shorts_cleanup rc={rc} {'ok' if ok else out[:120]}")
             log(f"  [route] cleanup: {out.strip().splitlines()[-1][:90] if out.strip() else 'no output'}")
 
-    # final DRC for the report, then one last scrubber pass — the loop's
-    # route->cleanup ordering converges one scrub behind
+    # final DRC + ratsnest for the report, then one last scrubber pass — the
+    # loop's route->cleanup ordering converges one scrub behind
     drc = run_drc(kicad_cli, pcb_path, rpt)
     if drc["shorting"] or "[clearance]" in drc["text"]             or "[holes_co_located]" in drc["text"]             or "[copper_edge_clearance]" in drc["text"]:
         rc, out = _kipy(kipy, _CLEANUP, str(pcb_path), str(rpt))
         lastline = out.strip().splitlines()[-1][:60] if out.strip() else ""
         steps.append(f"final cleanup rc={rc} {lastline}")
         drc = run_drc(kicad_cli, pcb_path, rpt)
-    last = {"unconnected": drc["unconnected"], "shorting": drc["shorting"]}
+    rnf = ratsnest_state(kipy, pcb_path, log=log)
+    last = {"unconnected": (rnf or {}).get("ratsnest", last["unconnected"]),
+            "shorting": drc["shorting"]}
     clean = last["unconnected"] == 0 and last["shorting"] == 0
-    iters_used = it if not clean else it   # last loop counter
-    steps.append(f"final: unconn={last['unconnected']} shorts={last['shorting']}")
+    steps.append(f"final: ratsnest={last['unconnected']} shorts={last['shorting']}")
     # K4 knowhow: post-routing scorecard + structured feedback for retries
     try:
         from fluxpcb.routing_quality import score_board, structured_feedback
@@ -400,9 +444,10 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
         score = score_board(pcb_path, report, spec)
         (pcb_path.parent / "route_report.json").write_text(_json.dumps(
             {**report, "score": score,
-             "structured_feedback": structured_feedback(drc["text"], net_classes)},
+             "structured_feedback": structured_feedback(drc["text"], net_classes),
+             "fragmented_nets": (rnf or {}).get("audit", {}).get("fragmented_nets", {})},
             ensure_ascii=False, indent=1), encoding="utf-8")
         steps.append(f"score={score['score']}")
     except Exception as _e:
         steps.append(f"scorecard skipped: {_e}")
-    return {"iterations": iters_used, **last, "clean": clean, "steps": steps}
+    return {"iterations": it, **last, "clean": clean, "steps": steps}

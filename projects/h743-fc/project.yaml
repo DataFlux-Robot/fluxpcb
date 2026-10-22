@@ -1,0 +1,93 @@
+name: h743-fc
+requirements:
+  - id: FR-001
+    text: STM32H743XI(TFBGA240)为FC核心,USB-C 5V供电
+    priority: must
+    covered_by: [bom, U1, J10]
+  - id: FR-002
+    text: AP2112K-3.3稳压3V3;H7片内1.8V LDO经VCAP电容;VDDA磁珠隔离
+    priority: must
+    covered_by: [U7, CV1, CV2, FB1]
+  - id: FR-003
+    text: 8路PWM输出(TIM1x4+TIM4x4,Pixhawk三排2.54排针)
+    priority: must
+    covered_by: [J11]
+  - id: FR-004
+    text: 8路UART输出(USART1/2/3/6+UART4/5/7/8,GPS/TELEM1/TELEM2等连接器)
+    priority: must
+    covered_by: [J1, J2, J3, J4, J5, J6, J7, J8]
+  - id: FR-005
+    text: TF卡操作(SDMMC1接口,microSD推推座)
+    priority: must
+    covered_by: [J17]
+  - id: FR-006
+    text: 双IMU冗余(BMI088 SPI1 + ICM-45686 SPI2,不同厂家特性)
+    priority: must
+    covered_by: [U2, U3]
+  - id: FR-007
+    text: 双气压计冗余(BMP388 x2,I2C1地址错开)+磁力计IST8310(I2C2)
+    priority: must
+    covered_by: [U4, U5, U6]
+  - id: FR-008
+    text: 2路CAN(FDCAN1/FDCAN2,SN65HVD230 x2)
+    priority: must
+    covered_by: [U8, U9, J12, J13]
+  - id: FR-009
+    text: 2路ADC输入(ADC1_INP10/INP11)
+    priority: must
+    covered_by: [J14]
+  - id: FR-010
+    text: 1路USB-C(OTG_FS)+1路SWD调试(2x05)
+    priority: must
+    covered_by: [J10, J9]
+  - id: FR-011
+    text: 5个GND输出(专用GND排针)+BOOT调试口+双晶振
+    priority: must
+    covered_by: [J15, J16, Y1, Y2]
+power:
+  input: USB-C 5V
+  total_w: 2.5
+  rails:
+    - name: 3V3
+      v: 3.3
+      source_ref: U7
+      sink_refs: [U1]
+      current_a: 0.5
+interfaces:
+  - name: usb
+    type: usb
+    high_speed: true
+    connections: [USB_DP, USB_DM, 5V, GND]
+    mcu:
+      family: stm32h7
+      pins:
+        swdio: 0
+        swclk: 0
+        led: 0
+        boot: 0
+        can_tx: 0
+constraints:
+  family: fc-full
+  mcu: h743
+  size_mm: [50, 50]
+  layers: 6
+  er: 4.4
+bom_seed:
+  mcu:
+    mpn: STM32H743XIHx
+    lcsc: C000000
+    footprint: flux:H743_BGA
+    datasheet: https://www.st.com/resource/en/datasheet/stm32h743xi.pdf
+    value: STM32H743XIHx
+  imu1:
+    mpn: BMI088
+    lcsc: C000000
+    footprint: flux:BMI088
+    datasheet: https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmi088-ds001.pdf
+    value: BMI088
+  imu2:
+    mpn: ICM-45686
+    lcsc: C000000
+    footprint: flux:ICM-42688-P
+    datasheet: https://invensense.tdk.com/wp-content/uploads/2024/03/DS-0008-ICM-45686-Datasheet.pdf
+    value: ICM-45686

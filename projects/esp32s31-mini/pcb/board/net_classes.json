@@ -1,0 +1,32 @@
+{
+ "classes": {
+  "3V3": "power",
+  "5V": "power",
+  "CC1": "normal",
+  "CC2": "normal",
+  "EN": "normal",
+  "GND": "power",
+  "IO0": "normal",
+  "IO10": "normal",
+  "IO11": "normal",
+  "IO2": "normal",
+  "IO3": "normal",
+  "IO4": "normal",
+  "IO5": "normal",
+  "IO6": "normal",
+  "IO7": "normal",
+  "IO8": "normal",
+  "IO9": "normal",
+  "LED_PWR": "normal",
+  "RX0": "normal",
+  "TX0": "normal",
+  "USB_DM": "critical",
+  "USB_DP": "critical"
+ },
+ "ipc_widths": {},
+ "widths": {
+  "critical": 0.15,
+  "normal": 0.2,
+  "power": 0.4
+ }
+}

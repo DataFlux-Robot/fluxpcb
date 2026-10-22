@@ -28,18 +28,24 @@ for m in re.finditer(
                     float(x2), float(y2)))
 
 to_remove = []
+removed_marks = set()
 for kind, net1, net2, x1, y1, x2, y2 in entries:
     want = {n for n in (net1, net2) if n and not n.startswith("Rectangle")}
-    for item in board.GetTracks():
-        try:
+    best = None          # (dist, item) — remove ONLY the closest item, not
+    best_d = 0.65        # everything within 2.5mm (the old blast radius
+    for item in board.GetTracks():   # destroyed neighboring load-bearing
+        try:                          # vias and made ratsnest WORSE)
+            mark = (id(item))
+            if mark in removed_marks:
+                continue
             if item.Type() == pcbnew.PCB_VIA_T:
                 if want and item.GetNetname() not in want:
                     continue
                 p = item.GetPosition()
                 d = min(abs(p.x / mm - x1) + abs(p.y / mm - y1),
                         abs(p.x / mm - x2) + abs(p.y / mm - y2))
-                if d < 2.5:
-                    to_remove.append(item)
+                if d < best_d:
+                    best_d, best = d, item
                 continue
             tn = item.GetNetname()
             if want and tn not in want:
@@ -49,12 +55,16 @@ for kind, net1, net2, x1, y1, x2, y2 in entries:
             e_x, e_y = e.x / mm, e.y / mm
             d1 = min(abs(s_x - x1) + abs(s_y - y1), abs(e_x - x1) + abs(e_y - y1))
             d2 = min(abs(s_x - x2) + abs(s_y - y2), abs(e_x - x2) + abs(e_y - y2))
-            mx, my = (s_x + e_x) / 2, (s_y + e_y) / 2
+            mx, my = (s_x + e_x) / 2, (e_y + s_y) / 2
             d3 = min(abs(mx - x1) + abs(my - y1), abs(mx - x2) + abs(my - y2))
-            if min(d1, d2, d3) < 2.5:
-                to_remove.append(item)
+            d = min(d1, d2, d3)
+            if d < best_d:
+                best_d, best = d, item
         except AttributeError:
             continue
+    if best is not None:
+        to_remove.append(best)
+        removed_marks.add(id(best))
 
 for item in to_remove:
     board.Remove(item)

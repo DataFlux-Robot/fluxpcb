@@ -1,0 +1,21 @@
+{
+ "iterations": 3,
+ "unconnected": 68,
+ "shorting": 1,
+ "clean": false,
+ "steps": [
+  "netclass: 21critical/4power",
+  "freerouting跳过: freerouting无产出: DSN timeout(480s)",
+  "iter1: ratsnest=69 shorts=1",
+  "route_embedded rc=0 ok",
+  "shorts_cleanup rc=0 ok",
+  "iter2: ratsnest=63 shorts=1",
+  "route_embedded rc=0 ok",
+  "shorts_cleanup rc=0 ok",
+  "iter3: ratsnest=70 shorts=0",
+  "route_embedded rc=0 ok",
+  "final cleanup rc=0 swig/python detected a memory leak of type 'VECTOR2< int > *",
+  "final: ratsnest=68 shorts=1",
+  "score=25.0"
+ ]
+}

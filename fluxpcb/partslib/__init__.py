@@ -131,15 +131,14 @@ def devboard_roles(spec: dict) -> list[dict]:
 
 
 def px4_roles(spec: dict) -> list[dict]:
-    """STM32N6 PX4 FMU family BOM (all public-document parts)."""
-    return [
-        {"role": "mcu_n6", "refs": ["U1"]},
+    """PX4 FMU family BOM (all public-document parts). mcu=h743 swaps in
+    the H743 + VCAP caps (no SMPS inductor); default stays N6."""
+    roles = [
         {"role": "imu", "refs": ["U2", "U3"]},
         {"role": "baro", "refs": ["U4", "U5"]},
         {"role": "mag", "refs": ["U6"]},
         {"role": "ldo", "refs": ["U7"]},
         {"role": "can_xcvr", "refs": ["U8"]},
-        {"role": "ind_vddcore", "refs": ["L1"]},
         {"role": "ferrite", "refs": ["FB1"]},
         {"role": "xtal_24m", "refs": ["Y1"]},
         {"role": "xtal_32k", "refs": ["Y2"]},
@@ -149,6 +148,40 @@ def px4_roles(spec: dict) -> list[dict]:
         {"role": "hdr_2x05", "refs": ["J5"]},
         {"role": "hdr_2x07", "refs": ["J6"]},
         {"role": "hdr_1x03", "refs": ["J7"]},
+        {"role": "led", "value": "BLUE", "refs": ["D1"]},
+        {"role": "res", "value": "1k", "refs": ["R1"]},
+    ]
+    if (spec.get("constraints") or {}).get("mcu") == "h743":
+        return [{"role": "mcu_h743", "refs": ["U1"]},
+                {"role": "cap", "value": "2.2uF", "refs": ["CV1", "CV2"]}] + roles
+    return [{"role": "mcu_n6", "refs": ["U1"]},
+            {"role": "ind_vddcore", "refs": ["L1"]}] + roles
+
+
+def fc_roles(spec: dict) -> list[dict]:
+    """Pixhawk-class full FC BOM (h743-fc): dual-trait IMUs (BMI088 +
+    ICM-45686), dual CAN, microSD, 8 UARTs + 3-row PWM header."""
+    return [
+        {"role": "mcu_h743", "refs": ["U1"]},
+        {"role": "imu_bmi088", "refs": ["U2"]},
+        {"role": "imu_icm45686", "refs": ["U3"]},
+        {"role": "baro", "refs": ["U4", "U5"]},
+        {"role": "mag", "refs": ["U6"]},
+        {"role": "ldo", "refs": ["U7"]},
+        {"role": "can_xcvr", "refs": ["U8", "U9"]},
+        {"role": "cap", "value": "2.2uF", "refs": ["CV1", "CV2"]},
+        {"role": "ferrite", "refs": ["FB1"]},
+        {"role": "xtal_24m", "refs": ["Y1"]},
+        {"role": "xtal_32k", "refs": ["Y2"]},
+        {"role": "hdr_1x06", "refs": ["J1", "J2", "J3"]},
+        {"role": "hdr_1x04", "refs": ["J4", "J5", "J6", "J7", "J8",
+                                      "J12", "J13", "J14"]},
+        {"role": "hdr_2x05", "refs": ["J9"]},
+        {"role": "usb_c", "refs": ["J10"]},
+        {"role": "hdr_3x08", "refs": ["J11"]},
+        {"role": "hdr_1x05", "refs": ["J15"]},
+        {"role": "hdr_1x03", "refs": ["J16"]},
+        {"role": "microsd", "refs": ["J17"]},
         {"role": "led", "value": "BLUE", "refs": ["D1"]},
         {"role": "res", "value": "1k", "refs": ["R1"]},
     ]

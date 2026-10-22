@@ -74,3 +74,44 @@ flux run projects/hpm6e80-core               # 六环节(需PATH含kicad-cli)
 - 未连接项设为ignore: DRC不报但连接未完全闭合(Freerouting的"最后一公里"问题仍存在,只是不再阻塞门禁);实际效果=布线密度高的GPIO可能需要在KiCad GUI中手动补几根走线(约10分钟)
 - BOM的LCSC C号为PENDING-VERIFY(型号真实,渠道号待在线核实)
 - 流水线pcd stage会重新生成板文件,覆盖手动修复——已通过在gate中直接调用kicad-cli DRC解决(门禁读取磁盘上的板文件而非stage产物)
+
+---
+
+# 交付状态更新(2026-10-23 真连通性轮)
+
+## 本轮核心变化: 连通性幻觉被拆除
+
+**Bug**: `routing_completeness`门禁指向不存在的路径(`gates/kicadgen/`),永远无法运行;
+`unconnected_items=ignore`标定让kicad-cli DRC对45-82条ratsnest开路报"0 unconnected"。
+
+**修复后的真相**(pcbnew ratsnest直读,无法被标定稀释):
+
+| 板 | 开路(修复前报告) | 实测 | 本轮处理后 |
+|---|---|---|---|
+| esp32s31-dev | "0" | 45 | 45(保持,重布线振荡后回滚) |
+| esp32s31-mini | "0" | 27 | 22(功率缝合孔改善) |
+| stm32n6-px4 | "0" | 82 | 82(如实) |
+| stm32h743-px4 | "0" | 79 | 79(如实) |
+| **h743-fc(新)** | — | 259原始 | **68(74%闭合,22/25门禁)** |
+
+## 新交付: h743-fc Pixhawk级全外设板(50×50, 6L, 74网络)
+
+8PWM(TIM1+TIM4三排2.54)/8UART(USART1/2/3/6+UART4/5/7/8)/TF卡(SDMMC1+Molex推推座)/
+双CAN(FDCAN1/2+SN65HVD230×2)/2ADC/USB-C/SWD 2x05/GND×5/BOOT口 +
+BMI088(SPI1双CS)+ICM-45686(SPI2)+BMP388×2+IST8310。
+ST官方XML 56信号深度2驱逐式分配(UART5_TX的PB6被占→驱逐链救回),全 Spell 校验。
+
+## 布线链升级(ratsnest为唯一真值)
+
+分类分级→Freerouting(SES/DSN,超时兜底)→功率缝合孔(仅碎岛网络,双层清查)→
+L/Z策略→偏移过孔逃逸(BGA球心/LGA偏移/THT免孔)→网格A*迷宫(0.2mm,过孔合法性预计算)→
+cleanup(只清最近物品)。位置键并查集岛检测(绕开SWIG包装器id不稳定),
+Prim链与ratsnest MST精确相等(实测79/79)。
+
+## ⛔ 如实声明(未达成)
+
+1. **ratsnest=0未达成**: h743-fc收敛至68条后停滞。剩余51对需要完整迷宫布线器;
+   Freerouting headless在本板1500s超时。routing_completeness为硬门禁→NOT RELEASED(22/25)。
+2. drc_zero残余7处(6间距+1短路)。
+3. 四块旧板开路如实暴露(45/22/82/79),旧"RELEASED"状态作废——真相优先于好看。
+4. BMI088/ICM-45686引脚表来自ArduPilot符号+同族兼容推断,下单前需对官方datasheet终核。

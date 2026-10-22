@@ -1010,3 +1010,50 @@ def thermal_cfd(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
                       "OpenFOAM/Elmer未安装 — CHT用例已生成于 "
                       f"{case}, FDM传导解(thermal门禁)继续作为保底",
                       details={"available": avail, "case": case})
+
+
+# ------------------------------------------------------------- connectivity
+@gate("routing_completeness")
+def routing_completeness(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
+    """True connectivity from the board's ratsnest (pcbnew API), NOT from
+    DRC severity calibration. A board with 43 open nets reported
+    '0 unconnected pads' when severity was calibrated to ignore.
+
+    PASS = ratsnest 0 (fully connected). This gate cannot be calibrated away."""
+    import json as _json
+    import shutil as _sh
+    import subprocess as _sub
+    kipy = _sh.which("python")
+    _cand = Path(r"C:/Users/zhang/AppData/Local/Programs/KiCad/10.0/bin/python.exe")
+    if _cand.exists():
+        kipy = str(_cand)
+    pcbs = sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+    if not pcbs:
+        return GateResult("routing_completeness", GateStatus.BLOCKED, "无PCB文件")
+    findings, details = [], {}
+    audit = Path(__file__).resolve().parent.parent / "kicadgen" / "conn_audit.py"
+    for pcb in pcbs:
+        p = _sub.run([kipy, str(audit), str(pcb)], capture_output=True,
+                     timeout=120, encoding="utf-8", errors="replace")
+        try:
+            data = _json.loads([l for l in (p.stdout or "").splitlines()
+                                if l.strip().startswith("{")][0])
+        except (ValueError, IndexError):
+            findings.append({"pcb": pcb.name,
+                            "issue": f"audit failed: {(p.stderr or 'no output')[-100:]}"})
+            continue
+        rn = data.get("unconnected_ratsnest", -1)
+        nw = data.get("nets_without_tracks", -1)
+        details[pcb.name] = {"ratsnest_opens": rn, "nets_without_tracks": nw,
+                             "total_nets": data.get("total_nets"),
+                             "missing": data.get("missing_list", [])[:8]}
+        if rn > 0:
+            findings.append({"pcb": pcb.name,
+                            "issue": f"ratsnest开路{rn}条 (无走线网络{nw}个)",
+                            "nets": data.get("missing_list", [])[:5]})
+    if findings:
+        return GateResult("routing_completeness", GateStatus.FAIL,
+                          f"{len(findings)} 块板未全连通",
+                          findings=findings, details=details)
+    return GateResult("routing_completeness", GateStatus.PASS,
+                      "全部网络连通(ratsnest=0)", details=details)

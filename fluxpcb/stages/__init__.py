@@ -115,6 +115,8 @@ def _deterministic_spec(d: Path) -> dict:
         "interfaces": proj.get("interfaces", []),
         "constraints": proj.get("constraints", {"size_mm": [65, 30], "layers": 6}),
     }
+    if proj.get("bom_seed"):
+        spec["bom_seed"] = proj["bom_seed"]
     return spec
 
 
@@ -137,7 +139,9 @@ def stage_selection(ctx: StageContext) -> None:
     raw = {f'{r.get("mpn")}|{r.get("value", "")}': r for r in partslib.load_catalog()}
     bom = []
     family = (spec.get("constraints") or {}).get("family")
-    roles_fn = partslib.px4_roles if family == "px4-fmu" else partslib.devboard_roles
+    roles_fn = (partslib.fc_roles if family == "fc-full" else
+                partslib.px4_roles if family == "px4-fmu" else
+                partslib.devboard_roles)
     for need in roles_fn(spec):
         try:
             part = partslib.select(need["role"], need.get("value"))
@@ -218,6 +222,18 @@ def stage_schematic(ctx: StageContext) -> None:
                     ctx.note("PX4 FMU原理图已生成(264脚ST官方符号+传感器)")
             except Exception as e:
                 ctx.note(f"PX4原理图生成失败: {e}")
+        elif family == "fc-full":
+            try:
+                from fluxpcb.kicadgen import fcfull
+                sdir = d / "schematic" / "board"
+                sch_file = sdir / "h743-fc.kicad_sch"
+                if sch_file.exists():
+                    ctx.note(f"板族原理图已存在,跳过: {sch_file.name}")
+                else:
+                    fcfull.write_schematic(d)
+                    ctx.note("Pixhawk级FC原理图已生成(H743 265球+BMI088/ICM-45686)")
+            except Exception as e:
+                ctx.note(f"FC原理图生成失败: {e}")
         elif family == "esp32s31-devboard":
             try:
                 from fluxpcb.kicadgen import devboard
@@ -295,6 +311,15 @@ def stage_pcb_layout(ctx: StageContext) -> None:
             if not board_file.exists():
                 write_board(d)
                 ctx.note("PX4 FMU PCB已生成(规则布局+6层)")
+            else:
+                ctx.note(f"板族PCB已存在,跳过重新生成: {board_file.name}")
+    elif _fam == "fc-full":
+        if _sh2.which('kicad-cli'):
+            from fluxpcb.kicadgen.fcfull import write_board
+            board_file = d / "pcb" / "board" / "h743-fc.kicad_pcb"
+            if not board_file.exists():
+                write_board(d)
+                ctx.note("Pixhawk级FC PCB已生成(50x50+6层+TF/双CAN)")
             else:
                 ctx.note(f"板族PCB已存在,跳过重新生成: {board_file.name}")
     elif _fam == "esp32s31-devboard":

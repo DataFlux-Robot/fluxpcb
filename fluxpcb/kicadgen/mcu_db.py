@@ -30,6 +30,24 @@ PX4_WANT = [
     "RCC_OSC_IN", "RCC_OSC_OUT", "RCC_OSC32_IN", "RCC_OSC32_OUT",
 ]
 
+# Pixhawk-class full want-list (h743-fc): PX4 base minus TIM3 (8 PWM come
+# from TIM1 x4 + TIM4 x4 instead) + 8 UART (USART1/6, UART4/7/8 join 2/3/5),
+# microSD (SDMMC1), 2nd CAN, 2 ADC — all spellings verified against
+# STM32H743XIHx.xml
+FC_WANT = [s for s in PX4_WANT if not s.startswith("TIM3")] + [
+    "TIM4_CH1", "TIM4_CH2", "TIM4_CH3", "TIM4_CH4",
+    "USART1_TX", "USART1_RX", "USART6_TX", "USART6_RX",
+    "UART4_TX", "UART4_RX", "UART7_TX", "UART7_RX", "UART8_TX", "UART8_RX",
+    "SDMMC1_CK", "SDMMC1_CMD", "SDMMC1_D0", "SDMMC1_D1", "SDMMC1_D2",
+    "SDMMC1_D3",
+    "FDCAN2_TX", "FDCAN2_RX",
+    "ADC1_INP10", "ADC1_INP11",
+]
+
+# TIM signal -> PWM channel net for the full FC (TIM1 x4 + TIM4 x4 = 8 ch)
+FC_PWM_MAP = {f"TIM1_CH{i}": f"PWM_CH{i}" for i in range(1, 5)}
+FC_PWM_MAP.update({f"TIM4_CH{i}": f"PWM_CH{i + 4}" for i in range(1, 5)})
+
 USB_SIGNALS = {"n6": ["USB1_OTG_HS_DP", "USB1_OTG_HS_DM"],
                "h743": ["USB_OTG_FS_DP", "USB_OTG_FS_DM"]}
 
@@ -76,38 +94,71 @@ def load_st_xml(xml_path: Path) -> dict[str, dict]:
     return pins
 
 
+def _place(sig: str, used: set, owner: dict, pins: dict, depth: int,
+           banned: frozenset) -> str | None:
+    """Ball for sig, recursively evicting holders (depth-limited chain).
+
+    PB6-class BGAs multiplex 5+ wanted signals onto one ball; plain greedy
+    starves the last one (UART5_TX vs I2C1_SCL/SDMMC1_CK/FDCAN2_TX). The
+    chain: evict I2C1_SCL from B5 -> its alt D5 is held by TIM4_CH3 ->
+    TIM4_CH3 has other balls. `banned` stops an evictee from retaking the
+    ball it was just evicted from."""
+    for pos in sorted(pins):
+        if pos in banned or sig not in pins[pos]["signals"]:
+            continue
+        if pos not in used:
+            used.add(pos)
+            owner[pos] = sig
+            return pos
+        if depth <= 0:
+            continue
+        holder = owner[pos]
+        used.discard(pos)
+        del owner[pos]
+        if _place(holder, used, owner, pins, depth - 1, banned | {pos}) is not None:
+            used.add(pos)
+            owner[pos] = sig
+            return pos
+        used.add(pos)
+        owner[pos] = holder
+    return None
+
+
 def allocate(want: list[str], pins: dict) -> dict[str, dict]:
     """Priority AF allocation: signals -> {ball, pin_name, type}.
 
     Fixed-home signals (USB/SWD/OSC — dedicated pins on ST MCUs) claim
     their balls first so a shared pin like PA11 (TIM1_CH4 vs USB_DM)
-    never orphans the USB function."""
+    never orphans the USB function. SDMMC/FDCAN/I2C next: they live on
+    only 1-2 balls each and get stolen by fungible TIM signals if those
+    run first. Leftovers get depth-2 eviction chains."""
     prio = []
     for s in want:
         if any(k in s for k in ("USB", "SWD", "SWCLK", "OSC", "NRST")):
             prio.append((0, s))
-        elif "FDCAN" in s or "I2C" in s:
+        elif "FDCAN" in s or "I2C" in s or "SDMMC" in s:
             prio.append((1, s))
         elif s.startswith(("SPI", "USART", "UART")):
             prio.append((2, s))
         else:
-            prio.append((3, s))          # TIM/other — most fungible
+            prio.append((3, s))          # TIM/ADC/other — most fungible
     prio.sort(key=lambda t: t[0])
 
-    used_balls: set[str] = set()
-    alloc: dict[str, dict] = {}
+    used: set[str] = set()
+    owner: dict[str, str] = {}          # ball -> signal
+    placed: set[str] = set()
     for _, sig in prio:
-        if sig in alloc:
-            continue
-        for pos in sorted(pins):
-            if pos in used_balls:
-                continue
-            if sig in pins[pos]["signals"]:
-                alloc[sig] = {"ball": pos, "pin": pins[pos]["name"],
-                              "type": pins[pos]["type"]}
-                used_balls.add(pos)
-                break
-    return alloc
+        if sig not in placed and _place(sig, used, owner, pins, depth=0,
+                                        banned=frozenset()) is not None:
+            placed.add(sig)
+    # second pass with eviction chains for the starved signals
+    for _, sig in prio:
+        if sig not in placed and _place(sig, used, owner, pins, depth=2,
+                                        banned=frozenset()) is not None:
+            placed.add(sig)
+    return {sig: {"ball": pos, "pin": pins[pos]["name"],
+                  "type": pins[pos]["type"]}
+            for pos, sig in owner.items()}
 
 
 def power_balls(pins: dict) -> dict[str, str]:
@@ -141,28 +192,34 @@ def all_balls(pins: dict) -> list[str]:
     return sorted(pins, key=lambda p: (order[p[0]], int(p[1:])))
 
 
-def build_ball_nets(variant: str, pins: dict) -> dict[str, str]:
-    """ball -> net for every used ball (PX4 peripherals + USB + SWD + NRST/
-    BOOT + power domains). This is the single source for board pad nets and
-    the schematic pin map."""
+def build_ball_nets(variant: str, pins: dict,
+                    want: list[str] | None = None,
+                    pwm_map: dict[str, str] | None = None) -> dict[str, str]:
+    """ball -> net for every used ball (peripherals + USB + SWD + NRST/BOOT +
+    power domains). This is the single source for board pad nets and the
+    schematic pin map.
+
+    want: peripheral want-list (default PX4_WANT). pwm_map: TIM signal ->
+    PWM net (default keeps the legacy PWM_<tim><ch> naming; FC_PWM_MAP gives
+    the Pixhawk-class PWM_CH1-8 channels)."""
     cfg = MCU_CONFIG[variant]
-    want = list(PX4_WANT) + USB_SIGNALS[variant] + SWD_SIGNALS
+    want = list(want) if want is not None else list(PX4_WANT)
+    want = want + USB_SIGNALS[variant] + SWD_SIGNALS
     alloc = allocate(want, pins)
     nets: dict[str, str] = {}
     # peripherals -> functional nets
     for sig, a in alloc.items():
         gpio = a["pin"]
-        if sig.startswith("SPI1_"):
+        if sig.startswith(("SPI1_", "SPI2_")):
             nets[a["ball"]] = sig
-        elif sig.startswith("SPI2_"):
-            nets[a["ball"]] = sig
-        elif sig in ("I2C1_SCL", "I2C1_SDA", "I2C2_SCL", "I2C2_SDA",
-                     "FDCAN1_TX", "FDCAN1_RX",
-                     "USART2_TX", "USART2_RX", "USART3_TX", "USART3_RX",
-                     "UART5_TX", "UART5_RX"):
-            nets[a["ball"]] = sig
+        elif sig.startswith(("I2C", "FDCAN", "USART", "UART", "SDMMC",
+                             "ADC1_INP")):
+            nets[a["ball"]] = sig       # net name = signal name
         elif sig.startswith("TIM"):
-            nets[a["ball"]] = "PWM_" + sig.replace("TIM", "").replace("_CH", "")
+            if pwm_map and sig in pwm_map:
+                nets[a["ball"]] = pwm_map[sig]
+            else:
+                nets[a["ball"]] = "PWM_" + sig.replace("TIM", "").replace("_CH", "")
         elif "DP" in sig or "DM" in sig:
             nets[a["ball"]] = "USB_DP" if sig.endswith("DP") else "USB_DM"
         elif sig.endswith("SWDIO"):

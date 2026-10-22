@@ -27,7 +27,8 @@ stages:
     runner: pcb_layout
     inputs: [schematic/, bom.json]
     outputs: [pcb/, stackup.yaml]
-    gates: [drc_zero, impedance_si, placement_quality, plane_integrity]
+    gates: [drc_zero, impedance_si, placement_quality, plane_integrity,
+            routing_completeness]
 
   acceptance_sim:
     title: 验收仿真

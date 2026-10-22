@@ -61,5 +61,39 @@
   "4": "NC_2",
   "8": "NC_3",
   "12": "NC_4"
+ },
+ "BMI088": {
+  "1": "INT2",
+  "2": "NC",
+  "3": "VDD",
+  "4": "GNDIO",
+  "5": "CSB2",
+  "6": "GND",
+  "7": "PS",
+  "8": "SCK",
+  "9": "SDI",
+  "10": "SDO2",
+  "11": "VDDIO",
+  "12": "INT3",
+  "13": "INT4",
+  "14": "CSB1",
+  "15": "SDO1",
+  "16": "INT1"
+ },
+ "ICM-45686": {
+  "1": "AP_SDO/AP_AD0",
+  "10": "RESV",
+  "11": "RESV",
+  "12": "AP_CS",
+  "13": "AP_SCL/AP_SCLK",
+  "14": "AP_SDA/AP_SDIO/AP_SDI",
+  "2": "RESV",
+  "3": "RESV",
+  "4": "INT1/INT",
+  "5": "VDDIO",
+  "6": "GND",
+  "7": "RESV",
+  "8": "VDD",
+  "9": "INT2/FSYNC/CLKIN"
  }
 }
