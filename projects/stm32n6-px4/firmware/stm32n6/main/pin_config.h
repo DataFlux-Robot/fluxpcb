@@ -1,0 +1,26 @@
+/* auto-generated pin map from spec */
+#define PIN_BTN_BOOT 0
+#define PIN_CAN_RX 48
+#define PIN_CAN_TX 49
+#define PIN_I2C1_SCL 69
+#define PIN_I2C1_SDA 33
+#define PIN_I2C2_SCL 62
+#define PIN_I2C2_SDA 63
+#define PIN_LED_USER 38
+#define PIN_SPI2_CS 28
+#define PIN_SPI2_MISO 36
+#define PIN_SPI2_MOSI 50
+#define PIN_SPI2_SCK 82
+#define PIN_SPI_CS 37
+#define PIN_SPI_MISO 24
+#define PIN_SPI_MOSI 35
+#define PIN_SPI_SCK 32
+#define PIN_SWCLK 14
+#define PIN_SWDIO 13
+#define PIN_TIM1_CH1 73
+#define PIN_UART2_RX 34
+#define PIN_UART2_TX 53
+#define PIN_UART3_RX 74
+#define PIN_UART3_TX 72
+#define PIN_UART5_RX 114
+#define PIN_UART5_TX 44

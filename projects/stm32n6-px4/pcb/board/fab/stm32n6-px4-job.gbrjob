@@ -1,0 +1,188 @@
+{
+  "Header": {
+    "GenerationSoftware": {
+      "Vendor": "KiCad",
+      "Application": "Pcbnew",
+      "Version": "10.0.6"
+    },
+    "CreationDate": "2026-10-22T10:18:46+08:00"
+  },
+  "GeneralSpecs": {
+    "ProjectId": {
+      "Name": "stm32n6-px4",
+      "GUID": "73746d33-326e-4362-9d70-78342e6b6963",
+      "Revision": "rev?"
+    },
+    "Size": {
+      "X": 55.05,
+      "Y": 28.05
+    },
+    "LayerNumber": 6,
+    "BoardThickness": 1.6,
+    "Finish": "None"
+  },
+  "DesignRules": [
+    {
+      "Layers": "Outer",
+      "PadToPad": 0.15,
+      "PadToTrack": 0.15,
+      "TrackToTrack": 0.15,
+      "MinLineWidth": 0.2,
+      "TrackToRegion": 0.25,
+      "RegionToRegion": 0.25
+    },
+    {
+      "Layers": "Inner",
+      "PadToPad": 0.15,
+      "PadToTrack": 0.15,
+      "TrackToTrack": 0.15
+    }
+  ],
+  "FilesAttributes": [
+    {
+      "Path": "stm32n6-px4-top_copper.gtl",
+      "FileFunction": "Copper,L1,Top",
+      "FilePolarity": "Positive"
+    },
+    {
+      "Path": "stm32n6-px4-ground_copper.g1",
+      "FileFunction": "Copper,L2,Inr",
+      "FilePolarity": "Positive"
+    },
+    {
+      "Path": "stm32n6-px4-power_copper.g2",
+      "FileFunction": "Copper,L3,Inr",
+      "FilePolarity": "Positive"
+    },
+    {
+      "Path": "stm32n6-px4-power_copper.g3",
+      "FileFunction": "Copper,L4,Inr",
+      "FilePolarity": "Positive"
+    },
+    {
+      "Path": "stm32n6-px4-ground_copper.g4",
+      "FileFunction": "Copper,L5,Inr",
+      "FilePolarity": "Positive"
+    },
+    {
+      "Path": "stm32n6-px4-bottom_copper.gbl",
+      "FileFunction": "Copper,L6,Bot",
+      "FilePolarity": "Positive"
+    },
+    {
+      "Path": "stm32n6-px4-F_Paste.gtp",
+      "FileFunction": "SolderPaste,Top",
+      "FilePolarity": "Positive"
+    },
+    {
+      "Path": "stm32n6-px4-B_Paste.gbp",
+      "FileFunction": "SolderPaste,Bot",
+      "FilePolarity": "Positive"
+    },
+    {
+      "Path": "stm32n6-px4-F_Silkscreen.gto",
+      "FileFunction": "Legend,Top",
+      "FilePolarity": "Positive"
+    },
+    {
+      "Path": "stm32n6-px4-B_Silkscreen.gbo",
+      "FileFunction": "Legend,Bot",
+      "FilePolarity": "Positive"
+    },
+    {
+      "Path": "stm32n6-px4-F_Mask.gts",
+      "FileFunction": "SolderMask,Top",
+      "FilePolarity": "Negative"
+    },
+    {
+      "Path": "stm32n6-px4-B_Mask.gbs",
+      "FileFunction": "SolderMask,Bot",
+      "FilePolarity": "Negative"
+    },
+    {
+      "Path": "stm32n6-px4-Edge_Cuts.gm1",
+      "FileFunction": "Profile",
+      "FilePolarity": "Positive"
+    }
+  ],
+  "MaterialStackup": [
+    {
+      "Type": "Legend",
+      "Name": "Top Silk Screen"
+    },
+    {
+      "Type": "SolderPaste",
+      "Name": "Top Solder Paste"
+    },
+    {
+      "Type": "SolderMask",
+      "Name": "Top Solder Mask"
+    },
+    {
+      "Type": "Copper",
+      "Name": "top_copper"
+    },
+    {
+      "Type": "Dielectric",
+      "Material": "FR4",
+      "Name": "top_copper/ground_copper",
+      "Notes": "Type: dielectric layer 1 (from top_copper to ground_copper)"
+    },
+    {
+      "Type": "Copper",
+      "Name": "ground_copper"
+    },
+    {
+      "Type": "Dielectric",
+      "Material": "FR4",
+      "Name": "ground_copper/power_copper",
+      "Notes": "Type: dielectric layer 2 (from ground_copper to power_copper)"
+    },
+    {
+      "Type": "Copper",
+      "Name": "power_copper"
+    },
+    {
+      "Type": "Dielectric",
+      "Material": "FR4",
+      "Name": "power_copper/power_copper",
+      "Notes": "Type: dielectric layer 3 (from power_copper to power_copper)"
+    },
+    {
+      "Type": "Copper",
+      "Name": "power_copper"
+    },
+    {
+      "Type": "Dielectric",
+      "Material": "FR4",
+      "Name": "power_copper/ground_copper",
+      "Notes": "Type: dielectric layer 4 (from power_copper to ground_copper)"
+    },
+    {
+      "Type": "Copper",
+      "Name": "ground_copper"
+    },
+    {
+      "Type": "Dielectric",
+      "Material": "FR4",
+      "Name": "ground_copper/bottom_copper",
+      "Notes": "Type: dielectric layer 5 (from ground_copper to bottom_copper)"
+    },
+    {
+      "Type": "Copper",
+      "Name": "bottom_copper"
+    },
+    {
+      "Type": "SolderMask",
+      "Name": "Bottom Solder Mask"
+    },
+    {
+      "Type": "SolderPaste",
+      "Name": "Bottom Solder Paste"
+    },
+    {
+      "Type": "Legend",
+      "Name": "Bottom Silk Screen"
+    }
+  ]
+}

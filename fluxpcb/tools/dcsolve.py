@@ -50,16 +50,19 @@ def parse_copper(pcb_path: Path):
             items.append(("via", "ALL", (_f(m.group(1)), _f(m.group(2))),
                           None, _f(m.group(3)), m.group(4)))
 
-    for blk in _sexpr_blocks(txt, "footprint "):
-        ref = re.search(r'\(property "Reference" "([^"]+)"', blk)
-        at = re.search(r"\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?", blk)
+    for blk in _sexpr_blocks(txt, "footprint"):
+        ref = re.search(r'\(\s*property\s*"Reference"\s*"([^"]+)"', blk)
+        at = re.search(r"\(\s*at\s+([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?", blk)
         if not ref or not at:
             continue
         fx, fy, frot = _f(at.group(1)), _f(at.group(2)), _f(at.group(3) or 0)
         for pm in re.finditer(
-                r'\(pad "([^"]+)"[^\n]*\n\s*\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?'
-                r"[\s\S]{0,140}?\(size ([\d.]+) ([\d.]+)\)"
-                r"[\s\S]{0,200}?\(net \"([^\"]*)\"", blk):
+                r'\(\s*pad\s*"([^"]+)"[\s\S]{0,120}?\(\s*at\s+'
+                r'([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?'
+                r"[\s\S]{0,200}?\(\s*size\s+([\d.]+) ([\d.]+)\)"
+                # nets appear as (net N "name") in our output or name-only
+                # (net "name") after a KiCad 10 re-save
+                r"[\s\S]{0,400}?\(\s*net(?:\s*\d+)?\s*\"([^\"]*)\"", blk):
             px, py = _f(pm.group(2)), _f(pm.group(3))
             prot = frot + _f(pm.group(4) or 0)
             w, h = _f(pm.group(5)), _f(pm.group(6))
@@ -122,8 +125,8 @@ def solve_rail(pcb_path: Path, rail: str, v_rail: float,
     items = parse_copper(pcb_path)
     # board outline
     txt = pcb_path.read_text(encoding="utf-8", errors="replace")
-    edge = re.search(r"\(gr_rect[^\n]*\n\s*\(start ([-\d.]+) ([-\d.]+)\)"
-                     r"\n\s*\(end ([-\d.]+) ([-\d.]+)\)", txt)
+    edge = re.search(r"\(gr_rect[\s\S]{0,120}?\(start ([-\d.]+) ([-\d.]+)\)"
+                     r"[\s\S]{0,120}?\(end ([-\d.]+) ([-\d.]+)\)", txt)
     if not edge:
         return {"status": "error", "error": "no board outline"}
     x0, y0, x1, y1 = (min(_f(edge.group(1)), _f(edge.group(3))),
@@ -230,10 +233,16 @@ def run_dc(project_dir: Path, spec: dict) -> dict:
     results = []
     for rail in power.get("rails", []):
         if isinstance(rail, dict):
-            name, v = rail["name"], rail.get("v", 3.3)
+            name = rail["name"]
+            v = float(rail.get("v", 3.3))
+            src = rail.get("source_ref", "U1")
+            snks = tuple(rail.get("sink_refs", ["MOD1"]))
+            ia = float(rail.get("current_a", max(0.1, i_load)))
         else:
             name, v = rail, 3.3 if "3V3" in str(rail) else 1.8
-        r = solve_rail(pcbs[0], name, float(v), i_total_a=max(0.1, i_load))
+            src, snks, ia = "U1", ("MOD1",), max(0.1, i_load)
+        r = solve_rail(pcbs[0], name, float(v), source_ref=src,
+                       sink_refs=snks, i_total_a=ia)
         if r.get("status") == "ok":
             results.append(r)
             (project_dir / "sim").mkdir(exist_ok=True)

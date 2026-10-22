@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<px4board model="fmu-stm32n6" vendor="fluxpcb" label="FluxPCB STM32N6" image="" url="https://github.com/DataFlux-Robot/fluxpcb" schema="1.0">
+  <airflow><param default="0" name="SENS_BOARD_ROT"/></airflow>
+</px4board>

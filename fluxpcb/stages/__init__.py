@@ -127,7 +127,9 @@ def stage_selection(ctx: StageContext) -> None:
     from fluxpcb import partslib
     raw = {f'{r.get("mpn")}|{r.get("value", "")}': r for r in partslib.load_catalog()}
     bom = []
-    for need in partslib.devboard_roles(spec):
+    family = (spec.get("constraints") or {}).get("family")
+    roles_fn = partslib.px4_roles if family == "px4-fmu" else partslib.devboard_roles
+    for need in roles_fn(spec):
         try:
             part = partslib.select(need["role"], need.get("value"))
         except KeyError as e:
@@ -193,7 +195,19 @@ def stage_schematic(ctx: StageContext) -> None:
     import shutil as _sh
     if _sh.which("kicad-cli"):
         family = (spec.get("constraints") or {}).get("family")
-        if family == "esp32s31-devboard":
+        if family == "px4-fmu":
+            try:
+                from fluxpcb.kicadgen import px4fmu
+                sdir = d / "schematic" / "board"
+                sch_file = sdir / "stm32n6-px4.kicad_sch"
+                if sch_file.exists():
+                    ctx.note(f"板族原理图已存在,跳过: {sch_file.name}")
+                else:
+                    px4fmu.write_schematic(d)
+                    ctx.note("PX4 FMU原理图已生成(264脚ST官方符号+传感器)")
+            except Exception as e:
+                ctx.note(f"PX4原理图生成失败: {e}")
+        elif family == "esp32s31-devboard":
             try:
                 from fluxpcb.kicadgen import devboard
                 from fluxpcb.kicadgen.schematic import write as sch_write
@@ -261,7 +275,17 @@ def stage_pcb_layout(ctx: StageContext) -> None:
     _write_json(pdir / "drc_report.json", {"violations": 0, "engine": "stage-internal"})
     # board generation: parametric family OR legacy hpm carrier — never both
     import shutil as _sh2
-    if (spec.get("constraints") or {}).get("family") == "esp32s31-devboard":
+    _fam = (spec.get("constraints") or {}).get("family")
+    if _fam == "px4-fmu":
+        if _sh2.which('kicad-cli'):
+            from fluxpcb.kicadgen.px4fmu import write_board
+            board_file = d / "pcb" / "board" / "stm32n6-px4.kicad_pcb"
+            if not board_file.exists():
+                write_board(d)
+                ctx.note("PX4 FMU PCB已生成(规则布局+6层)")
+            else:
+                ctx.note(f"板族PCB已存在,跳过重新生成: {board_file.name}")
+    elif _fam == "esp32s31-devboard":
         if _sh2.which('kicad-cli'):
             from fluxpcb.kicadgen.devboard import DevBoardParams, write_all
             params = DevBoardParams.from_spec(spec)
@@ -278,6 +302,20 @@ def stage_pcb_layout(ctx: StageContext) -> None:
             ctx.note(f'载板PCB已生成,DRC证据: {ev}')
         except Exception as e:
             ctx.note(f'KiCad PCB生成失败,保留种子: {e}')
+
+    # pre-route placement screen: a bad layout must fail FAST (the routing
+    # chain costs ~10min on a 264-ball board — don't burn it on a layout
+    # that placement_quality will reject anyway)
+    try:
+        from fluxpcb import gates as _g
+        pre = _g.run_gate("placement_quality", d, [], {})
+        if pre.status.value == "fail":
+            ctx.note("布局预检失败,跳过布线链: "
+                     + "; ".join(str(f.get("issue", "")) for f in pre.findings[:3]))
+            _write_json(pdir / "netclasses.json", solved)
+            return
+    except Exception as e:
+        ctx.note(f"布局预检不可用: {e}")
 
     # in-pipeline auto-routing for any generated board (W2): bounded
     # DRC -> L-route -> shorts-cleanup loop; hand-fixable residue stays

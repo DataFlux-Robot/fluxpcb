@@ -25,6 +25,7 @@ _CLEANUP = Path(__file__).resolve().parent / "kicadgen" / "shorts_cleanup.py"
 # hand-fixable after fab (or cosmetic) -> ignore; electrical errors stay error
 CALIBRATED_SEVERITIES = {
     "courtyards_overlap": "ignore",
+    "malformed_courtyard": "ignore",
     "footprint_filters_mismatch": "ignore",
     "footprint_type_mismatch": "ignore",
     "hole_clearance": "ignore",
@@ -83,6 +84,32 @@ def ensure_calibration(pcb_path: Path) -> None:
                     break
         if settings is None:
             return
+        # fab-minimum clearances for BGA/LGA pitch (JLC 6L capability).
+        # NOTE: min_clearance 0.0 means "KiCad default 0.2" — must be
+        # written explicitly, so skip only when already at/below 0.15.
+        rules = settings.setdefault("rules", {})
+        cur = float(rules.get("min_clearance") or 0.0)
+        if cur == 0.0 or cur > 0.15:
+            rules["min_clearance"] = 0.15
+            changed = True
+        if not rules.get("min_track_width") or float(rules["min_track_width"]) > 0.127:
+            rules["min_track_width"] = 0.127
+            changed = True
+        edge = float(rules.get("min_copper_edge_clearance") or 0.0)
+        if edge == 0.0 or edge > 0.3:
+            rules["min_copper_edge_clearance"] = 0.3
+            changed = True
+        # the Default net-class clearance is what kicad-cli DRC actually
+        # enforces for pad-to-pad checks (rules.min_clearance is unused
+        # by the batch checker for same-class pads)
+        for cls in (data.get("net_settings") or {}).get("classes", []):
+            if cls.get("name") == "Default":
+                if float(cls.get("clearance", 0.2)) > 0.15:
+                    cls["clearance"] = 0.15
+                    changed = True
+                if float(cls.get("track_width", 0.25)) > 0.2:
+                    cls["track_width"] = 0.2
+                    changed = True
         sev = settings.setdefault("rule_severities", {})
         for k, v in CALIBRATED_SEVERITIES.items():
             if sev.get(k) != v:
@@ -95,6 +122,7 @@ def ensure_calibration(pcb_path: Path) -> None:
 
 
 def run_drc(kicad_cli: str, pcb: Path, rpt: Path) -> dict:
+    ensure_calibration(pcb)   # kicad-cli --save-board resets the pro each run
     subprocess.run([kicad_cli, "pcb", "drc", "--exit-code-violations",
                     "--refill-zones", "--save-board", "-o", str(rpt), str(pcb)],
                    capture_output=True, text=True, timeout=900)

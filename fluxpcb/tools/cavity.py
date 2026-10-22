@@ -23,8 +23,8 @@ def run(project_dir: Path, spec: dict) -> dict:
         return {"status": "error", "error": "missing pcb/stackup"}
     import re
     txt = pcbs[0].read_text(encoding="utf-8", errors="replace")
-    edge = re.search(r"\(gr_rect[^\n]*\n\s*\(start ([-\d.]+) ([-\d.]+)\)"
-                     r"\n\s*\(end ([-\d.]+) ([-\d.]+)\)", txt)
+    edge = re.search(r"\(gr_rect[\s\S]{0,120}?\(start ([-\d.]+) ([-\d.]+)\)"
+                     r"[\s\S]{0,120}?\(end ([-\d.]+) ([-\d.]+)\)", txt)
     if not edge:
         return {"status": "error", "error": "no outline"}
     L = abs(float(edge.group(3)) - float(edge.group(1))) * 1e-3

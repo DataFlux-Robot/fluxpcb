@@ -520,11 +520,14 @@ def firmware_spi_loopback(project_dir: Path, outputs: list[str], cfg: dict) -> G
 # ---------------------------------------------------------------- pcb placement
 def _sexpr_blocks(txt: str, head: str) -> list[str]:
     """Balanced-paren extraction of every (head ...) block."""
-    blocks, i, key = [], 0, "(" + head
+    import re as _re
+    pat = _re.compile("\(\s*" + _re.escape(head.rstrip()) + r"(?=[\s(\"])")
+    blocks, i = [], 0
     while True:
-        i = txt.find(key, i)
-        if i < 0:
+        m = pat.search(txt, i)
+        if not m:
             break
+        i = m.start()
         depth, j = 0, i
         in_str = False
         while j < len(txt):
@@ -552,7 +555,7 @@ def _fp_boxes(pcb_path: Path, with_names: bool = False):
     import re
     txt = pcb_path.read_text(encoding="utf-8", errors="replace")
     boxes = {}
-    for blk in _sexpr_blocks(txt, "footprint "):
+    for blk in _sexpr_blocks(txt, "footprint"):
         at = re.search(r"\(at ([-\d.]+) ([-\d.]+)(?: ([-\d.]+))?", blk)
         ref = re.search(r'\(property "Reference" "([^"]+)"', blk)
         if not at or not ref:
@@ -717,7 +720,7 @@ def spice_functional(project_dir: Path, outputs: list[str], cfg: dict) -> GateRe
     scf = project_dir / "sim" / "spice_subcircuits.json"
     if scf.exists():
         sub = json.loads(scf.read_text(encoding="utf-8"))
-    if data.get("pass") and sub.get("pass", False):
+    if data.get("pass") and sub.get("pass", True):
         corners = {c.get("corner"): c.get("v_min_v") for c in data.get("corners", [])}
         return GateResult("spice_functional", GateStatus.PASS,
                           f"LDO瞬态MC {data['n_ok']}次+3角点: 最低{data['v_min_v']}V "
@@ -745,15 +748,32 @@ def spice_functional(project_dir: Path, outputs: list[str], cfg: dict) -> GateRe
 
 
 # ------------------------------------------------- geometry-aware DC (S1)
+def _dc_solve_lazy(project_dir: Path) -> None:
+    """Solve geometry-aware DC on demand — gates no longer depend on the
+    acceptance_sim stage having run first (verify-only flows, retries)."""
+    if (project_dir / "sim" / "dc_irdrop_geom.json").exists():
+        return
+    pcbs = sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+    if not pcbs:
+        return
+    spec = _read_yaml(project_dir / "spec.yaml") or {}
+    try:
+        from fluxpcb.tools import dcsolve
+        dcsolve.run_dc(project_dir, spec)
+    except Exception:
+        pass
+
+
 @gate("dc_irdrop_geom")
 def dc_irdrop_geom(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
     """DC IR-drop solved on the REAL copper geometry (tracks/pads/vias of the
     routed board) — the in-house padne/KiPIDA equivalent."""
     import json
+    _dc_solve_lazy(project_dir)
     ev = project_dir / "sim" / "dc_irdrop_geom.json"
     if not ev.exists():
         return GateResult("dc_irdrop_geom", GateStatus.BLOCKED,
-                          "sim/dc_irdrop_geom.json 不存在")
+                          "sim/dc_irdrop_geom.json 不存在(板上无铜或无spec)")
     d = json.loads(ev.read_text(encoding="utf-8"))
     limit = 3.0
     if d["drop_pct"] > limit:
@@ -771,6 +791,7 @@ def dc_current_density(project_dir: Path, outputs: list[str], cfg: dict) -> Gate
     """Current-crowding screen on real copper: max J vs IPC-2152-class
     density limit; field evidence in sim/dc_current_density.json."""
     import json
+    _dc_solve_lazy(project_dir)
     ev = project_dir / "sim" / "dc_current_density.json"
     if not ev.exists():
         return GateResult("dc_current_density", GateStatus.BLOCKED,

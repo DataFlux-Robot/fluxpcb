@@ -1,0 +1,5 @@
+(rule "flux-fab-min"
+  (constraint clearance (min 0.15))
+  (constraint track_width (min 0.127))
+  (layer "outer")
+)

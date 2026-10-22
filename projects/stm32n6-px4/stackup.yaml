@@ -1,0 +1,10 @@
+layers: 6
+er: 4.4
+layer_order:
+- L1_signal
+- L2_GND
+- L3_PWR
+- L4_PWR
+- L5_GND
+- L6_signal
+impedance_targets: []

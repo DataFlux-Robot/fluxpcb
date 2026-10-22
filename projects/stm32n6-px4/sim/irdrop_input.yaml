@@ -1,0 +1,15 @@
+board_w_mm: 55
+board_h_mm: 28
+rails:
+- name: 3V3
+  v: 3.3
+  source_ref: U7
+  sink_refs:
+  - U1
+  current_a: 0.45
+- name: VDDCORE
+  v: 1.0
+  source_ref: L1
+  sink_refs:
+  - U1
+  current_a: 0.3

@@ -215,20 +215,63 @@ def run_stage(project_dir: Path) -> list[str]:
         family = mcu["family"]
         tgt = fw / family
         pins = mcu.get("pins", {})
-        canon = {
-            "PIN_LED_USER": pins.get("led", 9),
-            "PIN_BTN_BOOT": pins.get("boot", 8),
-            "PIN_SPI_MOSI": pins.get("spi_mosi", 11),
-            "PIN_SPI_MISO": pins.get("spi_miso", 13),
-            "PIN_SPI_SCK": pins.get("spi_sck", 12),
-            "PIN_SPI_CS": pins.get("spi_cs", 10),
-            "PIN_TX0": pins.get("tx0", 68),
-            "PIN_RX0": pins.get("rx0", 69),
-            "PIN_LDO_EN": pins.get("en", 5),
-        }
+        if family == "stm32n6":
+            # real GPIO map from the ST-official ball allocation; encode
+            # port-letter index * 16 + pin (PA13->13, PC3->35, PH2->130)
+            from fluxpcb.kicadgen.px4fmu import _alloc
+            alloc, _ = _alloc()
+
+            def gpioid(gpio: str) -> int:
+                import re as _re
+                m = _re.match(r"P([A-Z])(\d+)", gpio)
+                return (ord(m.group(1)) - ord("A")) * 16 + int(m.group(2))
+
+            def ball_of(sig: str) -> str:
+                return alloc.get(sig, {}).get("pin", "PA0")
+
+            canon = {
+                "PIN_SPI_MOSI": gpioid(ball_of("SPI1_MOSI")),
+                "PIN_SPI_MISO": gpioid(ball_of("SPI1_MISO")),
+                "PIN_SPI_SCK": gpioid(ball_of("SPI1_SCK")),
+                "PIN_SPI_CS": gpioid(ball_of("SPI1_NSS")),
+                "PIN_SPI2_MOSI": gpioid(ball_of("SPI2_MOSI")),
+                "PIN_SPI2_MISO": gpioid(ball_of("SPI2_MISO")),
+                "PIN_SPI2_SCK": gpioid(ball_of("SPI2_SCK")),
+                "PIN_SPI2_CS": gpioid(ball_of("SPI2_NSS")),
+                "PIN_I2C1_SCL": gpioid(ball_of("I2C1_SCL")),
+                "PIN_I2C1_SDA": gpioid(ball_of("I2C1_SDA")),
+                "PIN_I2C2_SCL": gpioid(ball_of("I2C2_SCL")),
+                "PIN_I2C2_SDA": gpioid(ball_of("I2C2_SDA")),
+                "PIN_UART2_TX": gpioid(ball_of("USART2_TX")),
+                "PIN_UART2_RX": gpioid(ball_of("USART2_RX")),
+                "PIN_UART3_TX": gpioid(ball_of("USART3_TX")),
+                "PIN_UART3_RX": gpioid(ball_of("USART3_RX")),
+                "PIN_UART5_TX": gpioid(ball_of("UART5_TX")),
+                "PIN_UART5_RX": gpioid(ball_of("UART5_RX")),
+                "PIN_CAN_TX": gpioid(ball_of("FDCAN1_TX")),
+                "PIN_CAN_RX": gpioid(ball_of("FDCAN1_RX")),
+                "PIN_LED_USER": gpioid(alloc["TIM3_CH1"]["pin"]),
+                "PIN_BTN_BOOT": gpioid(ball_of("NRST")) if "NRST" in alloc else 0,
+                "PIN_TIM1_CH1": gpioid(alloc["TIM1_CH1"]["pin"]),
+                "PIN_SWDIO": gpioid("PA13"),
+                "PIN_SWCLK": gpioid("PA14"),
+            }
+        else:
+            canon = {
+                "PIN_LED_USER": pins.get("led", 9),
+                "PIN_BTN_BOOT": pins.get("boot", 8),
+                "PIN_SPI_MOSI": pins.get("spi_mosi", 11),
+                "PIN_SPI_MISO": pins.get("spi_miso", 13),
+                "PIN_SPI_SCK": pins.get("spi_sck", 12),
+                "PIN_SPI_CS": pins.get("spi_cs", 10),
+                "PIN_TX0": pins.get("tx0", 68),
+                "PIN_RX0": pins.get("rx0", 69),
+                "PIN_LDO_EN": pins.get("en", 5),
+            }
         pin_lines = [f"#define {k} {v}" for k, v in canon.items()]
-        for name, pin in pins.items():
-            pin_lines.append(f"#define PIN_{name.upper()} {pin}")
+        if family != "stm32n6":   # stm32n6 canon is complete from ST alloc
+            for name, pin in pins.items():
+                pin_lines.append(f"#define PIN_{name.upper()} {pin}")
         (tgt / "main").mkdir(parents=True, exist_ok=True)
         (tgt / "host_test").mkdir(parents=True, exist_ok=True)
         (tgt / "CMakeLists.txt").write_text(
@@ -257,6 +300,31 @@ def run_stage(project_dir: Path) -> list[str]:
             "regression": {"family": family, "status": rr.get("status"),
                            "output_tail": rr.get("output", rr.get("error", ""))[-160:]},
         })
+
+    # PX4 board-definition skeleton (only for the px4-fmu family)
+    if any(t2["family"] == "stm32n6" for t2 in targets):
+        bdir = fw / "stm32n6" / "px4" / "boards" / "px4" / "fmu-stm32n6"
+        (bdir / "nuttx-config").mkdir(parents=True, exist_ok=True)
+        (bdir / "default.px4board").write_text(
+            '<?xml version="1.0"?>\n'
+            '<px4board model="fmu-stm32n6" vendor="fluxpcb" label="FluxPCB STM32N6" '
+            'image="" url="https://github.com/DataFlux-Robot/fluxpcb" '
+            'schema="1.0">\n'
+            '  <airflow><param default="0" name="SENS_BOARD_ROT"/></airflow>\n'
+            '</px4board>\n', encoding="utf-8")
+        (bdir / "bootloader.txt").write_text(
+            "https://github.com/PX4/Bootloader/blob/main/px4fmu-n6/\n",
+            encoding="utf-8")
+        (bdir / "rc.board_defaults").write_text(
+            "#!/bin/sh\n# FluxPCB fmu-stm32n6 board defaults\n"
+            "param set-default SYS_BL_VERSION 0\n", encoding="utf-8")
+        (bdir / "README.md").write_text(
+            "# fmu-stm32n6 (FluxPCB skeleton)\n\n"
+            "Board-definition skeleton auto-generated by FluxPCB.\n"
+            "Integrate into a PX4-Autopilot source tree: copy this folder to\n"
+            "boards/px4/fmu-stm32n6 and add the NuttX config (soc/stm32n6).\n"
+            "Firmware logic (boot order / SPI loopback) is host-regression\n"
+            "tested via fw_logic.c in this same tree.\n", encoding="utf-8")
 
     (fw / "regression.json").write_text(
         json.dumps({"targets": targets}, ensure_ascii=False, indent=1),

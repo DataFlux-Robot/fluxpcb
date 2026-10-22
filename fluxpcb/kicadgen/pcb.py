@@ -322,3 +322,10 @@ def write(board: Board, path) -> None:
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(board.to_text(), encoding="utf-8", newline="\n")
+    # custom fab-minimum rules belong in the companion .kicad_drc file
+    p.with_suffix(".kicad_drc").write_text(
+        '(rule "flux-fab-min"\n'
+        '  (constraint clearance (min 0.15))\n'
+        '  (constraint track_width (min 0.127))\n'
+        '  (layer "outer")\n'
+        ')\n', encoding="utf-8", newline="\n")

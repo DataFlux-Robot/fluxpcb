@@ -1,0 +1,7 @@
+{
+ "result": "pass",
+ "detail": "C代码主机执行: fw_spi_loopback memcmp==0 (regression.c)",
+ "targets": [
+  "stm32n6"
+ ]
+}

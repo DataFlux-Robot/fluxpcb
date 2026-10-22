@@ -1,0 +1,92 @@
+project: stm32n6-px4
+requirements:
+- id: FR-001
+  text: STM32N657X0(TFBGA264)为FMU核心,USB-C 5V供电
+  priority: must
+  covered_by:
+  - bom
+  - U1
+  - J4
+- id: FR-002
+  text: AP2112K-3.3稳压3V3;片内SMPS+2.2uH产生VDDCORE;VDDA经磁珠
+  priority: must
+  covered_by:
+  - U7
+  - L1
+  - FB1
+- id: FR-003
+  text: 双IMU冗余(ICM-42688-P x2,SPI1/SPI2)
+  priority: must
+  covered_by:
+  - U2
+  - U3
+- id: FR-004
+  text: 双气压计冗余(BMP388 x2,I2C1地址错开)
+  priority: must
+  covered_by:
+  - U4
+  - U5
+- id: FR-005
+  text: 磁力计IST8310(I2C2)
+  priority: must
+  covered_by:
+  - U6
+- id: FR-006
+  text: FDCAN1+SN65HVD230,CAN接口
+  priority: must
+  covered_by:
+  - U8
+- id: FR-007
+  text: GPS/TELEM/RC串口,SWD调试口,6路PWM,双晶振
+  priority: must
+  covered_by:
+  - J1
+  - J2
+  - J3
+  - J5
+  - J6
+  - Y1
+  - Y2
+power:
+  input: USB-C 5V
+  total_w: 2.0
+  rails:
+  - name: 3V3
+    v: 3.3
+    source_ref: U7
+    sink_refs:
+    - U1
+    current_a: 0.45
+  - name: VDDCORE
+    v: 1.0
+    source_ref: L1
+    sink_refs:
+    - U1
+    current_a: 0.3
+interfaces:
+- name: usb
+  type: usb
+  high_speed: true
+  connections:
+  - USB_DP
+  - USB_DM
+  - 5V
+  - GND
+  mcu:
+    family: stm32n6
+    pins:
+      swdio: 0
+      swclk: 0
+      led: 0
+      boot: 0
+      spi1_mosi: 0
+      spi1_miso: 0
+      spi1_sck: 0
+      can_tx: 0
+constraints:
+  family: px4-fmu
+  size_mm:
+  - 55
+  - 28
+  layers: 6
+  er: 4.4
