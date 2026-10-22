@@ -27,7 +27,7 @@ $ flux run projects/esp32s31-mini
   验收仿真 ─▶ ngspice MC ×20 .... ✓ 压降 2.79% ≤ 5% · 纹波达标
   固件     ─▶ ESP-IDF ........... ✓ 主机 C 回归真实执行
 
-  🟢 16/16 门禁全绿 — RELEASED
+  🟢 23/23 门禁全绿 — RELEASED
   fab → Gerber + 钻孔 + 贴片坐标 + STEP   (52×30 mm, 2 层)
 ```
 
@@ -91,7 +91,7 @@ flux dashboard projects    # → http://127.0.0.1:8765 · 零依赖 · 离线可
 <img src="gallery/esp32s31-mini/render_copper.svg" width="340"/><br/>
 <b>esp32s31-mini</b> · 全自动演示<br/>
 52×30 mm · 2 层 · 自动布局 + 自动布线<br/>
-<code>16/16 🟢 RELEASED</code><br/>
+<code>23/23 🟢 RELEASED</code><br/>
 <a href="gallery/esp32s31-mini/esp32s31-mini-pcb.zip">⬇ fab 包</a> · <a href="gallery/esp32s31-mini/prompt.md">原始 prompt</a>
 </td>
 <td width="50%" align="center">

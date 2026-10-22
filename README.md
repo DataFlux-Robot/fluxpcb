@@ -105,7 +105,7 @@ flux dashboard projects    # → http://127.0.0.1:8765 · zero-dependency · off
 <img src="gallery/esp32s31-dev/render_assembly_top.svg" width="300"/><br/>
 <b>esp32s31-dev</b> · Pi-Zero-size flagship<br/>
 65×30 mm · 99 pins from the official Espressif datasheet<br/>
-<code>12/12 🟢 ERC=0 · DRC=0</code><br/>
+<code>23/23 🟢 ERC=0 · DRC=0</code><br/>
 <a href="gallery/esp32s31-dev/esp32s31-dev-pcb.zip">⬇ KiCad project</a> · <a href="gallery/esp32s31-dev/prompt.md">the prompt</a>
 </td>
 </tr>
