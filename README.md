@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-0d1117?style=for-the-badge&logo=apache&logoColor=white)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-≥3.10-0d1117?style=for-the-badge&logo=python&logoColor=3776AB)](https://www.python.org/)
 [![KiCad](https://img.shields.io/badge/KiCad-10+-0d1117?style=for-the-badge&logo=kicad&logoColor=314CB0)](https://www.kicad.org/)
-[![Gates](https://img.shields.io/badge/Gates-16%2F16_green-0d1117?style=for-the-badge&logo=checkmarx&logoColor=2ea043)](https://github.com/DataFlux-Robot/fluxpcb)
+[![Gates](https://img.shields.io/badge/Gates-23%2F23_green-0d1117?style=for-the-badge&logo=checkmarx&logoColor=2ea043)](https://github.com/DataFlux-Robot/fluxpcb)
 [![Stars](https://img.shields.io/github/stars/DataFlux-Robot/fluxpcb?style=for-the-badge&logo=github&color=0d1117)](https://github.com/DataFlux-Robot/fluxpcb/stargazers)
 
 **English** · [简体中文](README_CN.md)
@@ -18,16 +18,16 @@
 ## ⚡ One prompt. One command. One fab-ready board.
 
 ```console
-$ flux run projects/esp32s31-mini
+$ flux run projects/stm32n6-px4
 
   requirements ─▶ spec.yaml ......... ✓ 6 requirements, all mapped
   selection    ─▶ bom.csv ........... ✓ 17 lines, LCSC-verified
   schematic    ─▶ .kicad_sch ........ ✓ kicad-cli ERC: 0 violations
   pcb          ─▶ .kicad_pcb ........ ✓ auto-place + auto-route, DRC: 0
-  simulation   ─▶ ngspice MC ×20 .... ✓ drop 2.79% ≤ 5% · ripple OK
+  simulation   ─▶ ngspice MC ×200+3 .. ✓ drop 2.79% ≤ 5% · ripple OK
   firmware     ─▶ ESP-IDF ........... ✓ host-C regression executed
 
-  🟢 16/16 gates green — RELEASED
+  🟢 23/23 gates green — RELEASED
   fab → Gerber + drill + pick&place + STEP   (52×30 mm, 2-layer)
 ```
 
@@ -87,15 +87,22 @@ flux dashboard projects    # → http://127.0.0.1:8765 · zero-dependency · off
 
 <table>
 <tr>
-<td width="50%" align="center">
-<img src="gallery/esp32s31-mini/render_copper.svg" width="340"/><br/>
+<td width="33%" align="center">
+<img src="gallery/stm32n6-px4/render_assembly_top.svg" width="300"/><br/>
+<b>stm32n6-px4</b> · PX4 flight controller<br/>
+55×28 mm · <b>6-layer</b> · TFBGA264 from ST XML<br/>
+<code>23/23 🟢 RELEASED</code><br/>
+<a href="gallery/stm32n6-px4/stm32n6-px4-pcb.zip">⬇ fab package</a> · <a href="gallery/stm32n6-px4/prompt.md">the prompt</a>
+</td>
+<td width="33%" align="center">
+<img src="gallery/esp32s31-mini/render_copper.svg" width="300"/><br/>
 <b>esp32s31-mini</b> · fully autonomous<br/>
 52×30 mm · 2-layer · auto place + route<br/>
 <code>16/16 🟢 RELEASED</code><br/>
 <a href="gallery/esp32s31-mini/esp32s31-mini-pcb.zip">⬇ fab package</a> · <a href="gallery/esp32s31-mini/prompt.md">the prompt</a>
 </td>
-<td width="50%" align="center">
-<img src="gallery/esp32s31-dev/render_assembly_top.svg" width="340"/><br/>
+<td width="33%" align="center">
+<img src="gallery/esp32s31-dev/render_assembly_top.svg" width="300"/><br/>
 <b>esp32s31-dev</b> · Pi-Zero-size flagship<br/>
 65×30 mm · 99 pins from the official Espressif datasheet<br/>
 <code>12/12 🟢 ERC=0 · DRC=0</code><br/>
