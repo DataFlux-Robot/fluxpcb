@@ -16,7 +16,7 @@ argument-hint: <一句话描述电路板,例如: ESP32-S31迷你开发板或STM3
 | 板族 | 支持变体 | 参考项目 |
 |---|---|---|
 | `esp32s31-devboard` | ESP32-S31模块+USB-C+LDO+排针(1-2排,4-14脚)+按键(1-2)+LED(1-2)+烧录排针, 2-6层 | projects/esp32s31-mini |
-| `px4-fmu` | STM32N657 TFBGA264+FMUv6全冗余(双IMU+双气压+磁)+CAN+GPS/TELEM/RC+PWM+SWD, 6层 | projects/stm32n6-px4 |
+| `px4-fmu` | STM32N657 TFBGA264 **或 STM32H743 TFBGA240**(`mcu: h743`)+FMUv6全冗余(双IMU+双气压+磁)+CAN+GPS/TELEM/RC+PWM+SWD, 6层 | projects/stm32n6-px4, projects/stm32h743-px4 |
 
 超族需求（多电源域buck、高速串行SerDes、其他MCU）：如实告知边界，给最接近的族参数化方案，加`unsupported:`标注——**不得伪装支持**。
 
@@ -38,6 +38,7 @@ python -m fluxpcb.cli init projects/<slug>
 ```bash
 python -m fluxpcb.cli run projects/<slug>          # 全链路
 FLUXNT_ROUTE_LIGHT=1 flux run projects/<slug>      # 迭代调试模式(跳FR,秒级布线)
+FLUXNT_MCU=h743 flux run projects/<slug>           # px4-fmu选MCU变体(spec的mcu字段也可)
 ```
 
 流水线内置能力（259项目knowhow吸收，映射见KNOWHOW.md）：

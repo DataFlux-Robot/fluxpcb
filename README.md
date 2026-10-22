@@ -87,8 +87,15 @@ flux dashboard projects    # → http://127.0.0.1:8765 · zero-dependency · off
 
 <table>
 <tr>
-<td width="33%" align="center">
-<img src="gallery/stm32n6-px4/render_assembly_top.svg" width="300"/><br/>
+<td width="25%" align="center">
+<img src="gallery/stm32h743-px4/render_assembly_top.svg" width="260"/><br/>
+<b>stm32h743-px4</b> · H743 PX4 flight controller<br/>
+36×36 mm · 6-layer · TFBGA240 from ST XML<br/>
+<code>23/23 🟢 RELEASED</code><br/>
+<a href="gallery/stm32h743-px4/stm32h743-px4-pcb.zip">⬇ fab package</a> · <a href="gallery/stm32h743-px4/prompt.md">the prompt</a>
+</td>
+<td width="25%" align="center">
+<img src="gallery/stm32n6-px4/render_assembly_top.svg" width="260"/><br/>
 <b>stm32n6-px4</b> · PX4 flight controller<br/>
 55×28 mm · <b>6-layer</b> · TFBGA264 from ST XML<br/>
 <code>23/23 🟢 RELEASED</code><br/>

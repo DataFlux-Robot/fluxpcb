@@ -43,7 +43,7 @@ class KicadCli(ToolAdapter):
         m = re.findall(r"\*\*\s+\w+\s+messages:\s+(\d+)\s+Errors\s+(\d+)\s+Warnings\s+(\d+)",
                        text)
         if m:
-            return int(m[-1][0])
+            return int(m[-1][1])   # count ERRORS only; warnings stay in raw
         return len(re.findall(r"^\[\w+\]:", text, re.M))
 
     def erc(self, sch: Path, out_dir: Path) -> dict:

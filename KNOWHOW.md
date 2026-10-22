@@ -79,3 +79,11 @@
 - 拼板Guillotine装箱(yangchao0818)、CNC G-code(sthamann)
 - 数字孪生第七环节(shruteshtarale, 全池仅12条)
 - 多EDA后端(Altium 44项目次/EasyEDA)
+
+
+## MCU抽象层（2026-10 H743轮次）
+
+| 来源 | knowhow | 落地 |
+|---|---|---|
+| ST官方open_pin_data | 同源XML方法推广到第二颗MCU | `mcu_db.py`: H743 TFBGA240+优先级分配器(USB/SWD独占脚优先) |
+| N6三向互证方法 | 官方XML为唯一真值 | BGA封装从XML球位直出(栅格/去空位数据推导) |

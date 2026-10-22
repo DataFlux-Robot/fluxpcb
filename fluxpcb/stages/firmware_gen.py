@@ -215,11 +215,16 @@ def run_stage(project_dir: Path) -> list[str]:
         family = mcu["family"]
         tgt = fw / family
         pins = mcu.get("pins", {})
-        if family == "stm32n6":
+        if family in ("stm32n6", "stm32h7"):
+            _variant = "n6" if family == "stm32n6" else "h743"
             # real GPIO map from the ST-official ball allocation; encode
             # port-letter index * 16 + pin (PA13->13, PC3->35, PH2->130)
-            from fluxpcb.kicadgen.px4fmu import _alloc
-            alloc, _ = _alloc()
+            import os as _os
+            _os.environ["FLUXNT_MCU"] = _variant
+            from fluxpcb.kicadgen import mcu_db as _mdb
+            _pins = _mdb.load_st_xml(_mdb.MCU_CONFIG[_variant]["xml"])
+            _want = list(_mdb.PX4_WANT) + _mdb.USB_SIGNALS[_variant] + _mdb.SWD_SIGNALS
+            alloc = _mdb.allocate(_want, _pins)
 
             def gpioid(gpio: str) -> int:
                 import re as _re

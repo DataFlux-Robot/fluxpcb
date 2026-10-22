@@ -207,8 +207,10 @@ def stage_schematic(ctx: StageContext) -> None:
         if family == "px4-fmu":
             try:
                 from fluxpcb.kicadgen import px4fmu
+                import os as _os2
+                _os2.environ["FLUXNT_MCU"] = (spec.get("constraints") or {}).get("mcu", "n6")
                 sdir = d / "schematic" / "board"
-                sch_file = sdir / "stm32n6-px4.kicad_sch"
+                sch_file = sdir / ( "stm32h743-px4.kicad_sch" if (spec.get("constraints") or {}).get("mcu") == "h743" else "stm32n6-px4.kicad_sch" )
                 if sch_file.exists():
                     ctx.note(f"板族原理图已存在,跳过: {sch_file.name}")
                 else:
@@ -288,7 +290,8 @@ def stage_pcb_layout(ctx: StageContext) -> None:
     if _fam == "px4-fmu":
         if _sh2.which('kicad-cli'):
             from fluxpcb.kicadgen.px4fmu import write_board
-            board_file = d / "pcb" / "board" / "stm32n6-px4.kicad_pcb"
+            _slug = "stm32h743-px4" if (spec.get("constraints") or {}).get("mcu") == "h743" else "stm32n6-px4"
+            board_file = d / "pcb" / "board" / (_slug + ".kicad_pcb")
             if not board_file.exists():
                 write_board(d)
                 ctx.note("PX4 FMU PCB已生成(规则布局+6层)")

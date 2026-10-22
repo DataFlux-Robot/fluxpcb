@@ -1,0 +1,80 @@
+{"t": 1792670634.606, "ev": "run_start", "project": "stm32h743-px4"}
+{"t": 1792670634.644, "ev": "stage_start", "stage": "requirements", "iter": 1}
+{"t": 1792670634.669, "ev": "gate", "stage": "requirements", "gate": "spec_schema", "status": "pass", "summary": "spec结构合法, 7条需求"}
+{"t": 1792670634.669, "ev": "gate", "stage": "requirements", "gate": "requirement_coverage", "status": "pass", "summary": "全部需求已映射设计元素"}
+{"t": 1792670634.671, "ev": "stage_end", "stage": "requirements", "status": "ok", "duration_s": 0.0, "artifacts": 1}
+{"t": 1792670634.672, "ev": "stage_start", "stage": "component_selection", "iter": 1}
+{"t": 1792670637.915, "ev": "gate", "stage": "component_selection", "gate": "bom_completeness", "status": "pass", "summary": "19 行BOM全部完整, 15行C号需人工核实(新料未上架)"}
+{"t": 1792670637.916, "ev": "gate", "stage": "component_selection", "gate": "bom_lcsc_verified", "status": "pass", "summary": "19行C号核实: 在线0/快照3/需人工16 (JLC不可达,按快照)"}
+{"t": 1792670637.917, "ev": "stage_end", "stage": "component_selection", "status": "ok", "duration_s": 3.2, "artifacts": 2}
+{"t": 1792670637.918, "ev": "stage_start", "stage": "schematic", "iter": 1}
+{"t": 1792670638.836, "ev": "gate", "stage": "schematic", "gate": "erc_zero", "status": "fail", "summary": "ERC违例 22 处"}
+{"t": 1792670638.837, "ev": "gate", "stage": "schematic", "gate": "netlist_topology", "status": "pass", "summary": "4 项连接断言全部回读通过"}
+{"t": 1792670638.837, "ev": "stage_start", "stage": "schematic", "iter": 2}
+{"t": 1792670639.601, "ev": "gate", "stage": "schematic", "gate": "erc_zero", "status": "fail", "summary": "ERC违例 22 处"}
+{"t": 1792670639.602, "ev": "gate", "stage": "schematic", "gate": "netlist_topology", "status": "pass", "summary": "4 项连接断言全部回读通过"}
+{"t": 1792670639.603, "ev": "stage_start", "stage": "schematic", "iter": 3}
+{"t": 1792670640.351, "ev": "gate", "stage": "schematic", "gate": "erc_zero", "status": "fail", "summary": "ERC违例 22 处"}
+{"t": 1792670640.352, "ev": "gate", "stage": "schematic", "gate": "netlist_topology", "status": "pass", "summary": "4 项连接断言全部回读通过"}
+{"t": 1792670640.357, "ev": "stage_end", "stage": "schematic", "status": "failed", "duration_s": 2.4, "artifacts": 7}
+{"t": 1792670640.358, "ev": "stage_start", "stage": "pcb_layout", "iter": 1}
+{"t": 1792671110.959, "ev": "gate", "stage": "pcb_layout", "gate": "drc_zero", "status": "pass", "summary": "KiCad DRC 零违例"}
+{"t": 1792671110.959, "ev": "gate", "stage": "pcb_layout", "gate": "impedance_si", "status": "pass", "summary": "0 项阻抗/等长全部达标"}
+{"t": 1792671110.961, "ev": "gate", "stage": "pcb_layout", "gate": "placement_quality", "status": "pass", "summary": "布局质量: 0重叠/去耦就近/连接器贴边"}
+{"t": 1792671110.972, "ev": "stage_end", "stage": "pcb_layout", "status": "ok", "duration_s": 470.6, "artifacts": 14}
+{"t": 1792671110.973, "ev": "stage_start", "stage": "acceptance_sim", "iter": 1}
+{"t": 1792671124.773, "ev": "gate", "stage": "acceptance_sim", "gate": "irdrop", "status": "pass", "summary": "1 条电源轨IR-drop全部≤限值"}
+{"t": 1792671124.773, "ev": "gate", "stage": "acceptance_sim", "gate": "thermal", "status": "pass", "summary": "最高结温 29.0℃ ≤ 85.0℃"}
+{"t": 1792671124.774, "ev": "gate", "stage": "acceptance_sim", "gate": "emc_precompliance", "status": "pass", "summary": "PDN目标阻抗与回流路径检查全部通过"}
+{"t": 1792671124.775, "ev": "gate", "stage": "acceptance_sim", "gate": "spice_functional", "status": "pass", "summary": "LDO瞬态MC 200次+3角点: 最低3.2078V (压降2.794%<= 5.0%), 纹波0.0511V, 子电路TB 3/3过"}
+{"t": 1792671124.775, "ev": "gate", "stage": "acceptance_sim", "gate": "dc_irdrop_geom", "status": "pass", "summary": "真实铜皮几何IR-drop: 最低3.3V (压降0.0007% <= 3.0%), 轨 3V3"}
+{"t": 1792671124.776, "ev": "gate", "stage": "acceptance_sim", "gate": "dc_current_density", "status": "pass", "summary": "电流密度: Jmax 3.93 A/mm² <= 45.0 (无拥挤), 轨 3V3"}
+{"t": 1792671124.777, "ev": "gate", "stage": "acceptance_sim", "gate": "plane_cavity_resonance", "status": "pass", "summary": "平面腔首谐振 1985.0MHz (>= 频带上限200.0MHz 或已被去耦阻尼), 共列出8个模态"}
+{"t": 1792671124.777, "ev": "gate", "stage": "acceptance_sim", "gate": "pdn_impedance_ac", "status": "pass", "summary": "PDN Z(f) AC扫频: Zmax 0.0829Ω <= 目标 0.1815Ω (最差余量54.4%) @ 199.53MHz"}
+{"t": 1792671124.778, "ev": "gate", "stage": "acceptance_sim", "gate": "return_path", "status": "pass", "summary": "地回流集中度: 最差 79.5% 在±3h内 (阈值70.0%), 1类网络"}
+{"t": 1792671124.778, "ev": "gate", "stage": "acceptance_sim", "gate": "em_field_analysis", "status": "skipped", "summary": "openEMS v0.37已安装(cli模式), 用例XML校验待完成(1/2项跑通) [可选增强门禁: 求解器缺席, 用例已生成]"}
+{"t": 1792671124.779, "ev": "gate", "stage": "acceptance_sim", "gate": "thermal_cfd", "status": "skipped", "summary": "OpenFOAM/Elmer未安装 — CHT用例已生成于 sim\\thermal_case, FDM传导解(thermal门禁)继续作为保底 [可选增强门禁: 求解器缺席, 用例已生成]"}
+{"t": 1792671124.791, "ev": "stage_end", "stage": "acceptance_sim", "status": "ok", "duration_s": 13.8, "artifacts": 19}
+{"t": 1792671124.792, "ev": "stage_start", "stage": "firmware", "iter": 1}
+{"t": 1792671125.832, "ev": "gate", "stage": "firmware", "gate": "firmware_build", "status": "pass", "summary": "1 个固件目标构建通过 [证据=阶段内构建(idf.py缺席,降级)]"}
+{"t": 1792671125.832, "ev": "gate", "stage": "firmware", "gate": "firmware_spi_loopback", "status": "pass", "summary": "SPI回环通过: C代码主机执行: fw_spi_loopback memcmp==0 (regression.c)"}
+{"t": 1792671125.833, "ev": "gate", "stage": "firmware", "gate": "firmware_regression", "status": "pass", "summary": "1/1 固件目标主机回归通过(C代码真实执行)"}
+{"t": 1792671125.841, "ev": "stage_end", "stage": "firmware", "status": "ok", "duration_s": 1.1, "artifacts": 13}
+{"t": 1792671125.857, "ev": "run_end", "released": false, "report": "reports\\run_20261022_201205.json"}
+{"t": 1792671327.907, "ev": "run_start", "project": "stm32h743-px4"}
+{"t": 1792671327.908, "ev": "stage_start", "stage": "requirements", "iter": 1}
+{"t": 1792671327.933, "ev": "gate", "stage": "requirements", "gate": "spec_schema", "status": "pass", "summary": "spec结构合法, 7条需求"}
+{"t": 1792671327.934, "ev": "gate", "stage": "requirements", "gate": "requirement_coverage", "status": "pass", "summary": "全部需求已映射设计元素"}
+{"t": 1792671327.936, "ev": "stage_end", "stage": "requirements", "status": "ok", "duration_s": 0.0, "artifacts": 1}
+{"t": 1792671327.937, "ev": "stage_start", "stage": "component_selection", "iter": 1}
+{"t": 1792671332.902, "ev": "gate", "stage": "component_selection", "gate": "bom_completeness", "status": "pass", "summary": "19 行BOM全部完整, 15行C号需人工核实(新料未上架)"}
+{"t": 1792671332.903, "ev": "gate", "stage": "component_selection", "gate": "bom_lcsc_verified", "status": "pass", "summary": "19行C号核实: 在线0/快照3/需人工16 (JLC不可达,按快照)"}
+{"t": 1792671332.904, "ev": "stage_end", "stage": "component_selection", "status": "ok", "duration_s": 5.0, "artifacts": 2}
+{"t": 1792671332.906, "ev": "stage_start", "stage": "schematic", "iter": 1}
+{"t": 1792671333.718, "ev": "gate", "stage": "schematic", "gate": "erc_zero", "status": "pass", "summary": "KiCad ERC 零违例"}
+{"t": 1792671333.719, "ev": "gate", "stage": "schematic", "gate": "netlist_topology", "status": "pass", "summary": "4 项连接断言全部回读通过"}
+{"t": 1792671333.725, "ev": "stage_end", "stage": "schematic", "status": "ok", "duration_s": 0.8, "artifacts": 7}
+{"t": 1792671333.726, "ev": "stage_start", "stage": "pcb_layout", "iter": 1}
+{"t": 1792671336.183, "ev": "gate", "stage": "pcb_layout", "gate": "drc_zero", "status": "pass", "summary": "KiCad DRC 零违例"}
+{"t": 1792671336.184, "ev": "gate", "stage": "pcb_layout", "gate": "impedance_si", "status": "pass", "summary": "0 项阻抗/等长全部达标"}
+{"t": 1792671336.185, "ev": "gate", "stage": "pcb_layout", "gate": "placement_quality", "status": "pass", "summary": "布局质量: 0重叠/去耦就近/连接器贴边"}
+{"t": 1792671336.198, "ev": "stage_end", "stage": "pcb_layout", "status": "ok", "duration_s": 2.5, "artifacts": 14}
+{"t": 1792671336.198, "ev": "stage_start", "stage": "acceptance_sim", "iter": 1}
+{"t": 1792671348.879, "ev": "gate", "stage": "acceptance_sim", "gate": "irdrop", "status": "pass", "summary": "1 条电源轨IR-drop全部≤限值"}
+{"t": 1792671348.88, "ev": "gate", "stage": "acceptance_sim", "gate": "thermal", "status": "pass", "summary": "最高结温 29.0℃ ≤ 85.0℃"}
+{"t": 1792671348.88, "ev": "gate", "stage": "acceptance_sim", "gate": "emc_precompliance", "status": "pass", "summary": "PDN目标阻抗与回流路径检查全部通过"}
+{"t": 1792671348.881, "ev": "gate", "stage": "acceptance_sim", "gate": "spice_functional", "status": "pass", "summary": "LDO瞬态MC 200次+3角点: 最低3.2078V (压降2.794%<= 5.0%), 纹波0.0511V, 子电路TB 3/3过"}
+{"t": 1792671348.882, "ev": "gate", "stage": "acceptance_sim", "gate": "dc_irdrop_geom", "status": "pass", "summary": "真实铜皮几何IR-drop: 最低3.3V (压降0.0007% <= 3.0%), 轨 3V3"}
+{"t": 1792671348.883, "ev": "gate", "stage": "acceptance_sim", "gate": "dc_current_density", "status": "pass", "summary": "电流密度: Jmax 3.93 A/mm² <= 45.0 (无拥挤), 轨 3V3"}
+{"t": 1792671348.883, "ev": "gate", "stage": "acceptance_sim", "gate": "plane_cavity_resonance", "status": "pass", "summary": "平面腔首谐振 1985.0MHz (>= 频带上限200.0MHz 或已被去耦阻尼), 共列出8个模态"}
+{"t": 1792671348.884, "ev": "gate", "stage": "acceptance_sim", "gate": "pdn_impedance_ac", "status": "pass", "summary": "PDN Z(f) AC扫频: Zmax 0.0829Ω <= 目标 0.1815Ω (最差余量54.4%) @ 199.53MHz"}
+{"t": 1792671348.885, "ev": "gate", "stage": "acceptance_sim", "gate": "return_path", "status": "pass", "summary": "地回流集中度: 最差 79.5% 在±3h内 (阈值70.0%), 1类网络"}
+{"t": 1792671348.885, "ev": "gate", "stage": "acceptance_sim", "gate": "em_field_analysis", "status": "skipped", "summary": "openEMS v0.37已安装(cli模式), 用例XML校验待完成(1/2项跑通) [可选增强门禁: 求解器缺席, 用例已生成]"}
+{"t": 1792671348.887, "ev": "gate", "stage": "acceptance_sim", "gate": "thermal_cfd", "status": "skipped", "summary": "OpenFOAM/Elmer未安装 — CHT用例已生成于 sim\\thermal_case, FDM传导解(thermal门禁)继续作为保底 [可选增强门禁: 求解器缺席, 用例已生成]"}
+{"t": 1792671348.898, "ev": "stage_end", "stage": "acceptance_sim", "status": "ok", "duration_s": 12.7, "artifacts": 19}
+{"t": 1792671348.899, "ev": "stage_start", "stage": "firmware", "iter": 1}
+{"t": 1792671349.565, "ev": "gate", "stage": "firmware", "gate": "firmware_build", "status": "pass", "summary": "1 个固件目标构建通过 [证据=阶段内构建(idf.py缺席,降级)]"}
+{"t": 1792671349.566, "ev": "gate", "stage": "firmware", "gate": "firmware_spi_loopback", "status": "pass", "summary": "SPI回环通过: C代码主机执行: fw_spi_loopback memcmp==0 (regression.c)"}
+{"t": 1792671349.567, "ev": "gate", "stage": "firmware", "gate": "firmware_regression", "status": "pass", "summary": "1/1 固件目标主机回归通过(C代码真实执行)"}
+{"t": 1792671349.575, "ev": "stage_end", "stage": "firmware", "status": "ok", "duration_s": 0.7, "artifacts": 13}
+{"t": 1792671349.582, "ev": "run_end", "released": true, "report": "reports\\run_20261022_201549.json"}

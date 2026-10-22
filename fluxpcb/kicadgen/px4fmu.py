@@ -23,16 +23,33 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 N6LIB = ROOT / "reference" / "n6lib"
 FCLIB = ROOT / "reference" / "fculib_v8"
 
-W, H = 55.0, 28.0
+W, H = 55.0, 28.0          # n6 variant default; h743 uses 36x36 square
+
+import os as _os
+VARIANT = _os.environ.get("FLUXNT_MCU", "n6")     # "n6" | "h743"
+if VARIANT == "h743":
+    W, H = 36.0, 36.0
 
 
 def _alloc():
+    if VARIANT == "h743":
+        from fluxpcb.kicadgen import mcu_db
+        pins = mcu_db.load_st_xml(mcu_db.MCU_CONFIG["h743"]["xml"])
+        want = list(mcu_db.PX4_WANT) + mcu_db.USB_SIGNALS["h743"] \
+            + mcu_db.SWD_SIGNALS
+        alloc = mcu_db.allocate(want, pins)
+        return alloc, pins
     d = json.loads((N6LIB / "px4_pin_alloc.json").read_text(encoding="utf-8"))
     return d["alloc"], d["pins"]
 
 
 def mcu_ball_nets() -> dict[str, str]:
     """ball -> net for every used MCU ball (peripherals + power domains)."""
+    if VARIANT == "h743":
+        from fluxpcb.kicadgen import mcu_db
+        return mcu_db.build_ball_nets("h743",
+                                      mcu_db.load_st_xml(
+                                          mcu_db.MCU_CONFIG["h743"]["xml"]))
     alloc, pins = _alloc()
     nets = {}
     for sig, a in alloc.items():
@@ -102,8 +119,7 @@ def footprints() -> dict:
     def k(lib, name):
         return kicad_fps / f"{lib}.pretty" / f"{name}.kicad_mod"
 
-    return {
-        "U1": N6LIB / "BGA264_STM32N657X0H3Q.kicad_mod",
+    fps = {
         "U2": FCLIB / "ICM-42688-P.kicad_mod",
         "U3": FCLIB / "ICM-42688-P.kicad_mod",
         "U4": FCLIB / "BMP388.kicad_mod",
@@ -111,7 +127,6 @@ def footprints() -> dict:
         "U6": FCLIB / "IST8310.kicad_mod",
         "U7": k("Package_TO_SOT_Smd", "SOT-23-5"),
         "U8": k("Package_SO", "SOIC-8_3.9x4.9mm_P1.27mm"),
-        "L1": k("Inductor_SMD", "L_1210_3225Metric"),
         "FB1": k("Resistor_SMD", "R_0603_1608Metric"),
         "Y1": k("Crystal", "Crystal_SMD_5032-2Pin_5.0x3.2mm"),
         "Y2": k("Crystal", "Crystal_SMD_3215-2Pin_3.2x1.5mm"),
@@ -125,6 +140,17 @@ def footprints() -> dict:
         "D1": k("LED_SMD", "LED_0603_1608Metric"),
         "R1": k("Resistor_SMD", "R_0603_1608Metric"),
     }
+    mcu_fp = ROOT / "reference" / f"{VARIANT}_bga.kicad_mod"
+    if not mcu_fp.exists():
+        from fluxpcb.kicadgen import mcu_db
+        mcu_db.gen_footprint(VARIANT, mcu_fp)
+    fps["U1"] = mcu_fp
+    if VARIANT == "h743":
+        fps["CV1"] = k("Capacitor_SMD", "C_0805_2012Metric")
+        fps["CV2"] = k("Capacitor_SMD", "C_0805_2012Metric")
+    else:
+        fps["L1"] = k("Inductor_SMD", "L_1210_3225Metric")
+    return fps
 
 
 def validate_placement(place=None) -> list:
@@ -137,6 +163,33 @@ def validate_placement(place=None) -> list:
 def placement() -> dict[str, tuple[float, float, float]]:
     """Cluster-based FC layout: MCU/vibration-zone cluster center, sensor
     cluster around it, power cluster corner, connector cluster on edges."""
+    if VARIANT == "h743":
+        # 36x36 square: MCU center, IMU pair left-center, baro split,
+        # mag lower-left, power upper-right corner, connectors on edges
+        return {
+            "U1":   (18.0, 18.0, 0.0),     # STM32H743 TFBGA240 center (~14.5mm)
+            "U2":   (7.0, 13.0, 0.0),      # ICM-42688-P (IMU1)
+            "U3":   (7.0, 20.0, 0.0),      # ICM-42688-P (IMU2)
+            "U4":   (12.0, 5.5, 0.0),      # BMP388 #1 (top)
+            "U5":   (24.0, 28.5, 0.0),     # BMP388 #2 (bottom-mid)
+            "U6":   (25.5, 6.5, 0.0),      # IST8310 mag (top-right band)
+            "U7":   (33.0, 4.0, 0.0),      # AP2112K LDO (top-right corner)
+            "U8":   (31.5, 10.0, 90.0),    # SN65HVD230 CAN (right edge band)
+            "CV1":  (15.0, 27.5, 0.0),     # VCAP 2.2uF (below BGA)
+            "CV2":  (19.0, 27.5, 0.0),     # VCAP 2.2uF
+            "FB1":  (34.0, 30.0, 0.0),     # VDDA ferrite (bottom-right)
+            "Y1":   (25.5, 3.0, 0.0),      # 24MHz (top-mid-right)
+            "Y2":   (7.5, 24.0, 0.0),      # 32.768k (above Y1)
+            "J1":   (2.0, 3.0, 0.0),       # GPS (1x06 1.27 left edge)
+            "J2":   (2.0, 12.0, 0.0),      # TELEM
+            "J3":   (2.0, 21.0, 0.0),      # RC/SBUS
+            "J4":   (31.8, 22.0, 90.0),    # USB-C right edge
+            "J5":   (2.5, 27.0, 0.0),      # SWD 2x05 1.27 (left, below J3)
+            "J6":   (6.5, 33.0, 90.0),     # PWM 2x07 2.54: rot90 runs 17mm +x, 2.54 +y
+            "J7":   (26.5, 32.8, 90.0),    # DEBUG/BOOT rot90: 7.6mm +x run
+            "D1":   (18.0, 3.0, 0.0),      # status LED (top-center)
+            "R1":   (21.0, 3.0, 0.0),      # LED resistor (right of D1)
+        }
     return {
         "U1":   (27.5, 14.0, 0.0),     # STM32N657 TFBGA264 center
         "U2":   (17.0, 12.0, 0.0),     # ICM-42688-P (IMU1)
@@ -200,15 +253,19 @@ def board() -> Board:
             "IMU1_INT", "IMU2_INT1", "BARO1_INT", "BARO2_INT", "MAG_INT",
             "PWM_CH1", "PWM_CH2", "PWM_CH3", "PWM_CH4", "PWM_CH5", "PWM_CH6",
             "BOOT0", "LED_ACT", "SWDIO", "SWCLK"]
-    b = Board("stm32n6-px4", W, H, sorted(set(nets)), n_layers=6)
+    if VARIANT == "h743":
+        nets += ["VCAP"]                       # H7 internal-LDO caps
+        nets = [n for n in nets if n != "VDDCORE_SW"]   # no SMPS inductor
+    from fluxpcb.kicadgen import mcu_db as _mdb
+    _cfg = _mdb.MCU_CONFIG[VARIANT]
+    b = Board(f"{'stm32h743' if VARIANT == 'h743' else 'stm32n6'}-px4",
+              W, H, sorted(set(nets)), n_layers=6)
     pl = placement_refined()
 
-    # ensure the generated BGA footprint exists
-    fp_bga = N6LIB / "BGA264_STM32N657X0H3Q.kicad_mod"
+    fp_bga = ROOT / "reference" / f"{VARIANT}_bga.kicad_mod"
     if not fp_bga.exists():
-        import subprocess, sys
-        subprocess.run([sys.executable, str(N6LIB / "gen_footprint.py")], check=True)
-    b.place(LocalFp(fp_bga, "U1", "STM32N657X0H3Q", *pl["U1"],
+        _mdb.gen_footprint(VARIANT, fp_bga)
+    b.place(LocalFp(fp_bga, "U1", _cfg["value"], *pl["U1"],
                     pad_nets=ball_nets))
 
     # sensors — pads per the fetched footprints
@@ -251,8 +308,14 @@ def board() -> Board:
                *pl["U8"], pad_nets={
                    "1": "FDCAN1_TX", "4": "FDCAN1_RX", "2": "GND",
                    "3": "3V3", "7": "CAN_H", "6": "CAN_L", "8": "3V3"}))
-    b.place(Fp("Inductor_SMD", "L_1210_3225Metric", "L1", "2.2uH",
-               *pl["L1"], pad_nets={"1": "VDDCORE_SW", "2": "VDDCORE"}))
+    if VARIANT == "h743":
+        # H7 internal 1.8V LDO: VCAP balls just need 2.2uF to GND
+        for ref in ("CV1", "CV2"):
+            b.place(Fp("Capacitor_SMD", "C_0805_2012Metric", ref, "2.2uF",
+                       *pl[ref], pad_nets={"1": "VCAP", "2": "GND"}))
+    else:
+        b.place(Fp("Inductor_SMD", "L_1210_3225Metric", "L1", "2.2uH",
+                   *pl["L1"], pad_nets={"1": "VDDCORE_SW", "2": "VDDCORE"}))
     b.place(Fp("Resistor_SMD", "R_0603_1608Metric", "FB1", "600R@100M",
                *pl["FB1"], pad_nets={"1": "3V3", "2": "VDDA"}))
     b.place(Fp("Crystal", "Crystal_SMD_5032-2Pin_5.0x3.2mm", "Y1", "24MHz",
@@ -311,7 +374,7 @@ def write_board(project_dir: Path) -> Path:
     if issues:
         raise ValueError("layout pre-flight FAILED (analytic, board NOT written): "
                          + "; ".join(issues[:4]))
-    out = project_dir / "pcb" / "board" / "stm32n6-px4.kicad_pcb"
+    out = project_dir / "pcb" / "board" / ({"h743": "stm32h743-px4", "n6": "stm32n6-px4"}[VARIANT] + ".kicad_pcb")
     out.parent.mkdir(parents=True, exist_ok=True)
     pcb_write(board(), out)
     return out
@@ -319,14 +382,14 @@ def write_board(project_dir: Path) -> Path:
 
 # ================================================================ schematic
 def mcu_symdef():
-    """264-ball MCU symbol, two-column grid (132 pins/column) from the
-    ST-official pin DB. VLXSMPS = power_out (internal SMPS switch node)."""
+    """MCU symbol from the ST-official pin DB (N6: 264 balls, H743: 265).
+    4-column grid; ~66 pins/column fits an A3 sheet."""
     _, pins_db = _alloc()
-    # BGA row letters skip I/O/Q/S (confusable): A..H, J..N, P, R, T, U
-    rows = list("ABCDEFGHJKLMNPRTU")
-    order = [f"{r}{c}" for r in rows for c in range(1, 18)]
+    from fluxpcb.kicadgen import mcu_db as _mdb
+    _rows, _c0, _c1 = _mdb.grid(pins_db)
+    order = [f"{r}{c}" for r in _rows for c in range(_c0, _c1 + 1)]
     pins = []
-    per_col = 66          # 4 columns x 66 = 264; 165mm tall fits an A3 sheet
+    per_col = (len(pins_db) + 3) // 4     # 4 columns
     xs = (-20.32, -10.16, 10.16, 20.32)
     kept = [b for b in order if b in pins_db]
     for i, ball in enumerate(kept):
@@ -335,7 +398,7 @@ def mcu_symdef():
         nu = name.upper()
         if nu.startswith("VLXSMPS"):
             etype = "passive"   # multiple outputs on one net trip pin_to_pin
-        elif typ == "Power" or nu.startswith(("VDD", "VSS", "VBAT")):
+        elif typ == "Power" or nu.startswith(("VDD", "VSS", "VBAT", "VCAP")):
             etype = "power_in"
         else:
             etype = "passive"
@@ -344,7 +407,8 @@ def mcu_symdef():
         x = xs[col]
         ang = 0 if col < 2 else 180
         pins.append(Pin(ball, name, etype, x=x, y=y, angle=ang))
-    return SymDef("flux:STM32N657X0", pins, ref_prefix="U", auto_layout=False)
+    return SymDef(_mdb.MCU_CONFIG[VARIANT]["lib_symbol"], pins,
+                  ref_prefix="U", auto_layout=False)
 
 
 def _sensor_symdef(name: str, pinmap: dict, lib: str) -> SymDef:
@@ -364,8 +428,9 @@ def _sensor_symdef(name: str, pinmap: dict, lib: str) -> SymDef:
 def schematic() -> Schematic:
     import json as _json
     ball_nets = mcu_ball_nets()
-    ball_nets["U6"] = "SWDIO"
-    ball_nets["T6"] = "SWCLK"
+    if VARIANT == "n6":
+        ball_nets["U6"] = "SWDIO"
+        ball_nets["T6"] = "SWCLK"   # SWD comes pre-mapped via mcu_db on h743
     sp = _json.loads((FCLIB / "sensor_pinmaps.json").read_text(encoding="utf-8"))
 
     sch = Schematic(title="stm32n6-px4", project="stm32n6-px4")
@@ -380,6 +445,7 @@ def schematic() -> Schematic:
     sch.add_def(SymDef("flux:SOIC8_CAN", [P(i, f"P{i}") for i in range(1, 9)],
                        ref_prefix="U"))
     sch.add_def(SymDef("flux:IND", [P(1, "A"), P(2, "B")], ref_prefix="L"))
+    sch.add_def(SymDef("flux:C_0603", [P(1, "A"), P(2, "B")], ref_prefix="C"))
     sch.add_def(SymDef("flux:R_0603", [P(1, "A"), P(2, "B")], ref_prefix="R"))
     sch.add_def(SymDef("flux:LED", [P(1, "A"), P(2, "K")], ref_prefix="D"))
     sch.add_def(SymDef("flux:XTAL", [P(1, "A"), P(2, "B")], ref_prefix="Y"))
@@ -406,7 +472,9 @@ def schematic() -> Schematic:
         sch.place(SymInst(ref, lib, value, x=x, y=y,
                           pin_nets=pin_nets, nc_pins=unused))
 
-    sch.place(SymInst("U1", "flux:STM32N657X0", "STM32N657X0H3Q",
+    from fluxpcb.kicadgen import mcu_db as _m
+    sch.place(SymInst("U1", _m.MCU_CONFIG[VARIANT]["lib_symbol"],
+                      _m.MCU_CONFIG[VARIANT]["value"],
                       x=210, y=150, pin_nets=ball_nets, nc_pins=nc))
     imu = {"1": "MISO", "5": "VDDIO", "8": "VDD", "6": "GND",
            "13": "SCK", "14": "MOSI", "12": "CS", "4": "INT"}
@@ -432,8 +500,13 @@ def schematic() -> Schematic:
     place_nc("U8", "flux:SOIC8_CAN", "SN65HVD230", 60, 110, {
         "1": "FDCAN1_TX", "4": "FDCAN1_RX", "2": "GND", "3": "3V3",
         "7": "CAN_H", "6": "CAN_L", "8": "3V3"})
-    sch.place(SymInst("L1", "flux:IND", "2.2uH", x=60, y=160,
-                      pin_nets={"1": "VDDCORE_SW", "2": "VDDCORE"}))
+    if VARIANT == "h743":
+        for i, ref in enumerate(("CV1", "CV2")):
+            sch.place(SymInst(ref, "flux:C_0603", "2.2uF", x=60, y=150 + i * 10,
+                              pin_nets={"1": "VCAP", "2": "GND"}))
+    else:
+        sch.place(SymInst("L1", "flux:IND", "2.2uH", x=60, y=160,
+                          pin_nets={"1": "VDDCORE_SW", "2": "VDDCORE"}))
     sch.place(SymInst("FB1", "flux:R_0603", "600R@100M", x=60, y=200,
                       pin_nets={"1": "3V3", "2": "VDDA"}))
     sch.place(SymInst("Y1", "flux:XTAL", "24MHz", x=150, y=260,
@@ -466,13 +539,13 @@ def schematic() -> Schematic:
                       pin_nets={"1": "3V3", "2": "LED_ACT"}))
     sch.place(SymInst("R1", "flux:R_0603", "1k", x=100, y=245,
                       pin_nets={"1": "LED_ACT", "2": "GND"}))
-    sch.rails = ["5V", "GND", "VDDCORE", "VDDCORE_SW", "VDDA"]
+    sch.rails = ["5V", "GND", "VDDA"] +         (["VDDCORE", "VDDCORE_SW"] if VARIANT == "n6" else ["VCAP"])
     return sch
 
 
 def write_schematic(project_dir: Path) -> Path:
     from fluxpcb.kicadgen.schematic import write as sch_write
-    out = project_dir / "schematic" / "board" / "stm32n6-px4.kicad_sch"
+    out = project_dir / "schematic" / "board" / ({"h743": "stm32h743-px4", "n6": "stm32n6-px4"}[VARIANT] + ".kicad_sch")
     out.parent.mkdir(parents=True, exist_ok=True)
     sch_write(schematic(), out)
     return out
