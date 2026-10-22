@@ -83,6 +83,15 @@ def run_pipeline(project_dir: Path, pipeline_path: Path | None = None,
             feedback = [f"[{g.name}] {g.summary}" +
                         ("; ".join(str(f.get("issue", "")) for f in g.findings[:5]))
                         for g in failed]
+            # structured route-repair directives when available (K4 knowhow)
+            _rr = project_dir / "pcb" / "board" / "route_report.json"
+            if _rr.exists():
+                try:
+                    import json as _json
+                    for line in _json.loads(_rr.read_text(encoding="utf-8"))                             .get("structured_feedback", [])[:5]:
+                        feedback.append(line)
+                except (ValueError, OSError):
+                    pass
             if iteration == max_iter:
                 run.status = StageStatus.FAILED
 

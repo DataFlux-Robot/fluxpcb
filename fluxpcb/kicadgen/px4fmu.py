@@ -162,6 +162,30 @@ def placement() -> dict[str, tuple[float, float, float]]:
     }
 
 
+_REFINED: dict | None = None
+
+
+def placement_refined() -> dict:
+    """SA-refined placement (elcruzo/tbrandenburg knowhow), accepted only
+    when the analytic validation doesn't get worse. Memoized."""
+    global _REFINED
+    if _REFINED is not None:
+        return _REFINED
+    from fluxpcb.kicadgen.hierplace import validate
+    from fluxpcb.placement import refine
+    base = placement()
+    fps = footprints()
+    try:
+        new, c0, c1 = refine(base, fps, W, H, iterations=800)
+        if c1 < c0 and len(validate(new, fps, W, H)) <= len(validate(base, fps, W, H)):
+            _REFINED = new
+            return new
+    except Exception:
+        pass
+    _REFINED = base
+    return base
+
+
 def board() -> Board:
     alloc, pins = _alloc()
     ball_nets = mcu_ball_nets()
@@ -177,7 +201,7 @@ def board() -> Board:
             "PWM_CH1", "PWM_CH2", "PWM_CH3", "PWM_CH4", "PWM_CH5", "PWM_CH6",
             "BOOT0", "LED_ACT", "SWDIO", "SWCLK"]
     b = Board("stm32n6-px4", W, H, sorted(set(nets)), n_layers=6)
-    pl = placement()
+    pl = placement_refined()
 
     # ensure the generated BGA footprint exists
     fp_bga = N6LIB / "BGA264_STM32N657X0H3Q.kicad_mod"
@@ -281,7 +305,9 @@ def board() -> Board:
 
 def write_board(project_dir: Path) -> Path:
     from fluxpcb.kicadgen.pcb import write as pcb_write
-    issues = validate_placement()
+    # validate the placement board() will actually use (SA-refined)
+    from fluxpcb.kicadgen.hierplace import validate
+    issues = validate(placement_refined(), footprints(), W, H)
     if issues:
         raise ValueError("layout pre-flight FAILED (analytic, board NOT written): "
                          + "; ".join(issues[:4]))

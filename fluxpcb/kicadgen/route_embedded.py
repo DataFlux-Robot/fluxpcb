@@ -3,17 +3,33 @@
 # clearance against all other-net copper (segments + pads + vias), fall back
 # to opposite layer, else leave the pair unrouted (hand-fixable, ignored by
 # calibrated severities).
+# Pair order = critical -> normal -> power (routing_classes knowhow); per-net
+# track width from the classes file (power 0.4mm, critical IPC width).
+import json
 import sys
 import pcbnew
 
 PCB = sys.argv[1]
 PAIRS = sys.argv[2]
+CLS = sys.argv[3] if len(sys.argv) > 3 else ""
 
 board = pcbnew.LoadBoard(PCB)
 mm = 1000000  # KiCad nm units
 
 CLEAR_MM = 0.25          # center-line clearance to other-net copper
 TRACK_W = 0.2
+
+_NET_CLASS = {}
+try:
+    with open(CLS) as _f:
+        _NET_CLASS = json.load(_f).get("classes", {})
+except (OSError, ValueError):
+    pass
+_WIDTHS = {"critical": 0.15, "normal": 0.2, "power": 0.4}
+
+
+def track_w(net_name):
+    return _WIDTHS.get(_NET_CLASS.get(net_name, "normal"), TRACK_W)
 
 
 def find_net(name):
@@ -119,7 +135,13 @@ def collect_obstacles(layer_id):
                 if item.GetLayer() != layer_id:
                     continue
                 s, e = item.GetStart(), item.GetEnd()
-                segs.append((net, (s.x / mm, s.y / mm), (e.x / mm, e.y / mm), 0.0))
+                # half-width beyond the 0.1mm baseline widens keepout
+                try:
+                    w_extra = max(0.0, item.GetWidth(pcbnew.F_Cu) / mm / 2 - 0.1)
+                except TypeError:
+                    w_extra = max(0.0, item.GetWidth() / mm / 2 - 0.1)
+                segs.append((net, (s.x / mm, s.y / mm), (e.x / mm, e.y / mm),
+                             w_extra))
         except AttributeError:
             continue
     for fp in board.GetFootprints():
@@ -131,12 +153,15 @@ def collect_obstacles(layer_id):
     return segs, rects
 
 
-def clear(sx, sy, ex, ey, layer_id, net_code, segs, rects):
-    """True if the segment clears every other-net obstacle on this layer."""
+def clear(sx, sy, ex, ey, layer_id, net_code, segs, rects, self_w=None):
+    """True if the segment clears every other-net obstacle on this layer.
+    self_w: the width of the track being placed (power nets are wider and
+    need proportionally more center-line distance)."""
+    own = max(0.0, (self_w or TRACK_W) / 2 - 0.1)
     for net, a, b, extra in segs:
         if net == net_code:
             continue
-        if seg_seg_dist((sx, sy), (ex, ey), a, b) < CLEAR_MM + extra:
+        if seg_seg_dist((sx, sy), (ex, ey), a, b) < CLEAR_MM + extra + own:
             return False
     for net, rect in rects:
         if net == net_code:
@@ -152,7 +177,7 @@ def add_track(sx, sy, ex, ey, layer_id, net):
     t = pcbnew.PCB_TRACK(board)
     t.SetStart(pcbnew.VECTOR2I(int(sx * mm), int(sy * mm)))
     t.SetEnd(pcbnew.VECTOR2I(int(ex * mm), int(ey * mm)))
-    t.SetWidth(int(TRACK_W * mm))
+    t.SetWidth(int(track_w(net.GetNetname() or "") * mm))
     t.SetLayer(layer_id)
     t.SetNet(net)
     board.Add(t)
@@ -288,11 +313,13 @@ with open(PAIRS) as f:
                 continue
             if need_via_end and not via_ok(x2, y2, nc, rects):
                 continue
-            ok1 = clear(x1, y1, mx, my, lid, nc, segs, rects)
+            w_self = track_w(net_name)
+            own = max(0.0, w_self / 2 - 0.1)
+            ok1 = clear(x1, y1, mx, my, lid, nc, segs, rects, w_self)
             # check leg2 with leg1 as a virtual obstacle — add only if both pass
             if ok1 and (abs(mx - x1) >= 0.01 or abs(my - y1) >= 0.01):
-                segs.append((nc, (x1, y1), (mx, my), 0.0))
-            ok2 = clear(mx, my, x2, y2, lid, nc, segs, rects)
+                segs.append((nc, (x1, y1), (mx, my), own))
+            ok2 = clear(mx, my, x2, y2, lid, nc, segs, rects, w_self)
             if not (ok1 and ok2):
                 continue
             add_track(x1, y1, mx, my, lid, net)

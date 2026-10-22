@@ -50,9 +50,13 @@ def cluster_boxes(place: dict, footprints: dict) -> dict:
 
 def validate(place: dict, footprints: dict,
              board_w: float, board_h: float,
-             edge_keep: float = 0.55,
-             connector_refs: tuple = ("J4",)) -> list[str]:
-    """Analytic layout validation — the fast pre-DRC screen."""
+             edge_keep: float = 0.3,
+             connector_refs: tuple = ("J4",),
+             overlap_eps_mm2: float = 0.05) -> list[str]:
+    """Analytic layout validation — the fast pre-DRC screen.
+
+    edge_keep matches the fab rule (0.3mm) plus a hair; overlap requires
+    actual penetration (>overlap_eps) rather than bbox tangency."""
     issues: list[str] = []
     boxes = cluster_boxes(place, footprints)
     refs = sorted(boxes)
@@ -60,8 +64,10 @@ def validate(place: dict, footprints: dict,
     for i, a in enumerate(refs):
         for b in refs[i + 1:]:
             A, B = boxes[a], boxes[b]
-            if A[0] < B[2] and B[0] < A[2] and A[1] < B[3] and B[1] < A[3]:
-                issues.append(f"重叠: {a} <-> {b}")
+            ox = min(A[2], B[2]) - max(A[0], B[0])
+            oy = min(A[3], B[3]) - max(A[1], B[1])
+            if ox > 0.02 and oy > 0.02 and ox * oy > overlap_eps_mm2:
+                issues.append(f"重叠: {a} <-> {b} ({ox:.1f}x{oy:.1f}mm)")
 
     for r in refs:
         x0, y0, x1, y1 = boxes[r]

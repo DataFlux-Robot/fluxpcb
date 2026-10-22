@@ -1,12 +1,14 @@
 {
- "iterations": 2,
+ "iterations": 1,
  "unconnected": 0,
  "shorting": 0,
  "clean": true,
  "steps": [
-  "freerouting跳过: freerouting无产出: rc=1 archAlgo.find_connection java.lang.NullPointerException 202",
-  "iter1: unconn=118 shorts=0",
+  "netclass: 22critical/6power",
+  "freerouting跳过: light mode",
+  "iter1: unconn=117 shorts=0",
   "route_embedded rc=0 ok",
-  "iter2: unconn=0 shorts=0"
+  "final: unconn=0 shorts=0",
+  "score=100.0"
  ]
 }

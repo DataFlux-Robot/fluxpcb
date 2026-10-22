@@ -229,32 +229,54 @@ def route_with_freerouting(pcb_path: Path, kipy: str, log=print) -> dict:
     # Windows paths — always pass bare filenames with cwd=work. Its config
     # pins the single-thread optimizer (the MT one NPEs during batch save).
     _pin_freerouting_config()
+    # K5 knowhow: SES output bypasses the DSN batch-save NPE path
+    # (AvatarSD/KiSkill DSN/SES closed loop). Try SES once (bounded), then
+    # DSN write-back once; timeouts count as failures, never kill the chain.
+    ses = work / ("routed-" + pcb_path.stem + ".ses")
     last_err = ""
-    for attempt in range(1, 3):
-        if routed.exists():
-            routed.unlink()
-        # headless: an NPE inside freerouting otherwise raises a MODAL AWT
-        # dialog headless-pipelines hang on for the full timeout
+    produced_ses = False
+    if ses.exists():
+        ses.unlink()
+    try:
+        p = subprocess.run([java, "-Djava.awt.headless=true", "-jar", jar,
+                            "-de", dsn.name, "-do", ses.name,
+                            "-mp", "40", "-l", "en"],
+                           capture_output=True, text=True, timeout=480,
+                           cwd=str(work))
+        if ses.exists() and ses.stat().st_size > 0:
+            produced_ses = True
+        else:
+            last_err = f"SES rc={p.returncode}"
+    except subprocess.TimeoutExpired:
+        last_err = "SES timeout(480s)"
+    log(f"  [route] freerouting SES: {'ok' if produced_ses else last_err}")
+    if produced_ses:
+        from fluxpcb.ses2kicad import inject_ses
+        stats = inject_ses(ses, pcb_path)
+        log(f"  [route] freerouting(SES)注入: {stats}")
+        return {"ok": True, "stats": stats, "mode": "ses"}
+    # DSN write-back fallback (original path), one bounded attempt
+    if routed.exists():
+        routed.unlink()
+    try:
         p = subprocess.run([java, "-Djava.awt.headless=true", "-jar", jar,
                             "-de", dsn.name, "-do", routed.name,
                             "-mp", "40", "-l", "en"],
-                           capture_output=True, text=True, timeout=600, cwd=str(work))
-        if routed.exists() and routed.stat().st_size > 0:
-            break
-        tail = (p.stdout + p.stderr)[-200:].replace("\n", " ")
-        last_err = f"rc={p.returncode} {tail}"
-        log(f"  [route] freerouting attempt {attempt} 失败, 重试…")
+                           capture_output=True, text=True, timeout=480,
+                           cwd=str(work))
+        if not (routed.exists() and routed.stat().st_size > 0):
+            tail = (p.stdout + p.stderr)[-200:].replace("\n", " ")
+            last_err = f"rc={p.returncode} {tail}"
+    except subprocess.TimeoutExpired:
+        last_err = "DSN timeout(480s)"
     if not (routed.exists() and routed.stat().st_size > 0):
         return {"ok": False, "error": f"freerouting无产出: {last_err}"}
-    if not (routed.exists() and routed.stat().st_size > 0):
-        tail = (p.stdout + p.stderr)[-300:].replace("\n", " ")
-        return {"ok": False, "error": f"freerouting无产出: rc={p.returncode} {tail}"}
     import sys
     sys.path.insert(0, str(_DSN2KICAD.parent))
     from dsn2kicad import convert
     stats = convert(routed, pcb_path)
     log(f"  [route] freerouting注入: {stats}")
-    return {"ok": True, "stats": stats}
+    return {"ok": True, "stats": stats, "mode": "dsn"}
 
 
 def _kipy_run(kipy: str, code: str, timeout: int = 600) -> tuple[int, str]:
@@ -294,6 +316,36 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
     if light:
         max_iterations = min(max_iterations, 1)
 
+    # net classification (K1 knowhow): Power/Critical classes into the
+    # .kicad_pro so the DSN export carries them to Freerouting; pairs get
+    # routed critical-first, power-last with per-class widths
+    import json as _json
+    from fluxpcb import routing_classes as _rc
+    spec = None
+    _specf = pcb_path.parents[2] / "spec.yaml" if len(pcb_path.parents) > 2 else None
+    if _specf and _specf.exists():
+        import yaml as _yaml
+        spec = _yaml.safe_load(_specf.read_text(encoding="utf-8"))
+    board_nets = _rc.nets_from_board(pcb_path)
+    net_classes = _rc.classify_all(board_nets, spec)
+    ipc_widths = {}
+    _ncf = pcb_path.parents[2] / "pcb" / "netclasses.json" if len(pcb_path.parents) > 2 else None
+    if _ncf and _ncf.exists():
+        try:
+            for _row in _json.loads(_ncf.read_text(encoding="utf-8")):
+                if isinstance(_row, dict) and _row.get("width_mm"):
+                    ipc_widths[_row.get("net_class", "?")] = float(_row["width_mm"])
+        except (ValueError, OSError):
+            pass
+    _rc.apply_net_classes(pcb_path.with_suffix(".kicad_pro"), net_classes, ipc_widths)
+    cls_file = pcb_path.parent / "net_classes.json"
+    cls_file.write_text(_json.dumps(
+        {"classes": net_classes, "ipc_widths": ipc_widths,
+         "widths": {c: _rc.DEFAULT_WIDTH_MM[c] for c in _rc.ORDER}},
+        ensure_ascii=False, indent=1), encoding="utf-8")
+    steps.append(f"netclass: {sum(1 for c in net_classes.values() if c=='critical')}critical/"
+                 f"{sum(1 for c in net_classes.values() if c=='power')}power")
+
     # heavy-duty pass first when freerouting is bundled, then the in-process
     # L-router finishes residue; both bounded
     fr = ({"ok": False, "error": "light mode"}
@@ -310,14 +362,16 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
         steps.append(f"iter{it}: unconn={drc['unconnected']} shorts={drc['shorting']}")
         log(f"  [route] iter{it}: unconn={drc['unconnected']} shorts={drc['shorting']}")
         if drc["unconnected"] == 0 and drc["shorting"] == 0:
-            return {"iterations": it, **last, "clean": True, "steps": steps}
+            break   # fall through to the shared final DRC + scorecard block
 
         if drc["unconnected"] > 0:
             pairs = extract_pairs(drc["text"])
+            pairs = _rc.routing_order_pairs(pairs, net_classes)  # critical first
             if pairs:
                 pairs_file = pcb_path.parent / "pairs.txt"
                 pairs_file.write_text("\n".join(pairs), encoding="utf-8")
-                rc, out = _kipy(kipy, _EMBEDDED, str(pcb_path), str(pairs_file))
+                rc, out = _kipy(kipy, _EMBEDDED, str(pcb_path), str(pairs_file),
+                                str(cls_file))
                 ok = "ROUTES_ADDED" in out
                 steps.append(f"route_embedded rc={rc} {'ok' if ok else out[:120]}")
                 log(f"  [route] embedded: {out.strip().splitlines()[-1][:90] if out.strip() else 'no output'}")
@@ -337,5 +391,18 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
         drc = run_drc(kicad_cli, pcb_path, rpt)
     last = {"unconnected": drc["unconnected"], "shorting": drc["shorting"]}
     clean = last["unconnected"] == 0 and last["shorting"] == 0
+    iters_used = it if not clean else it   # last loop counter
     steps.append(f"final: unconn={last['unconnected']} shorts={last['shorting']}")
-    return {"iterations": max_iterations, **last, "clean": clean, "steps": steps}
+    # K4 knowhow: post-routing scorecard + structured feedback for retries
+    try:
+        from fluxpcb.routing_quality import score_board, structured_feedback
+        report = {"unconnected": last["unconnected"], "shorting": last["shorting"]}
+        score = score_board(pcb_path, report, spec)
+        (pcb_path.parent / "route_report.json").write_text(_json.dumps(
+            {**report, "score": score,
+             "structured_feedback": structured_feedback(drc["text"], net_classes)},
+            ensure_ascii=False, indent=1), encoding="utf-8")
+        steps.append(f"score={score['score']}")
+    except Exception as _e:
+        steps.append(f"scorecard skipped: {_e}")
+    return {"iterations": iters_used, **last, "clean": clean, "steps": steps}

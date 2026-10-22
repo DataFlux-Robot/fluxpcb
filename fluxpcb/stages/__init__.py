@@ -68,12 +68,21 @@ SYSTEM_REQUIREMENTS = (
 )
 
 
+def _load_prompt(name: str, fallback: str) -> str:
+    """Versioned prompt files under prompts/ (PDF review: A/B-testable)."""
+    f = Path(__file__).resolve().parent.parent / "prompts" / name
+    try:
+        return f.read_text(encoding="utf-8")
+    except OSError:
+        return fallback
+
+
 @runner("requirements")
 def stage_requirements(ctx: StageContext) -> None:
     d = ctx.project_dir
     if llm.online:
         fb = "\n".join(ctx.feedback)
-        r = llm.complete(SYSTEM_REQUIREMENTS,
+        r = llm.complete(_load_prompt("requirements.md", SYSTEM_REQUIREMENTS),
                          _read_project_requirements(ctx) + (f"\n\n上一轮门禁反馈:\n{fb}" if fb else ""))
         if r["ok"]:
             try:
