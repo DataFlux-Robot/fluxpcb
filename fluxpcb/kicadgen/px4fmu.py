@@ -239,6 +239,24 @@ def placement_refined() -> dict:
     return base
 
 
+def _stitch_anchors(pl):
+    """Power-plane stitching anchors — safe open spots per variant."""
+    if VARIANT == "n6":
+        # N6 55x28: pick spots clear of J6 span (x 25-42 at y 22-28)
+        return [
+            (pl["U7"][0] + 1.27, pl["U7"][1] - 1.27, "3V3"),    # LDO out
+            (18.0, 10.0, "3V3"),        # BGA 3V3 side (open left-top)
+            (pl["J4"][0] - 1.27, pl["J4"][1] - 5.0, "5V"),     # USB 5V
+            (pl["U7"][0] - 1.27, pl["U7"][1] + 1.27, "5V"),    # LDO in
+        ]
+    return [
+        (pl["U7"][0] + 1.27, pl["U7"][1] - 1.27, "3V3"),
+        (pl["U1"][0] + 8.0, pl["U1"][1] + 8.0, "3V3"),
+        (pl["J4"][0] - 1.27, pl["J4"][1] - 3.0, "5V"),
+        (pl["U7"][0] - 1.27, pl["U7"][1] + 1.27, "5V"),
+    ]
+
+
 def board() -> Board:
     alloc, pins = _alloc()
     ball_nets = mcu_ball_nets()
@@ -360,9 +378,13 @@ def board() -> Board:
                *pl["R1"], pad_nets={"1": "LED_ACT", "2": "GND"}))
     # SWD from official XML: U6=PA13 SWDIO, T6=PA14 SWCLK
     bn = b.footprints[0].pad_nets
-    bn["U6"] = "SWDIO"
-    bn["T6"] = "SWCLK"
+    if VARIANT == "n6":
+        bn["U6"] = "SWDIO"
+        bn["T6"] = "SWCLK"   # SWD comes pre-mapped via mcu_db on h743
+    # 6L real inner planes + stitching vias (In1/In4 GND pour via
+    # ground_zones; In2 3V3 + In3 5V via power_planes; vias tie them)
     b.ground_zones()
+    b._extra_vias = b.stitch_vias(_stitch_anchors(pl))
     return b
 
 

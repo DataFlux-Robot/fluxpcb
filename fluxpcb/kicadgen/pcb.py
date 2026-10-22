@@ -254,21 +254,48 @@ class Board:
         self.footprints.append(fp)
         return fp
 
-    def ground_zones(self, net_name: str = "GND") -> list[str]:
-        """Full-board GND pours on F.Cu and B.Cu (2-layer standard practice)."""
+    def _zone(self, net_name: str, layer: str) -> str:
         n = self.nets.get(net_name, 0)
         w, h = _f(self.w), _f(self.h)
-        zones = []
-        for layer in ("F.Cu", "B.Cu"):
-            zones.append(
-                f'\t(zone (net {n}) (net_name "{net_name}") '
+        return (f'\t(zone (net {n}) (net_name "{net_name}") '
                 f'(layer "{layer}") (uuid "{uid()}") (hatch edge 0.508) '
                 f'(connect_pads (clearance 0.25)) (min_thickness 0.2) '
                 f'(filled_areas_thickness no) '
                 f'(fill (thermal_gap 0.5) (thermal_bridge_width 0.5)) '
                 f'(polygon (pts (xy 0.2 0.2) (xy {w} -0.2) (xy {w} {h}) '
                 f'(xy 0.2 {h}))))')
+
+    def ground_zones(self, net_name: str = "GND") -> list[str]:
+        """Full-board GND pours on F.Cu/B.Cu, plus the inner ground layers
+        (In1/In4) on 6-layer boards — a declared ground_copper layer must
+        actually carry copper."""
+        layers = ["F.Cu", "B.Cu"]
+        if getattr(self, "n_layers", 4) >= 6:
+            layers += ["In1.Cu", "In4.Cu"]
+        return [self._zone(net_name, ly) for ly in layers]
+
+    def power_planes(self) -> list[str]:
+        """Inner power planes on 6-layer boards: In2 = 3V3, In3 = 5V
+        (buried-capacitance pair; stitching vias connect them to the
+        outer-layer power nets — see stitch_vias)."""
+        if getattr(self, "n_layers", 4) < 6:
+            return []
+        zones = []
+        if "3V3" in self.nets:
+            zones.append(self._zone("3V3", "In2.Cu"))
+        if "5V" in self.nets:
+            zones.append(self._zone("5V", "In3.Cu"))
         return zones
+
+    def stitch_vias(self, points: list[tuple[float, float, str]]) -> list[str]:
+        """Plane-stitching vias (net, F..B through) at explicit anchors."""
+        out = []
+        for x, y, net in points:
+            out.append(
+                f'\t(via (at {_f(x)} {_f(y)}) (size 0.6) (drill 0.3) '
+                f'(layers "F.Cu" "B.Cu") (net "{net}") '
+                f'(uuid "{uid()}"))')
+        return out
 
     def to_text(self) -> str:
         netmap = {n: (i, n) for n, i in self.nets.items()}
@@ -313,7 +340,8 @@ class Board:
                 f"\t(net 0 \"\")\n" +
                 "\n".join(self.net_lines[1:]) + "\n" +
                 "\n".join(fps) + "\n" +
-                "\n".join(self.ground_zones()) + "\n" +
+                "\n".join(self.ground_zones() + self.power_planes() +
+                         getattr(self, "_extra_vias", [])) + "\n" +
                 outline + "\n)\n")
         return text
 

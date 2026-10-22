@@ -1,13 +1,15 @@
 {
- "iterations": 1,
+ "iterations": 2,
  "unconnected": 0,
  "shorting": 0,
  "clean": true,
  "steps": [
   "netclass: 22critical/6power",
-  "freerouting跳过: light mode",
-  "iter1: unconn=117 shorts=0",
+  "freerouting跳过: freerouting无产出: DSN timeout(480s)",
+  "iter1: unconn=114 shorts=1",
   "route_embedded rc=0 ok",
+  "shorts_cleanup rc=0 ok",
+  "iter2: unconn=0 shorts=0",
   "final: unconn=0 shorts=0",
   "score=100.0"
  ]

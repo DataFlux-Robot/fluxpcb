@@ -73,6 +73,21 @@ def parse_copper(pcb_path: Path):
             gy = fy - px * sa + py * ca
             items.append(("pad", "ALL", (gx, gy), None, max(w, h),
                           pm.group(7), ref.group(1)))
+    # zone polygons -> plane copper rectangles (fulfills the docstring):
+    # each zone contributes a full-copper bbox on its layer for its net
+    for zm in re.finditer(
+            r'\(zone \(net(?: \d+)?\) \(net_name "([^"]+)"\) \(layer "([^"]+)"\)'
+            r'[\s\S]{0,900}?\(polygon \(pts((?: \((?:xy|arc)[^)]*\))+)\)', txt):
+        net, layer, pts_raw = zm.group(1), zm.group(2), zm.group(3)
+        xy = [(float(a), float(b)) for a, b in re.findall(
+            r'\(xy ([-\d.]+) ([-\d.]+)', pts_raw)]
+        if len(xy) < 3:
+            continue
+        xs = [p[0] for p in xy]
+        ys = [p[1] for p in xy]
+        items.append(("zone", layer,
+                      (min(xs), min(ys)), (max(xs), max(ys)),
+                      0.0, net, "__plane__"))
     return items
 
 
@@ -103,16 +118,22 @@ class CopperGrid:
             self._plot(ax + (bx - ax) * t, ay + (by - ay) * t, r)
 
     def add_items(self, items, net_name):
-        """Rasterize only items of the given rail net (pads by pad size)."""
+        """Rasterize only items of the given rail net (pads by pad size;
+        zone planes as full-copper rectangles)."""
         for it in items:
             kind = it[0]
             net = it[5]
-            if kind in ("seg", "via") and net != net_name:
+            if kind in ("seg", "via", "zone") and net != net_name:
                 continue
             if kind == "seg":
                 self._plot_seg(it[2], it[3], it[4])
             elif kind == "via":
                 self._plot(it[2][0], it[2][1], it[4] / 2)
+            elif kind == "zone":
+                (x0, y0), (x1, y1) = it[2], it[3]
+                # three fat bars tile the bbox (plot radius = half height)
+                for yy in (y0, (y0 + y1) / 2, y1):
+                    self._plot_seg((x0, yy), (x1, yy), (y1 - y0) / 2)
             elif kind == "pad" and net == net_name:
                 self._plot(it[2][0], it[2][1], it[4] / 2)
 

@@ -747,6 +747,78 @@ def spice_functional(project_dir: Path, outputs: list[str], cfg: dict) -> GateRe
                                ("n_ok", "v_min_v", "drop_pct", "ripple_v_max")})
 
 
+# ------------------------------------------------------------- plane integrity
+@gate("plane_integrity")
+def plane_integrity(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
+    """Every copper layer DECLARED as a plane (ground_copper/power_copper
+    in the layer list) must ACTUALLY carry copper: a full-board zone on
+    that layer plus real connections (stitching vias / TH pads).
+
+    Closes the "fake 6-layer board" gap: a declared-but-empty plane layer
+    passes DRC with zero violations — this gate reads the board copper,
+    not the stackup declaration."""
+    import re
+    pcbs = sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+    if not pcbs:
+        return GateResult("plane_integrity", GateStatus.BLOCKED, "无PCB文件")
+    findings, details = [], {}
+    for pcb in pcbs:
+        txt = pcb.read_text(encoding="utf-8", errors="replace")
+        # plane-designated layers from the layer list
+        plane_layers = re.findall(
+            r'\(\d+ "(\w+\.Cu)" \w+ "(?:ground|power)_copper"\)', txt)
+        if not plane_layers:
+            details[pcb.name] = "无平面层声明(2/4层板) — 天然通过"
+            continue
+        # board outline area
+        edge = re.search(
+            r"\(gr_rect\s*[\s\S]{0,120}?\(start ([-\d.]+) ([-\d.]+)"
+            r"[\s\S]{0,120}?\(end ([-\d.]+) ([-\d.]+)", txt)
+        if not edge:
+            findings.append({"issue": f"{pcb.name}: 无板框, 无法算覆盖率"})
+            continue
+        bw = abs(float(edge.group(3)) - float(edge.group(1)))
+        bh = abs(float(edge.group(4)) - float(edge.group(2)))
+        board_area = max(bw * bh, 1e-6)
+        # zones per layer + their polygon extents. Zone format differs
+        # between our generator output ((net N)(net_name "x")(layer "..")
+        # single-line) and a KiCad re-save ((net "x")\n(layer "..") multiline).
+        layer_report = {}
+        for layer in plane_layers:
+            zpat = re.compile(
+                r'\(zone\s*\(net(?:\s*\d+)?\)?\s*(?:\(net_name "([^"]+)"\))?\s*'
+                r'(?:\(net "([^"]+)"\))?\s*\(net_name "([^"]+)"\)?\s*'
+                r'\(layer "' + re.escape(layer) + r'"')
+            zone_nets = [a or b or c for a, b, c in zpat.findall(txt)
+                         if (a or b or c)]
+            if not zone_nets:          # saved-format: (net "x") then layer
+                zpat2 = re.compile(
+                    r'\(zone\s*\(net "([^"]+)"\)\s*\(layer "' +
+                    re.escape(layer) + r'"')
+                zone_nets = zpat2.findall(txt)
+            covered = bool(zone_nets)
+            has_zone = len(zone_nets) > 0
+            zlen = len(zone_nets)
+            if not has_zone:
+                findings.append({"layer": layer, "issue": f"{pcb.name}: {layer} 声明为平面但无铺铜"})
+            layer_report[layer] = {"nets": zone_nets[:3], "zones": zlen}
+            # connection count for the plane net
+            if has_zone:
+                net = zone_nets[0]
+                vias = txt.count(f'(net "{net}")')  # any copper of this net
+                # TH pads + vias on the plane net = connections
+                conns = len(re.findall(r'\(via \(at[^\n]*?\(net "' + re.escape(net) + r'"\)', txt.replace("\n", " ")))
+                layer_report[layer]["via_conns"] = conns
+        details[pcb.name] = layer_report
+    if findings:
+        return GateResult("plane_integrity", GateStatus.FAIL,
+                          f"{len(findings)} 处平面层无实际铜",
+                          findings=findings, details=details)
+    return GateResult("plane_integrity", GateStatus.PASS,
+                      "全部声明平面层均有实际铺铜",
+                      details=details)
+
+
 # ------------------------------------------------- geometry-aware DC (S1)
 def _dc_solve_lazy(project_dir: Path) -> None:
     """Solve geometry-aware DC on demand — gates no longer depend on the
