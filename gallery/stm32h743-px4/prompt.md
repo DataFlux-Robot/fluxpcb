@@ -30,6 +30,17 @@ FLUXNT_MCU=h743 flux run projects/stm32h743-px4    # → 🟢 RELEASED 23/23门�
 
 </details>
 
+## 逐层视图（6层真实铜）
+
+| 层 | 角色 | 视图 |
+|---|---|---|
+| F.Cu | 信号+器件 | ![F.Cu](layers/F.Cu.svg) |
+| In1.Cu | GND平面 | ![In1.Cu](layers/In1.Cu.svg) |
+| In2.Cu | 3V3电源平面 | ![In2.Cu](layers/In2.Cu.svg) |
+| In3.Cu | 5V电源平面 | ![In3.Cu](layers/In3.Cu.svg) |
+| In4.Cu | GND平面 | ![In4.Cu](layers/In4.Cu.svg) |
+| B.Cu | 信号+器件 | ![B.Cu](layers/B.Cu.svg) |
+
 ## 门禁明细（23/23）
 
 ERC=0错 · DRC=0 · 几何DC双轨解(3V3/VCAP) · 腔模 · PDN-AC · MC200+3角点 · 主机C回归 —— 全绿。
