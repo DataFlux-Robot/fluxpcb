@@ -529,29 +529,57 @@ def to_cell(ob, x, y, li, nc):
     return None
 
 
-def astar(ob, nc, a, b, w_self):
+def astar(ob, nc, a, b, w_self, no_diag=False):
     """Grid A* a->b with via moves. Own-net copper near b are goals.
     Returns list of committed board items, or None."""
     x1, y1, l1 = a
     x2, y2, l2 = b
     # own-net copper near BOTH anchors is passable + goal-worthy
-    start = to_cell(ob, x1, y1, l1, nc)
+    # anchor pads: start/goal = THE PADS' own cells, never other net
+    # copper nearby — dangling same-net track fragments inside the old
+    # 1.2mm goal radius made the A* "arrive" at copper outside the target
+    # island (every verify-fail in the logs)
+    def anchor_pad_cells(x, y, nc):
+        best, bd = None, 1e9
+        for fp in board.GetFootprints():
+            for pad in fp.Pads():
+                if pad.GetNetCode() != nc:
+                    continue
+                q = pad.GetPosition()
+                d = abs(q.x / mm - x) + abs(q.y / mm - y)
+                if d < bd:
+                    best, bd = pad, d
+        if best is None:
+            return None, None, None
+        cx, cy, hw, hh, ang = pad_rect(best)
+        r = max(hw, hh) + 0.1
+        return cx, cy, r
+
+    scx, scy, sr = anchor_pad_cells(x1, y1, nc)
+    if scx is None:
+        return None
+    start = None
+    for gx in range(int((scx - sr) / GRID), int((scx + sr) / GRID) + 1):
+        for gy in range(int((scy - sr) / GRID), int((scy + sr) / GRID) + 1):
+            if ob.free(l1, gx, gy, nc):
+                start = (gx, gy)
+                break
+        if start:
+            break
+    if start is None:
+        start = to_cell(ob, x1, y1, l1, nc)
     if start is None:
         return None
-    tgx, tgy = x2 / GRID, y2 / GRID
-    # goals = the TARGET PAD's own copper only (1.2mm). A 3mm radius also
-    # caught SOURCE-island copper snaking near the target — the A* looped
-    # back home, fired the goal test and committed a no-closure path.
-    rad = int(1.2 / GRID)
+
+    tcx, tcy, tr = anchor_pad_cells(x2, y2, nc)
     goals = set()
-    for li in (0, 1):
-        for gx in range(max(1, int(tgx) - rad), min(ob.nx - 1, int(tgx) + rad)):
-            for gy in range(max(1, int(tgy) - rad), min(ob.ny - 1, int(tgy) + rad)):
-                if ob.cell_is_own(li, gx, gy, nc):
-                    goals.add((li, gx, gy))
+    if tcx is not None:
+        for li in (0, 1):
+            for gx in range(int((tcx - tr) / GRID), int((tcx + tr) / GRID) + 1):
+                for gy in range(int((tcy - tr) / GRID), int((tcy + tr) / GRID) + 1):
+                    if ob.cell_is_own(li, gx, gy, nc):
+                        goals.add((li, gx, gy))
     if not goals:
-        # target pad has no marked own copper (unrouted SMD on B?) — fall
-        # back to the pad cell itself; the end stub will land on it
         c = to_cell(ob, x2, y2, l2, nc)
         if c:
             goals.add((l2, c[0], c[1]))
@@ -573,8 +601,10 @@ def astar(ob, nc, a, b, w_self):
             break
         lay, gx, gy = node
         cur = gscore[node]
-        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1),
-                       (1, 1), (1, -1), (-1, 1), (-1, -1)):
+        moves = ((1, 0), (-1, 0), (0, 1), (0, -1)) if no_diag else (
+            (1, 0), (-1, 0), (0, 1), (0, -1),
+             (1, 1), (1, -1), (-1, 1), (-1, -1))
+        for dx, dy in moves:
             gx2, gy2 = gx + dx, gy + dy
             if not ob.free(lay, gx2, gy2, nc):
                 continue
@@ -592,7 +622,7 @@ def astar(ob, nc, a, b, w_self):
                 gscore[nk] = cur + step
                 came[nk] = node
                 count += 1
-                hx = abs(gx2 - int(tgx)) + abs(gy2 - int(tgy))
+                hx = abs(gx2 - int((tcx or x2) / GRID)) + abs(gy2 - int((tcy or y2) / GRID))
                 # weighted A* (W=2): far fewer expansions for slightly
                 # suboptimal paths — the plain form burned the whole node
                 # budget on goals the flood fill proved reachable
@@ -641,51 +671,33 @@ def astar(ob, nc, a, b, w_self):
     # collect pending segments, verify each EXACTLY, abort the whole path
     # on any violation (diagonal corner-cutting is allowed by the half-rule;
     # this is the geometric safety net)
+    # per-step emission: one track per adjacent cell pair (NO collinear
+    # merging — the merge produced one-cell gaps between supposedly
+    # contiguous segments and every such gap broke the electrical chain)
     pending = []
-    k = 0
-    while k < len(pts) - 1:
+    for k in range(len(pts) - 1):
         li, px, py = pts[k]
         li2, qx, qy = pts[k + 1]
         if li2 != li:
-            # layer switch NEEDS a via — a silently skipped via commits a
-            # disconnected two-layer path (389 verify-fails before this fix).
-            # An existing same-net via (dog-bone) bridges without a new one.
+            # layer switch NEEDS a via (or reuses an existing same-net one)
             if not ob.own_via_at(int(px / GRID), int(py / GRID), nc):
                 if not ob.via_exact_ok(px, py, nc):
                     for it in items:
                         board.Remove(it)
                     return None
                 items.append(add_via(px, py, net))
-            t1 = add_track(px, py, qx, qy, lid(li), net)
-            if t1:
-                items.append(t1)
-            k += 1
             continue
-        j = k + 1
-        while j < len(pts) - 1:
-            l3, ax, ay = pts[j]
-            l4, bx, by = pts[j + 1]
-            if l3 != li or l4 != li:
-                break
-            if abs((bx - px) * (qy - py) - (by - py) * (qx - px)) > 1e-6:
-                break
-            j += 1
-        _, ex, ey = pts[j]
-        pending.append((li, px, py, ex, ey))
-        k = j
+        pending.append((li, px, py, qx, qy))
     for li, px, py, ex, ey in pending:
-        # only diagonal segments can clip corners (half-rule); axis-aligned
-        # segments are grid-guaranteed — the exact scan of every segment
-        # made a session take 2.6 HOURS
-        if abs(ex - px) < 0.01 or abs(ey - py) < 0.01:
-            continue
-        if not ob.clear_exact(px, py, ex, ey,
-                              pcbnew.F_Cu if li == 0 else pcbnew.B_Cu,
-                              nc, w_self):
-            for it in items:
-                board.Remove(it)
-            _why("seg-clear-fail")
-            return None
+        # only diagonal steps can clip corners; axis steps are grid-safe
+        if abs(ex - px) >= 0.01 and abs(ey - py) >= 0.01:
+            if not ob.clear_exact(px, py, ex, ey,
+                                  pcbnew.F_Cu if li == 0 else pcbnew.B_Cu,
+                                  nc, w_self):
+                for it in items:
+                    board.Remove(it)
+                _why("seg-clear-fail")
+                return None
         t = add_track(px, py, ex, ey,
                       pcbnew.F_Cu if li == 0 else pcbnew.B_Cu, net)
         if t:
@@ -700,7 +712,60 @@ def _why(key):
     STATS["why"][key] = STATS["why"].get(key, 0) + 1
 
 
-def try_route_pair(ob, pair):
+def pair_connected(p):
+    """Are this pair's two anchor pads in ONE connectivity island now?
+    Immune to the +-1 global-count noise from zone refill web changes
+    (a routed pair closing while a GND web flap adds +1 elsewhere reads
+    as 'no improvement' to the old count-drop check)."""
+    board.BuildConnectivity()
+    conn = board.GetConnectivity()
+
+    def anchor_pad(x, y, nc):
+        best, bd = None, 1e9
+        for fp in board.GetFootprints():
+            for pad in fp.Pads():
+                if pad.GetNetCode() != nc:
+                    continue
+                q = pad.GetPosition()
+                d = abs(q.x / mm - x) + abs(q.y / mm - y)
+                if d < bd:
+                    best, bd = pad, d
+        return best
+
+    pa = anchor_pad(*p["a"][:2], p["nc"])
+    pb = anchor_pad(*p["b"][:2], p["nc"])
+    if pa is None or pb is None:
+        return False
+
+    def key(item):
+        try:
+            q = item.GetPosition()
+            return (q.x, q.y)
+        except AttributeError:
+            s = item.GetStart()
+            return (s.x, s.y)
+
+    seen = {key(pa)}
+    stack = [pa]
+    target = key(pb)
+    while stack:
+        cur = stack.pop()
+        try:
+            for nb in conn.GetConnectedItems(cur):
+                if nb.GetNetCode() != p["nc"]:
+                    continue
+                k = key(nb)
+                if k == target:
+                    return True
+                if k not in seen:
+                    seen.add(k)
+                    stack.append(nb)
+        except (AttributeError, TypeError):
+            continue
+    return False
+
+
+def try_route_pair(ob, pair, no_diag=False):
     """Route one pair: L attempt, then A*. Commit only when the in-process
     ratsnest actually drops (verified instantly), else roll back cleanly."""
     nc = pair["nc"]
@@ -755,16 +820,18 @@ def try_route_pair(ob, pair):
             for it in items:
                 board.Remove(it)
             continue
-        if verify_count() < before:
+        if pair_connected(pair):
             ob.add_placed(items)
             STATS["session_tracks"].extend(items)
             return True
         for it in items:
             board.Remove(it)
     # A* fallback
-    path = astar(ob, nc, pair["a"], pair["b"], w)
+    import os as _os
+    _nd = no_diag or _os.environ.get("FLUXNT_ORTHO") == "1"
+    path = astar(ob, nc, pair["a"], pair["b"], w, no_diag=_nd)
     if path:
-        if verify_count() < before:
+        if pair_connected(pair):
             ob.add_placed(path)
             STATS["session_tracks"].extend(path)
             return True
@@ -993,6 +1060,66 @@ def dogbone_fanout(ob, pairs):
     return placed
 
 
+def module_fanout(ob, pairs):
+    """Perpendicular stub+via fanout for SMD pad ROWS (castellated module
+    pads etc.): every pad gets a 1.0mm perpendicular escape with a small
+    via BEFORE general routing — same principle as the BGA dog-bone; the
+    row's exits are too tight to leave to the sweep (each unrouted pad got
+    sealed by its neighbours' escapes)."""
+    open_nets = {p["nc"] for p in pairs}
+    placed = 0
+    for fp in board.GetFootprints():
+        try:
+            pads = [p for p in fp.Pads()
+                    if p.GetAttribute() != _PTH and p.IsOnLayer(pcbnew.F_Cu)]
+        except TypeError:
+            continue
+        if not (8 <= len(pads) < 60):
+            continue
+        # detect a single row: pads share ~one y (or x) within tolerance
+        ys = [p.GetPosition().y / mm for p in pads]
+        xs = [p.GetPosition().x / mm for p in pads]
+        span_y, span_x = max(ys) - min(ys), max(xs) - min(xs)
+        horizontal_row = span_x > span_y * 3
+        vertical_row = span_y > span_x * 3
+        if not (horizontal_row or vertical_row):
+            continue
+        # escape direction: toward the board center
+        cx0, cy0 = (EDGE[0] + EDGE[2]) / 2, (EDGE[1] + EDGE[3]) / 2
+        for pad in pads:
+            nc = pad.GetNetCode()
+            if nc == 0 or nc not in open_nets:
+                continue
+            name = pad.GetNetname()
+            if NET_CLASS.get(name) == "power":
+                continue
+            q = pad.GetPosition()
+            x, y = q.x / mm, q.y / mm
+            net = board.FindNet(name)
+            if not net:
+                continue
+            if horizontal_row:
+                dy = 1.0 if cy0 > y else -1.0
+                cands = ((x, y + dy), (x, y - dy))
+            else:
+                dx = 1.0 if cx0 > x else -1.0
+                cands = ((x + dx, y), (x - dx, y))
+            for vx, vy in cands:
+                if not edge_ok((vx, vy)):
+                    continue
+                if not ob.via_exact_ok(vx, vy, nc, va=0.2):
+                    continue
+                if not ob.clear_exact(x, y, vx, vy, pcbnew.F_Cu, nc, 0.15):
+                    continue
+                tk = add_track(x, y, vx, vy, pcbnew.F_Cu, net, w=0.15)
+                v = add_via(vx, vy, net, annulus=0.2, drill=0.1)
+                if tk or v:
+                    ob.add_placed([it for it in (tk, v) if it])
+                    placed += 1
+                break
+    return placed
+
+
 def main():
     boxes = bga_boxes()
     filled = fill_zones()
@@ -1000,6 +1127,7 @@ def main():
     ob = Obstacles()
     mark_own_copper(ob)
     stitched = power_stitch(ob, pairs, boxes)
+    modfan = module_fanout(ob, pairs)
     dogboned = dogbone_fanout(ob, pairs)
     count1 = ratsnest_count()
     closed = sweep(ob, pairs)
@@ -1091,13 +1219,72 @@ def main():
             for v in victims:
                 board.Add(v)       # put them back
 
+    # FINAL MILE: the last few pairs get a nuclear clearing — evict every
+    # evictable copper within 0.7mm of the straight corridor OR within 2.2mm
+    # of either anchor (segment distance: midpoints missed long tracks
+    # hugging past an anchor), route the pair on the emptied field, then a
+    # full re-sweep re-closes the evicted nets. Pads/zones are sacred.
+    mile = 0
+    import os as _os
+    _MILE = _os.environ.get("FLUXNT_MILE", "0") == "1"
+    for p in ([q for q in STATS["failed"]] if _MILE else []):
+        if ratsnest_count() == 0:
+            break
+        x1, y1, _ = p["a"]
+        x2, y2, _ = p["b"]
+
+        def victim_dist(it):
+            if is_via(it):
+                q = it.GetPosition()
+                vx, vy = q.x / mm, q.y / mm
+                d_ch = pt_seg_dist(vx, vy, x1, y1, x2, y2)
+                d_an = min(((vx - x1) ** 2 + (vy - y1) ** 2) ** 0.5,
+                           ((vx - x2) ** 2 + (vy - y2) ** 2) ** 0.5)
+                return d_ch, d_an
+            s, e = it.GetStart(), it.GetEnd()
+            a2 = (s.x / mm, s.y / mm)
+            b2 = (e.x / mm, e.y / mm)
+            d_ch = seg_seg_dist(a2, b2, (x1, y1), (x2, y2))
+            d_an = min(pt_seg_dist(x1, y1, a2[0], a2[1], b2[0], b2[1]),
+                       pt_seg_dist(x2, y2, a2[0], a2[1], b2[0], b2[1]))
+            return d_ch, d_an
+
+        victims = []
+        for it in list(board.GetTracks()):
+            try:
+                d_ch, d_an = victim_dist(it)
+            except AttributeError:
+                continue
+            if d_ch <= 0.7 or d_an <= 2.2:
+                victims.append(it)
+        if not victims:
+            continue
+        for v in victims:
+            board.Remove(v)
+        ob3 = Obstacles()
+        mark_own_copper(ob3)
+        # orthogonal-only through the cleared channel: no diagonal corners
+        # means nothing for the exact commit checks to reject
+        if try_route_pair(ob3, p, no_diag=True):
+            mile += 1
+        else:
+            for v in victims:
+                board.Add(v)
+
+    # re-sweep everything that the final mile (and rip-ups) re-opened
+    pairs3, _, _ = audit_pairs()
+    ob4 = Obstacles()
+    mark_own_copper(ob4)
+    sweep(ob4, pairs3)
+
     fill_zones()
     final = ratsnest_count()
     board.Save(PCB)
     print(json.dumps({
-        "start": count0, "dogbone": dogboned, "stitched": stitched,
+        "start": count0, "modfan": modfan, "dogbone": dogboned, "stitched": stitched,
         "closed": closed,
-        "after_sweep": count2, "ripups": rip, "final": final,
+        "after_sweep": count2, "ripups": rip, "final_mile": mile,
+        "final": final,
         "failed_nets": sorted({p["net"] for p in STATS["failed"]})[:12],
         "why": STATS["why"],
         "zones_filled": filled, "time_s": round(time.time() - T0, 1),
