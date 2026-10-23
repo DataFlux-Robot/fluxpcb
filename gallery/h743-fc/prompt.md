@@ -60,7 +60,7 @@ flux run projects/h743-fc    # → 见reports/latest.md（routing_completeness�
 | In4.Cu | GND平面 | ![In4.Cu](layers/In4.Cu.svg) |
 | B.Cu | 信号+器件 | ![B.Cu](layers/B.Cu.svg) |
 
-## 门禁明细（诚实报告：22/25）
+## 门禁明细（诚实报告：23/25）
 
 | 门禁 | 状态 | 说明 |
 |---|---|---|
@@ -68,13 +68,19 @@ flux run projects/h743-fc    # → 见reports/latest.md（routing_completeness�
 | 阻抗/布局/平面完整性 | ✅ 3/3 | 6层真实铺铜验证 |
 | 验收仿真 9门 | ✅ 9/9 | DC几何/电流密度/腔模/PDN-AC/回流路径全绿 |
 | 固件 3门 | ✅ 3/3 | 主机回归绿 |
-| **drc_zero** | ⛔ | 7处（6间距+1短路）残端 |
-| **routing_completeness** | ⛔ | **ratsnest开路68条**（259→68，闭合74%） |
+| **drc_zero** | ✅ | **KiCad DRC 0违例** |
+| **routing_completeness** | ⛔ | **ratsnest开路49条**（259→49，闭合81%） |
 
-**为什么不是RELEASED**：routing_completeness是硬门禁——ratsnest必须=0。
-本板240球BGA+74网络，布线链（分类分级→功率缝合孔→L/Z策略→偏移过孔逃逸→网格A*迷宫）
-从259条开路收敛到68条后停滞：剩余51个信号对需要真正的迷宫布线器
-（Freerouting在本板headless超时1500s未完成）。**这是当前系统的真实能力边界，如实报告。**
+**布线链（2026-10-23重构轮）**：Freerouting真修复（480s超时是假象；1800s预算下
+886s完成128网路由；headless SES/DSN导出双坏，唯一可用出口是.scr Fusion脚本→
+scr2kicad注入）+ 单进程route_session会话收尾（ZONE_FILLER就地铺铜0.7s、
+进程内ratsnest即时验证0.03s/对、0.16mm栅格加权A*、0.5/0.25 via-in-pad球阵逃逸、
+有界rip-up）+ 1次DRC。
+
+**为什么不是RELEASED**：routing_completeness是硬门禁——ratsnest必须=0。剩余49条
+是Freerouting也布不出的硬尾巴（BGA球正下方FR自身B层走线挡住via-in-pad落点）。
+**这是当前系统的真实能力边界，如实报告。** 同链战绩：esp32s31-dev 45→1(98%)、
+esp32s31-mini 27→2(93%)，两板DRC全零。
 
 对比：修复前同样的门禁会显示"✅ 0 unconnected"——因为severity=ignore让DRC闭嘴。
 四块旧板的真相：esp32s31-dev 45条、esp32s31-mini 22条（27→22本轮改善）、

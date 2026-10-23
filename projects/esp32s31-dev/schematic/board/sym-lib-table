@@ -1,4 +1,4 @@
 (sym_lib_table
 	(version 7)
-	(lib (name "flux")(type "KiCad")(uri "${KIPRJMOD}/flux.kicad_sym")(options "")(descr "FluxNeurotransmitter generated symbols"))
+	(lib (name "flux")(type "KiCad")(uri "${KIPRJMOD}/flux.kicad_sym")(options "")(descr "FluxPCB generated symbols"))
 )

@@ -1,11 +1,11 @@
 {
- "unconnected": 22,
+ "unconnected": 3,
  "shorting": 0,
  "score": {
-  "score": 74.0,
-  "segments": 60,
+  "score": 83.5,
+  "segments": 247,
   "vias": 0,
-  "unconnected": 22,
+  "unconnected": 3,
   "shorting": 0,
   "net_class_counts": {
    "critical": 2,
@@ -14,29 +14,15 @@
   },
   "findings": [
    {
-    "issue": "未连接 22 对",
+    "issue": "未连接 3 对",
     "fix": "提高优先级重布/建议手工补焊清单已留route_report"
    }
   ]
  },
  "structured_feedback": [],
  "fragmented_nets": {
-  "5V": 3,
-  "3V3": 2,
+  "5V": 2,
   "IO6": 2,
-  "IO7": 2,
-  "IO8": 2,
-  "IO9": 2,
-  "IO11": 2,
-  "EN": 3,
-  "TX0": 2,
-  "RX0": 2,
-  "IO2": 2,
-  "IO3": 2,
-  "IO4": 2,
-  "IO5": 2,
-  "USB_DP": 3,
-  "USB_DM": 3,
-  "CC1": 2
+  "EN": 2
  }
 }

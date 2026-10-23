@@ -1,21 +1,72 @@
 {
- "iterations": 3,
- "unconnected": 68,
- "shorting": 1,
- "clean": false,
- "steps": [
-  "netclass: 21critical/4power",
-  "freerouting跳过: freerouting无产出: DSN timeout(480s)",
-  "iter1: ratsnest=69 shorts=1",
-  "route_embedded rc=0 ok",
-  "shorts_cleanup rc=0 ok",
-  "iter2: ratsnest=63 shorts=1",
-  "route_embedded rc=0 ok",
-  "shorts_cleanup rc=0 ok",
-  "iter3: ratsnest=70 shorts=0",
-  "route_embedded rc=0 ok",
-  "final cleanup rc=0 swig/python detected a memory leak of type 'VECTOR2< int > *",
-  "final: ratsnest=68 shorts=1",
-  "score=25.0"
- ]
+ "unconnected": 66,
+ "shorting": 0,
+ "score": {
+  "score": 55.0,
+  "segments": 413,
+  "vias": 0,
+  "unconnected": 66,
+  "shorting": 0,
+  "net_class_counts": {
+   "critical": 21,
+   "normal": 49,
+   "power": 4
+  },
+  "findings": [
+   {
+    "issue": "未连接 66 对",
+    "fix": "提高优先级重布/建议手工补焊清单已留route_report"
+   },
+   {
+    "issue": "电源网络未观察到0.4mm宽走线",
+    "fix": "确认netclass分级布线生效"
+   }
+  ]
+ },
+ "structured_feedback": [],
+ "fragmented_nets": {
+  "GND": 21,
+  "SPI2_MISO": 2,
+  "3V3": 6,
+  "SPI2_MOSI": 2,
+  "I2C2_SCL": 2,
+  "I2C2_SDA": 2,
+  "I2C1_SCL": 2,
+  "I2C1_SDA": 2,
+  "FDCAN1_TX": 2,
+  "UART8_TX": 2,
+  "UART8_RX": 2,
+  "USART6_TX": 2,
+  "SDMMC1_D3": 2,
+  "SDMMC1_CMD": 2,
+  "SDMMC1_CK": 2,
+  "SDMMC1_D1": 2,
+  "ADC1_INP10": 2,
+  "ADC1_INP11": 2,
+  "PWM_CH1": 2,
+  "PWM_CH2": 2,
+  "PWM_CH3": 2,
+  "PWM_CH5": 2,
+  "PWM_CH7": 2,
+  "PWM_CH8": 2,
+  "SWDIO": 2,
+  "SWCLK": 2,
+  "UART5_TX": 2,
+  "UART7_TX": 2,
+  "SPI1_SCK": 2,
+  "USART2_RX": 2,
+  "OSC32_IN": 2,
+  "UART7_RX": 2,
+  "SPI1_MOSI": 2,
+  "UART4_TX": 2,
+  "UART4_RX": 2,
+  "USART1_RX": 2,
+  "USART1_TX": 2,
+  "USB_DP": 2,
+  "IMU1_CS2": 2,
+  "OSC_IN": 2,
+  "USART3_TX": 2,
+  "USART3_RX": 2,
+  "UART5_RX": 2
+ }
 }

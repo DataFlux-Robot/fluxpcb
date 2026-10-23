@@ -37,7 +37,7 @@
 		)
 		(property
 			"Description"
-			"FluxNeurotransmitter module symbol"
+			"FluxPCB module symbol"
 			(at 0 0 0)
 			(hide yes)
 			(effects (font (size 1.27 1.27)))
@@ -370,7 +370,7 @@
 		)
 		(property
 			"Description"
-			"FluxNeurotransmitter module symbol"
+			"FluxPCB module symbol"
 			(at 0 0 0)
 			(hide yes)
 			(effects (font (size 1.27 1.27)))
@@ -387,7 +387,7 @@
 		(symbol
 			"USB_C_16P_1_1"
 			(pin
-				power_in
+				passive
 				line
 				(at -10.16 17.78 0.0)
 				(length 2.54)
@@ -395,59 +395,59 @@
 				(number "A4" (effects (font (size 1.27 1.27))))
 			)
 			(pin
-				power_in
+				passive
 				line
 				(at -10.16 15.240000000000002 0.0)
 				(length 2.54)
-				(name "VBUS2" (effects (font (size 1.27 1.27))))
+				(name "VBUS" (effects (font (size 1.27 1.27))))
 				(number "A9" (effects (font (size 1.27 1.27))))
 			)
 			(pin
-				power_in
+				passive
 				line
 				(at -10.16 12.700000000000001 0.0)
 				(length 2.54)
-				(name "VBUS3" (effects (font (size 1.27 1.27))))
-				(number "B4" (effects (font (size 1.27 1.27))))
-			)
-			(pin
-				power_in
-				line
-				(at -10.16 10.16 0.0)
-				(length 2.54)
-				(name "VBUS4" (effects (font (size 1.27 1.27))))
-				(number "B9" (effects (font (size 1.27 1.27))))
-			)
-			(pin
-				power_in
-				line
-				(at -10.16 7.620000000000001 0.0)
-				(length 2.54)
-				(name "GND1" (effects (font (size 1.27 1.27))))
+				(name "GND" (effects (font (size 1.27 1.27))))
 				(number "A1" (effects (font (size 1.27 1.27))))
 			)
 			(pin
-				power_in
+				passive
 				line
-				(at -10.16 5.080000000000002 0.0)
+				(at -10.16 10.16 0.0)
 				(length 2.54)
-				(name "GND2" (effects (font (size 1.27 1.27))))
+				(name "GND" (effects (font (size 1.27 1.27))))
 				(number "A12" (effects (font (size 1.27 1.27))))
 			)
 			(pin
-				power_in
+				passive
+				line
+				(at -10.16 7.620000000000001 0.0)
+				(length 2.54)
+				(name "VBUS" (effects (font (size 1.27 1.27))))
+				(number "B4" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 5.080000000000002 0.0)
+				(length 2.54)
+				(name "VBUS" (effects (font (size 1.27 1.27))))
+				(number "B9" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
 				line
 				(at -10.16 2.540000000000001 0.0)
 				(length 2.54)
-				(name "GND3" (effects (font (size 1.27 1.27))))
+				(name "GND" (effects (font (size 1.27 1.27))))
 				(number "B1" (effects (font (size 1.27 1.27))))
 			)
 			(pin
-				power_in
+				passive
 				line
 				(at -10.16 0.0 0.0)
 				(length 2.54)
-				(name "GND4" (effects (font (size 1.27 1.27))))
+				(name "GND" (effects (font (size 1.27 1.27))))
 				(number "B12" (effects (font (size 1.27 1.27))))
 			)
 			(pin
@@ -455,7 +455,7 @@
 				line
 				(at -10.16 -2.539999999999999 0.0)
 				(length 2.54)
-				(name "D+_1" (effects (font (size 1.27 1.27))))
+				(name "D+" (effects (font (size 1.27 1.27))))
 				(number "A6" (effects (font (size 1.27 1.27))))
 			)
 			(pin
@@ -463,23 +463,23 @@
 				line
 				(at -10.16 -5.079999999999998 0.0)
 				(length 2.54)
-				(name "D+_2" (effects (font (size 1.27 1.27))))
-				(number "B6" (effects (font (size 1.27 1.27))))
+				(name "D-" (effects (font (size 1.27 1.27))))
+				(number "A7" (effects (font (size 1.27 1.27))))
 			)
 			(pin
 				passive
 				line
 				(at -10.16 -7.619999999999997 0.0)
 				(length 2.54)
-				(name "D-_1" (effects (font (size 1.27 1.27))))
-				(number "A7" (effects (font (size 1.27 1.27))))
+				(name "D+" (effects (font (size 1.27 1.27))))
+				(number "B6" (effects (font (size 1.27 1.27))))
 			)
 			(pin
 				passive
 				line
 				(at -10.16 -10.16 0.0)
 				(length 2.54)
-				(name "D-_2" (effects (font (size 1.27 1.27))))
+				(name "D-" (effects (font (size 1.27 1.27))))
 				(number "B7" (effects (font (size 1.27 1.27))))
 			)
 			(pin
@@ -499,11 +499,11 @@
 				(number "B5" (effects (font (size 1.27 1.27))))
 			)
 			(pin
-				power_in
+				passive
 				line
 				(at -10.16 -17.78 0.0)
 				(length 2.54)
-				(name "SHIELD" (effects (font (size 1.27 1.27))))
+				(name "SH" (effects (font (size 1.27 1.27))))
 				(number "S1" (effects (font (size 1.27 1.27))))
 			)
 		)
@@ -543,7 +543,7 @@
 		)
 		(property
 			"Description"
-			"FluxNeurotransmitter module symbol"
+			"FluxPCB module symbol"
 			(at 0 0 0)
 			(hide yes)
 			(effects (font (size 1.27 1.27)))
@@ -562,7 +562,7 @@
 			(pin
 				power_in
 				line
-				(at -10.16 5.08 0.0)
+				(at -10.16 3.81 0.0)
 				(length 2.54)
 				(name "VIN" (effects (font (size 1.27 1.27))))
 				(number "1" (effects (font (size 1.27 1.27))))
@@ -570,7 +570,7 @@
 			(pin
 				power_in
 				line
-				(at -10.16 2.54 0.0)
+				(at -10.16 1.27 0.0)
 				(length 2.54)
 				(name "GND" (effects (font (size 1.27 1.27))))
 				(number "2" (effects (font (size 1.27 1.27))))
@@ -578,95 +578,18 @@
 			(pin
 				passive
 				line
-				(at -10.16 0.0 0.0)
+				(at -10.16 -1.27 0.0)
 				(length 2.54)
 				(name "EN" (effects (font (size 1.27 1.27))))
 				(number "3" (effects (font (size 1.27 1.27))))
 			)
 			(pin
-				passive
-				line
-				(at -10.16 -2.54 0.0)
-				(length 2.54)
-				(name "NC" (effects (font (size 1.27 1.27))))
-				(number "4" (effects (font (size 1.27 1.27))))
-			)
-			(pin
 				power_out
 				line
-				(at -10.16 -5.08 0.0)
+				(at -10.16 -3.81 0.0)
 				(length 2.54)
 				(name "VOUT" (effects (font (size 1.27 1.27))))
 				(number "5" (effects (font (size 1.27 1.27))))
-			)
-		)
-	)
-	(symbol
-		"SW_PUSH"
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(property
-			"Reference"
-			"SW"
-			(at 0 10.16 0)
-			(hide yes)
-			(effects (font (size 1.27 1.27)))
-		)
-		(property
-			"Value"
-			"SW_PUSH"
-			(at 0 7.62 0)
-			(hide yes)
-			(effects (font (size 1.27 1.27)))
-		)
-		(property
-			"Footprint"
-			""
-			(at 0 5.08 0)
-			(hide yes)
-			(effects (font (size 1.27 1.27)))
-		)
-		(property
-			"Datasheet"
-			""
-			(at 0 2.54 0)
-			(hide yes)
-			(effects (font (size 1.27 1.27)))
-		)
-		(property
-			"Description"
-			"FluxNeurotransmitter module symbol"
-			(at 0 0 0)
-			(hide yes)
-			(effects (font (size 1.27 1.27)))
-		)
-		(symbol
-			"SW_PUSH_0_1"
-			(rectangle
-				(start -7.62 10.16)
-				(end 7.62 -10.16)
-				(stroke (width 0.254) (type default))
-				(fill (type background))
-			)
-		)
-		(symbol
-			"SW_PUSH_1_1"
-			(pin
-				passive
-				line
-				(at -10.16 1.27 0.0)
-				(length 2.54)
-				(name "A" (effects (font (size 1.27 1.27))))
-				(number "1" (effects (font (size 1.27 1.27))))
-			)
-			(pin
-				passive
-				line
-				(at -10.16 -1.27 0.0)
-				(length 2.54)
-				(name "B" (effects (font (size 1.27 1.27))))
-				(number "2" (effects (font (size 1.27 1.27))))
 			)
 		)
 	)
@@ -705,7 +628,7 @@
 		)
 		(property
 			"Description"
-			"FluxNeurotransmitter module symbol"
+			"FluxPCB module symbol"
 			(at 0 0 0)
 			(hide yes)
 			(effects (font (size 1.27 1.27)))
@@ -774,7 +697,7 @@
 		)
 		(property
 			"Description"
-			"FluxNeurotransmitter module symbol"
+			"FluxPCB module symbol"
 			(at 0 0 0)
 			(hide yes)
 			(effects (font (size 1.27 1.27)))
@@ -843,7 +766,7 @@
 		)
 		(property
 			"Description"
-			"FluxNeurotransmitter module symbol"
+			"FluxPCB module symbol"
 			(at 0 0 0)
 			(hide yes)
 			(effects (font (size 1.27 1.27)))
@@ -859,6 +782,75 @@
 		)
 		(symbol
 			"C_0603_1_1"
+			(pin
+				passive
+				line
+				(at -10.16 1.27 0.0)
+				(length 2.54)
+				(name "A" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -1.27 0.0)
+				(length 2.54)
+				(name "B" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
+	(symbol
+		"SW_PUSH"
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"SW"
+			(at 0 10.16 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Value"
+			"SW_PUSH"
+			(at 0 7.62 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Footprint"
+			""
+			(at 0 5.08 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Datasheet"
+			""
+			(at 0 2.54 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Description"
+			"FluxPCB module symbol"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(symbol
+			"SW_PUSH_0_1"
+			(rectangle
+				(start -7.62 10.16)
+				(end 7.62 -10.16)
+				(stroke (width 0.254) (type default))
+				(fill (type background))
+			)
+		)
+		(symbol
+			"SW_PUSH_1_1"
 			(pin
 				passive
 				line
@@ -912,7 +904,7 @@
 		)
 		(property
 			"Description"
-			"FluxNeurotransmitter module symbol"
+			"FluxPCB module symbol"
 			(at 0 0 0)
 			(hide yes)
 			(effects (font (size 1.27 1.27)))
@@ -1077,7 +1069,7 @@
 		)
 		(property
 			"Description"
-			"FluxNeurotransmitter module symbol"
+			"FluxPCB module symbol"
 			(at 0 0 0)
 			(hide yes)
 			(effects (font (size 1.27 1.27)))
@@ -1162,7 +1154,7 @@
 		)
 		(property
 			"Description"
-			"FluxNeurotransmitter module symbol"
+			"FluxPCB module symbol"
 			(at 0 0 0)
 			(hide yes)
 			(effects (font (size 1.27 1.27)))

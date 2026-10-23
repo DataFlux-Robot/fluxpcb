@@ -143,3 +143,40 @@
 | 过孔合法半径 | 球心0.6≥0.55合法; LGA偏移孔落邻焊盘必败; via_r按障碍类型分档0.55/0.85 | 每端点独立选锚 | — |
 | KiCad10 API更名 | PAD_ATTRIB_THROUGH_HOLE→PTH, AttributeError被try吞掉 | getattr双名 | 功率缝合孔复活 |
 | 剩余51对 | 静态策略+网格A*的能力边界, FR headless超时 | 如实报告(routing_completeness硬门禁) | 259→68(74%) |
+
+## K11 单进程布线会话 + Freerouting真修复（2026-10-23 又快又好轮）
+
+### 性能结构：往返循环 → 单进程会话（route_session.py）
+| 旧链(4子进程×N轮) | 问题 | 新会话 |
+|---|---|---|
+| kicad-cli DRC(refill) ~2min ×每轮 | 迭代间zone重灌→ratsnest 70↔73振荡 | ZONE_FILLER.Fill进程内0.7s, 确定性(实测5次重灌计数不变) |
+| conn_audit子进程读进度 | 闭没闭环要等子进程往返 | Add(track)后BuildConnectivity+GetUnconnectedCount 0.03s, 每对即时验证(实测闭一条立刻68→67) |
+| route_embedded每策略collect_obstacles全板扫 | 每9策略×每pair | Obstacles一次构建: 精确seg/rect表+0.16mm占用/via_block/hole三栅格, 提交后增量标记 |
+| cleanup半径清除 | — | 只清最近物品 |
+
+### Freerouting的真相（三层排查）
+| 现象 | 结论 |
+|---|---|
+| 480s超时"永不成功" | 谎言: 给足1800s, 240球h743-fc 886s完成128网路由+优化 |
+| SES导出"placement-only" | headless SES写坏: 完成任务后只存布局不存走线 |
+| DSN回写0字节 | headless DSN写坏同上(即使job COMPLETED) |
+| **.scr(Autodesk Fusion脚本)完整导出** | **唯一可用出口**: WIRE 'net' w (x y)折线 + VIA 'net' d round (x y), µm坐标y翻转, 层1=F/2..N=In/16=B → scr2kicad.py进程内注入(按网去重防FR两遍堆叠) |
+
+### BGA逃逸物理律（0.8mm节距0.4球+0.15间距）
+| 通道 | 几何 | 结论 |
+|---|---|---|
+| 球间直线 | 需0.85 > 节距0.8 | 任何线宽都过不去 |
+| 球间对角 | 0.566-0.2-0.2-0.1=0.066 < 0.15 | 同样过不去 |
+| **球心via-in-pad(0.5/0.25)** | 0.8-0.25-0.2=0.35≥0.15 | **唯一逃逸**: 0.6/0.3过孔需0.85中心距挤不进, 0.5/0.25只需0.75 |
+| 建模教训 | 网格边距必须诚实(extent+clearance+线半宽) | 松边距让A*走幻影对角线, 提交时精确检查全灭(seg-clear-fail 20/轮) |
+
+### A*工程细节
+SWIG包装器id不稳定→位置键并查集; 0.2mm栅格在0.8球阵里只有单车道且对角拐角规则把唯一逃生路封死→0.16栅格(整除0.8, 双车道); 朴素A*在10万可达格上烧光20万节点预算→加权A*(W=2)探索减5-10倍; 角规则从"双正交皆空"放宽到"其一为空"+对角段精确校验兜底; 目标半径3mm会吸到源岛铜皮(A*绕回原地verify-fail)→1.2mm只取目标焊盘自身铜皮。
+
+### 最终战绩(ratsnest, DRC=0三板全绿)
+| 板 | 起始 | 本轮链(FR+scr注入+会话收尾) | 闭合 | 墙钟 |
+|---|---|---|---|---|
+| esp32s31-dev | 45 | **1** | 98% | ~8min |
+| esp32s31-mini | 27 | **2** | 93% | ~12min |
+| h743-fc(240球BGA) | 259 | **49** | 81% | ~50min |
+残差=FR也布不出的硬尾巴(BGA球下FR自身B层走线挡via-in-pad; 模块焊盘排被FR自己的逃逸线封死), 如实由routing_completeness门禁报告。

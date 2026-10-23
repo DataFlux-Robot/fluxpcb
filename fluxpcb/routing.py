@@ -24,6 +24,8 @@ from pathlib import Path
 
 _EMBEDDED = Path(__file__).resolve().parent / "kicadgen" / "route_embedded.py"
 _CLEANUP = Path(__file__).resolve().parent / "kicadgen" / "shorts_cleanup.py"
+_SESSION = Path(__file__).resolve().parent / "kicadgen" / "route_session.py"
+_SCR2KICAD = Path(__file__).resolve().parent / "kicadgen" / "scr2kicad.py"
 
 # hand-fixable after fab (or cosmetic) -> ignore; electrical errors stay error
 CALIBRATED_SEVERITIES = {
@@ -102,6 +104,12 @@ def ensure_calibration(pcb_path: Path) -> None:
         if edge == 0.0 or edge > 0.3:
             rules["min_copper_edge_clearance"] = 0.3
             changed = True
+        # 0.25mm via drills: JLC 6L capability; KiCad's 0.3 default rejects
+        # the BGA-lattice vias (0.3 drill + 0.3 drill needs 0.85mm centers,
+        # the 0.8mm lattice can't host adjacent vias)
+        if float(rules.get("min_through_hole_diameter") or 0.3) > 0.25:
+            rules["min_through_hole_diameter"] = 0.25
+            changed = True
         # the Default net-class clearance is what kicad-cli DRC actually
         # enforces for pad-to-pad checks (rules.min_clearance is unused
         # by the batch checker for same-class pads)
@@ -112,6 +120,14 @@ def ensure_calibration(pcb_path: Path) -> None:
                     changed = True
                 if float(cls.get("track_width", 0.25)) > 0.2:
                     cls["track_width"] = 0.2
+                    changed = True
+                # match the 0.5/0.25 vias the router places (KiCad's 0.6
+                # class default flags every one as via_diameter)
+                if float(cls.get("via_diameter", 0.6)) > 0.5:
+                    cls["via_diameter"] = 0.5
+                    changed = True
+                if float(cls.get("via_drill", 0.3)) > 0.25:
+                    cls["via_drill"] = 0.25
                     changed = True
         sev = settings.setdefault("rule_severities", {})
         for k, v in CALIBRATED_SEVERITIES.items():
@@ -261,56 +277,47 @@ def route_with_freerouting(pcb_path: Path, kipy: str, log=print) -> dict:
     # Windows paths — always pass bare filenames with cwd=work. Its config
     # pins the single-thread optimizer (the MT one NPEs during batch save).
     _pin_freerouting_config()
-    # K5 knowhow: SES output bypasses the DSN batch-save NPE path
-    # (AvatarSD/KiSkill DSN/SES closed loop). Try SES once (bounded), then
-    # DSN write-back once; timeouts count as failures, never kill the chain.
-    ses = work / ("routed-" + pcb_path.stem + ".ses")
-    last_err = ""
-    produced_ses = False
-    if ses.exists():
-        ses.unlink()
+    # The ONLY working headless export is the Autodesk Fusion script (.scr):
+    # the SES writer saves placement-only sessions and the DSN writer saves
+    # 0 bytes on BGA-scale boards — both observed on h743-fc after a fully
+    # COMPLETED job. The scr carries the full routing as WIRE/VIA text,
+    # injected by scr2kicad. 1800s default: the 240-ball h743-fc needs
+    # ~900s of routing + optimization; the old 480s cap cut it mid-pass.
     import os as _os2
-    _fr_timeout = int(_os2.environ.get("FLUXNT_FR_TIMEOUT", "480"))
+    _fr_timeout = int(_os2.environ.get("FLUXNT_FR_TIMEOUT", "1800"))
+    scr = work / ("routed-" + pcb_path.stem + ".scr")
+    if scr.exists():
+        scr.unlink()
+    last_err = ""
     try:
         p = subprocess.run([java, "-Djava.awt.headless=true", "-jar", jar,
-                            "-de", dsn.name, "-do", ses.name,
-                            "-mp", "40", "-l", "en"],
+                            "-de", dsn.name, "-do", scr.name,
+                            "-mp", "40", "-mt", "1", "-l", "en"],
                            capture_output=True, text=True, timeout=_fr_timeout,
                            cwd=str(work))
-        if ses.exists() and ses.stat().st_size > 0:
-            produced_ses = True
-        else:
-            last_err = f"SES rc={p.returncode}"
-    except subprocess.TimeoutExpired:
-        last_err = f"SES timeout({_fr_timeout}s)"
-    log(f"  [route] freerouting SES: {'ok' if produced_ses else last_err}")
-    if produced_ses:
-        from fluxpcb.ses2kicad import inject_ses
-        stats = inject_ses(ses, pcb_path)
-        log(f"  [route] freerouting(SES)注入: {stats}")
-        return {"ok": True, "stats": stats, "mode": "ses"}
-    # DSN write-back fallback (original path), one bounded attempt
-    if routed.exists():
-        routed.unlink()
-    try:
-        p = subprocess.run([java, "-Djava.awt.headless=true", "-jar", jar,
-                            "-de", dsn.name, "-do", routed.name,
-                            "-mp", "40", "-l", "en"],
-                           capture_output=True, text=True, timeout=480,
-                           cwd=str(work))
-        if not (routed.exists() and routed.stat().st_size > 0):
+        if not (scr.exists() and scr.stat().st_size > 0):
             tail = (p.stdout + p.stderr)[-200:].replace("\n", " ")
             last_err = f"rc={p.returncode} {tail}"
     except subprocess.TimeoutExpired:
-        last_err = "DSN timeout(480s)"
-    if not (routed.exists() and routed.stat().st_size > 0):
+        last_err = f"scr timeout({_fr_timeout}s)"
+    log(f"  [route] freerouting scr: "
+        + ("ok" if (scr.exists() and scr.stat().st_size > 0)
+           else last_err))
+    if not (scr.exists() and scr.stat().st_size > 0):
         return {"ok": False, "error": f"freerouting无产出: {last_err}"}
-    import sys
-    sys.path.insert(0, str(_DSN2KICAD.parent))
-    from dsn2kicad import convert
-    stats = convert(routed, pcb_path)
-    log(f"  [route] freerouting注入: {stats}")
-    return {"ok": True, "stats": stats, "mode": "dsn"}
+    code = (
+        "import sys; sys.argv = ['x', r'%s', r'%s']; "
+        "exec(open(r'%s', encoding='utf-8').read())"
+        % (pcb_path, scr, _SCR2KICAD))
+    rc, out = _kipy_run(kipy, code, timeout=300)
+    log(f"  [route] scr注入: {out.strip()[-120:]}")
+    try:
+        import json as _json
+        stats = _json.loads([l for l in out.splitlines()
+                             if l.strip().startswith("{")][-1])
+    except (ValueError, IndexError):
+        stats = {"raw": out.strip()[-120:]}
+    return {"ok": rc == 0, "stats": stats, "mode": "scr"}
 
 
 def _kipy_run(kipy: str, code: str, timeout: int = 600) -> tuple[int, str]:
@@ -319,14 +326,36 @@ def _kipy_run(kipy: str, code: str, timeout: int = 600) -> tuple[int, str]:
     return p.returncode, (p.stdout + p.stderr)
 
 
+def _run_session(kipy: str, pcb_path: Path, cls_file: Path, log=print) -> dict | None:
+    """One routing session: in-process fill+audit+stitch+A*+rip-up+verify.
+    Returns the session's JSON progress dict, or None on failure."""
+    import json as _json
+    try:
+        rc, out = _kipy(kipy, _SESSION, str(pcb_path), str(cls_file),
+                        timeout=1800)
+    except subprocess.TimeoutExpired:
+        log("  [route] session timeout(900s)")
+        return None
+    try:
+        return _json.loads([l for l in (out or "").splitlines()
+                            if l.strip().startswith("{")][-1])
+    except (ValueError, IndexError):
+        log(f"  [route] session无JSON: {(out or '')[-160:]}")
+        return None
+
+
 def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
     """Route a generated board to TRUE connectivity (ratsnest=0) + no shorts.
 
-    Unconnected state comes from pcbnew's ratsnest via conn_audit (cannot be
-    calibrated away); shorting/clearance still come from the DRC report (those
-    severities stay 'error'). Returns {"iterations", "unconnected", "shorting",
-    "clean", "steps"} where unconnected IS the ratsnest open-edge count.
-    Never raises — a board that cannot be cleaned reports its residue."""
+    v3: one single-process routing session per iteration (route_session.py —
+    in-process zone fill, audit, A* on shared incremental grids, bounded
+    rip-up; pcbnew's ratsnest verifies every committed pair instantly).
+    Freerouting is opt-in (FLUXNT_FR=1): it never completed on the BGA
+    boards and its 2x480s timeouts dominated wall time under engine retries.
+    kicad-cli DRC runs only at the end (shorts/clearance feed the scrubber).
+    Returns {"iterations", "unconnected", "shorting", "clean", "steps"}
+    where unconnected IS the ratsnest open-edge count. Never raises."""
+    import json as _json
     kicad_cli, kipy = find_kicad()
     if not kicad_cli:
         return {"clean": False, "error": "kicad-cli 不可用"}
@@ -341,24 +370,7 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
     import os
     light = os.environ.get("FLUXNT_ROUTE_LIGHT") == "1"
 
-    # fast path: an already-clean board (e.g. released green board under
-    # re-verify) skips the whole chain — also protects it from re-routing.
-    # ratsnest IS the truth here; DRC's unconnected count is calibrated away
-    drc0 = run_drc(kicad_cli, pcb_path, rpt)
-    rn0 = ratsnest_state(kipy, pcb_path, log=log)
-    if (rn0 and rn0["ratsnest"] == 0 and drc0["shorting"] == 0
-            and "[clearance]" not in drc0["text"]):
-        steps.append(f"initial ratsnest clean({rn0['audit'].get('tracks')} tracks) — routing skipped")
-        log("  [route] initial ratsnest clean, skip")
-        return {"iterations": 0, "unconnected": 0, "shorting": 0,
-                "clean": True, "steps": steps}
-    if light:
-        max_iterations = min(max_iterations, 1)
-
-    # net classification (K1 knowhow): Power/Critical classes into the
-    # .kicad_pro so the DSN export carries them to Freerouting; pairs get
-    # routed critical-first, power-last with per-class widths
-    import json as _json
+    # net classification (K1 knowhow): Power/Critical classes + widths
     from fluxpcb import routing_classes as _rc
     spec = None
     _specf = pcb_path.parents[2] / "spec.yaml" if len(pcb_path.parents) > 2 else None
@@ -385,55 +397,69 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
     steps.append(f"netclass: {sum(1 for c in net_classes.values() if c=='critical')}critical/"
                  f"{sum(1 for c in net_classes.values() if c=='power')}power")
 
-    # heavy-duty pass first when freerouting is bundled, then the in-process
-    # L-router finishes residue; both bounded
-    fr = ({"ok": False, "error": "light mode"}
-          if light else route_with_freerouting(pcb_path, kipy, log=log))
-    if fr.get("ok"):
-        steps.append(f"freerouting: {fr.get('stats')}")
+    # fast path: ratsnest-clean AND shorts-clean board skips everything
+    rn0 = ratsnest_state(kipy, pcb_path, log=log)
+    if rn0 and rn0["ratsnest"] == 0:
+        drc0 = run_drc(kicad_cli, pcb_path, rpt)
+        if drc0["shorting"] == 0 and "[clearance]" not in drc0["text"]:
+            steps.append(f"initial ratsnest clean({rn0['audit'].get('tracks')} tracks) — routing skipped")
+            log("  [route] initial ratsnest clean, skip")
+            return {"iterations": 0, "unconnected": 0, "shorting": 0,
+                    "clean": True, "steps": steps}
     else:
-        steps.append(f"freerouting跳过: {fr.get('error', '')[:80]}")
-        log(f"  [route] freerouting跳过: {fr.get('error', '')[:100]}")
+        # pre-fill zones once so the session starts from fresh copper
+        run_drc(kicad_cli, pcb_path, rpt)
+
+    # Freerouting is the PRIMARY router (real push-and-shove rip-up
+    # rerouter; completed the 240-ball h743-fc in ~18min once given a
+    # 1800s budget). The session engine finishes its residue (power-plane
+    # stitching + the pairs FR leaves). FLUXNT_FR=0 disables.
+    if os.environ.get("FLUXNT_FR", "1") != "0" and not light:
+        fr = route_with_freerouting(pcb_path, kipy, log=log)
+        steps.append(f"freerouting: {fr.get('stats')}" if fr.get("ok")
+                     else f"freerouting跳过: {fr.get('error', '')[:80]}")
+    else:
+        steps.append("freerouting: off")
 
     it = 0
-    for it in range(1, max_iterations + 1):
-        drc = run_drc(kicad_cli, pcb_path, rpt)
-        rn = ratsnest_state(kipy, pcb_path, log=log)
-        if rn is None:
-            steps.append(f"iter{it}: conn_audit不可用")
+    prev = rn0["ratsnest"] if rn0 else -1
+    for it in range(1, (1 if light else max_iterations) + 1):
+        sess = _run_session(kipy, pcb_path, cls_file, log=log)
+        if sess is None:
+            steps.append(f"session{it}: failed")
             break
-        last = {"unconnected": rn["ratsnest"], "shorting": drc["shorting"]}
-        steps.append(f"iter{it}: ratsnest={rn['ratsnest']} shorts={drc['shorting']}")
-        log(f"  [route] iter{it}: ratsnest={rn['ratsnest']} shorts={drc['shorting']}")
-        if rn["ratsnest"] == 0 and drc["shorting"] == 0:
-            break   # fall through to the shared final DRC + scorecard block
+        cur = sess.get("final", -1)
+        steps.append(f"session{it}: {sess.get('start')}->{cur} "
+                     f"(stitch {sess.get('stitched')}, ripup {sess.get('ripups')}, "
+                     f"{sess.get('time_s')}s)")
+        log(f"  [route] session{it}: {sess.get('start')}->{cur} in {sess.get('time_s')}s")
+        if cur == 0:
+            break
+        if cur >= prev and it > 1:
+            steps.append(f"session{it}: no progress, stop")
+            break
+        prev = cur
 
-        if rn["ratsnest"] > 0:
-            pairs = _rc.routing_order_pairs(rn["pairs"], net_classes)  # critical first
-            if pairs:
-                pairs_file = pcb_path.parent / "pairs.txt"
-                pairs_file.write_text("\n".join(pairs), encoding="utf-8")
-                rc, out = _kipy(kipy, _EMBEDDED, str(pcb_path), str(pairs_file),
-                                str(cls_file))
-                ok = "ROUTES_ADDED" in out
-                steps.append(f"route_embedded rc={rc} {'ok' if ok else out[:120]}")
-                log(f"  [route] embedded: {out.strip().splitlines()[-1][:90] if out.strip() else 'no output'}")
-        if drc["shorting"] > 0:
-            rc, out = _kipy(kipy, _CLEANUP, str(pcb_path), str(rpt))
-            ok = "VIOLATIONS_REMOVED" in out
-            steps.append(f"shorts_cleanup rc={rc} {'ok' if ok else out[:120]}")
-            log(f"  [route] cleanup: {out.strip().splitlines()[-1][:90] if out.strip() else 'no output'}")
-
-    # final DRC + ratsnest for the report, then one last scrubber pass — the
-    # loop's route->cleanup ordering converges one scrub behind
+    # closing DRC (+scrubber). One pass; if the scrubber removed
+    # load-bearing copper, one more session re-closes what it broke.
     drc = run_drc(kicad_cli, pcb_path, rpt)
-    if drc["shorting"] or "[clearance]" in drc["text"]             or "[holes_co_located]" in drc["text"]             or "[copper_edge_clearance]" in drc["text"]:
+    scrubbed = False
+    if drc["shorting"] or "[clearance]" in drc["text"] \
+            or "[holes_co_located]" in drc["text"] \
+            or "[copper_edge_clearance]" in drc["text"]:
         rc, out = _kipy(kipy, _CLEANUP, str(pcb_path), str(rpt))
         lastline = out.strip().splitlines()[-1][:60] if out.strip() else ""
         steps.append(f"final cleanup rc={rc} {lastline}")
+        scrubbed = True
         drc = run_drc(kicad_cli, pcb_path, rpt)
     rnf = ratsnest_state(kipy, pcb_path, log=log)
-    last = {"unconnected": (rnf or {}).get("ratsnest", last["unconnected"]),
+    if scrubbed and rnf and rnf["ratsnest"] > 0:
+        sess = _run_session(kipy, pcb_path, cls_file, log=log)
+        if sess:
+            steps.append(f"post-cleanup session: ->{sess.get('final')}")
+            rnf = ratsnest_state(kipy, pcb_path, log=log) or rnf
+            drc = run_drc(kicad_cli, pcb_path, rpt)
+    last = {"unconnected": (rnf or {}).get("ratsnest", -1),
             "shorting": drc["shorting"]}
     clean = last["unconnected"] == 0 and last["shorting"] == 0
     steps.append(f"final: ratsnest={last['unconnected']} shorts={last['shorting']}")
