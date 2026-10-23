@@ -255,7 +255,11 @@ def gen_footprint(variant: str, out_path: Path) -> Path:
     rows, c0, c1 = grid(pins)
     nrows, ncols = len(rows), c1 - c0 + 1
     pitch = 0.8
-    ball = 0.4
+    # AMD UG1099 for 0.8mm pitch: ~0.3mm NSMD balls. 0.4mm balls leave no
+    # legal dog-bone via at the 4-ball center (566um center distance minus
+    # 0.2 pad + 0.25 via annulus = 116um < 150um clearance) — the escape
+    # fanout physically requires industry-sized pads
+    ball = 0.3
     a1 = (-((ncols - 1) / 2) * pitch, -((nrows - 1) / 2) * pitch)
     row_i = {r: i for i, r in enumerate(rows)}
     pads = []

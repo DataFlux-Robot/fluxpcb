@@ -104,11 +104,13 @@ def ensure_calibration(pcb_path: Path) -> None:
         if edge == 0.0 or edge > 0.3:
             rules["min_copper_edge_clearance"] = 0.3
             changed = True
-        # 0.25mm via drills: JLC 6L capability; KiCad's 0.3 default rejects
-        # the BGA-lattice vias (0.3 drill + 0.3 drill needs 0.85mm centers,
-        # the 0.8mm lattice can't host adjacent vias)
-        if float(rules.get("min_through_hole_diameter") or 0.3) > 0.25:
-            rules["min_through_hole_diameter"] = 0.25
+        # 0.2mm via drills / 0.4mm dog-bone vias: JLC 6L capability
+        # (0.15/0.3 min); KiCad's 0.3 default rejects the BGA-lattice vias
+        if float(rules.get("min_through_hole_diameter") or 0.3) > 0.2:
+            rules["min_through_hole_diameter"] = 0.2
+            changed = True
+        if float(rules.get("min_via_diameter") or 0.5) > 0.4:
+            rules["min_via_diameter"] = 0.4
             changed = True
         # the Default net-class clearance is what kicad-cli DRC actually
         # enforces for pad-to-pad checks (rules.min_clearance is unused
@@ -121,13 +123,13 @@ def ensure_calibration(pcb_path: Path) -> None:
                 if float(cls.get("track_width", 0.25)) > 0.2:
                     cls["track_width"] = 0.2
                     changed = True
-                # match the 0.5/0.25 vias the router places (KiCad's 0.6
-                # class default flags every one as via_diameter)
-                if float(cls.get("via_diameter", 0.6)) > 0.5:
-                    cls["via_diameter"] = 0.5
+                # match the router's vias: 0.5/0.25 general + 0.4/0.2
+                # dog-bones (KiCad's 0.6 class default flags them all)
+                if float(cls.get("via_diameter", 0.6)) > 0.4:
+                    cls["via_diameter"] = 0.4
                     changed = True
-                if float(cls.get("via_drill", 0.3)) > 0.25:
-                    cls["via_drill"] = 0.25
+                if float(cls.get("via_drill", 0.3)) > 0.2:
+                    cls["via_drill"] = 0.2
                     changed = True
         sev = settings.setdefault("rule_severities", {})
         for k, v in CALIBRATED_SEVERITIES.items():
@@ -311,6 +313,14 @@ def route_with_freerouting(pcb_path: Path, kipy: str, log=print) -> dict:
         % (pcb_path, scr, _SCR2KICAD))
     rc, out = _kipy_run(kipy, code, timeout=300)
     log(f"  [route] scr注入: {out.strip()[-120:]}")
+    # free B.Cu under BGAs (separate process: the KiCad wrappers poison
+    # containers after Add/Remove churn) so dog-bone vias can land
+    _CLR = Path(__file__).resolve().parent / "kicadgen" / "clear_bcup.py"
+    try:
+        rc2, out2 = _kipy(kipy, _CLR, str(pcb_path), timeout=180)
+        log(f"  [route] B.Cu清道: {out2.strip()[-80:]}")
+    except subprocess.TimeoutExpired:
+        log("  [route] B.Cu清道超时")
     try:
         import json as _json
         stats = _json.loads([l for l in out.splitlines()

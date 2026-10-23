@@ -154,24 +154,24 @@ def edge_ok(*pts):
 
 
 # ================================================================ commit
-def add_track(sx, sy, ex, ey, layer_id, net):
+def add_track(sx, sy, ex, ey, layer_id, net, w=None):
     if abs(ex - sx) < 0.01 and abs(ey - sy) < 0.01:
         return None
     t = pcbnew.PCB_TRACK(board)
     t.SetStart(pcbnew.VECTOR2I(int(sx * mm), int(sy * mm)))
     t.SetEnd(pcbnew.VECTOR2I(int(ex * mm), int(ey * mm)))
-    t.SetWidth(int(track_w(net.GetNetname() or "") * mm))
+    t.SetWidth(int((w or track_w(net.GetNetname() or "")) * mm))
     t.SetLayer(layer_id)
     t.SetNet(net)
     board.Add(t)
     return t
 
 
-def add_via(x, y, net):
+def add_via(x, y, net, annulus=0.25, drill=0.125):
     v = pcbnew.PCB_VIA(board)
     v.SetPosition(pcbnew.VECTOR2I(int(x * mm), int(y * mm)))
-    v.SetWidth(int(0.5 * mm))
-    v.SetDrill(int(0.25 * mm))
+    v.SetWidth(int(annulus * 2 * mm))
+    v.SetDrill(int(drill * 2 * mm))
     v.SetNet(net)
     board.Add(v)
     return v
@@ -318,6 +318,7 @@ class Obstacles:
         self.via_block = [bytearray(self.nx * self.ny) for _ in range(2)]
         self.hole_block = bytearray(self.nx * self.ny)
         self.own_cells = {}          # (lay, gx, gy) -> set(netcodes)
+        self.own_via_cells = {}      # (gx, gy) -> set(netcodes)
         self.segs = ([], [])         # per layer: (netcode, a, b, extra)
         self.rects = ([], [])        # per layer: (netcode, rect)
         self._rasterize_board()
@@ -359,6 +360,8 @@ class Obstacles:
                 p = item.GetPosition()
                 x, y = p.x / mm, p.y / mm
                 r = item.GetWidth(pcbnew.F_Cu) / mm / 2
+                self.own_via_cells.setdefault(
+                    (int(x / GRID), int(y / GRID)), set()).add(nc)
                 for li in (0, 1):
                     self.segs[li].append((nc, (x, y), (x, y), r))
                     self._mark(li, x, y, x, y, r + 0.1,
@@ -462,6 +465,12 @@ class Obstacles:
         s = self.own_cells.get((li, gx, gy))
         return bool(s and nc in s)
 
+    def own_via_at(self, gx, gy, nc):
+        """An existing same-net via bridges the layers at this cell — the
+        A* crosses for free instead of placing a duplicate via."""
+        s = self.own_via_cells.get((gx, gy))
+        return bool(s and nc in s)
+
     def via_cell_ok(self, li, gx, gy):
         i = self._idx(gx, gy)
         return (i >= 0 and not self.via_block[li][i]
@@ -490,17 +499,18 @@ class Obstacles:
                     return False
         return True
 
-    def via_exact_ok(self, x, y, nc):
+    def via_exact_ok(self, x, y, nc, va=None):
+        va = VIA_ANNULUS if va is None else va
         for li in (0, 1):
             for net, a, b, extra in self.segs[li]:
                 if net == nc:
                     continue
-                if seg_seg_dist((x, y), (x, y), a, b) < VIA_ANNULUS + 0.15 + extra:
+                if seg_seg_dist((x, y), (x, y), a, b) < va + 0.15 + extra:
                     return False
             for net, rect in self.rects[li]:
                 if net == nc:
                     continue
-                if pt_rect_dist(x, y, rect) < VIA_ANNULUS + 0.25:
+                if pt_rect_dist(x, y, rect) < va + 0.15:
                     return False
         if not edge_ok((x, y)):
             return False
@@ -588,7 +598,9 @@ def astar(ob, nc, a, b, w_self):
                 # budget on goals the flood fill proved reachable
                 heapq.heappush(heap, (cur + step + 2.0 * hx * GRID, count, nk))
         nk = (1 - lay, gx, gy)
-        if (ob.free(1 - lay, gx, gy, nc) and ob.via_cell_ok(1 - lay, gx, gy)
+        bridge = ob.own_via_at(gx, gy, nc)
+        if (ob.free(1 - lay, gx, gy, nc)
+                and (bridge or ob.via_cell_ok(1 - lay, gx, gy))
                 and gscore.get(nk, 1e18) > cur + VIA_COST):
             gscore[nk] = cur + VIA_COST
             came[nk] = node
@@ -635,13 +647,15 @@ def astar(ob, nc, a, b, w_self):
         li, px, py = pts[k]
         li2, qx, qy = pts[k + 1]
         if li2 != li:
-            # layer switch NEEDS the via — a silently skipped via commits a
-            # disconnected two-layer path (389 verify-fails before this fix)
-            if not ob.via_exact_ok(px, py, nc):
-                for it in items:
-                    board.Remove(it)
-                return None
-            items.append(add_via(px, py, net))
+            # layer switch NEEDS a via — a silently skipped via commits a
+            # disconnected two-layer path (389 verify-fails before this fix).
+            # An existing same-net via (dog-bone) bridges without a new one.
+            if not ob.own_via_at(int(px / GRID), int(py / GRID), nc):
+                if not ob.via_exact_ok(px, py, nc):
+                    for it in items:
+                        board.Remove(it)
+                    return None
+                items.append(add_via(px, py, net))
             t1 = add_track(px, py, qx, qy, lid(li), net)
             if t1:
                 items.append(t1)
@@ -762,9 +776,14 @@ def try_route_pair(ob, pair):
 
 
 # ================================================================ stitching
-def power_stitch(ob, pairs):
+def power_stitch(ob, pairs, boxes=()):
     """Vias tying fragmented power pads to their inner planes. Two-layer
-    exact-checked; committed only when the ratsnest drops."""
+    exact-checked; committed only when the ratsnest drops.
+
+    BGA power balls use VIA-IN-PAD ONLY: the old ±0.6mm offset candidates
+    land exactly on the diagonal-center lattice (0.6*sqrt(2) ~= the 0.566
+    dog-bone ring) and squat the escape centers of neighbouring signal
+    balls — a sealed ball stays sealed."""
     done = 0
     for p in pairs:
         if NET_CLASS.get(p["net"]) != "power":
@@ -774,7 +793,10 @@ def power_stitch(ob, pairs):
         for x, y, lay in (p["a"], p["b"]):
             before = verify_count()
             placed = False
-            for dx, dy in ((0, 0), (0.6, 0), (-0.6, 0), (0, 0.6), (0, -0.6)):
+            in_bga = any(x0 <= x <= x1 and y0 <= y <= y1
+                         for (x0, y0, x1, y1) in boxes)
+            cands = ((0, 0),) if in_bga else                 ((0, 0), (0.6, 0), (-0.6, 0), (0, 0.6), (0, -0.6))
+            for dx, dy in cands:
                 vx, vy = x + dx, y + dy
                 if not edge_ok((vx, vy)):
                     continue
@@ -861,12 +883,124 @@ def mark_own_copper(ob):
                 pass
 
 
+def bga_boxes():
+    """BGA footprints' bboxes (SMD pad count >= 60). MUST run before any
+    zone fill / connectivity churn — fp.Pads() iteration started raising
+    SwigPyObject-not-iterable after ZONE_FILLER + GetConnectedItems."""
+    boxes = []
+    for fp in board.GetFootprints():
+        try:
+            pads = [p for p in fp.Pads()
+                    if p.GetAttribute() != _PTH and p.IsOnLayer(pcbnew.F_Cu)]
+        except TypeError:
+            continue
+        if len(pads) < 60:
+            continue
+        bb = fp.GetBoundingBox()
+        boxes.append(((bb.GetX() - 500000) / mm, (bb.GetY() - 500000) / mm,
+                      (bb.GetX() + bb.GetWidth() + 500000) / mm,
+                      (bb.GetY() + bb.GetHeight() + 500000) / mm))
+    return boxes
+
+
+def clear_bga_bcup(boxes):
+    """Remove B.Cu TRACKS under BGA footprints — Freerouting routed them
+    there and they block the dog-bone via landings (the via pad itself is
+    fine: same net or anti-padded; a foreign track under the center kills
+    via_exact_ok). Vias are kept; nets whose escapes ran on B.Cu re-open
+    and the sweep re-routes them on the freed copper."""
+    removed = 0
+    for it in list(board.GetTracks()):
+        if is_via(it) or it.GetLayer() != pcbnew.B_Cu:
+            continue
+        s, e = it.GetStart(), it.GetEnd()
+        mx, my = (s.x + e.x) / 2 / mm, (s.y + e.y) / 2 / mm
+        for (x0, y0, x1, y1) in boxes:
+            if x0 <= mx <= x1 and y0 <= my <= y1:
+                board.Remove(it)
+                removed += 1
+                break
+    return removed
+
+
+def dogbone_fanout(ob, pairs):
+    """Industry-standard BGA escape (Altium/AMD UG1099 for >=0.8mm pitch):
+    a small via at the CENTER OF FOUR BALLS plus a short diagonal track
+    from the ball pad. Inter-ball gaps at 0.8mm pitch admit no track —
+    every signal ball needs this fanout. With 0.3mm UG1099 balls and a
+    0.4/0.2 dog-bone via at the 0.566mm center: via-edge to ball-edge
+    0.566-0.15-0.1 = 0.316mm (>=0.15 OK); adjacent dog-bones 0.8mm apart
+    (hole-to-hole 0.6 >= 0.25 OK)."""
+    open_nets = {p["nc"] for p in pairs}
+    placed = 0
+    used_centers = set()
+    for fp in board.GetFootprints():
+        pads = [p for p in fp.Pads()
+                if p.GetAttribute() != _PTH and p.IsOnLayer(pcbnew.F_Cu)]
+        if len(pads) < 60:
+            continue                      # BGA-sized footprints only
+        # pitch from nearest-neighbour pad distance
+        pts = [(p.GetPosition().x / mm, p.GetPosition().y / mm)
+               for p in pads]
+        pitch = 0.8
+        if len(pts) > 1:
+            ds = []
+            for i, (x1, y1) in enumerate(pts[:80]):
+                n = min(((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
+                        for j, (x2, y2) in enumerate(pts) if j != i)
+                ds.append(n)
+            pitch = sorted(ds)[len(ds) // 2]
+        half = pitch / 2.0
+        # outer balls first (escape lanes run outward to the field edge)
+        fx, fy = fp.GetPosition().x / mm, fp.GetPosition().y / mm
+        pads.sort(key=lambda p: -abs(p.GetPosition().x / mm - fx)
+                  - abs(p.GetPosition().y / mm - fy))
+        for pad in pads:
+            nc = pad.GetNetCode()
+            if nc == 0 or nc not in open_nets:
+                continue
+            if NET_CLASS.get(pad.GetNetname() or "") == "power":
+                continue                  # power balls: plane stitching
+            p = pad.GetPosition()
+            x, y = p.x / mm, p.y / mm
+            net = board.FindNet(pad.GetNetname())
+            if not net:
+                continue
+            # prefer the diagonal toward the board center (outward escape)
+            cx0, cy0 = (EDGE[0] + EDGE[2]) / 2, (EDGE[1] + EDGE[3]) / 2
+            offs = sorted(((half, half), (-half, half), (half, -half),
+                           (-half, -half)),
+                          key=lambda o: -((o[0] * (cx0 - x) +
+                                           o[1] * (cy0 - y))))
+            for dx, dy in offs:
+                vx, vy = x + dx, y + dy
+                key = (round(vx, 2), round(vy, 2))
+                if key in used_centers:
+                    continue        # each 4-ball center hosts ONE dog-bone
+                if not edge_ok((vx, vy)):
+                    continue
+                if not ob.via_exact_ok(vx, vy, nc, va=0.2):
+                    continue
+                if not ob.clear_exact(x, y, vx, vy, pcbnew.F_Cu, nc, 0.15):
+                    continue
+                t = add_track(x, y, vx, vy, pcbnew.F_Cu, net, w=0.15)
+                v = add_via(vx, vy, net, annulus=0.2, drill=0.1)
+                if t or v:
+                    ob.add_placed([it for it in (t, v) if it])
+                    used_centers.add(key)
+                    placed += 1
+                break
+    return placed
+
+
 def main():
+    boxes = bga_boxes()
     filled = fill_zones()
     pairs, count0, frag = audit_pairs()
     ob = Obstacles()
     mark_own_copper(ob)
-    stitched = power_stitch(ob, pairs)
+    stitched = power_stitch(ob, pairs, boxes)
+    dogboned = dogbone_fanout(ob, pairs)
     count1 = ratsnest_count()
     closed = sweep(ob, pairs)
     count2 = ratsnest_count()
@@ -914,18 +1048,39 @@ def main():
             except AttributeError:
                 return False
 
+        # vias report GetLength()==0 — the old >0 filter made every dog-bone
+        # untouchable while sealed balls needed exactly those evicted; and
+        # sorting by length picked ARBITRARY vias (all tie at 0), not the
+        # ones sealing this anchor — sort by distance to the nearest anchor
+        def dist_to_anchor(it):
+            try:
+                if is_via(it):
+                    q = it.GetPosition()
+                    pts = [(q.x / mm, q.y / mm)]
+                else:
+                    s, e = it.GetStart(), it.GetEnd()
+                    pts = [((s.x + e.x) / 2 / mm, (s.y + e.y) / 2 / mm)]
+                return min((px - ax) ** 2 + (py - ay) ** 2
+                           for px, py in pts
+                           for ax, ay in ((x1, y1), (x2, y2))) ** 0.5
+            except AttributeError:
+                return 99.0
+
         victims = sorted((it for it in board.GetTracks()
                           if (crosses(it) or near_anchor(it))
-                          and it.GetLength() > 0),
-                         key=lambda it: it.GetLength())[:3]
+                          and (is_via(it) or it.GetLength() > 0)),
+                         key=dist_to_anchor)[:10]
         if not victims:
             continue
         for v in victims:
             board.Remove(v)
         ob2 = Obstacles()          # fresh model after the eviction
         mark_own_copper(ob2)
-        before = ratsnest_count()
-        if try_route_pair(ob2, p) and ratsnest_count() <= before:
+        # accept when the PAIR closed (try_route_pair verified the drop
+        # internally); evicted victims may re-open their own pairs, which
+        # the re-sweep below re-routes — requiring an aggregate improvement
+        # here rejected every successful rip-up when a victim reopened
+        if try_route_pair(ob2, p):
             rip += 1
             count2 = ratsnest_count()
             # the victim's net may now be open — re-sweep everything left
@@ -940,7 +1095,8 @@ def main():
     final = ratsnest_count()
     board.Save(PCB)
     print(json.dumps({
-        "start": count0, "stitched": stitched, "closed": closed,
+        "start": count0, "dogbone": dogboned, "stitched": stitched,
+        "closed": closed,
         "after_sweep": count2, "ripups": rip, "final": final,
         "failed_nets": sorted({p["net"] for p in STATS["failed"]})[:12],
         "why": STATS["why"],

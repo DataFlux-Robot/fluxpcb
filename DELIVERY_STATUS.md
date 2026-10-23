@@ -151,3 +151,16 @@ auto_route v3: FR默认开(FLUXNT_FR=0关/FLUXNT_FR_TIMEOUT可调)→scr注入�
    via-in-pad落点(会话rip-up可驱逐但重布后原样堵回); esp32模块焊盘排同理。
 2. routing_completeness门禁继续如实报告(1/2/49)。
 3. 旧36×36 BGA板(n6/h743)未用新链重布, 数字保持82/79。
+
+---
+
+# 交付状态更新(2026-10-23 dog-bone轮)
+
+调研(Altium/AMD UG1099)落地: 0.8mm节距BGA的标准逃逸是dog-bone(四球对角中心小过孔+短线),
+且球焊盘应为0.3mm NSMD(原0.4mm在对角中心任何过孔都放不下)。已实现dogbone_fanout
+(单会话61个逃逸)、BGA功率球让位via-in-pad(0.6偏移恰好踩格点封死信号球)、via可驱逐rip-up、
+A*自有via桥接、FR球阵下方B.Cu清道(独立进程——KiCad 10在Add/Remove后同进程容器视图
+会返回裸SwigPyObject, 本轮最大时间黑洞)。
+
+fc板本轮连贯重跑未超过已提交状态(FR对预布线板非确定性+clearance残差), 板面回滚,
+引擎能力全部入库。三板数字维持: dev 1/mini 2/fc 49开路, DRC零(dev/mini)。
