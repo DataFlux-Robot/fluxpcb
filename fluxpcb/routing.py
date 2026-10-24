@@ -25,6 +25,7 @@ from pathlib import Path
 _EMBEDDED = Path(__file__).resolve().parent / "kicadgen" / "route_embedded.py"
 _CLEANUP = Path(__file__).resolve().parent / "kicadgen" / "shorts_cleanup.py"
 _SESSION = Path(__file__).resolve().parent / "kicadgen" / "route_session.py"
+_FLUXROUTER = Path(__file__).resolve().parent / "kicadgen" / "fluxrouter.py"
 _SCR2KICAD = Path(__file__).resolve().parent / "kicadgen" / "scr2kicad.py"
 
 # hand-fixable after fab (or cosmetic) -> ignore; electrical errors stay error
@@ -354,6 +355,28 @@ def _run_session(kipy: str, pcb_path: Path, cls_file: Path, log=print) -> dict |
         return None
 
 
+def _run_fluxrouter(kipy: str, pcb_path: Path, cls_file: Path, log=print) -> dict | None:
+    """One PathFinder negotiated-congestion pass (K14): every negotiable
+    net rerouted on a cost field where contested cells grow a history
+    penalty — competing nets push each other aside instead of the legacy
+    one-shot sweep's first-come-first-served."""
+    import json as _json
+    import os as _os
+    _iters = _os.environ.get("FLUXNT_PF_ITERS", "15")
+    try:
+        rc, out = _kipy(kipy, _FLUXROUTER, str(pcb_path), str(cls_file),
+                        _iters, timeout=2700)
+    except subprocess.TimeoutExpired:
+        log("  [route] fluxrouter timeout(1800s)")
+        return None
+    try:
+        return _json.loads([l for l in (out or "").splitlines()
+                            if l.strip().startswith("{")][-1])
+    except (ValueError, IndexError):
+        log(f"  [route] fluxrouter无JSON: {(out or '')[-160:]}")
+        return None
+
+
 def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
     """Route a generated board to TRUE connectivity (ratsnest=0) + no shorts.
 
@@ -449,6 +472,17 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
             steps.append(f"session{it}: no progress, stop")
             break
         prev = cur
+
+    # PathFinder pass (K14): FLUXNT_ROUTER=pathfinder enables — the
+    # negotiated rerouting closes what the sequential session cannot
+    if os.environ.get("FLUXNT_ROUTER") == "pathfinder":
+        frn = _run_fluxrouter(kipy, pcb_path, cls_file, log=log)
+        if frn:
+            steps.append(f"fluxrouter: iters={frn.get('iters')} "
+                         f"routed={frn.get('routed_nets')}/{frn.get('nets')} "
+                         f"final={frn.get('final')} ({frn.get('time_s')}s)")
+            log(f"  [route] fluxrouter: {frn.get('routed_nets')}/"
+                f"{frn.get('nets')} nets, final {frn.get('final')}")
 
     # closing DRC (+scrubber). One pass; if the scrubber removed
     # load-bearing copper, one more session re-closes what it broke.

@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-24",
+  "note": "P0 baseline for fluxrouter A/B (commits up to 0c9990c)",
+  "boards": {
+    "esp32s31-mini": {"opens": 2, "drc_violations": 0, "chain": "FR+session, ~12min"},
+    "esp32s31-dev": {"opens": 1, "drc_violations": 0, "chain": "FR+session, ~8min"},
+    "h743-fc": {"opens": 49, "drc_violations": 0, "chain": "fanout+FR+session, ~50min",
+                "diag": "43 pairs measured at chain-run time: 16 routable / 18 disconnected-components"},
+    "stm32n6-px4": {"opens": 82, "drc_violations": null, "chain": "not re-run with new engine"},
+    "stm32h743-px4": {"opens": 79, "drc_violations": null, "chain": "not re-run with new engine"}
+  },
+  "fixtures": {"regression": "projects/esp32s31-mini (2 opens, do not modify without git restore)"}
+}
