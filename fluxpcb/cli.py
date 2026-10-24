@@ -73,6 +73,11 @@ def main(argv=None):
     p_init = sub.add_parser("init", help="创建项目(从需求模板)")
     p_init.add_argument("dir", type=Path)
 
+    p_new = sub.add_parser("new", help="一句话创建项目(语料K13积木式入口)")
+    p_new.add_argument("sentence", help="一句话需求, 如: 做一个带8路PWM的H743飞控")
+    p_new.add_argument("--name", default=None, help="项目目录名(默认自动)")
+    p_new.add_argument("--dir", type=Path, default=None, help="父目录")
+
     p_run = sub.add_parser("run", help="执行六环节流水线+门禁")
     p_run.add_argument("dir", type=Path)
     p_run.add_argument("--pipeline", type=Path, default=None)
@@ -110,6 +115,64 @@ def main(argv=None):
             f"# {d.name} 需求\n\n(在此用自然语言描述需求,六环节流水线将以此生成spec)\n",
             encoding="utf-8")
         print(f"[flux] 项目已创建: {d}")
+        return 0
+
+    if args.cmd == "new":
+        from fluxpcb.one_liner import synthesize
+        r = synthesize(args.sentence)
+        if not r.get("ok"):
+            print("[flux] clarification_needed:")
+            for q in r.get("clarification_needed", []):
+                print("  -", q)
+            print("[flux] 支持的板族:", ", ".join(r.get("candidates", [])))
+            return 2
+        from datetime import datetime
+        name = args.name or ("board-" + datetime.now().strftime("%m%d%H%M"))
+        base = (args.dir or ROOT / "projects") / name
+        base.mkdir(parents=True, exist_ok=True)
+        (base / "requirements.md").write_text(
+            r.get("requirements_md",
+                  "# 需求\n\n> " + args.sentence + "\n"),
+            encoding="utf-8")
+        slots = r.get("slots", {})
+        fam = r["family"]
+        from fluxpcb.one_liner import FAMILIES
+        info = FAMILIES[fam]
+        size = info.get("size") or [65, 30]
+        import yaml as _y
+        proj = {
+            "name": name,
+            "requirements": [{
+                "id": "FR-001", "text": args.sentence, "priority": "must",
+                "covered_by": ["bom"],
+            }],
+            "power": {"input": "USB-C 5V", "total_w": 2.0,
+                      "rails": [{"name": "3V3", "v": 3.3, "current_a": 0.4}]},
+            "interfaces": [{
+                "name": "usb", "type": "usb", "high_speed": True,
+                "connections": ["USB_DP", "USB_DM", "5V", "GND"],
+                **({"mcu": {"family": "stm32h7" if fam == "fc-full" else
+                            ("stm32n6" if slots.get("mcu") == "n6" else
+                             "stm32h7"),
+                    "pins": {"swdio": 0, "swclk": 0}}}
+                   if fam in ("fc-full", "px4-fmu") else {}),
+            }],
+            "constraints": {
+                "family": fam,
+                "size_mm": size,
+                "layers": info.get("layers") or 4,
+                "er": 4.4,
+                **({"mcu": slots["mcu"]}
+                   if slots.get("mcu") else
+                   ({"mcu": "h743"} if fam == "fc-full" else {})),
+            },
+        }
+        (base / "project.yaml").write_text(
+            _y.safe_dump(proj, allow_unicode=True, sort_keys=False),
+            encoding="utf-8")
+        print(f"[flux] 项目已创建: {base}")
+        print(f"[flux] 板族: {fam} | 槽位: {slots}")
+        print(f"[flux] 下一步: python -m fluxpcb.cli run {base}")
         return 0
 
     if args.cmd == "run":

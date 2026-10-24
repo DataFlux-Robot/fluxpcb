@@ -203,3 +203,25 @@ board.Add/Remove之后, 同进程的GetTracks/GetFootprints/甚至重新LoadBoar
 
 ### 遗留(如实)
 fc板本轮全链重跑因FR对预布线板的非确定性+14处clearance残差, 未超过已提交状态(49开路+0 DRC), 板面已回滚; 引擎能力(dog-bone链)已全部入库待下次干净重跑。BGA逃逸的完整解=0.3球+dog-bone+功率球让位+清道, 各环节已验证但需一次连贯的全新运行来兑现。
+
+## K13 语料回流（2026-10-24 诊断/跳线/积木入口轮）
+
+回顾371项目档案(pcb_analysis/)后的三个吸收——修正了"语料已榨干"的误判：
+
+| 来源项目 | 吸收 | 落地 |
+|---|---|---|
+| hyuhang822-blip/kicad-sch-to-pcb | 残差网络量化诊断流程(真实缺口→连通岛→通道宽度剖面→双向泛洪定位瓶颈→何时停手交人) | route_diag.py: 每条开路输出机器可读瓶颈报告(相遇点/宽度/阻挡物清单), verdict=routable/tight/jumper。fc实测43对→25可布/18组件隔离 |
+| deosgracius/spicestudio-ai | 0Ω跳线跨接(hop-over jumper): 不可布网络串0Ω拆两半各自短布=ratsnest=0确定性兜底 | route_jumper.py(板侧已实现: 0603跳线+NET#Jn拆分; 运行时exec诊断源码的桥接有静默失败, 标记实验性) |
+| mo9652962-ai/circuit-agent | 一句话→积木式确定性映射(keyword→audited blocks→Pydantic契约, LLM只选积木不画线) | one_liner.py + `flux new "一句话"`: 三板族关键词+槽位(PWM/UART/CAN/ADC路数/TF/mcu), 未知→clarification_needed |
+
+### 语料回顾的三个前提修正
+1. 推挤布线全语料371项目**无人实现**(KiCad-Astra唯一提及者且标"future work")——本仓库的差距是全领域的差距
+2. cursor-for-pcb与我们走到了同一路口(网格A*标准节距0 unconnected→细间距告警→路线图=escape-via fanout+稠密板换FR)——交叉验证dog-bone+FR方向
+3. reference/全部来自外部官方源(ArduPilot/ST/HPMicro), 与259语料无对应; 语料价值在方法不在资产
+
+### 同轮落地
+- U8/U9 CAN移出BGA右逃逸带→底带(route_diag证据驱动, 修复零走线PWM/UART球根因); congestion.py逃逸环检查
+- 棋盘格dog-bone(奇偶主中心): 每球保底一个中心格
+- spec_schema门禁补constraints.family枚举(未知family曾静默落入legacy载板路径)
+- fab导出进流水线(RELEASED→自动Gerber/钻孔/坐标); .claude skill布线描述更新到K11-K13
+- fc新链: 140→82(扇出会话)→43(FR+收尾); 诊断: 16可布+18组件隔离

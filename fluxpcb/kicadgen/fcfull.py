@@ -167,11 +167,14 @@ def placement() -> dict[str, tuple[float, float, float]]:
         "U5":   (13.5, 34.5, 0.0),    # BMP388 #2
         "U6":   (10.0, 37.5, 0.0),    # IST8310 mag (away from USB/CAN)
         "U7":   (36.5, 5.0, 0.0),     # AP2112K LDO (top-right)
-        "U8":   (37.5, 22.0, 0.0),    # SN65HVD230 CAN1
-        "U9":   (37.5, 28.0, 0.0),    # SN65HVD230 CAN2
+        # routability (route_diag evidence): U8/U9 sat on the right-edge ball
+        # escape corridor (0.9mm hole keepouts sealed E15/K14/M14/R16/P16
+        # PWM/UART balls) — moved into the bottom band clear of the ring
+        "U8":   (30.5, 41.3, 0.0),    # SN65HVD230 CAN1 (bottom band)
+        "U9":   (38.0, 41.3, 0.0),    # SN65HVD230 CAN2 (bottom band)
         "CV1":  (33.0, 33.0, 0.0),    # VCAP 2.2uF
         "CV2":  (36.5, 33.0, 0.0),    # VCAP 2.2uF
-        "FB1":  (30.5, 38.0, 0.0),    # VDDA ferrite
+        "FB1":  (43.5, 33.0, 0.0),    # VDDA ferrite
         "Y1":   (35.0, 9.5, 0.0),     # 24MHz
         "Y2":   (35.0, 14.5, 0.0),    # 32.768k
         "D1":   (28.0, 3.5, 0.0),     # status LED

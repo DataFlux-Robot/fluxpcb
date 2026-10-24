@@ -43,7 +43,7 @@ FLUXNT_MCU=h743 flux run projects/<slug>           # px4-fmu选MCU变体(spec的
 
 流水线内置能力（259项目knowhow吸收，映射见KNOWHOW.md）：
 - **布局**：规则式分区初值 → **SA退火精化**（HPWL/重叠/去耦/贴边代价，只改善不劣化）→ hierplace解析级预检（重叠/板边/连接器贴边，毫秒级拒绝坏布局）
-- **布线**：**信号分类分级**——critical(USB差分/SPI/I2C,IPC线宽)→normal(0.2mm)→power(0.4mm最后布)；net class真实写入.kicad_pro→DSN→Freerouting按类布线；FR无产出时(480s封顶)落到碰撞感知分级L-router
+- **布线（K11-K13引擎）**：**信号分类分级**→Freerouting(默认1800s,唯一可用导出=.scr Fusion脚本→scr2kicad注入+按网去重)→route_session单进程会话收尾(ZONE_FILLER就地铺铜/进程内ratsnest验证/dog-bone扇出(0.3mm UG1099球+四球中心0.4/0.2过孔)/功率球via-in-pad让位/B.Cu清道)；残差由route_diag量化诊断(瓶颈宽度/阻挡物清单),不可布网络由route_jumper 0Ω跳线确定性闭合
 - **修复**：DRC失败→route_report.json的`structured_feedback`结构化清单注入重试（非盲跑）
 - **评分**：布线后0-100评分卡（环路面积/分类覆盖/残留统计）落route_report.json
 

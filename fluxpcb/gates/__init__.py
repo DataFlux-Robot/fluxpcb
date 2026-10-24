@@ -60,9 +60,19 @@ def spec_schema(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
                 if not (isinstance(r, dict) and r.get("id") and r.get("text"))]
     findings = [{"issue": f"缺少字段 {m}"} for m in missing]
     findings += [{"issue": f"需求缺 id/text: {b}"} for b in bad_reqs]
-    if missing or bad_reqs:
+    # family must be one of the dispatchable board families — a missing or
+    # unknown family silently falls into the legacy HPM carrier path
+    fam = ((spec.get("constraints") or {}).get("family"))
+    KNOWN_FAMILIES = {"fc-full", "px4-fmu", "esp32s31-devboard"}
+    if not fam:
+        findings.append({"issue": "constraints.family 缺失"
+                         "(未知family会落入legacy载板路径)"})
+    elif fam not in KNOWN_FAMILIES:
+        findings.append({"issue": f"constraints.family={fam} 不在"
+                         f"{sorted(KNOWN_FAMILIES)}中"})
+    if findings:
         return GateResult("spec_schema", GateStatus.FAIL,
-                          f"spec结构不完整: 缺字段{missing or []}, 不合格需求{len(bad_reqs)}条",
+                          f"spec结构不完整: {len(findings)}处问题",
                           findings=findings)
     return GateResult("spec_schema", GateStatus.PASS,
                       f"spec结构合法, {len(reqs)}条需求",

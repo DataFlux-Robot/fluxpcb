@@ -1033,12 +1033,19 @@ def dogbone_fanout(ob, pairs):
             net = board.FindNet(pad.GetNetname())
             if not net:
                 continue
-            # prefer the diagonal toward the board center (outward escape)
+            # CHECKERBOARD first (corpus K13: greedy outer-first left
+            # ~10% of balls without any center — a sealed ball stays
+            # sealed): (r+c) parity picks this ball's home center; the
+            # center-direction sort only orders the fallbacks. On the
+            # 0.8mm lattice, parity-assigned centers can never collide.
             cx0, cy0 = (EDGE[0] + EDGE[2]) / 2, (EDGE[1] + EDGE[3]) / 2
-            offs = sorted(((half, half), (-half, half), (half, -half),
-                           (-half, -half)),
-                          key=lambda o: -((o[0] * (cx0 - x) +
-                                           o[1] * (cy0 - y))))
+            gxr, gyc = int(round(x / pitch)), int(round(y / pitch))
+            parity = (gxr + gyc) % 2
+            home = (half, half) if parity == 0 else (-half, -half)
+            offs = [home] + sorted(
+                (o for o in ((half, half), (-half, half), (half, -half),
+                             (-half, -half)) if o != home),
+                key=lambda o: -((o[0] * (cx0 - x) + o[1] * (cy0 - y))))
             for dx, dy in offs:
                 vx, vy = x + dx, y + dy
                 key = (round(vx, 2), round(vy, 2))

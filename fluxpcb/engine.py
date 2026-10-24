@@ -118,7 +118,35 @@ def run_pipeline(project_dir: Path, pipeline_path: Path | None = None,
     emit_event(project_dir, "run_end", released=report.released,
                report=str(out.relative_to(project_dir)))
     print(f"[flux] report -> {out}")
+    if report.released:
+        _export_fab(project_dir)
     return report
+
+
+def _export_fab(project_dir: Path) -> None:
+    """RELEASED -> Gerber/drill/positions fab package (K13: this used to
+    be a hand-run command outside the pipeline; the one-sentence goal
+    requires the chain to end at manufacturable files)."""
+    import shutil
+    import subprocess
+    cli = shutil.which("kicad-cli")
+    if not cli:
+        return
+    for pcb in sorted((project_dir / "pcb").rglob("*.kicad_pcb")):
+        fab = pcb.parent / "fab"
+        fab.mkdir(exist_ok=True)
+        for args in (
+            ["pcb", "export", "gerbers", "-o", str(fab) + "/",
+             "--layers", "F.Cu,In1.Cu,In2.Cu,In3.Cu,In4.Cu,B.Cu,"
+             "F.SilkS,B.SilkS,F.Mask,B.Mask,Edge.Cuts,F.Paste,B.Paste",
+             str(pcb)],
+            ["pcb", "export", "drill", "-o", str(fab), str(pcb)],
+            ["pcb", "export", "pos", "-o", str(fab / "positions.csv"),
+             "--format", "csv", str(pcb)],
+        ):
+            subprocess.run([cli, *args], capture_output=True, timeout=900)
+        emit_event(project_dir, "fab_exported", pcb=pcb.name,
+                   files=len(list(fab.glob("*"))))
 
 
 def verify_only(project_dir: Path, pipeline_path: Path | None = None) -> RunReport:

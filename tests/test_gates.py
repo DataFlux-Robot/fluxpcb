@@ -29,7 +29,8 @@ def proj(tmp_path: Path) -> Path:
              "connections": ["SPI_MOSI", "SPI_MISO"],
              "impedance_ohm": 50, "style": "microstrip", "h_mm": 0.2},
         ],
-        "constraints": {"size_mm": [65, 30], "layers": 6},
+        "constraints": {"size_mm": [65, 30], "layers": 6,
+                        "family": "esp32s31-devboard"},
     }
     (tmp_path / "spec.yaml").write_text(yaml.safe_dump(spec), encoding="utf-8")
     bom = [{"ref": "U1", "mpn": "HPM6E80IVM1", "lcsc": "C1", "footprint": "BGA",
