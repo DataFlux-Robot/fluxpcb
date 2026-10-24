@@ -22,9 +22,11 @@ class TestJumper:
     def test_jumper_module_exists(self):
         src = (REPO / "fluxpcb" / "kicadgen" / "route_jumper.py").read_text(
             encoding="utf-8")
-        assert "0R" in src and "split_as" in src
-        # net split contract: NET -> NET#Jn (netlist gate merges via 0R)
-        assert '"#J"' in src or "#J" in src
+        assert "0R" in src and "renamed" in src
+        # net split contract: NET -> NET#Jn (island copper renamed)
+        assert "#J" in src and "FootprintLoad" in src
+        # single pass (a re-audit loop cascades: 21 jumpers on 3 opens)
+        assert "SINGLE pass" in src
 
 
 class TestOneLiner:
