@@ -377,3 +377,20 @@ mini硬核残差(EN/GND/IO6)fallback模式收不动=预期——真LLM模式下�
 - 离线(默认): FLUXNT_LLM_DRIVER=1 → 外科手术优先的确定性策略
 - 策略文件: FLUXNT_LLM_DRIVER=1 FLUXNT_LLM_POLICY=policy.json → 按序消费决策(LLM/human离线准备)
 - 在线: FLUXNT_LLM_PROVIDER=openai FLUXNT_LLM_MODEL=glm-4.7 FLUXNT_LLM_BASEURL=https://open.bigmodel.cn/api/paas/v4 FLUXNT_LLM_API_KEY_ENV=GLM_API_KEY
+
+## K18 X轮：网络优先级驱动布线顺序（2026-10-25 PCB专家knowhow）
+
+### 知识
+"给每个线设置优先级,然后启动自动布线"——布线顺序决定资源分配:关键网先布=先占好通道,
+电源网最后(它们路径灵活)。这是商用布线器(Specctra/Altium)的标准实践。
+
+### 落地与实测
+| 引擎 | 现状 | 改动 | 实测 |
+|---|---|---|---|
+| route_session | 已有类排序(L913: CLS_ORDER+距离) | 无需 | — |
+| fluxrouter | 纯shuffle(Z2) | **类桶排序**: critical→normal→power,桶内保持shuffle(兼顾Zha&Li抗序敏感) | 快测覆盖 |
+| Freerouting | DSN网络序=KiCad导出序 | dsn_reorder_nets前置critical网 | **A/B实测:FR 2.4.1忽略DSN网络序**(全fix板上唯一变量=顺序,scr逐字节一致)——FR内部自排序;函数保留(零成本,若未来FR版本尊重顺序即生效) |
+
+### 教训
+专家knowhow必须实测落点:同一知识在三个引擎里两个有效一个无效。fluxrouter的循环序就是它的
+布线序(先到先得协商起点),类桶排序直接改变资源分配;FR则完全内部化排序,DSN序是死码。

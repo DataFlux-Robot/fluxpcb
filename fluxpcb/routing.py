@@ -262,6 +262,71 @@ def _pin_freerouting_config() -> None:
                 pass
 
 
+def dsn_reorder_nets(dsn_path: Path, priority_nets: list) -> int:
+    """X-round (PCB-expert knowhow): put high-priority nets FIRST in the
+    DSN network section. NOTE the A/B measurement on mini (all-fixed DSN,
+    only variable = net order): Freerouting 2.4.1 produced BYTE-IDENTICAL
+    scr output — it sorts nets internally and ignores DSN order, at least
+    in the small-residue regime. Kept because it is free and correct
+    (and the knowhow is decisive for OUR engines: fluxrouter's loop order
+    IS its routing order — now class-bucketed; route_session's sweep
+    already sorts by class rank then distance)."""
+    txt = dsn_path.read_text(encoding="utf-8", errors="replace")
+    i0 = txt.find("(network")
+    if i0 < 0:
+        return 0
+    # split the network section into per-(net ...) blocks (top-level only)
+    import re as _re
+    head = txt[:i0]
+    body = txt[i0:]
+    blocks = []
+    cur = None
+    depth = 0
+    for line in body.splitlines(keepends=True):
+        if cur is None:
+            if _re.match(r"\s*\(net\s", line):
+                cur, depth = [line], line.count("(") - line.count(")")
+            else:
+                blocks.append(("raw", line))
+            continue
+        cur.append(line)
+        depth += line.count("(") - line.count(")")
+        if depth <= 0:
+            blocks.append(("net", "".join(cur)))
+            cur = None
+    if cur:
+        blocks.append(("net", "".join(cur)))
+    prio = set(priority_nets)
+
+    def net_name(block):
+        m = _re.match(r"\s*\(net\s+(\"[^\"]*\"|[^\s()]+)", block)
+        return m.group(1).strip('"') if m else ""
+
+    names = [net_name(b) for k, b in blocks if k == "net"]
+    front = [b for k, b in blocks
+             if k == "net" and net_name(b) in prio]
+    if not front or len(front) == len(names):
+        return 0
+    # reassemble IN PLACE: raws keep their positions (the trailing
+    # wiring section must stay after the nets); only the run of net
+    # blocks is reordered, priority nets first
+    out, emitted = [], False
+    for k, b in blocks:
+        if k == "raw":
+            out.append(b)
+            continue
+        if not emitted:
+            out.extend(front)
+            emitted = True
+        if net_name(b) not in prio:
+            out.append(b)
+    result = head + "".join(out)
+    if result == txt:
+        return 0                    # already ordered — no-op
+    dsn_path.write_text(result, encoding="utf-8")
+    return len(front)
+
+
 _WIRE_RE = re.compile(
     r"^\s*\((wire|via)\b.*?\(net\s+(\"[^\"]*\"|[^\s()]+)\)"
     r"\(type\s+(\w+)\)\)\s*$")
@@ -320,7 +385,8 @@ def _compute_route_sets(pcb_path: Path, kipy: str, log=print) -> tuple:
 
 
 def route_with_freerouting(pcb_path: Path, kipy: str, log=print,
-                           incremental: bool = True) -> dict:
+                           incremental: bool = True,
+                           priority_nets: list | None = None) -> dict:
     """Heavy-duty pass: pcbnew DSN export -> freerouting -> routed-DSN
     injection via dsn2kicad (SES import hangs headless; DSN write-back works).
 
@@ -371,6 +437,13 @@ def route_with_freerouting(pcb_path: Path, kipy: str, log=print,
             log("  [route] Z1 dsn-fix: 网络集计算失败, FR 全量模式")
     else:
         preserve_file.write_text("[]", encoding="utf-8")
+    # X-round (expert knowhow): critical nets first in the DSN — the
+    # router's rip-up engine processes nets in file order, so priority
+    # nets claim the good channels before the clutter
+    if priority_nets:
+        moved = dsn_reorder_nets(dsn, priority_nets)
+        if moved:
+            log(f"  [route] X1 dsn-reorder: {moved} 优先网前置")
     # freerouting silently writes a 0-byte file when -de/-do get absolute
     # Windows paths — always pass bare filenames with cwd=work. Its config
     # pins the single-thread optimizer (the MT one NPEs during batch save).
@@ -719,7 +792,9 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
         # 1800s budget). The session engine finishes its residue (power-plane
         # stitching + the pairs FR leaves). FLUXNT_FR=0 disables.
         if os.environ.get("FLUXNT_FR", "1") != "0" and not light:
-            fr = route_with_freerouting(pcb_path, kipy, log=log)
+            _prio = [n for n, c in net_classes.items() if c == "critical"]
+            fr = route_with_freerouting(pcb_path, kipy, log=log,
+                                        priority_nets=_prio)
             steps.append(f"freerouting: {fr.get('stats')}" if fr.get("ok")
                          else f"freerouting跳过: {fr.get('error', '')[:80]}")
         else:

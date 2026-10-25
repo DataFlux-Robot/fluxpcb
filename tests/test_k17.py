@@ -134,3 +134,37 @@ class TestWiring:
         src = (REPO / "fluxpcb" / "kicadgen" / "route_jumper.py").read_text(
             encoding="utf-8")
         assert "ONLY_NETS" in src and "sys.argv[3]" in src
+
+
+class TestNetPriority:
+    """X-round (PCB-expert knowhow): net priority drives routing order."""
+
+    def test_fluxrouter_class_bucketed_order(self):
+        src = (REPO / "fluxpcb" / "kicadgen" / "fluxrouter.py").read_text(
+            encoding="utf-8")
+        assert "_RANK" in src and "buckets" in src
+        assert "random.shuffle(v)" in src       # shuffle within class
+
+    def test_session_sweep_class_order(self):
+        src = (REPO / "fluxpcb" / "kicadgen" / "route_session.py").read_text(
+            encoding="utf-8")
+        assert 'CLS_ORDER.get(NET_CLASS.get(p["net"]' in src
+
+    def test_dsn_reorder_function(self):
+        import shutil
+        import tempfile
+        from fluxpcb.routing import dsn_reorder_nets
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "t.dsn"
+            p.write_text(
+                "(pcb\n  (network\n    (net A (pins u1-1))\n"
+                "    (net B (pins u1-2))\n    (net C (pins u1-3))\n"
+                "  )\n  (wiring\n    (wire x A)\n  )\n)\n",
+                encoding="utf-8")
+            n = dsn_reorder_nets(p, ["C"])
+            txt = p.read_text(encoding="utf-8")
+            assert n == 1
+            assert txt.index("(net C") < txt.index("(net A")
+            assert txt.index("(wiring") > txt.index("(net A")  # stays after
+            # no-op when nothing to move
+            assert dsn_reorder_nets(p, ["C"]) == 0

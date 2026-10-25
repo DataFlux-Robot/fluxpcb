@@ -579,9 +579,18 @@ def main():
         order = [n for n in names
                  if nets[n].get("conflicted", True)
                  or not nets[n].get("items")]
-        # Z2: per-iteration shuffle — Zha&Li FPGA'22: net-order sensitivity
-        # is the dominant quality-variance source (up to 96% CPD swing)
-        random.shuffle(order)
+        # X-round (PCB-expert knowhow): route by NET PRIORITY — critical
+        # nets claim the good channels first, power nets last. Within a
+        # class the order stays shuffled (Zha&Li FPGA'22 order-sensitivity
+        # is about within-class bias, not class rank itself).
+        _RANK = {"critical": 0, "normal": 1, "power": 2}
+        buckets = {}
+        for n in order:
+            buckets.setdefault(
+                _RANK.get(NET_CLASS.get(n, "normal"), 1), []).append(n)
+        for v in buckets.values():
+            random.shuffle(v)
+        order = [n for r in sorted(buckets) for n in buckets[r]]
         unroutable = 0
         why = {"nopath": 0, "physical": 0, "verify": 0}
 

@@ -64,7 +64,8 @@ class TestVPRSchedule:
 
     def test_shuffle_per_iteration(self):
         src = (KGEN / "fluxrouter.py").read_text(encoding="utf-8")
-        assert "random.shuffle(order)" in src
+        # Z2 shuffle (Zha&Li) survives inside X-round class buckets
+        assert "random.shuffle(v)" in src and "buckets" in src
 
 
 class TestConstructiveGrid:
