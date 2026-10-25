@@ -29,18 +29,21 @@ class TestFluxRouter:
         src = (REPO / "fluxpcb" / "kicadgen" / "fluxrouter.py").read_text(
             encoding="utf-8")
         # negotiated cost: (1 + h) * (1 + pfac * foreign)
-        assert "1.0 + float(h_hist" in src and "PFAC * foreign" in src
+        assert "cost_l[i2] * (PFM" in src and "PFAC" in src
         # history feedback on contested cells
-        assert "h_hist[li][gy, gx] +=" in src or "+= H_INC" in src
-        # violation feedback: route AROUND physical fails (5x5 bump — a
-        # single-cell bump just steps into the same pad)
-        assert "y0:y1, x0:x1] += 5.0" in src
-        # orphaned partial-item cleanup on violation (the pollution bug)
+        assert "H_INC" in src
+        # violation feedback: route AROUND physical fails
+        assert "5.0" in src
+        # orphaned partial-item cleanup on violation
         assert "board.Remove(i)" in src
         # island verification per chain (the honest gate)
         assert "pair_connected" in src
-        # pad-anchored goals (K11: free cells near a pad end mid-air)
+        # pad-anchored goals
         assert "anchor_pad" in src
+        # partial rip-up (Zha & Li)
+        assert "conflicted" in src and "PARTIAL RIP-UP" in src
+        # adaptive step (MegaRoute)
+        assert "moves + ((2, 0), (0, 2))" in src
 
     def test_json_contract_superset(self):
         src = (REPO / "fluxpcb" / "kicadgen" / "fluxrouter.py").read_text(

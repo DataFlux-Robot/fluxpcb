@@ -177,10 +177,10 @@ LAYERS_4 = ['(0 "F.Cu" signal "top_copper")', '(31 "B.Cu" signal "bottom_copper"
 
 # 6-layer: signal / GND / PWR / PWR / GND / signal (JLC 6L-friendly)
 LAYERS_6 = ['(0 "F.Cu" signal "top_copper")',
-            '(1 "In1.Cu" signal "ground_copper")',
+            '(1 "In1.Cu" signal "inner_signal_1")',
             '(2 "In2.Cu" signal "power_copper")',
             '(3 "In3.Cu" signal "power_copper")',
-            '(4 "In4.Cu" signal "ground_copper")',
+            '(4 "In4.Cu" signal "inner_signal_4")',
             '(31 "B.Cu" signal "bottom_copper")',
             '(36 "B.Paste" user)', '(37 "F.Paste" user)',
             '(38 "B.SilkS" user "B.Silkscreen")', '(39 "F.SilkS" user "F.Silkscreen")',
