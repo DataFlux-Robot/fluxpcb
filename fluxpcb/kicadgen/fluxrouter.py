@@ -171,13 +171,49 @@ def cost_at(li, gx, gy, nc):
     return c
 
 
+# ---- V1 fast path: iteration-level flat arrays (list indexing is ~3-5x
+# faster than per-neighbor Python function calls; the fc run measured
+# 134min dominated by cost_at overhead). Rebuilt once per iteration.
+FAST = None       # {"cost": [float]*n, "occ": bytes, "own": {nc: set(i)},
+                  #  "owner": list[int]*n, "viaok": bytes}
+
+
+def build_fast():
+    global FAST
+    cost = []
+    for li in (0, 1):
+        cost.extend(h_hist[li].flatten().tolist())
+    occ = bytes(gm.occ[0]) + bytes(gm.occ[1])
+    own = {}
+    for (li, gx, gy), ncs in gm.own_cells.items():
+        i = li * (NX * NY) + gy * NX + gx
+        for nc in ncs:
+            own.setdefault(nc, set()).add(i)
+    viaok = bytes(gm.via_block[0]) + bytes(gm.via_block[1]) +         bytes(gm.hole_block)
+    owner = [0] * (2 * NX * NY)
+    FAST = {"cost": cost, "occ": occ, "own": own, "owner": owner,
+            "viaok": viaok}
+
+
+def claim_cells(cells, nc):
+    for (li, gx, gy) in cells:
+        FAST["owner"][li * NX * NY + gy * NX + gx] = nc
+        cell_owner[(li, gx, gy)] = nc
+
+
+def release_cells(cells, nc):
+    for (li, gx, gy) in cells:
+        FAST["owner"][li * NX * NY + gy * NX + gx] = 0
+        cell_owner.pop((li, gx, gy), None)
+
+
 def astar_negotiate(a, b, nc, cls_weight):
-    """Weighted A* over the negotiated cost field. Returns cell path
-    [(li,gx,gy)...] or None. Foreign router copper is costly but
-    traversable; fixed copper blocks (own passable)."""
+    """Weighted A* over the negotiated cost field (FAST arrays). Foreign
+    router copper is costly but traversable; fixed copper blocks (own
+    passable via the per-net own set)."""
     x1, y1, l1 = a
     x2, y2, l2 = b
-    # start: nearest grid cell free for this net near anchor a
+
     def near_cell(x, y, lay):
         gx, gy = int(x / rg.GRID), int(y / rg.GRID)
         for r in range(0, 6):
@@ -190,9 +226,7 @@ def astar_negotiate(a, b, nc, cls_weight):
     start = near_cell(x1, y1, l1)
     if start is None:
         return None
-    # goals: THE TARGET PAD's own-copper cells (K11 lesson: free cells
-    # near the pad end the path in mid-air — no electrical contact; and
-    # dangling same-net fragments must not count as arrival either)
+
     def anchor_pad(x, y):
         best, bd = None, 1e9
         for fp in board.GetFootprints():
@@ -210,17 +244,32 @@ def astar_negotiate(a, b, nc, cls_weight):
     if tp is not None:
         cx, cy, hw, hh, _ang = rg.pad_rect(tp)
         r = max(hw, hh) + 0.1
-        for li in (0, 1):
-            for gx in range(int((cx - r) / rg.GRID),
-                            int((cx + r) / rg.GRID) + 1):
-                for gy in range(int((cy - r) / rg.GRID),
-                                int((cy + r) / rg.GRID) + 1):
+        for gx in range(int((cx - r) / rg.GRID),
+                        int((cx + r) / rg.GRID) + 1):
+            for gy in range(int((cy - r) / rg.GRID),
+                            int((cy + r) / rg.GRID) + 1):
+                for li in (0, 1):
                     s = gm.own_cells.get((li, gx, gy))
                     if s and nc in s:
                         goals.add((li, gx, gy))
     if not goals:
         return None
     tgx, tgy = int(x2 / rg.GRID), int(y2 / rg.GRID)
+
+    # local bindings for the hot loop
+    F = FAST
+    cost_l = F["cost"]
+    occ_l = F["occ"]
+    owner_l = F["owner"]
+    own_set = F["own"].get(nc, frozenset())
+    via_l = F["viaok"]
+    NN = NX * NY
+    PFM = 1.0 + PFAC
+    hpush = heapq.heappush
+    hpop = heapq.heappop
+    G = rg.GRID
+    INF_ = 1e18
+
     sx, sy = start[1], start[2]
     heap = [(0.0, 0, start)]
     gscore = {start: 0.0}
@@ -229,39 +278,51 @@ def astar_negotiate(a, b, nc, cls_weight):
     count = 0
     found = None
     while heap:
-        _, _, node = heapq.heappop(heap)
+        _, _, node = hpop(heap)
         if node in goals:
             found = node
             break
         lay, gx, gy = node
+        base = lay * NN
         cur = gscore[node]
         for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1),
                        (1, 1), (1, -1), (-1, 1), (-1, -1)):
             gx2, gy2 = gx + dx, gy + dy
-            c = cost_at(lay, gx2, gy2, nc)
-            if c is None:
+            if gx2 < 1 or gy2 < 1 or gx2 >= NX - 1 or gy2 >= NY - 1:
                 continue
-            if dx and dy and (
-                    cost_at(lay, gx + dx, gy, nc) is None or
-                    cost_at(lay, gx, gy + dy, nc) is None):
-                continue          # no diagonal through blocked corners
-            step = rg.GRID * (1.4142 if dx and dy else 1.0) * c * cls_weight
+            i2 = base + gy2 * NX + gx2
+            if occ_l[i2] and i2 not in own_set:
+                continue
+            ow = owner_l[i2]
+            c = cost_l[i2] * (PFM if ow and ow != nc else 1.0)
+            if dx and dy:
+                iax = base + gy2 * NX + gx
+                iay = base + gy * NX + gx2
+                if (occ_l[iax] and iax not in own_set) or                         (occ_l[iay] and iay not in own_set):
+                    continue
+                step = G * 1.4142 * c * cls_weight
+            else:
+                step = G * c * cls_weight
             nk = (lay, gx2, gy2)
-            if gscore.get(nk, 1e18) > cur + step:
+            if gscore.get(nk, INF_) > cur + step:
                 gscore[nk] = cur + step
                 parent[nk] = node
                 count += 1
                 hx = abs(gx2 - tgx) + abs(gy2 - tgy)
-                heapq.heappush(heap, (cur + step + 2.0 * hx * rg.GRID, count,
-                                      nk))
-        nk = (1 - lay, gx, gy)
-        if gm.via_cell_ok(1 - lay, gx, gy) and \
-                gm.fixed_free(1 - lay, gx, gy, nc) and \
-                gscore.get(nk, 1e18) > cur + VIA_COST:
-            gscore[nk] = cur + VIA_COST
-            parent[nk] = node
-            count += 1
-            heapq.heappush(heap, (cur + VIA_COST, count, nk))
+                hpush(heap, (cur + step + 2.0 * hx * G, count, nk))
+        # via move
+        oth = 1 - lay
+        ib = gy * NX + gx
+        i_via = oth * NN + ib
+        if (not via_l[i_via] and not via_l[lay * NN + ib]
+                and not via_l[2 * NN + ib]
+                and (not occ_l[i_via] or i_via in own_set)):
+            nk = (oth, gx, gy)
+            if gscore.get(nk, INF_) > cur + VIA_COST:
+                gscore[nk] = cur + VIA_COST
+                parent[nk] = node
+                count += 1
+                hpush(heap, (cur + VIA_COST, count, nk))
         if count > 600000:
             return None
     if not found:
@@ -276,7 +337,7 @@ def astar_negotiate(a, b, nc, cls_weight):
     return chain
 
 
-def cells_to_items(path, nc, name):
+def cells_to_items(path, nc, name, a=None, b=None):
     """Per-step emission with exact verification; returns (items, cells,
     None) or (None, None, fail_cell) on violation — the caller raises h at
     the failing cell so later iterations route around it (PathFinder's
@@ -289,6 +350,34 @@ def cells_to_items(path, nc, name):
     pts = [(li, (gx + 0.5) * rg.GRID, (gy + 0.5) * rg.GRID)
            for (li, gx, gy) in path]
     lid = lambda li: pcbnew.F_Cu if li == 0 else pcbnew.B_Cu
+    # start/end stubs: pad anchor -> first cell, last cell -> pad anchor
+    # (missing these left paths electrically floating ~1mm from the pads
+    # — every "verify" fail on fresh boards; the session engine always
+    # had this pair)
+    fx, fy = pts[0][1], pts[0][2]
+    lx_, ly_ = pts[-1][1], pts[-1][2]
+    ax, ay, al = a
+    bx, by, bl = b
+    if abs(fx - ax) >= 0.01 or abs(fy - ay) >= 0.01:
+        if not gm.clear_exact(ax, ay, fx, fy, lid(al), nc, w):
+            for i in items:
+                try:
+                    board.Remove(i)
+                except Exception:
+                    pass
+            return None, None, (al, int(ax / rg.GRID), int(ay / rg.GRID))
+        items.append(rg.add_track(board, ax, ay, fx, fy, lid(al), net, w))
+    if abs(lx_ - bx) >= 0.01 or abs(ly_ - by) >= 0.01:
+        if not gm.clear_exact(lx_, ly_, bx, by, lid(pts[-1][0]), nc, w):
+            for i in items:
+                try:
+                    board.Remove(i)
+                except Exception:
+                    pass
+            return None, None, (pts[-1][0], int(bx / rg.GRID),
+                                int(by / rg.GRID))
+        items.append(rg.add_track(board, lx_, ly_, bx, by,
+                                  lid(pts[-1][0]), net, w))
     prev = None
     for k, (li, x, y) in enumerate(pts):
         if prev is not None:
@@ -366,6 +455,7 @@ def main():
             info["cells"] = []
         cell_owner.clear()
 
+        build_fast()
         order = list(names)
         random.shuffle(order)
         unroutable = 0
@@ -384,7 +474,8 @@ def main():
                     why["nopath"] += 1
                     ok = False
                     break
-                items, cells, fail_cell = cells_to_items(path, nc, name)
+                items, cells, fail_cell = cells_to_items(path, nc, name,
+                                                        a=a, b=b)
                 if items is None:
                     why["physical"] += 1
                     if fail_cell is not None:
@@ -409,8 +500,7 @@ def main():
                     ok = False
                     break
                 info.setdefault("items", []).extend(items)
-                for c in cells:
-                    cell_owner[c] = nc
+                claim_cells(cells, nc)
                 all_cells.extend(cells)
             if not ok:
                 # rollback this net's partial items
@@ -422,7 +512,7 @@ def main():
                 # remove its cells from ownership
                 for c in all_cells:
                     if cell_owner.get(c) == nc:
-                        del cell_owner[c]
+                        release_cells([c], nc)
                 info["items"] = []
                 info["cells"] = []
                 unroutable += 1

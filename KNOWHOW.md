@@ -259,3 +259,10 @@ RL路线(DreamerV3+FR 2026)未超越经典且Quilter自认需混合。**封死�
 2. 目标格接受"焊盘附近的空格"→路径终点悬空不触铜(K11同款教训)
 3. 违例时不清除已落板的半截items→孤儿走线污染(每轮累积, GND碎成5岛的元凶)
 4. 单格h惩罚→A*挪一格撞进同一个焊盘；5×5邻域才有效
+
+### K14 补记（V1-V3 轮）：FAST内环 + 主布线器定位实测 + 三个新发现
+1. **FAST数组内环**：代价场/占用/own集全列表化(A*热环免函数调用)——fc上134分钟→8分钟(**17x**)
+2. **stub修复**：cells_to_items漏了首尾stub(焊盘中心↔首末格)——全新板上全部verify-fail的根因；补上后mini全新板20网通14
+3. **顺序定律(实测确认)**：任何先布的走线对fluxrouter都是固定铜。mini全新板：session先布→fluxrouter 0/18；fluxrouter先布→14/20。**fluxrouter必须在链中最前(扇出之后、一切其他布线之前)**
+4. **交替收敛**：fluxrouter↔session交替,mini 36→18→17→15→12→8(四轮后平台)。fc全新板:扇出82→fluxrouter 28/60网(8分钟)→session 57。跳线在60开路板上全量误用→93(教训:只跳route_diag判定的不可布网络)
+5. **与FR的诚实对比**: mini全新板fluxrouter-first 8开路/2分钟 vs FR-first 2开路/12分钟——FR仍是更高完成度的主布线器; fluxrouter的独特价值=FR留残后的收尾层(dev 3V3首证)+快10x的初布
