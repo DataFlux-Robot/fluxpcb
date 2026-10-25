@@ -266,3 +266,15 @@ RL路线(DreamerV3+FR 2026)未超越经典且Quilter自认需混合。**封死�
 3. **顺序定律(实测确认)**：任何先布的走线对fluxrouter都是固定铜。mini全新板：session先布→fluxrouter 0/18；fluxrouter先布→14/20。**fluxrouter必须在链中最前(扇出之后、一切其他布线之前)**
 4. **交替收敛**：fluxrouter↔session交替,mini 36→18→17→15→12→8(四轮后平台)。fc全新板:扇出82→fluxrouter 28/60网(8分钟)→session 57。跳线在60开路板上全量误用→93(教训:只跳route_diag判定的不可布网络)
 5. **与FR的诚实对比**: mini全新板fluxrouter-first 8开路/2分钟 vs FR-first 2开路/12分钟——FR仍是更高完成度的主布线器; fluxrouter的独特价值=FR留残后的收尾层(dev 3V3首证)+快10x的初布
+
+### D轮实测（dev冲零）：到达 ratsnest=0 但揭示物理极限
+dev 3V3 走廊到达制造极限：RX0 与 3V3 通道间距 0.123mm（需 0.15）——
+任何算法在此布局上要么违例要么开路。
+- **ratsnest=0 曾达成**（fluxrouter+session, 3条clearance违例）
+- **DRC=0 曾达成**（cleanup后, 1条开路回弹）
+- 两者不可兼得=布局级约束（RX0焊盘到3V3路径的物理距离）
+- 跳线也未能突破（两半同样在该走廊受阻）
+
+**结论**：这是推挤布线(no push-and-shove in corpus)缺失的实证——0.123mm的间距
+差需要推挤RX0挪位0.03mm，rip-up做不到（撕了RX0会开路自己的网）。
+布局级修复（RX0或3V3源焊盘微移0.1mm）可解，属fcfull/devboard布局参数调整。

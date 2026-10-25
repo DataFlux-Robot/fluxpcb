@@ -201,8 +201,12 @@ class GridModel:
                         if nc:
                             self._mark_own(li, cx - hw, cy, cx + hw, cy,
                                            ext + 0.3, nc)
-                        # honest pad margin: extent + clearance + track half
-                        self._mark(li, cx - hw, cy, cx + hw, cy, ext + 0.25,
+                        # honest pad margin: extent + clearance + track
+                        # half — must be >= CLEAR_MM(0.17) + w/2(0.1) =
+                        # 0.27; 0.30 for the diagonal cell-center worst
+                        # case (K14 V4: 0.25 was 0.02 short, 139
+                        # orthogonal clearance violations on dev)
+                        self._mark(li, cx - hw, cy, cx + hw, cy, ext + 0.30,
                                    via_r=VIA_ANNULUS + 0.25 + ext)
                         if pad.GetAttribute() == _PTH:
                             try:

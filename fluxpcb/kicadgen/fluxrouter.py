@@ -396,22 +396,17 @@ def cells_to_items(path, nc, name, a=None, b=None):
                                             int(py / rg.GRID))
                     items.append(rg.add_via(board, px, py, net))
             else:
-                if abs(x - px) >= 0.01 and abs(y - py) >= 0.01:  # diagonal
-                    if not gm.clear_exact(px, py, x, y, lid(li), nc, w):
-                        import sys as _s
-                        lii = 0 if lid(li) == pcbnew.F_Cu else 1
-                        for net2, a2, b2, ex2 in gm.segs[lii]:
-                            if net2 == nc:
-                                continue
-                            if rg.seg_seg_dist((px, py), (x, y), a2, b2) < rg.CLEAR_MM + ex2 + max(0.0, w / 2 - 0.1):
-                                print(f"      seg blocker net={net2} {a2}->{b2}", file=_s.stderr)
-                        for i in items:      # orphaned partials polluted
-                            try:
-                                board.Remove(i)
-                            except Exception:
-                                pass
-                        return None, None, (li, int(px / rg.GRID),
-                                            int(py / rg.GRID))
+                # EVERY segment gets exact verification (K14 V4: the
+                # diagonal-only check let 139 orthogonal clearance
+                # violations through on dev)
+                if not gm.clear_exact(px, py, x, y, lid(li), nc, w):
+                    for i in items:
+                        try:
+                            board.Remove(i)
+                        except Exception:
+                            pass
+                    return None, None, (li, int(px / rg.GRID),
+                                        int(py / rg.GRID))
                 items.append(rg.add_track(board, px, py, x, y, lid(li),
                                           net, w))
             cells.append((pli, int(px / rg.GRID), int(py / rg.GRID)))
