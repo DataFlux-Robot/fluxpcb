@@ -394,3 +394,9 @@ mini硬核残差(EN/GND/IO6)fallback模式收不动=预期——真LLM模式下�
 ### 教训
 专家knowhow必须实测落点:同一知识在三个引擎里两个有效一个无效。fluxrouter的循环序就是它的
 布线序(先到先得协商起点),类桶排序直接改变资源分配;FR则完全内部化排序,DSN序是死码。
+
+### X2: 电源层DSN保留（fc 132短路根因闭环）
+fc DSN里In2/In3导出为(type signal)→FR把165条信号线布上电源平面→注入后与铺铜短路132处。
+双修: pcb.py LAYERS_6源头(In2/In3 type=power,用户名改power_copper_1/2消重名) +
+dsn_mark_power_layers手术(存量板,type signal→power,按constraints power_layers索引)。
+plane_integrity门禁正则放宽接受后缀名。75测试绿。

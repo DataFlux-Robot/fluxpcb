@@ -774,9 +774,11 @@ def plane_integrity(project_dir: Path, outputs: list[str], cfg: dict) -> GateRes
     findings, details = [], {}
     for pcb in pcbs:
         txt = pcb.read_text(encoding="utf-8", errors="replace")
-        # plane-designated layers from the layer list
+        # plane-designated layers from the layer list (power_copper,
+        # power_copper_1/2 — X-round gave the twin power planes unique
+        # user names and type "power")
         plane_layers = re.findall(
-            r'\(\d+ "(\w+\.Cu)" \w+ "(?:ground|power)_copper"\)', txt)
+            r'\(\d+ "(\w+\.Cu)" \w+ "(?:ground|power)_copper\w*"\)', txt)
         if not plane_layers:
             details[pcb.name] = "无平面层声明(2/4层板) — 天然通过"
             continue

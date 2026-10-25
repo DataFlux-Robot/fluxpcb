@@ -175,15 +175,19 @@ LAYERS_4 = ['(0 "F.Cu" signal "top_copper")', '(31 "B.Cu" signal "bottom_copper"
             '(44 "Edge.Cuts" user)', '(45 "Margin" user)',
             '(48 "B.Fab" user)', '(49 "F.Fab" user)']
 
-# 6-layer: signal / GND / PWR / PWR / GND / signal (JLC 6L-friendly)
+# 6-layer: signal / GND / PWR / PWR / GND / signal (JLC 6L-friendly).
+# In2/In3 carry layer type "power" — Specctra DSN export forwards the
+# type, and Freerouting then keeps SIGNAL nets off the power planes
+# (with type signal it routed 165 signal tracks onto them; shorts with
+# the pours after injection on fc).
 LAYERS_6 = ['(0 "F.Cu" signal "top_copper")',
             '(1 "In1.Cu" signal "inner_signal_1")',
-            '(2 "In2.Cu" signal "power_copper")',
-            '(3 "In3.Cu" signal "power_copper")',
+            '(2 "In2.Cu" power "power_copper_1")',
+            '(3 "In3.Cu" power "power_copper_2")',
             '(4 "In4.Cu" signal "inner_signal_4")',
             '(31 "B.Cu" signal "bottom_copper")',
             '(36 "B.Paste" user)', '(37 "F.Paste" user)',
-            '(38 "B.SilkS" user "B.Silkscreen")', '(39 "F.SilkS" user "F.Silkscreen")',
+            '(38 "B.SilkS" user "B.Silkscreen")', '(39 "F.SilkS" user "B.Silkscreen")',
             '(40 "B.Mask" user)', '(41 "F.Mask" user)',
             '(44 "Edge.Cuts" user)', '(45 "Margin" user)',
             '(48 "B.Fab" user)', '(49 "F.Fab" user)']

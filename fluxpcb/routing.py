@@ -327,6 +327,43 @@ def dsn_reorder_nets(dsn_path: Path, priority_nets: list) -> int:
     return len(front)
 
 
+def dsn_mark_power_layers(dsn_path: Path, power_idx: set) -> int:
+    """X-round fc fix: DSN layers whose stack index is a power plane get
+    (type power) so Freerouting keeps SIGNAL nets off them.
+
+    Boards generated before the pcb.py fix export In2/In3 as (type
+    signal) — FR then happily routes signal tracks across the power
+    pours (165 tracks / 132 shorts on fc). The type flip is the
+    Specctra-native way to reserve a layer for planes."""
+    import re as _re
+    txt = dsn_path.read_text(encoding="utf-8", errors="replace")
+    out, n = [], 0
+    cur, depth = None, 0
+    for line in txt.splitlines(keepends=True):
+        if cur is None:
+            if _re.match(r"\s*\(layer\s", line):
+                cur, depth = [line], line.count("(") - line.count(")")
+            else:
+                out.append(line)
+            continue
+        cur.append(line)
+        depth += line.count("(") - line.count(")")
+        if depth <= 0:
+            block = "".join(cur)
+            idxm = _re.search(r"\(index (\d+)\)", block)
+            if idxm and int(idxm.group(1)) in power_idx \
+                    and "(type signal)" in block:
+                block = block.replace("(type signal)", "(type power)")
+                n += 1
+            out.append(block)
+            cur = None
+    if cur:
+        out.append("".join(cur))
+    if n:
+        dsn_path.write_text("".join(out), encoding="utf-8")
+    return n
+
+
 _WIRE_RE = re.compile(
     r"^\s*\((wire|via)\b.*?\(net\s+(\"[^\"]*\"|[^\s()]+)\)"
     r"\(type\s+(\w+)\)\)\s*$")
@@ -444,6 +481,22 @@ def route_with_freerouting(pcb_path: Path, kipy: str, log=print,
         moved = dsn_reorder_nets(dsn, priority_nets)
         if moved:
             log(f"  [route] X1 dsn-reorder: {moved} 优先网前置")
+    # X-round fc fix: reserve power-plane layers in the DSN — boards
+    # generated before the pcb.py type fix export them (type signal) and
+    # FR routes signal tracks straight across the pours (fc: 165 tracks,
+    # 132 shorts after injection)
+    try:
+        _pw = {int(k[2:-3]) for k in
+               json.loads((Path(__file__).resolve().parent /
+                           "knowhow_constraints.json").read_text(
+                               encoding="utf-8"))
+               .get("stackup_6l", {}).get("power_layers", {})}
+        if _pw:
+            flipped = dsn_mark_power_layers(dsn, _pw)
+            if flipped:
+                log(f"  [route] X2 dsn-power: {flipped} 电源层type=power")
+    except (OSError, ValueError):
+        pass
     # freerouting silently writes a 0-byte file when -de/-do get absolute
     # Windows paths — always pass bare filenames with cwd=work. Its config
     # pins the single-thread optimizer (the MT one NPEs during batch save).

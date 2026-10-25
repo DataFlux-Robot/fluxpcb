@@ -168,3 +168,31 @@ class TestNetPriority:
             assert txt.index("(wiring") > txt.index("(net A")  # stays after
             # no-op when nothing to move
             assert dsn_reorder_nets(p, ["C"]) == 0
+
+
+class TestPowerLayerReservation:
+    def test_dsn_power_surgery(self, tmp_path):
+        import sys as _sys
+        _sys.path.insert(0, str(REPO))
+        from fluxpcb.routing import dsn_mark_power_layers
+        p = tmp_path / "t.dsn"
+        p.write_text(
+            "(pcb\n (structure\n"
+            "  (layer sig1\n    (type signal)\n    (property\n      (index 0)\n    )\n  )\n"
+            "  (layer pwr1\n    (type signal)\n    (property\n      (index 2)\n    )\n  )\n"
+            " )\n)\n", encoding="utf-8")
+        assert dsn_mark_power_layers(p, {2}) == 1
+        txt = p.read_text(encoding="utf-8")
+        assert "(type power)" in txt
+        assert txt.count("(type signal)") == 1
+        assert dsn_mark_power_layers(p, {2}) == 0     # idempotent no-op
+
+    def test_pcb_py_power_layer_types(self):
+        src = (REPO / "fluxpcb" / "kicadgen" / "pcb.py").read_text(
+            encoding="utf-8")
+        assert '(2 "In2.Cu" power' in src and '(3 "In3.Cu" power' in src
+
+    def test_plane_integrity_regex_accepts_suffixed_names(self):
+        src = (REPO / "fluxpcb" / "gates" / "__init__.py").read_text(
+            encoding="utf-8")
+        assert "(?:ground|power)_copper\\w*" in src
