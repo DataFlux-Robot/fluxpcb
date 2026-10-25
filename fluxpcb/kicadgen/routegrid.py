@@ -13,6 +13,16 @@ lessons baked in):
   - per-step emission contract helpers (add_track/add_via) and the
     island-BFS pair_connected verifier (immune to zone-refill noise)
 
+Z-round (research-backed) upgrades:
+  - Z2: all tunables come from knowhow_constraints.json via
+    route_constraints.load() — no more drifted hardcoded duplicates
+  - Z3: track raster margin is the CONSTRUCTIVE bound (w + track_margin)
+    so "grid-free => clear_exact passes" holds by construction instead
+    of being vetoed after the fact (fc's dominant physical failures)
+  - Z4: GridModel models N signal layers (layer_ids list) and rasterizes
+    filled ZONE copper — inner-layer routing was previously blind to the
+    GND pours on In1/In4 (guaranteed shorts)
+
 Importable from sibling KiCad-Python scripts:
     sys.path.insert(0, os.path.dirname(__file__)); import routegrid
 """
@@ -20,15 +30,57 @@ from __future__ import annotations
 
 import pcbnew
 
+sys = __import__("sys")
+sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
+import route_constraints as _RC          # noqa: E402
+
+CONS = _RC.load()
+
 MM = 1000000
-GRID = 0.16
-CLEAR_MM = 0.17           # edge clearance + margin over the 0.15 DRC rule
-VIA_ANNULUS = 0.25         # general via radius (0.5/0.25 via)
-HOLE_KEEP = 0.28           # hole-to-hole edge spacing
-EDGE_KEEP = 0.55
+GRID = CONS["grid"]["resolution_mm"]
+CLEAR_MM = CONS["grid"]["clearance_mm"]           # 0.17: 0.15 DRC + margin
+PAD_MARGIN = CONS["grid"]["pad_margin_mm"]        # 0.30 beyond pad extent
+TRACK_MARGIN = CONS["grid"]["track_margin_mm"]    # Z3: beyond track half-w
+VIA_ANNULUS = CONS["grid"]["via_annulus_mm"]      # via radius (0.5 via)
+VIA_DRILL = CONS["grid"]["via_drill_mm"]          # drill radius (0.25 dia)
+HOLE_KEEP = CONS["grid"]["hole_keep_mm"]
+EDGE_KEEP = CONS["grid"]["edge_keep_mm"]
 
 _PTH = getattr(pcbnew, "PAD_ATTRIB_PTH",
                getattr(pcbnew, "PAD_ATTRIB_THROUGH_HOLE", 3))
+
+_LAYER_BY_NAME = {"F.Cu": pcbnew.F_Cu, "B.Cu": pcbnew.B_Cu}
+
+
+def signal_layer_ids(board, cons=None):
+    """pcbnew layer ids of routable signal layers for this board.
+
+    From constraints stackup signal_layers, filtered by the board's
+    actual copper count: 2-layer boards keep [F, B]; 6-layer fc keeps
+    [F, In1, In4, B] (In2/In3 are power planes and stay excluded).
+    """
+    cons = cons or CONS
+    names = cons.get("stackup_6l", {}).get("signal_layers",
+                                           ["F.Cu", "B.Cu"])
+    ncopper = board.GetCopperLayerCount()
+    ids = []
+    for nm in names:
+        lid = None
+        if nm == "F.Cu":
+            lid = pcbnew.F_Cu
+        elif nm == "B.Cu":
+            lid = pcbnew.B_Cu
+        elif nm.startswith("In") and nm.endswith(".Cu"):
+            k = int(nm[2:-3])
+            if 1 <= k <= ncopper - 2:          # inner layers that exist
+                lid = getattr(pcbnew, "In%d_Cu" % k, None)
+        if lid is not None and lid not in ids:
+            ids.append(lid)
+    if pcbnew.B_Cu not in ids:
+        ids.append(pcbnew.B_Cu)
+    if pcbnew.F_Cu not in ids:
+        ids.insert(0, pcbnew.F_Cu)
+    return ids
 
 
 def pt_seg_dist(px, py, ax, ay, bx, by):
@@ -104,38 +156,99 @@ def pt_rect_dist(px, py, rect):
     return (ex * ex + ey * ey) ** 0.5
 
 
-class GridModel:
-    """Obstacle/occupancy model over a (nx x ny x 2-layer) lattice.
+def _shape_outlines(polys):
+    """SHAPE_POLY_SET outline vertex lists [[(x_mm, y_mm), ...], ...].
 
-    occ: 0 free / 1 blocked (fixed copper: pads + committed tracks)
-    own_cells: (li,gx,gy) -> set(netcodes) — same-net pass-through
-    own_via_cells: (gx,gy) -> set(netcodes) — free layer bridges
-    routable: set of (li,gx,gy) cells occupied by the ROUTER's own
-        placements (negotiable — PathFinder rips these); fixed copper
-        (pads, fanout, committed session tracks) lives in occ and is
-        never ripped.
+    Defensive against KiCad 10 SWIG shape API variations; returns [] if
+    unreachable (caller falls back to bbox).
+    """
+    out = []
+    try:
+        n = polys.OutlineCount()
+    except (AttributeError, TypeError):
+        return []
+    for i in range(n):
+        try:
+            chain = polys.Outline(i)
+            pts = []
+            np_ = chain.PointCount()
+            for j in range(np_):
+                v = chain.CPoint(j) if hasattr(chain, "CPoint") \
+                    else chain.GetPoint(j)
+                pts.append((v.x / MM, v.y / MM))
+            if len(pts) >= 3:
+                out.append(pts)
+        except (AttributeError, TypeError):
+            return []
+    return out
+
+
+def _zone_outlines(zone):
+    try:
+        return _shape_outlines(zone.GetFilledPolysList())
+    except (AttributeError, TypeError):
+        return []
+
+
+def _pip(px, py, pts):
+    """Even-odd point-in-polygon."""
+    inside = False
+    n = len(pts)
+    j = n - 1
+    for i in range(n):
+        xi, yi = pts[i]
+        xj, yj = pts[j]
+        if (yi > py) != (yj > py):
+            xc = (xj - xi) * (py - yi) / (yj - yi) + xi
+            if px < xc:
+                inside = not inside
+        j = i
+    return inside
+
+
+class GridModel:
+    """Obstacle/occupancy model over an (nx x ny x N-layer) lattice.
+
+    layer_ids: pcbnew layer ids modeled (default [F, B]; fluxrouter passes
+    the stackup signal layers for 3D routing). occ: 0 free / 1 blocked
+    (fixed copper: pads + committed tracks + zone copper). own_cells:
+    (li,gx,gy) -> set(netcodes) — same-net pass-through. own_via_cells:
+    (gx,gy) -> set(netcodes) — free layer bridges.
     """
 
-    def __init__(self, board):
+    def __init__(self, board, layer_ids=None):
         self.board = board
+        self.layer_ids = list(layer_ids) if layer_ids else \
+            [pcbnew.F_Cu, pcbnew.B_Cu]
+        self.nl = len(self.layer_ids)
         self.edge = self._board_edge()
         self.nx = int((self.edge[2] - self.edge[0]) / GRID) + 2
         self.ny = int((self.edge[3] - self.edge[1]) / GRID) + 2
-        self.occ = [bytearray(self.nx * self.ny) for _ in range(2)]
-        self.via_block = [bytearray(self.nx * self.ny) for _ in range(2)]
-        self.hole_block = bytearray(self.nx * self.ny)
+        ncell = self.nx * self.ny
+        self.occ = [bytearray(ncell) for _ in range(self.nl)]
+        self.via_block = [bytearray(ncell) for _ in range(self.nl)]
+        self.hole_block = bytearray(ncell)
         self.own_cells = {}
         self.own_via_cells = {}
-        self.segs = ([], [])            # per layer: (netcode, a, b, half_w)
-        self.rects = ([], [])           # per layer: (netcode, rect)
+        self.segs = tuple([] for _ in range(self.nl))  # (netcode,a,b,half_w)
+        self.rects = tuple([] for _ in range(self.nl))  # (netcode, rect)
         self.routed = {}                # cell -> netcode (router-placed)
+        self.zone_stats = {"zones": 0, "cells": 0, "bbox_fallback": 0}
         self._raster_fixed()
+        self._raster_zones()
 
     def _board_edge(self):
         bb = self.board.GetBoardEdgesBoundingBox()
         return (bb.GetX() / MM, bb.GetY() / MM,
                 (bb.GetX() + bb.GetWidth()) / MM,
                 (bb.GetY() + bb.GetHeight()) / MM)
+
+    def li_of(self, lid):
+        """Router layer index for a pcbnew layer id (-1 if unmodeled)."""
+        try:
+            return self.layer_ids.index(lid)
+        except ValueError:
+            return -1
 
     def idx(self, gx, gy):
         if gx < 1 or gy < 1 or gx >= self.nx - 1 or gy >= self.ny - 1:
@@ -194,7 +307,7 @@ class GridModel:
                     nc = pad.GetNetCode()
                     cx, cy, hw, hh, ang = pad_rect(pad)
                     ext = max(hw, hh)
-                    for li, lid in ((0, pcbnew.F_Cu), (1, pcbnew.B_Cu)):
+                    for li, lid in enumerate(self.layer_ids):
                         if not pad.IsOnLayer(lid):
                             continue
                         self.rects[li].append((nc, (cx, cy, hw, hh, ang)))
@@ -206,11 +319,13 @@ class GridModel:
                         # 0.27; 0.30 for the diagonal cell-center worst
                         # case (K14 V4: 0.25 was 0.02 short, 139
                         # orthogonal clearance violations on dev)
-                        self._mark(li, cx - hw, cy, cx + hw, cy, ext + 0.30,
+                        self._mark(li, cx - hw, cy, cx + hw, cy,
+                                   ext + PAD_MARGIN,
                                    via_r=VIA_ANNULUS + 0.25 + ext)
                         if pad.GetAttribute() == _PTH:
                             try:
-                                dr = (pad.GetDrillValue() or 500000) / MM / 2
+                                dr = (pad.GetDrillValue()
+                                      or 500000) / MM / 2
                             except AttributeError:
                                 dr = 0.5
                             self._mark_holes(cx, cy, dr + 0.125 + HOLE_KEEP)
@@ -225,7 +340,7 @@ class GridModel:
                     r = it.GetWidth(pcbnew.F_Cu) / MM / 2
                     self.own_via_cells.setdefault(
                         (int(x / GRID), int(y / GRID)), set()).add(nc)
-                    for li in (0, 1):
+                    for li in range(self.nl):
                         self.segs[li].append((nc, (x, y), (x, y), r))
                         if nc:
                             self._mark_own(li, x, y, x, y, r, nc)
@@ -233,7 +348,9 @@ class GridModel:
                                    via_r=r + 0.25 + 0.25)
                     self._mark_holes(x, y, r + 0.125 + HOLE_KEEP)
                 else:
-                    li = 0 if it.GetLayer() == pcbnew.F_Cu else 1
+                    li = self.li_of(it.GetLayer())
+                    if li < 0:
+                        continue     # non-router layer (e.g. power plane)
                     s, e = it.GetStart(), it.GetEnd()
                     a = (s.x / MM, s.y / MM)
                     b = (e.x / MM, e.y / MM)
@@ -246,8 +363,72 @@ class GridModel:
                             t = k / n
                             self._mark_own(li, a[0], a[1], b[0], b[1],
                                            max(w, 0.15), nc)
-                    self._mark(li, a[0], a[1], b[0], b[1], w + 0.15)
+                    # Z3 CONSTRUCTIVE margin: a router track emitted
+                    # between adjacent free cell centers must clear this
+                    # copper by CLEAR_MM + half-widths in the worst case
+                    # (copper endpoint perpendicular to the cell-center
+                    # midpoint). w+0.15 admitted paths the exact check
+                    # then vetoed — fc's dominant physical failure class.
+                    self._mark(li, a[0], a[1], b[0], b[1],
+                               w + TRACK_MARGIN)
             except AttributeError:
+                continue
+
+    # ------------------------------------------------- zone rasterization
+    def _raster_zones(self):
+        """KEEPOUT zones into occ (hard obstacles) — Z4 audit.
+
+        Ordinary pours are deliberately NOT rasterized: KiCad zones are
+        refillable and the filler retreats around router-placed copper
+        (clearance carved on refill), so a GND pour on In1/In4 yields to
+        crossing tracks — marking it blocked would destroy all F/B
+        routing on every board with pours (dev/mini regression).
+        Keepout rule areas never yield and must block.
+        """
+        try:
+            zones = list(self.board.Zones())
+        except TypeError:
+            return
+        for zone in zones:
+            try:
+                is_keep = bool(zone.IsKeepout())
+            except (AttributeError, TypeError):
+                try:
+                    is_keep = "keepout" in str(
+                        zone.GetZoneType()).lower()
+                except (AttributeError, TypeError):
+                    is_keep = False
+            if not is_keep:
+                continue
+            try:
+                lid = zone.GetLayer()
+                li = self.li_of(lid)
+                if li < 0:
+                    continue
+                outlines = _shape_outlines(zone.Outline())
+                if not outlines:
+                    bb = zone.GetBoundingBox()
+                    x0, y0 = bb.GetX() / MM, bb.GetY() / MM
+                    x1 = x0 + bb.GetWidth() / MM
+                    y1 = y0 + bb.GetHeight() / MM
+                    outlines = [[(x0, y0), (x1, y0), (x1, y1), (x0, y1)]]
+                    self.zone_stats["bbox_fallback"] += 1
+                self.zone_stats["zones"] += 1
+                for pts in outlines:
+                    xs = [p[0] for p in pts]
+                    ys = [p[1] for p in pts]
+                    gx0 = max(0, int(min(xs) / GRID))
+                    gx1 = min(self.nx, int(max(xs) / GRID) + 1)
+                    gy0 = max(0, int(min(ys) / GRID))
+                    gy1 = min(self.ny, int(max(ys) / GRID) + 1)
+                    for gx in range(gx0, gx1):
+                        cx = (gx + 0.5) * GRID
+                        for gy in range(gy0, gy1):
+                            cy = (gy + 0.5) * GRID
+                            if _pip(cx, cy, pts):
+                                self.occ[li][gy * self.nx + gx] = 1
+                                self.zone_stats["cells"] += 1
+            except (AttributeError, TypeError):
                 continue
 
     # ------------------------------------------------- queries
@@ -263,8 +444,11 @@ class GridModel:
 
     def via_cell_ok(self, li, gx, gy):
         i = self.idx(gx, gy)
-        return (i >= 0 and not self.via_block[li][i]
-                and not self.via_block[1 - li][i] and not self.hole_block[i])
+        if i < 0:
+            return False
+        if self.hole_block[i]:
+            return False
+        return all(not self.via_block[k][i] for k in range(self.nl))
 
     def own_via_at(self, gx, gy, nc):
         s = self.own_via_cells.get((gx, gy))
@@ -292,7 +476,9 @@ class GridModel:
 
     # ------------------------------------------------- exact checks
     def clear_exact(self, x1, y1, x2, y2, lid, nc, w_self):
-        li = 0 if lid == pcbnew.F_Cu else 1
+        li = self.li_of(lid)
+        if li < 0:
+            return False
         own = w_self / 2   # this track's half-width (was /2-0.1: allowed
                            # 0.27mm center distance vs 0.35 DRC requirement
                            # — the 139 clearance violations' root cause)
@@ -315,7 +501,7 @@ class GridModel:
 
     def via_exact_ok(self, x, y, nc, va=None):
         va = VIA_ANNULUS if va is None else va
-        for li in (0, 1):
+        for li in range(self.nl):
             for net, a, b, extra in self.segs[li]:
                 if net == nc:
                     continue
@@ -347,11 +533,11 @@ def add_track(board, sx, sy, ex, ey, layer_id, net, w):
     return t
 
 
-def add_via(board, x, y, net, annulus=0.25, drill=0.125):
+def add_via(board, x, y, net, annulus=None, drill=None):
     v = pcbnew.PCB_VIA(board)
     v.SetPosition(pcbnew.VECTOR2I(int(x * MM), int(y * MM)))
-    v.SetWidth(int(annulus * 2 * MM))
-    v.SetDrill(int(drill * 2 * MM))
+    v.SetWidth(int((annulus or VIA_ANNULUS) * 2 * MM))
+    v.SetDrill(int((drill or VIA_DRILL) * 2 * MM))
     v.SetNet(net)
     board.Add(v)
     return v
@@ -403,7 +589,7 @@ def pair_connected(board, pair):
                     return True
                 if k not in seen:
                     seen.add(k)
-                    stack.append(nb)
+                    stack.append(k)
         except (AttributeError, TypeError):
             continue
     return False

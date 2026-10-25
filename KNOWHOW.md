@@ -301,3 +301,46 @@ dev 3V3 走廊到达制造极限：RX0 与 3V3 通道间距 0.123mm（需 0.15�
 1. **own=w/2修复的代价**: 使精确检查更严格→fc上V3单独仅通12/60(vs V1的28/60)。开发板(稀疏)没问题，密集BGA上多数路径过不了修正后的间距检查。这是物理精度vs路径可用性的真实权衡。
 2. **信号层叠层有效但不足**: 4信号层确实降低了开路数(49→38)但BGA口袋问题依然存在——叠层加倍了逃逸通道但不够全部逃逸。
 3. **FR+协商的冲突**: FR注入(.scr)替换全部走线，不知道协商布线器的状态。需要FR感知已布走线(FR的DSN导出可以包含它们)或改变链序。
+
+## K16 Z轮：FR增量编排+VPR调度+构造性栅格+4层联合A*（2026-10-25 研究驱动轮）
+
+### 调研→问题→改进映射（三路并行文献调研）
+| 问题（实测） | 研究 | 落地 |
+|---|---|---|
+| FR 900s全板重布+scr全量替换144短路 | DSN生态pre-routed机制（无正式文献，工程空白） | Z1: dsn_mark_fixed把已收敛网走线标(type fix)——**mini实验证实FR尊重fix: 全量fix后73s只布开路网** |
+| pfac×1.6/×1.15震荡+网序敏感 | VTR默认参数+Zha&Li FPGA'22(顺序波动最多96%) | Z2: iter1 pfac=0→0.5→×1.3封顶；每轮shuffle(已有) |
+| knowhow_constraints.json零引用+3处漂移 | — | Z2: route_constraints.py加载器，routegrid/fluxrouter/routing.py全部接线，test_k16防漂移 |
+| 栅格承诺vs精确检查否决(fc physical主导) | ICG/LineExplore构造性占用 | Z3: track栅格margin w+0.15→w+0.30(构造性界:两0.2走线需0.37中心距，最坏对角中点情形需~w+0.29) |
+| A*只有2层，In1/In4闲置 | TPR'05/多die VTR FPL'26/RWRoute'21联合式3D；FCCM'25证明资源不足时调参无用 | Z4: NL层A*(via为一等协商节点，through-via任意层跳成本一致)，圈深→层偏好+内层软方向偏置(UG583) |
+| route_report全空、失败原因不可审计 | PathFinder history场即拥塞图 | Z5: why_history逐轮落盘+congestion.svg热图(失败网锚点叠加) |
+
+### 关键实验证据
+1. **FR尊重(type fix)的机制验证**(mini全量fix): FR 73s完成(全量重布~12min)，scr只含开路网(IO11/IO5)+1 GND过孔，fixed铜原样保留。
+2. **fc增量FR需更长超时**: fix标记后FR只布43个开路网，但开路网恰是BGA逃逸难网，绕locked铜更难——1500s仍超时。链内自适应：fix激活时默认2400s。
+3. **DSN根因确认**: pcbnew ExportSpecctraDSN**会**导出已有走线(fc 3991条wire)；dev的DSN空wiring是旧文件。FR"互毁"真相=FR把(type route)走线当可撕优化对象。
+4. **zone语义修正(写代码时发现的调研盲点)**: KiCad zone可重灌、会为新走线退让——GND铺铜**不是**布线障碍(标blocked会毁掉所有F/B布线)。只有keepout规则区是硬障碍(rasterize之)。内层信号线穿GND铺铜是标准做法，filler自动carve clearance。
+5. **mini 0/4非回退**: 提交态mini板上新旧路由器失败签名完全一致(nopath=1,physical=3,同4网)——fluxrouter在该板状态本来如此，历史"闭5V+EN"是另一板态。
+6. **Z3构造性边距被实测否决(重要反转)**: track margin提到w+0.30后fc nopath 42/43、routed=0(全灭)。根因是几何: 0.8mm节距BGA逃逸通道两条平行dogbone走线中点距各0.4mm，而两根0.2走线的DRC需要0.37中心距+对角中点余量≈0.39——**通道里一个自由格都不剩**。nopath致命(不可重试)、physical可重试(veto+5×5 h惩罚)。结论: 0.16mm栅格上构造性保证与BGA逃逸密度不可兼得，margin回退0.15，veto-retry是残余机制。教训=理论最坏情形界在真实密度面前必须让步于可重试性。
+7. **提交态fc板上fluxrouter=0/43是既有行为**: 旧版(HEAD)对照同样0/43、签名逐项一致。V3的12/60、Y2的17/60全是**全新板**数据。提交态板FR+session铜遍布→nopath。推论: fluxrouter必须跑在扇出后、FR前的干净阶段，链序是决定性的——auto_route新增FLUXNT_V3=1开关(session扇出→fluxrouter→FR增量→session收尾)。
+8. **4层fluxrouter单轮~3min**(fc 43网，2层V1为32s/轮): 层转移邻居×3+occ翻倍。停滞早停(4轮窗口+it≥6)防20轮空烧；FLUXNT_PF_ITERS=12为fc实测档。
+
+### 链内集成bug清单（Z1接入时挖出，mini回归3→19开路事件的完整解剖）
+1. **scr2kicad注入NameError**(Y1遗留): preserve分支用Path未导入→注入rc=1→旧代码final return无error字段→"freerouting跳过: "空错误难定位。修复: main块内from pathlib import Path; 注入失败显式返回error。
+2. **FR java输出GBK解码崩溃**: subprocess text=True默认locale——中文Windows下reader线程UnicodeDecodeError吞掉全部stdout。修复: 全部subprocess加encoding="utf-8", errors="replace"(7处)。
+3. **kipy进程退出时堆崩溃吞stdout**: DSN已写盘但DSN_OK丢失→管线误判导出失败。修复: 采信磁盘产物(存在且>1KB即继续)。
+4. **clear_bcup无preserve感知(真凶)**: 无差别删除BGA框内B.Cu走线——全量重布流程里FR的路线是牺牲品无所谓，Z1增量流程里删的是已收敛网承重铜(mini: 3→19开路)。修复: argv[2]传preserve_nets.json，preserve网跳过。隔离实验: 仅注入ratsnest 3→3(无辜)，注入+清道3→19。
+5. **cleanup堆崩溃(rc=3221226356)半程存盘**: 删30项后崩溃，损坏板进入下一迭代(19→22)。修复: cleanup前备份+倒退回滚(实测生效: 20→21已回滚)。
+6. **scr统计行被SWIG泄漏警告污染**: json.loads选行解析踩到泄漏警告→stats变raw。低危(仅观测面)。
+7. **scr2kicad层映射错误(fc 96短路真凶)**: FR写Eagle式铜层号(1=Top,16=Bottom,17+k=第k内层——fc scr实测LAYER 1;16;17;18;19)；旧代码In{n-1}把17解析成不存在的In16.Cu→异常→内层WIRE全部滞留在前一层上下文→注入后96铜-铜短路。修复: 17→In{n-16}.Cu，未知层跳过该层wire(via是通孔不受影响)而非猜层。
+
+### Z4实现要点(联合式3D)
+- GridModel(board, layer_ids): N层occ/via_block/segs/rects；via_block所有层OR+hole=viaany(through-via语义)
+- signal_layer_ids(): constraints stackup信号层∩板实际铜层数(2层板[F,B], 6层[F,In1,In4,B])
+- A*节点(li,gx,gy)；层跳=through-via一次(成本VIA_COST不随层距变化——一个钻就是一个钻)
+- 层偏好: critical→F(0.85), 长信号→末两层(0.85), In1横/In4纵软方向偏置(×0.85/×1.15)
+
+### 下一梯队(未做)
+- compaction兜底pass(一维约束图挤开, 300-500行)
+- ICG/line-exploration无网格引擎(BGA区候选点+构造期验证)
+- 离线RL学cost权重(arXiv 2512.03594)、FanoutNet RL扇出
+- KiCad PNS C++绑定(PCBWorld式)

@@ -21,12 +21,27 @@ MM = 1000000
 
 
 def _layer_id(n, board):
-    """Fusion layer number -> KiCad layer id (1=F, 16=B, inner between)."""
+    """Fusion/Eagle layer number -> KiCad layer id.
+
+    Freerouting 2.4.1 writes Eagle-style copper ids: 1=Top, 16=Bottom,
+    17+k = k-th INNER copper layer in board order (observed on the
+    6-layer h743-fc scr: LAYER 1;16;17;18;19 = F, B, In1, In2, In3).
+    The old In{n-1} mapping resolved 17 to the nonexistent In16.Cu,
+    raised, and left every inner-layer WIRE stranded on the previous
+    layer context — 96 copper-to-copper shorts on fc after injection.
+    """
     if n == 1:
         return pcbnew.F_Cu
     if n == 16:
         return pcbnew.B_Cu
-    return board.GetLayerID(f"In{n - 1}.Cu")
+    name = "In%d.Cu" % (n - 16)
+    try:
+        lid = board.GetLayerID(name)
+    except (AttributeError, TypeError, ValueError):
+        return None
+    if lid is None or int(lid) < 0:
+        return None
+    return int(lid)
 
 
 def inject_scr(board, scr_path):
@@ -126,12 +141,18 @@ def inject_scr_ordered(board, scr_path, preserve_set=None):
             pass
     stats["replaced"] = removed
 
+    layer_known = True
     for _, kind, m in events:
         if kind == "l":
-            try:
-                cur_layer = _layer_id(int(m.group(1)), board)
-            except Exception:
+            lid = _layer_id(int(m.group(1)), board)
+            if lid is None:
                 stats["unknown_layer"] += 1
+                layer_known = False   # skip this block rather than guess —
+                continue              # stacked-on-wrong-layer = fc 96 shorts
+            cur_layer = lid
+            layer_known = True
+            continue
+        if kind == "w" and not layer_known:
             continue
         if kind == "v":
             net_name, vdia, x, y = m.groups()
@@ -172,6 +193,7 @@ def inject_scr_ordered(board, scr_path, preserve_set=None):
 
 
 if __name__ == "__main__":
+    from pathlib import Path as _P
     pcb, scr = sys.argv[1], sys.argv[2]
     preserve_file = sys.argv[3] if len(sys.argv) > 3 else ""
     b = pcbnew.LoadBoard(pcb)
@@ -182,7 +204,7 @@ if __name__ == "__main__":
         if _os.path.exists(preserve_file):
             try:
                 preserve_nets = set(
-                    _j.loads(Path(preserve_file).read_text(encoding="utf-8")))
+                    _j.loads(_P(preserve_file).read_text(encoding="utf-8")))
             except (ValueError, OSError):
                 pass
     stats = inject_scr_ordered(b, scr, preserve_set=preserve_nets)

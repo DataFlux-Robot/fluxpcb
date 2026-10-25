@@ -147,7 +147,8 @@ def run_drc(kicad_cli: str, pcb: Path, rpt: Path) -> dict:
     ensure_calibration(pcb)   # kicad-cli --save-board resets the pro each run
     subprocess.run([kicad_cli, "pcb", "drc", "--exit-code-violations",
                     "--refill-zones", "--save-board", "-o", str(rpt), str(pcb)],
-                   capture_output=True, text=True, timeout=900)
+                   capture_output=True, text=True, encoding="utf-8", errors="replace",
+                   timeout=900)
     txt = rpt.read_text(encoding="utf-8", errors="replace") if rpt.exists() else ""
     return {"unconnected": txt.count("[unconnected_items]"),
             "shorting": txt.count("[shorting_items]"),
@@ -173,7 +174,8 @@ def extract_pairs(rpt_text: str) -> list[str]:
 
 def _kipy(kipy: str, script: Path, *args: str, timeout: int = 600) -> tuple[int, str]:
     p = subprocess.run([kipy, str(script), *args], capture_output=True,
-                       text=True, timeout=timeout)
+                       text=True, encoding="utf-8", errors="replace",
+                       timeout=timeout)
     return p.returncode, (p.stdout + p.stderr)
 
 
@@ -192,6 +194,7 @@ def ratsnest_state(kipy: str, pcb: Path, log=print) -> dict | None:
     try:
         p = subprocess.run([kipy, str(_CONN_AUDIT), "--pairs", str(pcb),
                             str(pairs_file)], capture_output=True, text=True,
+                            encoding="utf-8", errors="replace",
                            timeout=300)
         data = _json.loads([l for l in (p.stdout or "").splitlines()
                             if l.strip().startswith("{")][0])
@@ -259,9 +262,76 @@ def _pin_freerouting_config() -> None:
                 pass
 
 
-def route_with_freerouting(pcb_path: Path, kipy: str, log=print) -> dict:
+_WIRE_RE = re.compile(
+    r"^\s*\((wire|via)\b.*?\(net\s+(\"[^\"]*\"|[^\s()]+)\)"
+    r"\(type\s+(\w+)\)\)\s*$")
+
+
+def dsn_mark_fixed(dsn_path: Path, nets: set) -> int:
+    """Specctra DSN: re-tag wires/vias of `nets` as (type fix).
+
+    Freerouting treats fixed copper as unrippable obstacles: it stops
+    re-routing converged nets (900s on fc spent re-routing the whole board)
+    and routes the remaining opens around our real kept geometry — the
+    root fix for the FR-vs-negotiated-router mutual destruction.
+    """
+    txt = dsn_path.read_text(encoding="utf-8", errors="replace")
+    n = 0
+    out = []
+    for line in txt.splitlines():
+        m = _WIRE_RE.match(line)
+        if m and m.group(3) != "fix":
+            if m.group(2).strip('"') in nets:
+                line = line.replace(
+                    "(type %s)" % m.group(3), "(type fix)")
+                n += 1
+        out.append(line)
+    dsn_path.write_text("\n".join(out) + "\n", encoding="utf-8")
+    return n
+
+
+def _compute_route_sets(pcb_path: Path, kipy: str, log=print) -> tuple:
+    """(preserve, open) net-name sets: fully-connected vs fragmented.
+
+    preserve — nets whose ratsnest is closed (their copper must survive);
+    open — nets the routers still need to connect.
+    """
+    import ast as _pa
+    import json as _pj
+    rn = ratsnest_state(kipy, pcb_path, log=log)
+    if not rn:
+        return None, None
+    frag = rn.get("audit", {}).get("fragmented_nets", {}) or {}
+    rc_n, out_n = _kipy_run(kipy,
+                            "import pcbnew; b=pcbnew.LoadBoard(r'%s'); "
+                            "print([n.GetNetname() for n in "
+                            "[b.FindNet(i) for i in range(1, "
+                            "b.GetNetInfo().NetsByNetcode().__len__()+1)] "
+                            "if n])" % pcb_path, timeout=120)
+    all_board_nets = []
+    try:
+        all_board_nets = _pa.literal_eval(out_n.strip().splitlines()[-1])
+    except (ValueError, SyntaxError, IndexError):
+        pass
+    if not all_board_nets:
+        return None, None
+    return (set(all_board_nets) - set(frag.keys()),
+            set(frag.keys()) & set(all_board_nets))
+
+
+def route_with_freerouting(pcb_path: Path, kipy: str, log=print,
+                           incremental: bool = True) -> dict:
     """Heavy-duty pass: pcbnew DSN export -> freerouting -> routed-DSN
     injection via dsn2kicad (SES import hangs headless; DSN write-back works).
+
+    incremental=True (Z1): converged nets' copper is fix-marked in the DSN
+    and protected at injection + B.Cu sweeping — Freerouting routes only
+    the opens around the kept geometry. On a fresh board the preserve set
+    collapses (everything unrouted) so this degrades to a full FR run;
+    on committed boards full re-route measurably STRUGGLES against the
+    imported copper instead (mini committed board: full FR 17 opens vs
+    incremental 2 — same root as K15's fc 144-shorts) so incremental is
+    simply always-on.
     """
     java, jar = _freerouting_tools()
     if not java:
@@ -274,8 +344,33 @@ def route_with_freerouting(pcb_path: Path, kipy: str, log=print) -> dict:
     rc, out = _kipy_run(kipy,
                         f"import pcbnew; b = pcbnew.LoadBoard(r'{pcb_path}'); "
                         f"ok = pcbnew.ExportSpecctraDSN(b, r'{dsn}'); print('DSN_OK' if ok else 'DSN_FAIL')")
+    # kipy subprocesses occasionally heap-crash on interpreter exit AFTER
+    # writing the file, swallowing buffered stdout (observed: DSN on disk,
+    # empty output) — trust the artifact over the pipe
     if "DSN_OK" not in out:
-        return {"ok": False, "error": f"DSN导出失败: {out[-200:]}"}
+        if dsn.exists() and dsn.stat().st_size > 1024:
+            log("  [route] DSN导出: 输出丢失但文件在盘, 采信产物")
+        else:
+            return {"ok": False, "error": f"DSN导出失败: {out[-200:]}"}
+    preserve_file = work / "preserve_nets.json"
+    n_fixed = 0
+    if incremental:
+        # Z1: converged nets' copper becomes (type fix) in the DSN —
+        # FR stops re-routing them and routes the remaining opens AROUND
+        # the actual kept geometry (validated on mini: FR scr then
+        # contains only the open nets)
+        preserve, open_nets = _compute_route_sets(pcb_path, kipy, log=log)
+        if preserve is not None:
+            n_fixed = dsn_mark_fixed(dsn, preserve)
+            log(f"  [route] Z1 dsn-fix: {n_fixed} 段/孔标fix "
+                f"({len(preserve)} 已连通网保留, {len(open_nets)} 开路网待布)")
+            preserve_file.write_text(json.dumps(sorted(preserve)),
+                                     encoding="utf-8")
+        else:
+            preserve_file.write_text("[]", encoding="utf-8")
+            log("  [route] Z1 dsn-fix: 网络集计算失败, FR 全量模式")
+    else:
+        preserve_file.write_text("[]", encoding="utf-8")
     # freerouting silently writes a 0-byte file when -de/-do get absolute
     # Windows paths — always pass bare filenames with cwd=work. Its config
     # pins the single-thread optimizer (the MT one NPEs during batch save).
@@ -287,7 +382,12 @@ def route_with_freerouting(pcb_path: Path, kipy: str, log=print) -> dict:
     # injected by scr2kicad. 1800s default: the 240-ball h743-fc needs
     # ~900s of routing + optimization; the old 480s cap cut it mid-pass.
     import os as _os2
-    _fr_timeout = int(_os2.environ.get("FLUXNT_FR_TIMEOUT", "1800"))
+    # fix-marked DSN only routes the OPEN nets, but those are precisely
+    # the hard ones (BGA escape around locked copper) — validated on fc:
+    # full-board FR 886s, all-fixed mini 73s, opens-only fc > 1500s.
+    # Budget more time when incremental mode is active.
+    _fr_timeout = int(_os2.environ.get("FLUXNT_FR_TIMEOUT", "0")) or \
+        (2400 if n_fixed else 1800)
     scr = work / ("routed-" + pcb_path.stem + ".scr")
     if scr.exists():
         scr.unlink()
@@ -296,8 +396,9 @@ def route_with_freerouting(pcb_path: Path, kipy: str, log=print) -> dict:
         p = subprocess.run([java, "-Djava.awt.headless=true", "-jar", jar,
                             "-de", dsn.name, "-do", scr.name,
                             "-mp", "40", "-mt", "1", "-l", "en"],
-                           capture_output=True, text=True, timeout=_fr_timeout,
-                           cwd=str(work))
+                           capture_output=True, text=True,
+                           encoding="utf-8", errors="replace",
+                           timeout=_fr_timeout, cwd=str(work))
         if not (scr.exists() and scr.stat().st_size > 0):
             tail = (p.stdout + p.stderr)[-200:].replace("\n", " ")
             last_err = f"rc={p.returncode} {tail}"
@@ -308,56 +409,27 @@ def route_with_freerouting(pcb_path: Path, kipy: str, log=print) -> dict:
            else last_err))
     if not (scr.exists() and scr.stat().st_size > 0):
         return {"ok": False, "error": f"freerouting无产出: {last_err}"}
-    # Y1: compute the set of already-fully-connected nets so scr2kicad
-    # preserves their tracks (FR's .scr would otherwise destroy the
-    # negotiated router's successful routes — 144 shorts on fc)
-    preserve_file = work / "preserve_nets.json"
-    try:
-        rn = ratsnest_state(kipy, pcb_path, log=log)
-        if rn:
-            frag = rn.get("audit", {}).get("fragmented_nets", {})
-            all_nets = set()
-            for net_name in (rn.get("audit", {}).get("missing_list", [])
-                             or []):
-                all_nets.add(net_name)
-            all_nets.update(frag.keys())
-            # fully-connected = nets NOT in the fragmented list — but we
-            # need all net names; use the board's nets minus fragmented
-            import json as _pj
-            _pj.dump({"_dummy": True}, open(preserve_file, "w"))  # reset
-            # simpler: list all nets from board, subtract fragmented
-            rc_n, out_n = _kipy_run(kipy,
-                                    "import pcbnew; b=pcbnew.LoadBoard(r'%s'); "
-                                    "print([n.GetNetname() for n in "
-                                    "[b.FindNet(i) for i in range(1, "
-                                    "b.GetNetInfo().NetsByNetcode().__len__()+1)] "
-                                    "if n])" % pcb_path, timeout=120)
-            all_board_nets = []
-            try:
-                import ast as _pa
-                all_board_nets = _pa.literal_eval(
-                    out_n.strip().splitlines()[-1])
-            except (ValueError, SyntaxError, IndexError):
-                pass
-            preserve = set(all_board_nets) - set(frag.keys())
-            preserve_file.write_text(_pj.dumps(sorted(preserve)),
-                                    encoding="utf-8")
-            log(f"  [route] Y1 preserve: {len(preserve)} nets pre-routed")
-    except Exception as _e:
-        preserve_file.write_text("[]", encoding="utf-8")
-        log(f"  [route] Y1 preserve fallback: {_e}")
-
+    # preserve_nets.json was already written before FR ran (Z1); with the
+    # DSN fix-marking honored, FR's scr should no longer touch these nets,
+    # and scr2kicad's preserve_set is the belt-and-suspenders that keeps
+    # any residual FR edits to them from destroying our routes
     code = (
         "import sys; sys.argv = ['x', r'%s', r'%s', r'%s']; "
         "exec(open(r'%s', encoding='utf-8').read())"
         % (pcb_path, scr, preserve_file, _SCR2KICAD))
     rc, out = _kipy_run(kipy, code, timeout=300)
     log(f"  [route] scr注入: {out.strip()[-120:]}")
+    if rc != 0:
+        return {"ok": False, "stats": {"raw": out.strip()[-160:]},
+                "error": f"scr注入rc={rc}: {out.strip()[-120:]}"}
     # free B.Cu under BGAs (separate process: the KiCad wrappers poison
-    # containers after Add/Remove churn) so dog-bone vias can land
+    # containers after Add/Remove churn) so dog-bone vias can land;
+    # preserve set forwarded — the sweeper must not delete converged
+    # nets' committed lanes (mini regression: 3->19 opens when it did)
     _CLR = Path(__file__).resolve().parent / "kicadgen" / "clear_bcup.py"
     try:
-        rc2, out2 = _kipy(kipy, _CLR, str(pcb_path), timeout=180)
+        rc2, out2 = _kipy(kipy, _CLR, str(pcb_path), str(preserve_file),
+                          timeout=180)
         log(f"  [route] B.Cu清道: {out2.strip()[-80:]}")
     except subprocess.TimeoutExpired:
         log("  [route] B.Cu清道超时")
@@ -372,7 +444,7 @@ def route_with_freerouting(pcb_path: Path, kipy: str, log=print) -> dict:
 
 def _kipy_run(kipy: str, code: str, timeout: int = 600) -> tuple[int, str]:
     p = subprocess.run([kipy, "-c", code], capture_output=True, text=True,
-                       timeout=timeout)
+                       encoding="utf-8", errors="replace", timeout=timeout)
     return p.returncode, (p.stdout + p.stderr)
 
 
@@ -395,18 +467,28 @@ def _run_session(kipy: str, pcb_path: Path, cls_file: Path, log=print) -> dict |
 
 
 def _run_fluxrouter(kipy: str, pcb_path: Path, cls_file: Path, log=print) -> dict | None:
-    """One PathFinder negotiated-congestion pass (K14): every negotiable
-    net rerouted on a cost field where contested cells grow a history
-    penalty — competing nets push each other aside instead of the legacy
-    one-shot sweep's first-come-first-served."""
+    """One multi-layer PathFinder negotiated-congestion pass (K14-Z):
+    every negotiable net rerouted on a cost field where contested cells
+    grow a history penalty — competing nets push each other aside, across
+    ALL stackup signal layers (Z4), under the VTR convergence schedule
+    (Z2). Iteration default comes from knowhow_constraints.json — the
+    single source; FLUXNT_PF_ITERS overrides."""
     import json as _json
     import os as _os
-    _iters = _os.environ.get("FLUXNT_PF_ITERS", "15")
+    _def = "15"
+    try:
+        _cons = json.loads(
+            (Path(__file__).resolve().parent / "knowhow_constraints.json")
+            .read_text(encoding="utf-8"))
+        _def = str(_cons.get("negotiation", {}).get("max_iterations", 15))
+    except (OSError, ValueError):
+        pass
+    _iters = _os.environ.get("FLUXNT_PF_ITERS", _def)
     try:
         rc, out = _kipy(kipy, _FLUXROUTER, str(pcb_path), str(cls_file),
                         _iters, timeout=2700)
     except subprocess.TimeoutExpired:
-        log("  [route] fluxrouter timeout(1800s)")
+        log("  [route] fluxrouter timeout(2700s)")
         return None
     try:
         return _json.loads([l for l in (out or "").splitlines()
@@ -482,6 +564,28 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
         # pre-fill zones once so the session starts from fresh copper
         run_drc(kicad_cli, pcb_path, rpt)
 
+    # FLUXNT_V3=1 — the K15-best chain order: session-first (fanout:
+    # dog-bone + module fanout + power stitch live inside route_session)
+    # -> multi-layer fluxrouter -> Freerouting INCREMENTAL (Z1: converged
+    # nets are fix-marked in the DSN, FR routes only the opens around
+    # them) -> session residue passes. Running fluxrouter LAST (default
+    # order) hands it the FR+session-clogged board where everything is
+    # nopath (measured 0/43 both old and Z-round routers on committed fc).
+    v3_order = os.environ.get("FLUXNT_V3", "0") == "1"
+    if v3_order:
+        fan = _run_session(kipy, pcb_path, cls_file, log=log)
+        if fan:
+            steps.append(f"fanout-session: {fan.get('start')}->{fan.get('final')} "
+                         f"(stitch {fan.get('stitched')}, dogbone+modfan)")
+        if os.environ.get("FLUXNT_ROUTER") == "pathfinder":
+            frn = _run_fluxrouter(kipy, pcb_path, cls_file, log=log)
+            if frn:
+                steps.append(f"fluxrouter: iters={frn.get('iters')} "
+                             f"routed={frn.get('routed_nets')}/{frn.get('nets')} "
+                             f"final={frn.get('final')} ({frn.get('time_s')}s)")
+                log(f"  [route] fluxrouter: {frn.get('routed_nets')}/"
+                    f"{frn.get('nets')} nets, final {frn.get('final')}")
+
     # Freerouting is the PRIMARY router (real push-and-shove rip-up
     # rerouter; completed the 240-ball h743-fc in ~18min once given a
     # 1800s budget). The session engine finishes its residue (power-plane
@@ -513,8 +617,9 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
         prev = cur
 
     # PathFinder pass (K14): FLUXNT_ROUTER=pathfinder enables — the
-    # negotiated rerouting closes what the sequential session cannot
-    if os.environ.get("FLUXNT_ROUTER") == "pathfinder":
+    # negotiated rerouting closes what the sequential session cannot.
+    # (In FLUXNT_V3 order it already ran before Freerouting.)
+    if os.environ.get("FLUXNT_ROUTER") == "pathfinder" and not v3_order:
         frn = _run_fluxrouter(kipy, pcb_path, cls_file, log=log)
         if frn:
             steps.append(f"fluxrouter: iters={frn.get('iters')} "
@@ -530,10 +635,30 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
     if drc["shorting"] or "[clearance]" in drc["text"] \
             or "[holes_co_located]" in drc["text"] \
             or "[copper_edge_clearance]" in drc["text"]:
+        # the cleanup kipy process heap-crashes mid-run sometimes (KiCad10
+        # SWIG container poisoning) and its partial removal — 30 items on
+        # the mini regression, 3->19 opens — lands in the SAVED file.
+        # Snapshot first; if the survivors' ratsnest regressed, roll back.
+        import shutil as _sh
+        pre_rn = ratsnest_state(kipy, pcb_path, log=log)
+        pre_opens = pre_rn["ratsnest"] if pre_rn else -1
+        backup = pcb_path.with_suffix(".kicad_pcb.bak")
+        _sh.copy2(pcb_path, backup)
         rc, out = _kipy(kipy, _CLEANUP, str(pcb_path), str(rpt))
         lastline = out.strip().splitlines()[-1][:60] if out.strip() else ""
         steps.append(f"final cleanup rc={rc} {lastline}")
-        scrubbed = True
+        post_rn = ratsnest_state(kipy, pcb_path, log=log)
+        post_opens = post_rn["ratsnest"] if post_rn else -1
+        if pre_opens >= 0 and post_opens > pre_opens:
+            _sh.copy2(backup, pcb_path)
+            steps.append(f"cleanup倒退({pre_opens}->{post_opens})回滚")
+            scrubbed = False
+        else:
+            scrubbed = True
+        try:
+            backup.unlink()
+        except OSError:
+            pass
         drc = run_drc(kicad_cli, pcb_path, rpt)
     rnf = ratsnest_state(kipy, pcb_path, log=log)
     if scrubbed and rnf and rnf["ratsnest"] > 0:

@@ -10,8 +10,14 @@ Why: Freerouting routes escape lanes on B.Cu straight under the ball
 field; those tracks block the dog-bone via landings for balls FR left
 unrouted. Affected nets re-open and the session re-routes them on the
 freed copper.
+
+argv[2] (optional): preserve_nets.json — converged nets whose copper
+must survive (Z1 incremental mode). Without it the sweeper deletes the
+negotiated router's committed B.Cu lanes under the module/BGA box and
+16 nets re-open at once (mini regression: 3->19 opens).
 """
 import json
+import os
 import sys
 
 import pcbnew
@@ -20,6 +26,14 @@ MM = 1000000
 
 pcb = sys.argv[1]
 b = pcbnew.LoadBoard(pcb)
+
+preserve = set()
+if len(sys.argv) > 2 and os.path.exists(sys.argv[2]):
+    try:
+        preserve = set(
+            json.loads(open(sys.argv[2], encoding="utf-8").read()))
+    except (ValueError, OSError):
+        preserve = set()
 
 boxes = []
 for fp in b.GetFootprints():
@@ -43,10 +57,16 @@ for it in b.GetTracks():
         s, e = it.GetStart(), it.GetEnd()
     except AttributeError:
         continue
+    try:
+        if it.GetNetname() in preserve:
+            continue               # converged copper is untouchable
+    except AttributeError:
+        pass
     mx, my = (s.x + e.x) / 2 / MM, (s.y + e.y) / 2 / MM
     if any(x0 <= mx <= x1 and y0 <= my <= y1 for (x0, y0, x1, y1) in boxes):
         victims.append(it)
 for it in victims:
     b.Remove(it)
 b.Save(pcb)
-print(json.dumps({"boxes": len(boxes), "bcup_cleared": len(victims)}))
+print(json.dumps({"boxes": len(boxes), "bcup_cleared": len(victims),
+                  "preserved_nets": len(preserve)}))

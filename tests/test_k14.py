@@ -18,8 +18,8 @@ class TestRouteGrid:
     def test_honest_margins_baked(self):
         src = (REPO / "fluxpcb" / "kicadgen" / "routegrid.py").read_text(
             encoding="utf-8")
-        # K7 lesson: extent + clearance + track half
-        assert "ext + 0.30" in src
+        # K7 lesson: extent + clearance + track half (K16: from constraints)
+        assert "ext + PAD_MARGIN" in src
         # K12: dog-bone lattice via radii
         assert "VIA_ANNULUS + 0.25 + ext" in src
 
@@ -32,8 +32,9 @@ class TestFluxRouter:
         assert "cost_l[i2] * (PFM" in src and "PFAC" in src
         # history feedback on contested cells
         assert "H_INC" in src
-        # violation feedback: route AROUND physical fails
-        assert "5.0" in src
+        # violation feedback: route AROUND physical fails (K16: from
+        # constraints physical_fail_penalty)
+        assert "PHYS_PEN" in src
         # orphaned partial-item cleanup on violation
         assert "board.Remove(i)" in src
         # island verification per chain (the honest gate)
