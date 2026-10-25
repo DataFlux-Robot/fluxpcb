@@ -19,7 +19,7 @@ class TestRouteGrid:
         src = (REPO / "fluxpcb" / "kicadgen" / "routegrid.py").read_text(
             encoding="utf-8")
         # K7 lesson: extent + clearance + track half
-        assert "ext + 0.25" in src
+        assert "ext + 0.30" in src
         # K12: dog-bone lattice via radii
         assert "VIA_ANNULUS + 0.25 + ext" in src
 
