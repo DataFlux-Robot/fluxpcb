@@ -83,9 +83,12 @@ def inject_scr(board, scr_path):
     return stats
 
 
-def inject_scr_ordered(board, scr_path):
+def inject_scr_ordered(board, scr_path, preserve_set=None):
     """Sequential scan honoring interleaved CHANGE LAYER n; — the accurate
-    form: layer context switches between WIRE statements."""
+    form: layer context switches between WIRE statements. preserve_set:
+    nets whose existing tracks must NOT be removed (they were already
+    fully connected by the negotiated router — Y1)."""
+    preserve_set = preserve_set or set()
     txt = open(scr_path, encoding="utf-8", errors="replace").read()
     cur_layer = pcbnew.F_Cu
     stats = {"wires": 0, "segs": 0, "vias": 0, "skipped": 0,
@@ -106,10 +109,12 @@ def inject_scr_ordered(board, scr_path):
         events.append((m.start(), "l", m))
     events.sort(key=lambda e: e[0])
 
-    # FR's scr is a COMPLETE solution for the nets it touched (it re-routes
-    # them from the exported state); keeping the board's older tracks for
-    # those nets stacks duplicate parallel copper across FR iterations
+    # FR's scr is a COMPLETE solution for the nets it touched. BUT nets
+    # in the preserve set were already fully connected by the negotiated
+    # router (fluxrouter/session) — their tracks must survive the .scr
+    # injection (Y1: FR replacing successful routes created 144 shorts)
     scr_nets = {m.group(1) for _, k, m in events if k in ("w", "v")}
+    scr_nets -= preserve_set
     removed = 0
     for item in list(board.GetTracks()):
         try:
@@ -168,8 +173,20 @@ def inject_scr_ordered(board, scr_path):
 
 if __name__ == "__main__":
     pcb, scr = sys.argv[1], sys.argv[2]
+    preserve_file = sys.argv[3] if len(sys.argv) > 3 else ""
     b = pcbnew.LoadBoard(pcb)
-    stats = inject_scr_ordered(b, scr)
+    preserve_nets = set()
+    if preserve_file:
+        import json as _j
+        import os as _os
+        if _os.path.exists(preserve_file):
+            try:
+                preserve_nets = set(
+                    _j.loads(Path(preserve_file).read_text(encoding="utf-8")))
+            except (ValueError, OSError):
+                pass
+    stats = inject_scr_ordered(b, scr, preserve_set=preserve_nets)
+    stats["preserved_nets"] = len(preserve_nets)
     b.Save(pcb)
     import json
     print(json.dumps(stats))

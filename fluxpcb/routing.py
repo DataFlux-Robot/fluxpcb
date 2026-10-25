@@ -308,10 +308,49 @@ def route_with_freerouting(pcb_path: Path, kipy: str, log=print) -> dict:
            else last_err))
     if not (scr.exists() and scr.stat().st_size > 0):
         return {"ok": False, "error": f"freerouting无产出: {last_err}"}
+    # Y1: compute the set of already-fully-connected nets so scr2kicad
+    # preserves their tracks (FR's .scr would otherwise destroy the
+    # negotiated router's successful routes — 144 shorts on fc)
+    preserve_file = work / "preserve_nets.json"
+    try:
+        rn = ratsnest_state(kipy, pcb_path, log=log)
+        if rn:
+            frag = rn.get("audit", {}).get("fragmented_nets", {})
+            all_nets = set()
+            for net_name in (rn.get("audit", {}).get("missing_list", [])
+                             or []):
+                all_nets.add(net_name)
+            all_nets.update(frag.keys())
+            # fully-connected = nets NOT in the fragmented list — but we
+            # need all net names; use the board's nets minus fragmented
+            import json as _pj
+            _pj.dump({"_dummy": True}, open(preserve_file, "w"))  # reset
+            # simpler: list all nets from board, subtract fragmented
+            rc_n, out_n = _kipy_run(kipy,
+                                    "import pcbnew; b=pcbnew.LoadBoard(r'%s'); "
+                                    "print([n.GetNetname() for n in "
+                                    "[b.FindNet(i) for i in range(1, "
+                                    "b.GetNetInfo().NetsByNetcode().__len__()+1)] "
+                                    "if n])" % pcb_path, timeout=120)
+            all_board_nets = []
+            try:
+                import ast as _pa
+                all_board_nets = _pa.literal_eval(
+                    out_n.strip().splitlines()[-1])
+            except (ValueError, SyntaxError, IndexError):
+                pass
+            preserve = set(all_board_nets) - set(frag.keys())
+            preserve_file.write_text(_pj.dumps(sorted(preserve)),
+                                    encoding="utf-8")
+            log(f"  [route] Y1 preserve: {len(preserve)} nets pre-routed")
+    except Exception as _e:
+        preserve_file.write_text("[]", encoding="utf-8")
+        log(f"  [route] Y1 preserve fallback: {_e}")
+
     code = (
-        "import sys; sys.argv = ['x', r'%s', r'%s']; "
+        "import sys; sys.argv = ['x', r'%s', r'%s', r'%s']; "
         "exec(open(r'%s', encoding='utf-8').read())"
-        % (pcb_path, scr, _SCR2KICAD))
+        % (pcb_path, scr, preserve_file, _SCR2KICAD))
     rc, out = _kipy_run(kipy, code, timeout=300)
     log(f"  [route] scr注入: {out.strip()[-120:]}")
     # free B.Cu under BGAs (separate process: the KiCad wrappers poison

@@ -48,6 +48,24 @@ def net_cls_w(name):
     return CLS_W.get(NET_CLASS.get(name, "normal"), 1.0)
 
 
+# Y2: layer preference per net (deterministic — FanoutNet-inspired but
+# rule-based). critical→F(0.9), long normals→B(1.1/F=0.9), power→equal.
+LAYER_PREF = {}    # net name -> {"F": mult, "B": mult}
+
+
+def assign_layer_prefs(nets):
+    for name, info in nets.items():
+        cls = NET_CLASS.get(name, "normal")
+        max_d = max(((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
+                    for a, b in info["chains"]) if info["chains"] else 0
+        if cls == "critical":
+            LAYER_PREF[name] = {"F": 0.85, "B": 1.15}   # short, F preferred
+        elif max_d > 15.0:
+            LAYER_PREF[name] = {"F": 1.15, "B": 0.85}   # long, B preferred
+        else:
+            LAYER_PREF[name] = {"F": 1.0, "B": 1.0}     # neutral
+
+
 # ---------------------------------------------------------------- audit
 def audit_nets():
     board.BuildConnectivity()
@@ -182,7 +200,10 @@ def release_cells(cells, nc):
 
 
 # ---------------------------------------------------------------- A*
-def astar_negotiate(a, b, nc, cls_weight):
+_cur_net_name = ""
+def astar_negotiate(a, b, nc, cls_weight, net_name=""):
+    global _cur_net_name
+    _cur_net_name = net_name
     x1, y1, l1 = a
     x2, y2, l2 = b
 
@@ -262,6 +283,8 @@ def astar_negotiate(a, b, nc, cls_weight):
         if cost_l[base + gy * NX + gx] < 1.5 and count % 8 == 0:
             moves = moves + ((2, 0), (0, 2))
 
+        lay_mult = LAYER_PREF.get(_cur_net_name, {}).get(
+            "F" if lay == 0 else "B", 1.0)
         for dx, dy in moves:
             gx2, gy2 = gx + dx, gy + dy
             if gx2 < 1 or gy2 < 1 or gx2 >= NX - 1 or gy2 >= NY - 1:
@@ -282,10 +305,10 @@ def astar_negotiate(a, b, nc, cls_weight):
                     continue
                 if (occ_l[iay] and iay not in own_set):
                     continue
-                step = G * 1.4142 * c * cls_weight
+                step = G * 1.4142 * c * cls_weight * lay_mult
             else:
                 mult = max(abs(dx), abs(dy))
-                step = G * mult * c * cls_weight
+                step = G * mult * c * cls_weight * lay_mult
             nk = (lay, gx2, gy2)
             if gscore.get(nk, INF_) > cur + step:
                 gscore[nk] = cur + step
@@ -395,6 +418,7 @@ def main():
     except Exception:
         pass
     nets = audit_nets()
+    assign_layer_prefs(nets)
     names = list(nets.keys())
     for n in names:
         nets[n]["conflicted"] = True   # first iteration: rip everything
@@ -434,7 +458,7 @@ def main():
             all_cells = []
             ok = True
             for (a, b) in info["chains"]:
-                path = astar_negotiate(a, b, nc, cw)
+                path = astar_negotiate(a, b, nc, cw, name)
                 if path is None:
                     why["nopath"] += 1
                     ok = False
