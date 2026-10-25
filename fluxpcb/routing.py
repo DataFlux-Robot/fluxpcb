@@ -327,6 +327,44 @@ def dsn_reorder_nets(dsn_path: Path, priority_nets: list) -> int:
     return len(front)
 
 
+def dsn_rename_layers_numeric(dsn_path: Path) -> int:
+    """X2b: rename DSN copper layers to their KiCad layer ids as PURE
+    NUMBERS ("0","1",...,"31").
+
+    Freerouting 2.4.x's scr writer maps layers BY NAME (source:
+    SessionToFusion.getFusionLayerString) — pure-digit names return
+    verbatim (top-priority rule in both v2.4.0 and v2.4.1), so numeric
+    names are build-stable and collision-free. Our custom names collide:
+    "inner_signal_1" starts with "in" -> "1" (clashes with top_copper's
+    fallback "1"); "power_copper_2"/"inner_signal_4" both -> "4"; FR's
+    own bug paints some wires on doc layer 19 (Unrouted). Ids follow the
+    DSN stack order: first->0(F.Cu), last->31(B.Cu), inner k->k."""
+    import re as _re
+    txt = dsn_path.read_text(encoding="utf-8", errors="replace")
+    # collect (layer NAME ... (index I)) blocks in the structure section
+    names = []
+    for m in _re.finditer(r"\(layer\s+(\S+)[\s\S]*?\(index (\d+)\)",
+                          txt[:txt.find("(network") if "(network" in txt
+                          else len(txt)]):
+        name, idx = m.group(1), int(m.group(2))
+        while len(names) <= idx:
+            names.append(None)
+        names[idx] = name.strip('"')
+    if not names or any(n is None for n in names):
+        return 0
+    if len({n for n in names if n}) != len(names):
+        # duplicate layer names (old boards: two "power_copper") — a
+        # global rename would be ambiguous; caller falls back
+        return 0
+    nl = len(names)
+    for i, name in enumerate(names):
+        kid = 0 if i == 0 else (31 if i == nl - 1 else i)
+        txt = _re.sub(r'(?<![#\w])%s(?![\w#])' % _re.escape(name),
+                      str(kid), txt)
+    dsn_path.write_text(txt, encoding="utf-8")
+    return nl
+
+
 def dsn_mark_power_layers(dsn_path: Path, power_idx: set) -> int:
     """X-round fc fix: DSN layers whose stack index is a power plane get
     (type power) so Freerouting keeps SIGNAL nets off them.
@@ -497,6 +535,11 @@ def route_with_freerouting(pcb_path: Path, kipy: str, log=print,
                 log(f"  [route] X2 dsn-power: {flipped} 电源层type=power")
     except (OSError, ValueError):
         pass
+    # X2b: numeric layer names -> FR's scr emits KiCad ids verbatim
+    # (stable + collision-free; see dsn_rename_layers_numeric docstring)
+    _renamed = dsn_rename_layers_numeric(dsn)
+    if _renamed:
+        log(f"  [route] X2b dsn-rename: {_renamed} 层名→KiCad id")
     # freerouting silently writes a 0-byte file when -de/-do get absolute
     # Windows paths — always pass bare filenames with cwd=work. Its config
     # pins the single-thread optimizer (the MT one NPEs during batch save).
@@ -905,9 +948,13 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
         steps.append(f"final cleanup rc={rc} {lastline}")
         post_rn = ratsnest_state(kipy, pcb_path, log=log)
         post_opens = post_rn["ratsnest"] if post_rn else -1
-        if pre_opens >= 0 and post_opens > pre_opens:
+        post_drc = run_drc(kicad_cli, pcb_path, rpt)
+        worse = (pre_opens >= 0 and post_opens > pre_opens) or \
+            post_drc["shorting"] > drc["shorting"]
+        if worse:
             _sh.copy2(backup, pcb_path)
-            steps.append(f"cleanup倒退({pre_opens}->{post_opens})回滚")
+            steps.append(f"cleanup倒退({pre_opens}->{post_opens}, "
+                         f"shorts {drc['shorting']}->{post_drc['shorting']})回滚")
             scrubbed = False
         else:
             scrubbed = True

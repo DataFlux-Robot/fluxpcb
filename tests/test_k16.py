@@ -126,14 +126,21 @@ class TestFRIncremental:
         assert "(type fix)" in src
         assert "_compute_route_sets" in src
 
-    def test_scr_eagle_layer_mapping(self):
-        """fc 96-shorts root cause: FR writes Eagle copper ids
-        (1=Top, 16=Bottom, 17+k = k-th inner). The old In{n-1}
-        mapping resolved 17 to nonexistent In16.Cu."""
+    def test_scr_numeric_layer_mapping(self):
+        """fc 96/132/199-shorts lineage: FR maps layers BY NAME (source
+        SessionToFusion) — our custom names collided (inner_signal_1
+        ->"1" vs top_copper->"1", power_copper_2/inner_signal_4 both
+        ->"4", FR doc-layer bug paints wires on 19=Unrouted). X2b renames
+        DSN layers to KiCad ids as pure numbers (FR's top-priority rule
+        returns them verbatim); scr now carries KiCad ids directly."""
         src = (KGEN / "scr2kicad.py").read_text(encoding="utf-8")
-        assert '"In%d.Cu" % (n - 16)' in src
+        assert "if n == 0:" in src and "if n == 31:" in src
+        assert '"In%d.Cu" % n' in src
         # unknown layers must skip wire placement, not guess
         assert "layer_known" in src
+        rsrc = (REPO / "fluxpcb" / "routing.py").read_text(encoding="utf-8")
+        assert "def dsn_rename_layers_numeric" in rsrc
+        assert "dsn_rename_layers_numeric(dsn)" in rsrc
 
     def test_mark_only_target_nets(self):
         import tempfile

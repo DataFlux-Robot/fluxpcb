@@ -400,3 +400,13 @@ fc DSN里In2/In3导出为(type signal)→FR把165条信号线布上电源平面�
 双修: pcb.py LAYERS_6源头(In2/In3 type=power,用户名改power_copper_1/2消重名) +
 dsn_mark_power_layers手术(存量板,type signal→power,按constraints power_layers索引)。
 plane_integrity门禁正则放宽接受后缀名。75测试绿。
+
+### X2b: FR scr层号=按层名映射，自定义层名撞号（132/199短路最终根因）
+读FR源码(SessionToFusion.getFusionLayerString)确认: v2.4.x的scr层号按**层名**算——
+纯数字名原样返回(两版第一优先规则)；Top/F.Cu→1；Bottom/B.Cu→16；in/route开头→提取数字；
+兜底index+1；17/18/19=文档层(Pads/Vias/Unrouted)固定写死。
+我们的自定义层名全撞: inner_signal_1→"1"(撞top_copper兜底的1)、power_copper_2兜底"4"
+撞inner_signal_4规则4的"4"、FR自身bug把13根线画上文档层19。
+**根治(X2b): dsn_rename_layers_numeric把DSN层名改成KiCad层id纯数字**(首层→0,末层→31,
+内层k→k)，FR原样回传，scr层号=KiCad id，scr2kicad直查映射(0=F,1-30=In{n},31=B)。
+mini实测: scr输出LAYER 0/CHANGE LAYER 31✓。附带: cleanup回滚改双向判据(开路或短路恶化均回滚)。

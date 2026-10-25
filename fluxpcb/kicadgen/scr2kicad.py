@@ -21,27 +21,30 @@ MM = 1000000
 
 
 def _layer_id(n, board):
-    """Fusion/Eagle layer number -> KiCad layer id.
+    """Fusion layer number -> KiCad layer id.
 
-    Freerouting 2.4.1 writes Eagle-style copper ids: 1=Top, 16=Bottom,
-    17+k = k-th INNER copper layer in board order (observed on the
-    6-layer h743-fc scr: LAYER 1;16;17;18;19 = F, B, In1, In2, In3).
-    The old In{n-1} mapping resolved 17 to the nonexistent In16.Cu,
-    raised, and left every inner-layer WIRE stranded on the previous
-    layer context — 96 copper-to-copper shorts on fc after injection.
+    X2b: route_with_freerouting renames DSN copper layers to their
+    KiCad ids as pure numbers (FR's by-name scr mapping returns pure
+    digit names verbatim — stable across FR builds and collision-free;
+    our custom names collided: inner_signal_1->"1" vs top->"1",
+    power_copper_2/inner_signal_4 both->"4", plus FR's doc-layer bug
+    painting wires on 19=Unrouted). So the scr now carries KICAD ids:
+    0=F.Cu, 1..30=In{n}.Cu, 31=B.Cu. 17/18/19/20 are Fusion DOCUMENT
+    layers (Pads/Vias/Unrouted/Dimension) — never valid copper here.
     """
-    if n == 1:
+    if n == 0:
         return pcbnew.F_Cu
-    if n == 16:
+    if n == 31:
         return pcbnew.B_Cu
-    name = "In%d.Cu" % (n - 16)
-    try:
-        lid = board.GetLayerID(name)
-    except (AttributeError, TypeError, ValueError):
-        return None
-    if lid is None or int(lid) < 0:
-        return None
-    return int(lid)
+    if 1 <= n <= 30:
+        try:
+            lid = board.GetLayerID("In%d.Cu" % n)
+        except (AttributeError, TypeError, ValueError):
+            return None
+        if lid is None or int(lid) < 0:
+            return None
+        return int(lid)
+    return None
 
 
 def inject_scr(board, scr_path):
