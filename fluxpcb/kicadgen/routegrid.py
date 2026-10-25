@@ -293,7 +293,9 @@ class GridModel:
     # ------------------------------------------------- exact checks
     def clear_exact(self, x1, y1, x2, y2, lid, nc, w_self):
         li = 0 if lid == pcbnew.F_Cu else 1
-        own = max(0.0, w_self / 2 - 0.1)
+        own = w_self / 2   # this track's half-width (was /2-0.1: allowed
+                           # 0.27mm center distance vs 0.35 DRC requirement
+                           # — the 139 clearance violations' root cause)
         for net, a, b, extra in self.segs[li]:
             if net == nc:
                 continue

@@ -85,3 +85,4 @@ constraints:
   size_mm:
   - 65
   - 30
+  family: esp32s31-devboard
