@@ -21,6 +21,11 @@ import pcbnew
 
 PCB = sys.argv[1]
 PRETTY = sys.argv[2] if len(sys.argv) > 2 else ""
+# W-round LLM driver: optional comma-separated net whitelist — jumper
+# ONLY these nets (route_diag verdicts decide who deserves a jumper;
+# blanket-jumpering a 60-open board regressed 60->93 in K14)
+ONLY_NETS = {s.strip() for s in sys.argv[3].split(",") if s.strip()} \
+    if len(sys.argv) > 3 else None
 mm = 1000000
 board = pcbnew.LoadBoard(PCB)
 
@@ -297,6 +302,8 @@ def main():
     before = board.GetConnectivity().GetUnconnectedCount(True)
     for (name, nc, isl) in pairs:
         if len(isl) < 2:
+            continue
+        if ONLY_NETS is not None and name not in ONLY_NETS:
             continue
         idx += 1
         isl.sort(key=len)

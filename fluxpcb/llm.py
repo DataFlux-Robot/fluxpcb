@@ -16,6 +16,9 @@ class LLMAdapter:
         self.provider = os.environ.get("FLUXNT_LLM_PROVIDER", "none").lower()
         self.model = os.environ.get("FLUXNT_LLM_MODEL", "")
         self.api_key_env = os.environ.get("FLUXNT_LLM_API_KEY_ENV", "")
+        # openai-compatible endpoints (GLM/bigmodel, vLLM, ...) — W-round
+        self.base_url = os.environ.get(
+            "FLUXNT_LLM_BASEURL", "https://api.openai.com/v1").rstrip("/")
 
     @property
     def online(self) -> bool:
@@ -49,7 +52,7 @@ class LLMAdapter:
         if schema:
             body["response_format"] = {"type": "json_object"}
         req = urllib.request.Request(
-            "https://api.openai.com/v1/chat/completions",
+            f"{self.base_url}/chat/completions",
             data=json.dumps(body).encode(),
             headers={"Authorization": f"Bearer {key}",
                      "Content-Type": "application/json"})

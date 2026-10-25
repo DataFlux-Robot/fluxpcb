@@ -498,6 +498,129 @@ def _run_fluxrouter(kipy: str, pcb_path: Path, cls_file: Path, log=print) -> dic
         return None
 
 
+def _driver_loop(pcb_path: Path, kipy: str, cls_file: Path, light: bool,
+                 steps: list, log=print) -> None:
+    """W-round: LLM 驾驶员 + 规则发动机.
+
+    Replaces the fixed FR→session→fluxrouter policy with a decision loop:
+    rule engines execute, telemetry is collected (ratsnest + route_diag
+    verdicts + last engine reports), and routing_llm.Driver chooses the
+    next action from a validated menu. Falls back to the legacy policy
+    offline, so FLUXNT_LLM_DRIVER=1 with no LLM configured behaves like
+    a bounded legacy loop.
+    """
+    import os as _os
+    from fluxpcb.routing_llm import Driver
+
+    drv = Driver(log=log)
+    max_steps = int(_os.environ.get("FLUXNT_LLM_DRIVER_STEPS", "10"))
+    steps.append(f"driver: mode={drv.mode} budget={max_steps}")
+    _KGEN = Path(__file__).resolve().parent / "kicadgen"
+    _DIAG = _KGEN / "route_diag.py"
+    _JUMPER = _KGEN / "route_jumper.py"
+    _FPMOVE = _KGEN / "fp_move.py"
+    _PINSWAP = _KGEN / "pin_swap.py"
+    _RIPNETS = _KGEN / "rip_nets.py"
+    pretty = pcb_path.parent / "jumper_pretty"
+
+    def snapshot():
+        rn = ratsnest_state(kipy, pcb_path, log=log)
+        opens = rn["ratsnest"] if rn else -1
+        frag = (rn or {}).get("audit", {}).get("fragmented_nets", {}) or {}
+        return opens, frag
+
+    opens, frag = snapshot()
+    flux_last = None
+    for step in range(1, max_steps + 1):
+        tel = {"opens": opens, "shorts": 0, "fragmented": frag,
+               "fluxrouter_last": flux_last}
+        # route_diag verdicts are the decision-critical signal — run them
+        # only on the residue (small open count) where they're affordable
+        if 0 < opens <= 30:
+            try:
+                rc, out = _kipy(kipy, _DIAG, str(pcb_path), timeout=600)
+                line = [l for l in (out or "").splitlines()
+                        if l.strip().startswith("{")][-1]
+                tel["diag"] = json.loads(line).get("detail", [])
+            except (IndexError, ValueError, subprocess.TimeoutExpired):
+                pass
+        d = drv.decide(tel)
+        act = d["action"]
+        if act in ("finish", "escalate"):
+            steps.append(f"driver[{step}]: {act} — {d.get('reason', '')[:70]}")
+            break
+        try:
+            if act == "reroute_nets":
+                # reference-project surgical pattern (reroute_net.py): rip
+                # EXACTLY these nets, then one incremental FR pass with
+                # everything else fix-protected re-routes just them
+                nets_arg = ",".join(d.get("nets") or [])
+                rc, out = _kipy(kipy, _RIPNETS, str(pcb_path), nets_arg,
+                                timeout=300)
+                steps.append(f"driver[{step}] rip({len(d['nets'])}网): "
+                             f"{(out or '').strip()[-60:]}")
+                fr = route_with_freerouting(pcb_path, kipy, log=log)
+                steps.append(f"driver[{step}] reroute_nets FR: "
+                             f"{'ok' if fr.get('ok') else fr.get('error', '')[:60]}")
+            elif act == "rerun_session":
+                sess = _run_session(kipy, pcb_path, cls_file, log=log)
+                if sess:
+                    steps.append(f"driver[{step}] session: "
+                                 f"{sess.get('start')}->{sess.get('final')}")
+            elif act == "rerun_fluxrouter":
+                _os.environ["FLUXNT_PF_ITERS"] = str(d.get("iters", 12))
+                frn = _run_fluxrouter(kipy, pcb_path, cls_file, log=log)
+                if frn:
+                    flux_last = {k: frn.get(k) for k in
+                                 ("routed_nets", "nets", "why_last", "iters")}
+                    steps.append(f"driver[{step}] fluxrouter: "
+                                 f"{frn.get('routed_nets')}/{frn.get('nets')} "
+                                 f"final={frn.get('final')}")
+            elif act == "rerun_freerouting":
+                if d.get("timeout_s"):
+                    _os.environ["FLUXNT_FR_TIMEOUT"] = str(d["timeout_s"])
+                fr = route_with_freerouting(pcb_path, kipy, log=log)
+                steps.append(f"driver[{step}] freerouting: "
+                             f"{'ok' if fr.get('ok') else fr.get('error', '')[:60]}")
+            elif act == "jumper":
+                nets = ",".join(d.get("nets") or [])
+                rc, out = _kipy(kipy, _JUMPER, str(pcb_path),
+                                str(pretty) if pretty.exists() else "",
+                                nets, timeout=600)
+                steps.append(f"driver[{step}] jumper({len(d['nets'])}网): "
+                             f"{(out or '').strip()[-80:]}")
+            elif act == "move_footprint":
+                rc, out = _kipy(kipy, _FPMOVE, str(pcb_path),
+                                str(d["ref"]), str(d["dx_mm"]), str(d["dy_mm"]),
+                                timeout=300)
+                steps.append(f"driver[{step}] move {d['ref']}: "
+                             f"{(out or '').strip()[-80:]}")
+            elif act == "swap_pins":
+                if _os.environ.get("FLUXNT_ALLOW_PIN_SWAP") == "1":
+                    rc, out = _kipy(kipy, _PINSWAP, str(pcb_path),
+                                    str(d["ref"]), str(d["pad_a"]),
+                                    str(d["pad_b"]), timeout=300)
+                    steps.append(f"driver[{step}] swap: "
+                                 f"{(out or '').strip()[-80:]}")
+                else:
+                    steps.append(f"driver[{step}] swap: 被FLUXNT_ALLOW_PIN_SWAP门控跳过")
+        except Exception as e:                     # noqa: BLE001
+            steps.append(f"driver[{step}] {act} 执行异常: {e}")
+        opens2, frag2 = snapshot()
+        drv.record_outcome(opens, 0, opens2, 0)
+        opens, frag = opens2, frag2
+        if opens == 0:
+            steps.append(f"driver[{step}]: opens=0 达成")
+            break
+    try:
+        (pcb_path.parent / "driver_decisions.json").write_text(
+            json.dumps({"decisions": drv.decisions, "history": drv.history,
+                        "final_opens": opens}, ensure_ascii=False, indent=1),
+            encoding="utf-8")
+    except OSError:
+        pass
+
+
 def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
     """Route a generated board to TRUE connectivity (ratsnest=0) + no shorts.
 
@@ -564,20 +687,67 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
         # pre-fill zones once so the session starts from fresh copper
         run_drc(kicad_cli, pcb_path, rpt)
 
-    # FLUXNT_V3=1 — the K15-best chain order: session-first (fanout:
-    # dog-bone + module fanout + power stitch live inside route_session)
-    # -> multi-layer fluxrouter -> Freerouting INCREMENTAL (Z1: converged
-    # nets are fix-marked in the DSN, FR routes only the opens around
-    # them) -> session residue passes. Running fluxrouter LAST (default
-    # order) hands it the FR+session-clogged board where everything is
-    # nopath (measured 0/43 both old and Z-round routers on committed fc).
-    v3_order = os.environ.get("FLUXNT_V3", "0") == "1"
-    if v3_order:
-        fan = _run_session(kipy, pcb_path, cls_file, log=log)
-        if fan:
-            steps.append(f"fanout-session: {fan.get('start')}->{fan.get('final')} "
-                         f"(stitch {fan.get('stitched')}, dogbone+modfan)")
-        if os.environ.get("FLUXNT_ROUTER") == "pathfinder":
+    # W-round: FLUXNT_LLM_DRIVER=1 replaces the fixed policy below with
+    # the LLM decision loop (drivers read telemetry, rule engines execute)
+    if os.environ.get("FLUXNT_LLM_DRIVER") == "1":
+        _driver_loop(pcb_path, kipy, cls_file, light, steps, log=log)
+    else:
+        # FLUXNT_V3=1 — the K15-best chain order: session-first (fanout:
+        # dog-bone + module fanout + power stitch live inside route_session)
+        # -> multi-layer fluxrouter -> Freerouting INCREMENTAL (Z1: converged
+        # nets are fix-marked in the DSN, FR routes only the opens around
+        # them) -> session residue passes. Running fluxrouter LAST (default
+        # order) hands it the FR+session-clogged board where everything is
+        # nopath (measured 0/43 both old and Z-round routers on committed fc).
+        v3_order = os.environ.get("FLUXNT_V3", "0") == "1"
+        if v3_order:
+            fan = _run_session(kipy, pcb_path, cls_file, log=log)
+            if fan:
+                steps.append(f"fanout-session: {fan.get('start')}->{fan.get('final')} "
+                             f"(stitch {fan.get('stitched')}, dogbone+modfan)")
+            if os.environ.get("FLUXNT_ROUTER") == "pathfinder":
+                frn = _run_fluxrouter(kipy, pcb_path, cls_file, log=log)
+                if frn:
+                    steps.append(f"fluxrouter: iters={frn.get('iters')} "
+                                 f"routed={frn.get('routed_nets')}/{frn.get('nets')} "
+                                 f"final={frn.get('final')} ({frn.get('time_s')}s)")
+                    log(f"  [route] fluxrouter: {frn.get('routed_nets')}/"
+                        f"{frn.get('nets')} nets, final {frn.get('final')}")
+
+        # Freerouting is the PRIMARY router (real push-and-shove rip-up
+        # rerouter; completed the 240-ball h743-fc in ~18min once given a
+        # 1800s budget). The session engine finishes its residue (power-plane
+        # stitching + the pairs FR leaves). FLUXNT_FR=0 disables.
+        if os.environ.get("FLUXNT_FR", "1") != "0" and not light:
+            fr = route_with_freerouting(pcb_path, kipy, log=log)
+            steps.append(f"freerouting: {fr.get('stats')}" if fr.get("ok")
+                         else f"freerouting跳过: {fr.get('error', '')[:80]}")
+        else:
+            steps.append("freerouting: off")
+
+        it = 0
+        prev = rn0["ratsnest"] if rn0 else -1
+        for it in range(1, (1 if light else max_iterations) + 1):
+            sess = _run_session(kipy, pcb_path, cls_file, log=log)
+            if sess is None:
+                steps.append(f"session{it}: failed")
+                break
+            cur = sess.get("final", -1)
+            steps.append(f"session{it}: {sess.get('start')}->{cur} "
+                         f"(stitch {sess.get('stitched')}, ripup {sess.get('ripups')}, "
+                         f"{sess.get('time_s')}s)")
+            log(f"  [route] session{it}: {sess.get('start')}->{cur} in {sess.get('time_s')}s")
+            if cur == 0:
+                break
+            if cur >= prev and it > 1:
+                steps.append(f"session{it}: no progress, stop")
+                break
+            prev = cur
+
+        # PathFinder pass (K14): FLUXNT_ROUTER=pathfinder enables — the
+        # negotiated rerouting closes what the sequential session cannot.
+        # (In FLUXNT_V3 order it already ran before Freerouting.)
+        if os.environ.get("FLUXNT_ROUTER") == "pathfinder" and not v3_order:
             frn = _run_fluxrouter(kipy, pcb_path, cls_file, log=log)
             if frn:
                 steps.append(f"fluxrouter: iters={frn.get('iters')} "
@@ -585,48 +755,6 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
                              f"final={frn.get('final')} ({frn.get('time_s')}s)")
                 log(f"  [route] fluxrouter: {frn.get('routed_nets')}/"
                     f"{frn.get('nets')} nets, final {frn.get('final')}")
-
-    # Freerouting is the PRIMARY router (real push-and-shove rip-up
-    # rerouter; completed the 240-ball h743-fc in ~18min once given a
-    # 1800s budget). The session engine finishes its residue (power-plane
-    # stitching + the pairs FR leaves). FLUXNT_FR=0 disables.
-    if os.environ.get("FLUXNT_FR", "1") != "0" and not light:
-        fr = route_with_freerouting(pcb_path, kipy, log=log)
-        steps.append(f"freerouting: {fr.get('stats')}" if fr.get("ok")
-                     else f"freerouting跳过: {fr.get('error', '')[:80]}")
-    else:
-        steps.append("freerouting: off")
-
-    it = 0
-    prev = rn0["ratsnest"] if rn0 else -1
-    for it in range(1, (1 if light else max_iterations) + 1):
-        sess = _run_session(kipy, pcb_path, cls_file, log=log)
-        if sess is None:
-            steps.append(f"session{it}: failed")
-            break
-        cur = sess.get("final", -1)
-        steps.append(f"session{it}: {sess.get('start')}->{cur} "
-                     f"(stitch {sess.get('stitched')}, ripup {sess.get('ripups')}, "
-                     f"{sess.get('time_s')}s)")
-        log(f"  [route] session{it}: {sess.get('start')}->{cur} in {sess.get('time_s')}s")
-        if cur == 0:
-            break
-        if cur >= prev and it > 1:
-            steps.append(f"session{it}: no progress, stop")
-            break
-        prev = cur
-
-    # PathFinder pass (K14): FLUXNT_ROUTER=pathfinder enables — the
-    # negotiated rerouting closes what the sequential session cannot.
-    # (In FLUXNT_V3 order it already ran before Freerouting.)
-    if os.environ.get("FLUXNT_ROUTER") == "pathfinder" and not v3_order:
-        frn = _run_fluxrouter(kipy, pcb_path, cls_file, log=log)
-        if frn:
-            steps.append(f"fluxrouter: iters={frn.get('iters')} "
-                         f"routed={frn.get('routed_nets')}/{frn.get('nets')} "
-                         f"final={frn.get('final')} ({frn.get('time_s')}s)")
-            log(f"  [route] fluxrouter: {frn.get('routed_nets')}/"
-                f"{frn.get('nets')} nets, final {frn.get('final')}")
 
     # closing DRC (+scrubber). One pass; if the scrubber removed
     # load-bearing copper, one more session re-closes what it broke.
@@ -678,6 +806,7 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
         score = score_board(pcb_path, report, spec)
         (pcb_path.parent / "route_report.json").write_text(_json.dumps(
             {**report, "score": score,
+             "steps": steps[-25:],
              "structured_feedback": structured_feedback(drc["text"], net_classes),
              "fragmented_nets": (rnf or {}).get("audit", {}).get("fragmented_nets", {})},
             ensure_ascii=False, indent=1), encoding="utf-8")

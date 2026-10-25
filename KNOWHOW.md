@@ -344,3 +344,36 @@ dev 3V3 走廊到达制造极限：RX0 与 3V3 通道间距 0.123mm（需 0.15�
 - ICG/line-exploration无网格引擎(BGA区候选点+构造期验证)
 - 离线RL学cost权重(arXiv 2512.03594)、FanoutNet RL扇出
 - KiCad PNS C++绑定(PCBWorld式)
+
+## K17 W轮：LLM驾驶员+规则发动机（2026-10-25 用户定向轮）
+
+### 方向依据（用户判断+会话证据）
+纯规则路线5轮停在49开路；本轮每个突破都来自"LLM读日志→推理→定位"（8个链内bug无一被规则发现）。
+参考工程 esp32s3_deskpet_v2（ERC0/DRC0/0未连接可加工板）验证了正交模式：
+脚本扇出(仅电源网,via-in-pad大焊盘+极坐标逃逸)→Freerouting一次→脚本化微调(reroute_net/manual_links/stitch)。
+
+### 架构
+```
+规则引擎执行 → 仪表盘(ratsnest+route_diag verdicts+why_history) → Driver.decide()
+→ 执行器 → 循环（FLUXNT_LLM_DRIVER=1）
+```
+- routing_llm.Driver 三模式: 真LLM(FLUXNT_LLM_*含BASEURL支持GLM兼容端点) / 策略文件(FLUXNT_LLM_POLICY离线决策队列) / 确定性回退
+- 决策菜单(全部参数校验,幻觉最坏=回退): reroute_nets(外科手术,参考工程reroute_net.py模式) / rerun_session / rerun_fluxrouter / rerun_freerouting / jumper(带网络过滤) / move_footprint(±10mm) / swap_pins(FLUXNT_ALLOW_PIN_SWAP门控,原理图会漂移) / finish / escalate
+- 新执行器: rip_nets.py / fp_move.py(挪器件+撕其网络) / pin_swap.py(换焊盘网络) / route_jumper加ONLY_NETS过滤
+- 审计: driver_decisions.json + route_report含steps
+
+### 参考工程关键模式（已采纳reroute_nets；其余记档待用）
+1. **reroute_net.py外科手术**: 撕目标网+其余(type protect)+敏感线临时膨胀1.5mm当障碍(USB/SPI)→FR只布目标→恢复线宽。我们的Z1增量FR+rip_nets已等价(膨胀技巧未移植)。
+2. **zone后加**: finalize.py在布线后才加GND zone并fill——DSN里没有zone干扰FR。我们zone从生成就在。
+3. **fanout只做电源**: 信号逃逸全交FR(4层无BGA可行;fc的240球BGA仍需dogbone)。
+4. **SES可用**(KiCad9+FR1.9);我们FR2.4.1 SES坏→scr路线不变。
+
+### 实测（mini副本, fallback模式, 4步预算）
+决策1: reroute_nets([EN,GND,IO6])(残差4网自动选中)→rip+增量FR；决策2重复(delta=0)；
+决策3: escalate(连续无进展检测)。终态4开路0短路,DRC门禁✅。审计文件齐全。
+mini硬核残差(EN/GND/IO6)fallback模式收不动=预期——真LLM模式下一步会读route_diag证据转jumper/move_footprint。
+
+### 用法
+- 离线(默认): FLUXNT_LLM_DRIVER=1 → 外科手术优先的确定性策略
+- 策略文件: FLUXNT_LLM_DRIVER=1 FLUXNT_LLM_POLICY=policy.json → 按序消费决策(LLM/human离线准备)
+- 在线: FLUXNT_LLM_PROVIDER=openai FLUXNT_LLM_MODEL=glm-4.7 FLUXNT_LLM_BASEURL=https://open.bigmodel.cn/api/paas/v4 FLUXNT_LLM_API_KEY_ENV=GLM_API_KEY
