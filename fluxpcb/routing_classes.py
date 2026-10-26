@@ -23,9 +23,36 @@ DEFAULT_CLEAR_MM = {"critical": 0.15, "normal": 0.15, "power": 0.2}
 _POWER_RE = re.compile(
     r"^(3V3|5V|VDD|VCC|VBUS|VIN|VOUT|VSYS|VDDA|VDDCORE|VDDCORE_SW|VREF|"
     r"VBAT|VLED|GND|AGND|PGND|\+3V3|\+5V|\+BATT)", re.I)
+# R1 fix: CAN\d*_[HT] — the old CAN_[HT] never matched CAN1_H/CAN2_L
+# (fc shipped with both CAN pairs classified "normal"); _CK$ for SDMMC1_CK
 _CRITICAL_RE = re.compile(
     r"(USB_D[PM]|USB[ _]?D[PM]|_DP|_DM|DIFF|SDA|SCL|MOSI|MISO|SCK|SPI|"
-    r"CAN_[HT]|OSC|XTAL|CLK|NRST|SWD)", re.I)
+    r"CAN\d*_[HL]|OSC|XTAL|CLK|_CK$|NRST|SWD)", re.I)
+
+# differential-pair suffixes: (positive member, negative member)
+_PAIR_SUFFIXES = (("_H", "_L"), ("_P", "_N"), ("_DP", "_DM"),
+                  ("_D+", "_D-"), ("+", "-"))
+
+
+def detect_pairs(nets) -> list:
+    """Name-based differential pairing: CAN1_H/CAN1_L, USB_DP/USB_DM ...
+
+    A pair shares the identical prefix before the suffix. Used by the
+    preroute pass (route the pair coupled) and the DSN class rules
+    (intra-pair clearance = coupling gap, physically preventing the
+    fc CAN-pair overlap shorts)."""
+    found = []
+    netset = set(nets)
+    for net in sorted(nets):
+        for pos, neg in _PAIR_SUFFIXES:
+            if not net.endswith(pos):
+                continue
+            base = net[: -len(pos)]
+            partner = base + neg
+            if partner in netset:
+                found.append([net, partner])
+            break
+    return found
 
 
 def classify_net(net: str, spec: dict | None = None,
@@ -48,7 +75,14 @@ def classify_net(net: str, spec: dict | None = None,
 
 def classify_all(nets: list[str], spec: dict | None = None,
                  critical_nets: set[str] | None = None) -> dict[str, str]:
-    return {n: classify_net(n, spec, critical_nets) for n in nets}
+    out = {n: classify_net(n, spec, critical_nets) for n in nets}
+    # differential-pair members are critical by definition (coupled
+    # routing, impedance targets) — pairing catches names the regex
+    # cannot (e.g. a future "LINDATA+/LINDATA-")
+    for a, b in detect_pairs(nets):
+        out[a] = "critical"
+        out[b] = "critical"
+    return out
 
 
 def routing_order_pairs(pairs: list[str], classes: dict[str, str]) -> list[str]:

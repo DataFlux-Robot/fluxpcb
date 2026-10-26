@@ -327,6 +327,94 @@ def dsn_reorder_nets(dsn_path: Path, priority_nets: list) -> int:
     return len(front)
 
 
+def dsn_inject_class_rules(dsn_path: Path, classes: dict, pairs: list) -> int:
+    """R2: per-class width/clearance rules + differential-pair coupling
+    gaps into the DSN network section.
+
+    Measured root cause of the 258 clearance violations: the DSN carried
+    NO class rules, so Freerouting routed everything at its built-in
+    default gap (0.1397mm / 5.5mil) below our 0.15 requirement. FR 2.4.x
+    parses and ENFORCES (class ...) rules and (class_class ...) pair
+    clearances (source: Network.java -> ClearanceMatrix). The intra-pair
+    clearance physically prevents the CAN H/L overlap shorts.
+    Standard-form only — the KiCad dialect (clearance v (type A_B)) is
+    avoided, and Specctra type qualifiers (smd_smd) are never written
+    (FR misreads them as class pairs)."""
+    if not classes:
+        return 0
+    pair_members = {n for p in pairs for n in p}
+    buckets = {"critical": [], "normal": [], "power": []}
+    for net, cls in classes.items():
+        if net in pair_members or cls not in buckets:
+            continue
+        buckets[cls].append(net)
+    lines = []
+
+    def q(net):
+        return f'"{net}"' if not net.replace("_", "").isalnum() else net
+
+    def cls_block(name, nets, width_um, clear_um):
+        ns = " ".join(q(n) for n in sorted(nets))
+        lines.append(f'    (class "{name}" {ns}\n'
+                     f'      (rule (width {width_um}) (clearance {clear_um}))\n'
+                     f'    )\n')
+
+    if buckets["critical"]:
+        cls_block("Critical", buckets["critical"], 150, 170)
+    if buckets["power"]:
+        cls_block("Power", buckets["power"], 400, 200)
+    for i, (a, b) in enumerate(pairs):
+        cls_block(f"PAIR_{i}", [a, b], 150, 170)
+        # coupling gap between the two members: large enough that the
+        # pair can never overlap, small enough to stay coupled
+        lines.append(f'    (class_class (classes "PAIR_{i}" "PAIR_{i}")\n'
+                     f'      (rule (clearance 250))\n'
+                     f'    )\n')
+    if not lines:
+        return 0
+    txt = dsn_path.read_text(encoding="utf-8", errors="replace")
+    # KiCad exports ALL nets into (class kicad_default ...) — that is why
+    # Freerouting routed everything at its default gap. Remove ONLY the
+    # nets that got their own class block (normal nets keep kicad_default
+    # membership — every net must belong to exactly one class)
+    claimed = set()
+    for p in pairs:
+        claimed.update(p)
+    claimed.update(buckets["critical"])
+    claimed.update(buckets["power"])
+    import re as _re2
+
+    def _strip_default(m):
+        block = m.group(0)
+        if "kicad_default" not in block:
+            return block
+        for net in sorted(claimed, key=len, reverse=True):
+            block = _re2.sub(r"\s+%s(?=\s|$)" % _re2.escape(net),
+                             "", block, count=1)
+        return block
+
+    txt = _re2.sub(r"\(class\s+kicad_default[\s\S]*?\n\s*\)", _strip_default,
+                   txt)
+    i0 = txt.find("(network")
+    if i0 < 0:
+        return 0
+    # walk to the network section's closing paren: classes must land
+    # INSIDE the network scope (before its final ")" line)
+    depth, ins = 0, None
+    pos = i0
+    for line in txt[i0:].splitlines(keepends=True):
+        depth += line.count("(") - line.count(")")
+        if depth <= 0 and pos > i0:
+            ins = pos
+            break
+        pos += len(line)
+    if ins is None:
+        return 0
+    dsn_path.write_text(txt[:ins] + "".join(lines) + txt[ins:],
+                        encoding="utf-8")
+    return len(lines) // 3
+
+
 def dsn_rename_layers_numeric(dsn_path: Path) -> int:
     """X2b: rename DSN copper layers to their KiCad layer ids as PURE
     NUMBERS ("0","1",...,"31").
@@ -461,7 +549,9 @@ def _compute_route_sets(pcb_path: Path, kipy: str, log=print) -> tuple:
 
 def route_with_freerouting(pcb_path: Path, kipy: str, log=print,
                            incremental: bool = True,
-                           priority_nets: list | None = None) -> dict:
+                           priority_nets: list | None = None,
+                           net_classes: dict | None = None,
+                           diff_pairs: list | None = None) -> dict:
     """Heavy-duty pass: pcbnew DSN export -> freerouting -> routed-DSN
     injection via dsn2kicad (SES import hangs headless; DSN write-back works).
 
@@ -540,6 +630,14 @@ def route_with_freerouting(pcb_path: Path, kipy: str, log=print,
     _renamed = dsn_rename_layers_numeric(dsn)
     if _renamed:
         log(f"  [route] X2b dsn-rename: {_renamed} 层名→KiCad id")
+    # R2: per-class rules + diff-pair coupling gaps — without these FR
+    # routes at its built-in default gap (0.1397mm) below our 0.15 rule
+    if net_classes:
+        _ncls = dsn_inject_class_rules(dsn, net_classes,
+                                       diff_pairs or [])
+        if _ncls:
+            log(f"  [route] R2 dsn-classes: {_ncls} 类规则注入"
+                f"({len(diff_pairs or [])} 差分对)")
     # freerouting silently writes a 0-byte file when -de/-do get absolute
     # Windows paths — always pass bare filenames with cwd=work. Its config
     # pins the single-thread optimizer (the MT one NPEs during batch save).
@@ -617,15 +715,19 @@ def _kipy_run(kipy: str, code: str, timeout: int = 600) -> tuple[int, str]:
     return p.returncode, (p.stdout + p.stderr)
 
 
-def _run_session(kipy: str, pcb_path: Path, cls_file: Path, log=print) -> dict | None:
+def _run_session(kipy: str, pcb_path: Path, cls_file: Path, log=print,
+                 nets: list | None = None) -> dict | None:
     """One routing session: in-process fill+audit+stitch+A*+rip-up+verify.
     Returns the session's JSON progress dict, or None on failure."""
     import json as _json
+    args = [str(pcb_path), str(cls_file)]
+    if nets:
+        args.append("12")                  # MAX_RIPUP default
+        args.append(",".join(nets))        # R3 preroute whitelist
     try:
-        rc, out = _kipy(kipy, _SESSION, str(pcb_path), str(cls_file),
-                        timeout=1800)
+        rc, out = _kipy(kipy, _SESSION, *args, timeout=1800)
     except subprocess.TimeoutExpired:
-        log("  [route] session timeout(900s)")
+        log("  [route] session timeout(1800s)")
         return None
     try:
         return _json.loads([l for l in (out or "").splitlines()
@@ -719,7 +821,12 @@ def _driver_loop(pcb_path: Path, kipy: str, cls_file: Path, light: bool,
             steps.append(f"driver[{step}]: {act} — {d.get('reason', '')[:70]}")
             break
         try:
-            if act == "reroute_nets":
+            if act == "preroute_critical":
+                pre = _run_session(kipy, pcb_path, cls_file, log=log,
+                                   nets=d.get("nets") or [])
+                steps.append(f"driver[{step}] preroute({len(d['nets'])}网): "
+                             f"{(pre or {}).get('start')}->{(pre or {}).get('final')}")
+            elif act == "reroute_nets":
                 # reference-project surgical pattern (reroute_net.py): rip
                 # EXACTLY these nets, then one incremental FR pass with
                 # everything else fix-protected re-routes just them
@@ -758,6 +865,22 @@ def _driver_loop(pcb_path: Path, kipy: str, cls_file: Path, light: bool,
                                 nets, timeout=600)
                 steps.append(f"driver[{step}] jumper({len(d['nets'])}网): "
                              f"{(out or '').strip()[-80:]}")
+            elif act == "adjust_placement":
+                # R5 placement-margin loop: nudge footprints that keep
+                # appearing as route_diag blockers (UCSD margin-max:
+                # placement-only changes cut DRV ~80%)
+                moved = 0
+                for mv in (d.get("moves") or [])[:5]:
+                    try:
+                        rc, out = _kipy(kipy, _FPMOVE, str(pcb_path),
+                                        str(mv["ref"]), str(float(mv["dx_mm"])),
+                                        str(float(mv["dy_mm"])), timeout=300)
+                        moved += 1
+                    except (KeyError, TypeError, ValueError,
+                            subprocess.TimeoutExpired):
+                        continue
+                steps.append(f"driver[{step}] adjust_placement: "
+                             f"{moved} 器件已挪")
             elif act == "move_footprint":
                 rc, out = _kipy(kipy, _FPMOVE, str(pcb_path),
                                 str(d["ref"]), str(d["dx_mm"]), str(d["dy_mm"]),
@@ -836,12 +959,15 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
             pass
     _rc.apply_net_classes(pcb_path.with_suffix(".kicad_pro"), net_classes, ipc_widths)
     cls_file = pcb_path.parent / "net_classes.json"
+    _pairs = _rc.detect_pairs(board_nets)
     cls_file.write_text(_json.dumps(
         {"classes": net_classes, "ipc_widths": ipc_widths,
+         "pairs": _pairs,
          "widths": {c: _rc.DEFAULT_WIDTH_MM[c] for c in _rc.ORDER}},
         ensure_ascii=False, indent=1), encoding="utf-8")
     steps.append(f"netclass: {sum(1 for c in net_classes.values() if c=='critical')}critical/"
-                 f"{sum(1 for c in net_classes.values() if c=='power')}power")
+                 f"{sum(1 for c in net_classes.values() if c=='power')}power/"
+                 f"{len(_pairs)}diffpairs")
 
     # fast path: ratsnest-clean AND shorts-clean board skips everything
     rn0 = ratsnest_state(kipy, pcb_path, log=log)
@@ -858,22 +984,38 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
 
     # W-round: FLUXNT_LLM_DRIVER=1 replaces the fixed policy below with
     # the LLM decision loop (drivers read telemetry, rule engines execute)
+    v3_order = os.environ.get("FLUXNT_V3", "0") == "1"
     if os.environ.get("FLUXNT_LLM_DRIVER") == "1":
         _driver_loop(pcb_path, kipy, cls_file, light, steps, log=log)
     else:
         # FLUXNT_V3=1 — the K15-best chain order: session-first (fanout:
         # dog-bone + module fanout + power stitch live inside route_session)
-        # -> multi-layer fluxrouter -> Freerouting INCREMENTAL (Z1: converged
-        # nets are fix-marked in the DSN, FR routes only the opens around
-        # them) -> session residue passes. Running fluxrouter LAST (default
-        # order) hands it the FR+session-clogged board where everything is
-        # nopath (measured 0/43 both old and Z-round routers on committed fc).
-        v3_order = os.environ.get("FLUXNT_V3", "0") == "1"
+        # -> preroute-critical (R3) -> multi-layer fluxrouter -> Freerouting
+        # INCREMENTAL (Z1: converged nets are fix-marked in the DSN, FR
+        # routes only the opens around them) -> session residue passes.
+        # Running fluxrouter LAST (default order) hands it the FR+session-
+        # clogged board where everything is nopath (measured 0/43 both old
+        # and Z-round routers on committed fc).
         if v3_order:
             fan = _run_session(kipy, pcb_path, cls_file, log=log)
             if fan:
                 steps.append(f"fanout-session: {fan.get('start')}->{fan.get('final')} "
                              f"(stitch {fan.get('stitched')}, dogbone+modfan)")
+            # R3 industry recipe: critical + differential-pair nets get
+            # FIRST claim on the good channels (preroute), then ride the
+            # Z1 fix-marking so no later engine rips them (the CAN H/L
+            # overlap shorts came from both members being routed
+            # independently in the bulk pass)
+            _pre = [n for n, c in net_classes.items()
+                    if c == "critical" and n not in
+                    {x for p in _pairs for x in p}]
+            _pre += [x for p in _pairs for x in p]
+            if _pre:
+                pre = _run_session(kipy, pcb_path, cls_file, log=log,
+                                   nets=_pre)
+                if pre:
+                    steps.append(f"preroute-critical({len(_pre)}网): "
+                                 f"{pre.get('start')}->{pre.get('final')}")
             if os.environ.get("FLUXNT_ROUTER") == "pathfinder":
                 frn = _run_fluxrouter(kipy, pcb_path, cls_file, log=log)
                 if frn:
@@ -890,7 +1032,9 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
         if os.environ.get("FLUXNT_FR", "1") != "0" and not light:
             _prio = [n for n, c in net_classes.items() if c == "critical"]
             fr = route_with_freerouting(pcb_path, kipy, log=log,
-                                        priority_nets=_prio)
+                                        priority_nets=_prio,
+                                        net_classes=net_classes,
+                                        diff_pairs=_pairs)
             steps.append(f"freerouting: {fr.get('stats')}" if fr.get("ok")
                          else f"freerouting跳过: {fr.get('error', '')[:80]}")
         else:
@@ -970,6 +1114,55 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
             steps.append(f"post-cleanup session: ->{sess.get('final')}")
             rnf = ratsnest_state(kipy, pcb_path, log=log) or rnf
             drc = run_drc(kicad_cli, pcb_path, rpt)
+
+    # R4 residue closure: route_diag verdicts on whatever is left open —
+    # diagnosed-unroutable nets get their 0R jumper automatically; the
+    # rest become the HANDOFF LIST (the industry recipe's "manual
+    # finish" step made an explicit deliverable instead of a silent
+    # failure). automation% = nets closed automatically / routable nets.
+    handoff, jumpers = [], 0
+    if rnf and rnf["ratsnest"] > 0 \
+            and rnf["ratsnest"] <= int(os.environ.get("FLUXNT_HANDOFF_MAX", "30")):
+        _KGEN = Path(__file__).resolve().parent / "kicadgen"
+        frag = (rnf.get("audit", {}).get("fragmented_nets", {}) or {})
+        try:
+            rc, out = _kipy(kipy, _KGEN / "route_diag.py", str(pcb_path),
+                            timeout=600)
+            line = [l for l in (out or "").splitlines()
+                    if l.strip().startswith("{")][-1]
+            verdicts = _json.loads(line).get("detail", [])
+        except (IndexError, ValueError, subprocess.TimeoutExpired):
+            verdicts = []
+        _jm = [v["net"] for v in verdicts
+               if v.get("verdict") in ("jumper", "disconnected-components")]
+        if _jm:
+            pretty = pcb_path.parent / "jumper_pretty"
+            try:
+                rc, out = _kipy(kipy, _KGEN / "route_jumper.py",
+                                str(pcb_path),
+                                str(pretty) if pretty.exists() else "",
+                                ",".join(_jm), timeout=600)
+                jumpers = len(_jm)
+                steps.append(f"handoff-jumpers: {jumpers} 网已放0Ω")
+                rnf = ratsnest_state(kipy, pcb_path, log=log) or rnf
+                drc = run_drc(kicad_cli, pcb_path, rpt)
+                frag = (rnf.get("audit", {}).get("fragmented_nets", {}) or {})
+            except subprocess.TimeoutExpired:
+                pass
+        for net in (frag or {}):
+            v = next((x for x in verdicts if x.get("net") == net), {})
+            handoff.append({
+                "net": net,
+                "verdict": v.get("verdict", "undiagnosed"),
+                "bottleneck_mm": v.get("bottleneck_mm"),
+                "blockers": v.get("blockers", [])[:4],
+                "suggested_action": "手工补线或挪动 "
+                                    + "/".join(v.get("blockers", [])[:2])
+                                    if v.get("blockers") else "手工补线",
+            })
+        if handoff:
+            steps.append(f"handoff: {len(handoff)} 网待人工(清单在route_report)")
+
     last = {"unconnected": (rnf or {}).get("ratsnest", -1),
             "shorting": drc["shorting"]}
     clean = last["unconnected"] == 0 and last["shorting"] == 0
@@ -979,13 +1172,20 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
         from fluxpcb.routing_quality import score_board, structured_feedback
         report = {"unconnected": last["unconnected"], "shorting": last["shorting"]}
         score = score_board(pcb_path, report, spec)
+        _total = len(net_classes)
+        _auto = max(0, _total - last["unconnected"] - len(handoff))
+        _routable = max(1, _total - jumpers)
         (pcb_path.parent / "route_report.json").write_text(_json.dumps(
             {**report, "score": score,
              "steps": steps[-25:],
+             "automation_pct": round(100.0 * _auto / _routable, 1),
+             "jumpers_placed": jumpers,
+             "handoff": handoff,
              "structured_feedback": structured_feedback(drc["text"], net_classes),
              "fragmented_nets": (rnf or {}).get("audit", {}).get("fragmented_nets", {})},
             ensure_ascii=False, indent=1), encoding="utf-8")
-        steps.append(f"score={score['score']}")
+        steps.append(f"score={score['score']} automation="
+                     f"{round(100.0 * _auto / _routable, 1)}%")
     except Exception as _e:
         steps.append(f"scorecard skipped: {_e}")
     return {"iterations": it, **last, "clean": clean, "steps": steps}

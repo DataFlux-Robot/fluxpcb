@@ -91,6 +91,12 @@ interfaces:
 - name: usb
   type: usb
   high_speed: true
+  differential: true
+  impedance_ohm: 90
+  s_mm: 0.2
+  h_mm: 0.2
+  style: microstrip
+  tolerance_pct: 15
   connections:
   - USB_DP
   - USB_DM
@@ -104,6 +110,20 @@ interfaces:
       led: 0
       boot: 0
       can_tx: 0
+- name: can1
+  type: can
+  differential: true
+  impedance_ohm: 120
+  connections:
+  - CAN1_H
+  - CAN1_L
+- name: can2
+  type: can
+  differential: true
+  impedance_ohm: 120
+  connections:
+  - CAN2_H
+  - CAN2_L
 constraints:
   family: fc-full
   mcu: h743

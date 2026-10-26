@@ -34,6 +34,9 @@ import pcbnew
 PCB = sys.argv[1]
 CLS = sys.argv[2] if len(sys.argv) > 2 else ""
 MAX_RIPUP = int(sys.argv[3]) if len(sys.argv) > 3 else 12
+# R3 preroute whitelist (route_session.py PCB CLS MAX_RIPUP NETS)
+ONLY_NETS = {s.strip() for s in sys.argv[4].split(",") if s.strip()} \
+    if len(sys.argv) > 4 else None
 
 T0 = time.time()
 board = pcbnew.LoadBoard(PCB)
@@ -1131,11 +1134,21 @@ def main():
     boxes = bga_boxes()
     filled = fill_zones()
     pairs, count0, frag = audit_pairs()
+    # R3 preroute mode (argv[4] net whitelist): fanout/stitch phases are
+    # SKIPPED and the sweep routes ONLY the whitelisted nets — the
+    # industry recipe's "critical nets first, then lock" step. The
+    # converged preroutes then ride the Z1 fix-marking so Freerouting
+    # never touches them again (they become unrippable obstacles)
+    if ONLY_NETS is not None:
+        pairs = [p for p in pairs if p["net"] in ONLY_NETS]
     ob = Obstacles()
     mark_own_copper(ob)
-    stitched = power_stitch(ob, pairs, boxes)
-    modfan = module_fanout(ob, pairs)
-    dogboned = dogbone_fanout(ob, pairs)
+    if ONLY_NETS is None:
+        stitched = power_stitch(ob, pairs, boxes)
+        modfan = module_fanout(ob, pairs)
+        dogboned = dogbone_fanout(ob, pairs)
+    else:
+        stitched = modfan = dogboned = 0
     count1 = ratsnest_count()
     closed = sweep(ob, pairs)
     count2 = ratsnest_count()
@@ -1218,8 +1231,12 @@ def main():
         if try_route_pair(ob2, p):
             rip += 1
             count2 = ratsnest_count()
-            # the victim's net may now be open — re-sweep everything left
+            # the victim's net may now be open — re-sweep what's left
+            # (whitelisted only in preroute mode: other nets belong to
+            # the bulk pass, not this one)
             pairs2, cnt, _ = audit_pairs()
+            if ONLY_NETS is not None:
+                pairs2 = [p for p in pairs2 if p["net"] in ONLY_NETS]
             sweep(ob2, pairs2)
             count2 = ratsnest_count()
         else:
@@ -1278,8 +1295,12 @@ def main():
             for v in victims:
                 board.Add(v)
 
-    # re-sweep everything that the final mile (and rip-ups) re-opened
+    # re-sweep everything that the final mile (and rip-ups) re-opened;
+    # preroute mode re-sweeps only its own nets — the bulk nets stay
+    # untouched for the FR/fluxrouter passes
     pairs3, _, _ = audit_pairs()
+    if ONLY_NETS is not None:
+        pairs3 = [p for p in pairs3 if p["net"] in ONLY_NETS]
     ob4 = Obstacles()
     mark_own_copper(ob4)
     sweep(ob4, pairs3)

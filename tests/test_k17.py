@@ -41,7 +41,8 @@ class TestMenuValidation:
             d.update(params.__class__ and {
                 "nets": ["N"], "max_ripup": 5, "iters": 3, "timeout_s": 900,
                 "ref": "U1", "dx_mm": 0.5, "dy_mm": 0.5,
-                "pad_a": "A1", "pad_b": "B2"})
+                "pad_a": "A1", "pad_b": "B2",
+                "moves": [{"ref": "U1", "dx_mm": 0.5, "dy_mm": 0.5}]})
             assert _validate(d) is not None, act
 
 

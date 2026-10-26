@@ -410,3 +410,37 @@ plane_integrity门禁正则放宽接受后缀名。75测试绿。
 **根治(X2b): dsn_rename_layers_numeric把DSN层名改成KiCad层id纯数字**(首层→0,末层→31,
 内层k→k)，FR原样回传，scr层号=KiCad id，scr2kicad直查映射(0=F,1-30=In{n},31=B)。
 mini实测: scr输出LAYER 0/CHANGE LAYER 31✓。附带: cleanup回滚改双向判据(开路或短路恶化均回滚)。
+
+## K19 R轮：行业配方落地（2026-10-26 四路深调研驱动轮）
+
+### 调研裁决（中文社区25帖/工业实测/学术全景/管线先例）
+- "复杂BGA全自动布到可生产"无任何先例：立创官方"自动布线并不够好！建议手动布线"；Altium"手工布不通的区域自动也布不通"；Quilter撤回1200球案例；DeepPCB被EEVblog实测吊打
+- 工业共识配方：精心布局→完备约束→关键网手工锁定(20-30%)→fanout专项→bulk auto(60-80%)→人工收尾
+- 网格协商象限被压制(FR 93-94% vs 无网格98-99%)；布局margin优化仅改布局消80% DRV(UCSD)；学术空位=无网格+协商+布局反馈三合一
+
+### R1 差分对识别（fc实证：CAN1_H/L曾被分normal——正则CAN_[HT]不匹配CAN1_H）
+detect_pairs后缀配对(H/L,P/N,DP/DM,D+/D-,+/-)；配对成员升级critical；CAN\d*_[HL]+_CK$正则修复；
+fc spec.yaml补usb90Ω/can120Ω差分声明(喂impedance_si门禁+ipc2141)。实测：CAN×2/USB×2差分对全识别。
+
+### R2 DSN类规则注入（258违例根因：KiCad导出(class kicad_default)全网页无规则→FR用内置0.1397mm默认间距）
+dsn_inject_class_rules：Critical/Power/PAIR_x类(width/clearance)+class_class对内耦合间隙0.25(物理杜绝CAN叠线)；
+注入网从kicad_default剥离(每网恰一类)；类块插入network闭合内(首版插到段外已修)；normal网留default。
+
+### R3 关键网预布（配方核心）
+route_session argv[4]白名单模式：跳过fanout/stitch、audit_pairs过滤、rip-up重扫与末段重扫均只碰白名单网；
+V3链= fanout-session → preroute-critical(critical+差分对) → fluxrouter → FR增量(预布网经Z1 fix保护) → session。
+driver菜单加preroute_critical。
+
+### R4 残差收尾清单
+终局route_diag→verdict=jumper/disconnected自动放0Ω(jumper已带ONLY_NETS)→剩余开路进handoff清单
+(net/verdict/bottleneck/blockers/建议动作)→route_report含automation%/jumpers_placed/handoff。
+交付物重定义：自动化率+收尾清单，不再是二元的布通/失败。
+
+### R5 布局margin闭环
+driver新动作adjust_placement(批量fp_move)；fallback规则：同一器件在route_diag blockers出现≥2次
+→escalate前提议挪1mm(UCSD margin-max的80% DRV红利)。
+
+### 顺带修复
+routing.py driver/else结构bug：v3_order曾只在else内赋值而if v3_order在函数级(driver模式必NameError)。
+
+### N轨（并行）：spatial_hash(均匀桶)+route_explore(顶点线探索A*+协商层保留)——93%→98%象限差距的根治

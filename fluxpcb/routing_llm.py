@@ -35,6 +35,10 @@ MENU = {
     # incremental Freerouting pass re-routes just them (reference-project
     # reroute_net.py pattern — the workhorse for a small stubborn residue)
     "reroute_nets": {"nets": list},
+    # industry recipe: whitelist a net set for a first-claim session pass
+    # (critical/diff pairs claim the good channels before the bulk run;
+    # the converged preroutes then ride the Z1 fix-marking)
+    "preroute_critical": {"nets": list},
     # run another session pass (fanout + sweep + bounded rip-up)
     "rerun_session": {"max_ripup": int},
     # negotiated-congestion pass on all signal layers
@@ -43,6 +47,10 @@ MENU = {
     "rerun_freerouting": {"timeout_s": int},
     # place 0R jumpers on specific nets (post route_diag verdicts)
     "jumper": {"nets": list},
+    # nudge footprints that keep blocking (R5 margin loop; blockers from
+    # route_diag verdicts — a ref showing up >=2x is a placement problem,
+    # not a routing problem)
+    "adjust_placement": {"moves": list},
     # nudge a footprint and rip its nets' tracks (schematic-safe)
     "move_footprint": {"ref": str, "dx_mm": float, "dy_mm": float},
     # swap two pads' nets on a footprint (board-only; schematic drifts —
@@ -70,6 +78,19 @@ def _fallback_decision(tel: dict, history: list) -> dict:
     # two consecutive no-progress decisions -> escalate (legacy stop)
     outcomes = [h.get("delta_opens", 0) for h in history[-2:]]
     if len(outcomes) == 2 and all(d >= 0 for d in outcomes) and history:
+        # R5 margin rule: a footprint blocking >=2 diagnosed nets is a
+        # PLACEMENT problem (UCSD margin-max: placement-only changes cut
+        # DRV ~80%) — nudge it before giving up
+        from collections import Counter
+        refs = Counter()
+        for v in tel.get("diag") or []:
+            for b in v.get("blockers", []):
+                refs[b] += 1
+        hot = [r for r, c in refs.items() if c >= 2]
+        if hot:
+            moves = [{"ref": r, "dx_mm": 1.0, "dy_mm": 0.0} for r in hot[:3]]
+            return {"action": "adjust_placement", "moves": moves,
+                    "reason": f"布局阻塞器件{hot[:3]}", "source": FALLBACK}
         return {"action": "escalate",
                 "reason": f"连续无进展({outcomes})", "source": FALLBACK}
     frag = tel.get("fragmented") or {}
