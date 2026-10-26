@@ -1175,6 +1175,7 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
         _total = len(net_classes)
         _auto = max(0, _total - last["unconnected"] - len(handoff))
         _routable = max(1, _total - jumpers)
+        _auto_pct = round(100.0 * _auto / _routable, 1)
         (pcb_path.parent / "route_report.json").write_text(_json.dumps(
             {**report, "score": score,
              "steps": steps[-25:],
@@ -1188,4 +1189,6 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
                      f"{round(100.0 * _auto / _routable, 1)}%")
     except Exception as _e:
         steps.append(f"scorecard skipped: {_e}")
-    return {"iterations": it, **last, "clean": clean, "steps": steps}
+    return {"iterations": it, **last, "clean": clean, "steps": steps,
+            "automation_pct": locals().get("_auto_pct"),
+            "jumpers_placed": jumpers, "handoff": handoff}
