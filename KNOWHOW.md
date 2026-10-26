@@ -509,3 +509,11 @@ handoff=[IO6,EN]——R4产物链完整落地。
 - 因果分类学：causal.classify 是残差处置的决策入口
 
 个案：devboard J1/J4修复本身是个案，但"板与原理图引脚必须镜像"已泛化为fabrication_netlist门禁。
+
+### K21 补记（内核链验证与诚实边界）
+- mini内核链回归通过：2开路=基线，12事务零误回滚，chain_manifest完整可审计；门禁glob排除.ckpt快照（快照曾被当独立板计数）
+- dev提交态fab审计=fail（1网引脚错：J1.9-14虚GND脚）——**这是内核对RELEASED板的正确判定**（该分歧真实存在）；
+  生成器已修但重生成未复现RELEASED布线质量（全新板25开路），board已回退提交态，修复将在下次全链重生成时生效
+- severity政策修正：track/via_dangling+starved_thermal暂留ignore（FR注入固有断头桩会以~900违例淹没drc_zero，
+  待桩清理pass后解禁——_DEFERRED_FUNCTIONAL清单跟踪）；unconnected_items永不回填（真连通性检查）
+- devboard J1/J2备用脚公式bug（len(row)<n_pins时覆盖信号脚）已修：备用GND只落在(len(row), n_pins]区间

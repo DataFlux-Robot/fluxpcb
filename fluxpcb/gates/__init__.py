@@ -768,7 +768,8 @@ def plane_integrity(project_dir: Path, outputs: list[str], cfg: dict) -> GateRes
     passes DRC with zero violations — this gate reads the board copper,
     not the stackup declaration."""
     import re
-    pcbs = sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+    pcbs = [p for p in sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+     if ".ckpt" not in p.parts]   # kernel snapshots are checkpoints
     if not pcbs:
         return GateResult("plane_integrity", GateStatus.BLOCKED, "无PCB文件")
     findings, details = [], {}
@@ -837,7 +838,8 @@ def _dc_solve_lazy(project_dir: Path) -> None:
     acceptance_sim stage having run first (verify-only flows, retries)."""
     if (project_dir / "sim" / "dc_irdrop_geom.json").exists():
         return
-    pcbs = sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+    pcbs = [p for p in sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+     if ".ckpt" not in p.parts]   # kernel snapshots are checkpoints
     if not pcbs:
         return
     spec = _read_yaml(project_dir / "spec.yaml") or {}
@@ -1039,7 +1041,8 @@ def routing_completeness(project_dir: Path, outputs: list[str], cfg: dict) -> Ga
     _cand = Path(r"C:/Users/zhang/AppData/Local/Programs/KiCad/10.0/bin/python.exe")
     if _cand.exists():
         kipy = str(_cand)
-    pcbs = sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+    pcbs = [p for p in sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+     if ".ckpt" not in p.parts]   # kernel snapshots are checkpoints
     if not pcbs:
         return GateResult("routing_completeness", GateStatus.BLOCKED, "无PCB文件")
     findings, details = [], {}
@@ -1092,7 +1095,8 @@ def fabrication_netlist(project_dir: Path, outputs: list[str],
     if not kicad_cli:
         return GateResult("fabrication_netlist", GateStatus.BLOCKED,
                           "kicad-cli 不可用")
-    pcbs = sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+    pcbs = [p for p in sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+     if ".ckpt" not in p.parts]   # kernel snapshots are checkpoints
     if not pcbs:
         return GateResult("fabrication_netlist", GateStatus.BLOCKED,
                           "无PCB文件")

@@ -256,8 +256,10 @@ def schematic(p: DevBoardParams) -> Schematic:
     n_pins = p.header_pins if p.header_pins in hdr_fp else 8
     for r, row in enumerate(p.header_nets()):
         pins = {str(i + 1): n for i, n in enumerate(row) if i < n_pins}
-        pins.update({str(n_pins - (14 - len(row)) + i + 1): "GND"
-                     for i in range(max(0, n_pins - len(row)))})
+        # GND spares only in the range (len(row), n_pins] — never
+        # overwrite signal pins
+        pins.update({str(len(row) + i + 1): "GND"
+                     for i in range(n_pins - len(row)) if len(row) + i < n_pins})
         sch.place(SymInst(f"J{r+1}", "flux:HDR14", f"HDR-{r+1}",
                           x=104.14 + r * 10.16, y=127.0, pin_nets=pins,
                           nc_pins=[str(i) for i in
@@ -287,6 +289,13 @@ def board(p: DevBoardParams) -> Board:
     b.place(legacy.EspFp(esp_lib, "Espressif", "ESP32-S31-WROOM-3", "MOD1",
                          "ESP32-S31-WROOM-3U", *pl["MOD1"], mod_nets))
     x, y, r = pl["J4"]
+    # mirrors schematic()'s usb_nets (kernel catch #2: sch S1/A12/B12 vs
+    # board SH/nonexistent pads — one dict on each side must match)
+    usb_nets = {"A4": "5V", "A9": "5V", "B4": "5V", "B9": "5V",
+                "A1": "GND", "B1": "GND",
+                "A6": "USB_DP", "B6": "USB_DP",
+                "A7": "USB_DM", "B7": "USB_DM",
+                "A5": "CC1", "B5": "CC2", "SH": "GND"}
     b.place(Fp("Connector_USB", "USB_C_Receptacle_HRO_TYPE-C-31-M-12",
                "J4", "USB-C", x, y, r, pad_nets=usb_nets))
     x, y, r = pl["U1"]
