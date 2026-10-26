@@ -199,12 +199,18 @@ def schematic(p: DevBoardParams) -> Schematic:
                 nc.add(str(n))
     sch.place(SymInst("MOD1", "flux:ESP32-S31-WROOM-3U", "ESP32-S31-WROOM-3U",
                       x=30.48, y=127.0, pin_nets=nets, nc_pins=nc))
+    # J4 pin map must mirror the board footprint EXACTLY (kernel catch
+    # #2: sch S1 vs board SH naming, and A12/B12 pads the HRO-31-M-12
+    # footprint does not physically have)
+    usb_nets = {"A4": "5V", "A9": "5V", "B4": "5V", "B9": "5V",
+                "A1": "GND", "B1": "GND",
+                "A6": "USB_DP", "B6": "USB_DP",
+                "A7": "USB_DM", "B7": "USB_DM",
+                "A5": "CC1", "B5": "CC2", "SH": "GND"}
     sch.place(SymInst("J4", "flux:USB_C_16P", "USB-C", x=x0, y=y0,
-                      pin_nets={"A4": "5V", "A9": "5V", "B4": "5V", "B9": "5V",
-                                "A1": "GND", "A12": "GND", "B1": "GND", "B12": "GND",
-                                "A6": "USB_DP", "B6": "USB_DP",
-                                "A7": "USB_DM", "B7": "USB_DM",
-                                "A5": "CC1", "B5": "CC2", "S1": "GND"}))
+                      pin_nets=usb_nets,
+                      nc_pins=["A12", "B12", "A2", "A3", "A8", "B2",
+                               "B3", "B4", "B10", "B11", "S1"]))
     sch.place(SymInst("U1", "flux:AP2112K", "AP2112K-3.3", x=68.58, y=y0,
                       pin_nets={"1": "5V", "2": "GND", "3": "5V", "5": "3V3"}))
     # buttons: SW1 -> EN (reset); SW2 -> IO0 (boot) when present
@@ -240,12 +246,22 @@ def schematic(p: DevBoardParams) -> Schematic:
                       pin_nets={"1": "3V3", "2": "GND"}))
     sch.place(SymInst("C3", "flux:C_0603", "100nF", x=92.71, y=73.66,
                       pin_nets={"1": "EN", "2": "GND"}))
-    # headers
+    # headers — schematic pins must match the BOARD footprint pin count
+    # (kernel first real catch: HDR14 symbols with GND-stuffed spare pins
+    # vs 1x08 footprints diverged at fab-netlist level; J1.9-14 existed
+    # only in the schematic)
+    hdr_fp = {8: "PinHeader_1x08_P2.54mm_Vertical",
+              10: "PinHeader_1x10_P2.54mm_Vertical",
+              14: "PinHeader_1x14_P2.54mm_Vertical"}
+    n_pins = p.header_pins if p.header_pins in hdr_fp else 8
     for r, row in enumerate(p.header_nets()):
-        pins = {str(i + 1): n for i, n in enumerate(row)}
-        pins.update({str(len(row) + i + 1): "GND" for i in range(14 - len(row))})
+        pins = {str(i + 1): n for i, n in enumerate(row) if i < n_pins}
+        pins.update({str(n_pins - (14 - len(row)) + i + 1): "GND"
+                     for i in range(max(0, n_pins - len(row)))})
         sch.place(SymInst(f"J{r+1}", "flux:HDR14", f"HDR-{r+1}",
-                          x=104.14 + r * 10.16, y=127.0, pin_nets=pins))
+                          x=104.14 + r * 10.16, y=127.0, pin_nets=pins,
+                          nc_pins=[str(i) for i in
+                                   range(n_pins + 1, 15)]))
     if p.prog_header:
         sch.place(SymInst("J3", "flux:HDR4", "HDR-PROG", x=50.8, y=154.94,
                           pin_nets={"1": "3V3", "2": "GND", "3": "TX0", "4": "RX0"}))
@@ -272,12 +288,7 @@ def board(p: DevBoardParams) -> Board:
                          "ESP32-S31-WROOM-3U", *pl["MOD1"], mod_nets))
     x, y, r = pl["J4"]
     b.place(Fp("Connector_USB", "USB_C_Receptacle_HRO_TYPE-C-31-M-12",
-               "J4", "USB-C", x, y, r,
-               pad_nets={"A4": "5V", "A9": "5V", "B4": "5V", "B9": "5V",
-                         "A1": "GND", "A12": "GND", "B1": "GND", "B12": "GND",
-                         "A6": "USB_DP", "B6": "USB_DP",
-                         "A7": "USB_DM", "B7": "USB_DM",
-                         "A5": "CC1", "B5": "CC2", "SH": "GND"}))
+               "J4", "USB-C", x, y, r, pad_nets=usb_nets))
     x, y, r = pl["U1"]
     b.place(Fp("Package_TO_SOT_Smd", "SOT-23-5", "U1", "AP2112K-3.3", x, y, r,
                pad_nets={"1": "5V", "2": "GND", "3": "5V", "5": "3V3"}))

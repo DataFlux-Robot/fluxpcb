@@ -1069,3 +1069,62 @@ def routing_completeness(project_dir: Path, outputs: list[str], cfg: dict) -> Ga
                           findings=findings, details=details)
     return GateResult("routing_completeness", GateStatus.PASS,
                       "全部网络连通(ratsnest=0)", details=details)
+
+
+# ------------------------------------------------------- fabrication netlist
+@gate("fabrication_netlist")
+def fabrication_netlist(project_dir: Path, outputs: list[str],
+                        cfg: dict) -> GateResult:
+    """The fab's golden-netlist audit, in CI: IPC-D-356 (what the copper
+    will etch) vs the schematic netlist (what was intended).
+
+    Kernel facet 5 (truth closure). This is the ONLY connectivity
+    verdict immune to severity calibration, stale fills and model
+    divergence — the manufacturing-side ground truth.
+    泛化为: kernel/truthnet.py + this gate (K21).
+    """
+    import shutil as _sh
+    import json as _json
+    from fluxpcb.routing import find_kicad
+    from fluxpcb.kernel import truthnet
+
+    kicad_cli, _kipy = find_kicad()
+    if not kicad_cli:
+        return GateResult("fabrication_netlist", GateStatus.BLOCKED,
+                          "kicad-cli 不可用")
+    pcbs = sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+    if not pcbs:
+        return GateResult("fabrication_netlist", GateStatus.BLOCKED,
+                          "无PCB文件")
+    findings, details = [], {}
+    for pcb in pcbs:
+        stem = pcb.stem
+        schs = sorted((project_dir / "schematic").rglob(
+            stem + ".kicad_sch")) or \
+            sorted((project_dir / "schematic").rglob("*.kicad_sch"))
+        if not schs:
+            details[pcb.name] = "无原理图 — 跳过网表比对"
+            continue
+        try:
+            verdict = truthnet.audit(kicad_cli, pcb, schs[0])
+        except Exception as e:                     # noqa: BLE001
+            findings.append({"issue": f"{pcb.name}: 网表审计失败 {e}"})
+            continue
+        details[pcb.name] = _json.dumps(
+            {k: verdict[k] for k in ("nets_sch", "nets_board", "clean")},
+            ensure_ascii=False)
+        if not verdict["clean"]:
+            n_miss = len(verdict["missing_nets"])
+            n_pin = len(verdict["pin_mismatch"])
+            findings.append({
+                "issue": f"{pcb.name}: 网表不符 "
+                         f"(缺 {n_miss} 网 / 引脚错 {n_pin} 网)",
+                "missing": list(verdict["missing_nets"])[:5],
+                "mismatch": list(verdict["pin_mismatch"])[:5],
+            })
+    if findings:
+        return GateResult("fabrication_netlist", GateStatus.FAIL,
+                          f"{len(findings)} 块板网表不符",
+                          findings=findings, details=details)
+    return GateResult("fabrication_netlist", GateStatus.PASS,
+                      "铜几何网表与原理图一致(fab真值)", details=details)

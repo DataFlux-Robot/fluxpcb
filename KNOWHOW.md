@@ -486,3 +486,26 @@ handoff=[IO6,EN]——R4产物链完整落地。
 每网预算×迭代放大缺陷→M4b板级预算(FLUXNT_EXPLORE_BUDGET默认900s)已修。
 残余前沿：69处clearance违例（下一轮砖松弛pass的目标，Rizzo DAC'07配方已在调研档）。
 板已回退提交态（49/0 DRC干净基线；新态40开但69违例不达门禁）。
+
+## K21 内核轮：Board State Kernel（2026-10-26 六通用问题驱动）
+
+泛化为: fluxpcb/kernel/（state/txn/invariants/causal/truthnet/lint 六模块）+ fabrication_netlist 门禁 + test_kernel.py 不变量组——本轮全部产物即泛化本体。
+
+### 核心认知（K7-K20 的根因合并）
+板曾是无类型/无不变量/无事务/无统一语义/无逆向边的共享可变文件。六类失败各映射内核一个侧面：
+测量可骗(state)/引擎产废(txn+invariants)/互毁无原子性(txn)/上游无反馈(causal)/教训不固化(lint)/fab真值未闭环(truthnet)。
+
+### 内核首战的三个真实战果
+1. **fab网表审计抓住 RELEASED dev 板的两个真生成器bug**（此前所有门禁都漏过，因各自为政）：
+   a) J1/J2 原理图HDR14符号把备用脚塞GND(14-len)，板侧1x08封装只有8脚→J1.9-14只在原理图存在；
+   b) J4 USB-C 原理图S1/A12/B12 vs 板SH/无此焊盘。修复：符号引脚按header_pins截断+nc_pins；J4两侧统一usb_nets映射。
+2. **分类学实测iter3残差**：66开路=35 escape-crossing(pin分配交叉冲突,重分配可解)+2 power-fragment+1 local+5未分类——容量数学证明通道够用，验证了"causal边指向reassign_pins"。
+3. **severity政策分裂**：unconnected_items等4项功能性检查从ignore校准摘出（run_drc曾结构性恒零——连通性幻觉的倒影），测试保护防回填。
+
+### 内核纪律（K21起生效）
+- 教训泛化为不变量：KNOWHOW每节须有"泛化为:"或"个案"（lint.py强制）
+- 引擎=事务：v3链的preroute/fanout/fluxrouter(light)与FR(full)已包Txn——快照/不变量/原子回滚/manifest
+- 测量必带指纹：state.KernelQuery结构性保证
+- 因果分类学：causal.classify 是残差处置的决策入口
+
+个案：devboard J1/J4修复本身是个案，但"板与原理图引脚必须镜像"已泛化为fabrication_netlist门禁。

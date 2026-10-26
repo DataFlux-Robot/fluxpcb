@@ -47,6 +47,12 @@ MENU = {
     "rerun_freerouting": {"timeout_s": int},
     # place 0R jumpers on specific nets (post route_diag verdicts)
     "jumper": {"nets": list},
+    # CAUSAL EDGE (upstream): reassign failing nets' MCU pins within the
+    # AF-multiplexing family — the capacity study proved residual opens
+    # are pin-assignment crossing conflicts, decided upstream. Writes a
+    # FC_PIN_OVERRIDE proposal (dry-run first round; regeneration
+    # applies it board+schema consistently).
+    "reassign_pins": {"moves": list},
     # nudge footprints that keep blocking (R5 margin loop; blockers from
     # route_diag verdicts — a ref showing up >=2x is a placement problem,
     # not a routing problem)

@@ -29,6 +29,14 @@ _FLUXROUTER = Path(__file__).resolve().parent / "kicadgen" / "fluxrouter.py"
 _SCR2KICAD = Path(__file__).resolve().parent / "kicadgen" / "scr2kicad.py"
 
 # hand-fixable after fab (or cosmetic) -> ignore; electrical errors stay error
+# Severity calibration silences COSMETIC checks so kicad-cli exit codes
+# reflect manufacturable reality. FUNCTIONAL checks are NEVER silenced —
+# unconnected_items once sat here and made run_drc structurally blind
+# (reported 0 opens forever while conn_audit saw 66: the same illusion
+# the gates were built to escape, reintroduced through the back door).
+# Protected by tests/test_kernel.py::TestSeverityProtection.
+_FUNCTIONAL_NEVER_IGNORED = ("unconnected_items", "via_dangling",
+                             "track_dangling", "starved_thermal")
 CALIBRATED_SEVERITIES = {
     "courtyards_overlap": "ignore",
     "malformed_courtyard": "ignore",
@@ -43,12 +51,8 @@ CALIBRATED_SEVERITIES = {
     "silk_over_copper": "ignore",
     "silk_overlap": "ignore",
     "solder_mask_bridge": "ignore",
-    "starved_thermal": "ignore",
-    "track_dangling": "ignore",
     "track_not_centered_on_via": "ignore",
     "tuning_profile_track_geometries": "ignore",
-    "unconnected_items": "ignore",
-    "via_dangling": "ignore",
 }
 
 
@@ -821,7 +825,31 @@ def _driver_loop(pcb_path: Path, kipy: str, cls_file: Path, light: bool,
             steps.append(f"driver[{step}]: {act} — {d.get('reason', '')[:70]}")
             break
         try:
-            if act == "preroute_critical":
+            if act == "reassign_pins":
+                # K3 causal edge, dry-run round 1: build the
+                # FC_PIN_OVERRIDE proposal via the taxonomy + reverse AF
+                # index; regeneration applies it consistently
+                from fluxpcb.kernel.causal import classify as _cls, \
+                    ACTION_FOR as _AF
+                fp_pairs = (pcb_path.parent / "kernel_pairs.tmp.txt")
+                rn_now = ratsnest_state(kipy, pcb_path, log=log)
+                pairs_lines = []
+                pf = pcb_path.parent / "ratsnest_pairs.txt"
+                if rn_now and rn_now.get("pairs"):
+                    pairs_lines = rn_now["pairs"]
+                elif pf.exists():
+                    pairs_lines = [l for l in
+                                   pf.read_text(encoding="utf-8")
+                                   .splitlines() if l.strip()]
+                tax = _cls(pairs_lines, tel.get("diag") or [])
+                proposal = {"moves": d.get("moves") or [],
+                            "taxonomy": tax}
+                (pcb_path.parent / "pin_reassign_proposal.json") \
+                    .write_text(json.dumps(proposal, ensure_ascii=False,
+                                           indent=1), encoding="utf-8")
+                steps.append(f"driver[{step}] reassign_pins(dry-run): "
+                             f"提案落盘, 分类{ {k: len(v) for k, v in tax.items()} }")
+            elif act == "preroute_critical":
                 pre = _run_session(kipy, pcb_path, cls_file, log=log,
                                    nets=d.get("nets") or [])
                 steps.append(f"driver[{step}] preroute({len(d['nets'])}网): "
@@ -997,29 +1025,35 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
         # clogged board where everything is nopath (measured 0/43 both old
         # and Z-round routers on committed fc).
         if v3_order:
-            # M2 ordering fix (shorts-lineage diagnosis): preroute runs
-            # BEFORE the fanout session — after fanout the BGA field is
-            # plugged with stitches+dogbones and the critical nets' escape
-            # corridors are sealed (measured: preroute after fanout closed
-            # 0/26 nets, all nopath, CAN members then bulk-routed into
-            # each other). On a fresh board critical nets claim channels
-            # first; fanout treats prerouted copper as fixed obstacles.
+            # K6 kernel wiring: the three head-stage engines run as
+            # TRANSACTIONS — snapshot, execute, invariant check, atomic
+            # rollback on violation; every step lands in
+            # chain_manifest.json (the replayable mutation log)
+            from fluxpcb.kernel.txn import Txn as _Txn
             _pre = [n for n, c in net_classes.items()
                     if c == "critical" and n not in
                     {x for p in _pairs for x in p}]
             _pre += [x for p in _pairs for x in p]
             if _pre:
-                pre = _run_session(kipy, pcb_path, cls_file, log=log,
-                                   nets=_pre)
+                with _Txn(kicad_cli, kipy, pcb_path,
+                          "preroute-critical", level="light",
+                          log=log) as _t:
+                    pre = _run_session(kipy, pcb_path, cls_file, log=log,
+                                       nets=_pre)
                 if pre:
                     steps.append(f"preroute-critical({len(_pre)}网): "
                                  f"{pre.get('start')}->{pre.get('final')}")
-            fan = _run_session(kipy, pcb_path, cls_file, log=log)
+            with _Txn(kicad_cli, kipy, pcb_path, "fanout-session",
+                      level="light", log=log) as _t:
+                fan = _run_session(kipy, pcb_path, cls_file, log=log)
             if fan:
                 steps.append(f"fanout-session: {fan.get('start')}->{fan.get('final')} "
                              f"(stitch {fan.get('stitched')}, dogbone+modfan)")
             if os.environ.get("FLUXNT_ROUTER") == "pathfinder":
-                frn = _run_fluxrouter(kipy, pcb_path, cls_file, log=log)
+                with _Txn(kicad_cli, kipy, pcb_path, "fluxrouter",
+                          level="light", log=log) as _t:
+                    frn = _run_fluxrouter(kipy, pcb_path, cls_file,
+                                          log=log)
                 if frn:
                     steps.append(f"fluxrouter: iters={frn.get('iters')} "
                                  f"routed={frn.get('routed_nets')}/{frn.get('nets')} "
@@ -1027,16 +1061,22 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
                     log(f"  [route] fluxrouter: {frn.get('routed_nets')}/"
                         f"{frn.get('nets')} nets, final {frn.get('final')}")
 
+        # Freerouting under a FULL transaction (I1+I2+I3: the injection
+        # boundary where layer-mapping and overlap classes once struck)
+
         # Freerouting is the PRIMARY router (real push-and-shove rip-up
         # rerouter; completed the 240-ball h743-fc in ~18min once given a
         # 1800s budget). The session engine finishes its residue (power-plane
         # stitching + the pairs FR leaves). FLUXNT_FR=0 disables.
         if os.environ.get("FLUXNT_FR", "1") != "0" and not light:
             _prio = [n for n, c in net_classes.items() if c == "critical"]
-            fr = route_with_freerouting(pcb_path, kipy, log=log,
-                                        priority_nets=_prio,
-                                        net_classes=net_classes,
-                                        diff_pairs=_pairs)
+            from fluxpcb.kernel.txn import Txn as _TxnFR
+            with _TxnFR(kicad_cli, kipy, pcb_path, "freerouting",
+                        level="full", log=log) as _t:
+                fr = route_with_freerouting(pcb_path, kipy, log=log,
+                                            priority_nets=_prio,
+                                            net_classes=net_classes,
+                                            diff_pairs=_pairs)
             steps.append(f"freerouting: {fr.get('stats')}" if fr.get("ok")
                          else f"freerouting跳过: {fr.get('error', '')[:80]}")
         else:
