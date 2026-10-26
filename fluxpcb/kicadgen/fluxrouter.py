@@ -216,6 +216,17 @@ gm = rg.GridModel(board, layer_ids=LIDS)
 NX, NY = gm.nx, gm.ny
 NN = NX * NY
 
+# M1 commit gate: every committed net's copper is verified in world
+# coordinates against fixed + previously-committed copper (the research
+# axiom — routers PREVENT cross-net shorts, they don't repair them)
+GATE = None
+if __import__("os").environ.get("FLUXNT_GATE", "1") != "0":
+    try:
+        import commit_gate as _cg
+        GATE = _cg.CommitGate.from_board(board, LIDS)
+    except Exception:
+        GATE = None
+
 h_hist = [__import__("numpy").zeros((NY, NX), dtype="float32")
           for _ in range(NL)]
 cell_owner = {}
@@ -478,6 +489,17 @@ def cells_to_items(path, nc, name, a, b):
     if prev is not None:
         cells.append((prev[0], int(prev[1] / rg.GRID),
                       int(prev[2] / rg.GRID)))
+    # M1 gate: all-or-nothing world-geometry verification — never leave
+    # cross-net overlaps (fc iter1: 85% of the 59 shorts were exactly
+    # these router-stub collisions)
+    if GATE is not None and items:
+        if not GATE.commit(board, [i for i in items if i is not None], nc):
+            for i in items:
+                try:
+                    board.Remove(i)
+                except Exception:
+                    pass
+            return None, None, (path[0][0], path[0][1], path[0][2])
     return [i for i in items if i is not None], cells, None
 
 

@@ -145,6 +145,16 @@ gm = rg.GridModel(board, layer_ids=LIDS)
 SPATIAL = build_per_layer(gm)
 board_edges = gm.edge
 
+# M1 commit gate (world-geometry, adds previously-committed nets on top
+# of route_explore's own exact fixed-copper checks)
+GATE = None
+if __import__("os").environ.get("FLUXNT_GATE", "1") != "0":
+    try:
+        import commit_gate as _cg
+        GATE = _cg.CommitGate.from_board(board, LIDS)
+    except Exception:
+        GATE = None
+
 
 def coarse_cell(x, y):
     return (int(x / COARSE), int(y / COARSE))
@@ -290,6 +300,12 @@ def route_nodes(a, b, nc):
 
 
 RADIUS = 12.0            # visibility-neighborhood radius (mm)
+MAX_NODES = 600          # per-pair node cap (anchor-nearest kept first)
+MAX_NEIGHBORS = 18       # nearest per expansion (research: node/edge
+                         # sparsification 3-10x; M4 perf package)
+H_WEIGHT = 1.4           # weighted A*: bounded-suboptimal, 5-20x fewer
+                         # expansions (tscircuit's "greedy multiplier")
+NET_BUDGET_S = 60.0      # per-pair time budget; fail -> nopath, move on
 _edge_cache = {}
 
 
@@ -307,57 +323,103 @@ def astar_explore(a, b, nc, cls_weight, net_name):
     x1, y1, l1 = a
     x2, y2, _ = b
     w = net_w(net_name)
-    nodes = route_nodes(a, b, nc)
-    start, goal = (x1, y1), (x2, y2)
-    heap = [(0.0, 0, (l1, start))]
-    gscore = {(l1, start): 0.0}
-    parent = {}
-    count = 0
-    INF = 1e18
-    while heap:
-        _, _, cur = heapq.heappop(heap)
-        lay, p = cur
-        if math.hypot(p[0] - x2, p[1] - y2) < 0.12:
-            goal = p
-            break
-        # visibility neighbors on this layer
+    t_start = time.time()
+
+    def _search(nodes):
+        """Returns (goal_node, parent_dict) or (None, None)."""
+        # bucket nodes into 2mm cells: each expansion scans only the 3x3
+        # surrounding cells instead of the whole node list
+        CELL = 2.0
+        buckets = {}
         for q in nodes:
-            dx, dy = q[0] - p[0], q[1] - p[1]
-            d = math.hypot(dx, dy)
-            if d < 0.05 or d > RADIUS:
-                continue
-            if not visible(lay, p, q, nc, w):
-                continue
-            step = d * (1.0 + NEGOT.edge_cost(lay, p[0], p[1],
-                                              q[0], q[1], nc)) * cls_weight
-            nk = (lay, q)
-            if gscore.get(nk, INF) > gscore[cur] + step:
-                gscore[nk] = gscore[cur] + step
-                parent[nk] = cur
-                count += 1
-                h = math.hypot(q[0] - x2, q[1] - y2)
-                heapq.heappush(heap, (gscore[nk] + 1.2 * h * cls_weight,
-                                      count, nk))
-        # via transitions (through-via: one drill is one drill)
-        for lj in range(NL):
-            if lj == lay:
-                continue
-            if not via_clear(p[0], p[1], nc):
-                continue
-            nk = (lj, p)
-            vc = VIA_COST * cls_weight
-            if gscore.get(nk, INF) > gscore[cur] + vc:
-                gscore[nk] = gscore[cur] + vc
-                parent[nk] = cur
-                count += 1
-                heapq.heappush(heap, (gscore[nk], count, nk))
-        if count > 250000:
-            return None
-    else:
+            buckets.setdefault((int(q[0] / CELL), int(q[1] / CELL)),
+                               []).append(q)
+        start, goal = (x1, y1), (x2, y2)
+        heap = [(0.0, 0, (l1, start))]
+        gscore = {(l1, start): 0.0}
+        parent = {}
+        count = 0
+        INF = 1e18
+        while heap:
+            _, _, cur = heapq.heappop(heap)
+            lay, p = cur
+            if math.hypot(p[0] - x2, p[1] - y2) < 0.12:
+                return cur, parent
+            # gather neighbors from nearby buckets only
+            cands = []
+            cx, cy = int(p[0] / CELL), int(p[1] / CELL)
+            for bx in (cx - 1, cx, cx + 1):
+                for by in (cy - 1, cy, cy + 1):
+                    for q in buckets.get((bx, by), ()):
+                        d = math.hypot(q[0] - p[0], q[1] - p[1])
+                        if 0.05 < d <= RADIUS:
+                            cands.append((d, q))
+            cands.sort()
+            # nearest-K, LAZY visibility (verify only edges that would
+            # improve g — the LazySP pattern: checks drop from O(E) to
+            # ~O(path length))
+            for _d, q in cands[:MAX_NEIGHBORS]:
+                est = _d * cls_weight
+                nk = (lay, q)
+                if gscore.get(nk, INF) <= gscore[cur] + est * 0.5:
+                    continue
+                if not visible(lay, p, q, nc, w):
+                    continue
+                step = _d * (1.0 + NEGOT.edge_cost(
+                    lay, p[0], p[1], q[0], q[1], nc)) * cls_weight
+                if gscore.get(nk, INF) > gscore[cur] + step:
+                    gscore[nk] = gscore[cur] + step
+                    parent[nk] = cur
+                    count += 1
+                    h = math.hypot(q[0] - x2, q[1] - y2)
+                    heapq.heappush(heap, (gscore[nk] + H_WEIGHT * h
+                                          * cls_weight, count, nk))
+            if time.time() - t_start > NET_BUDGET_S:
+                return None, None
+            # via transitions (through-via: one drill is one drill)
+            for lj in range(NL):
+                if lj == lay:
+                    continue
+                if not via_clear(p[0], p[1], nc):
+                    continue
+                nk = (lj, p)
+                vc = VIA_COST * cls_weight
+                if gscore.get(nk, INF) > gscore[cur] + vc:
+                    gscore[nk] = gscore[cur] + vc
+                    parent[nk] = cur
+                    count += 1
+                    heapq.heappush(heap, (gscore[nk], count, nk))
+            if count > 250000:
+                return None, None
+        return None, None
+
+    nodes_all = route_nodes(a, b, nc)
+    # node cap: anchors first, then nearest to the src-dst line
+    if len(nodes_all) > MAX_NODES:
+        def line_d(q):
+            L = math.hypot(x2 - x1, y2 - y1) or 1e-6
+            t = max(0.0, min(1.0, ((q[0] - x1) * (x2 - x1)
+                                   + (q[1] - y1) * (y2 - y1))
+                              / (L * L)))
+            return math.hypot(q[0] - (x1 + t * (x2 - x1)),
+                              q[1] - (y1 + t * (y2 - y1)))
+        nodes_all = [nodes_all[0], nodes_all[1]] + sorted(
+            nodes_all[2:], key=line_d)[:MAX_NODES - 2]
+    # adaptive neighborhood (3D LineExplore ablation: -90% time): search
+    # the dilated src-dst bbox first, expand to the full set on failure
+    m = 3.0
+    bbox_nodes = [q for q in nodes_all
+                  if min(x1, x2) - m <= q[0] <= max(x1, x2) + m
+                  and min(y1, y2) - m <= q[1] <= max(y1, y2) + m]
+    found, parent = _search(bbox_nodes if len(bbox_nodes) >= 8
+                            else nodes_all)
+    if found is None:
+        found, parent = _search(nodes_all)
+    if found is None:
         return None
     # reconstruct
     path = []
-    cur = (lay, goal)
+    cur = found
     while cur is not None and cur != (l1, (x1, y1)):
         path.append(cur)
         cur = parent.get(cur)
@@ -401,6 +463,16 @@ def emit(path, nc, name, a, b):
                                           LIDS[pli], net, w))
                 segs.append((pli, q[0], q[1], p[0], p[1]))
         prev = (li, p)
+    # M1 gate: world-geometry all-or-nothing (route_explore's exact edge
+    # checks cover fixed copper; the gate adds previously-committed nets)
+    if GATE is not None and items:
+        if not GATE.commit(board, [i for i in items if i is not None], nc):
+            for it in items:
+                try:
+                    board.Remove(it)
+                except Exception:
+                    pass
+            return None, None, "gate-fail"
     return [i for i in items if i is not None], segs, None
 
 

@@ -444,3 +444,37 @@ driver新动作adjust_placement(批量fp_move)；fallback规则：同一器件�
 routing.py driver/else结构bug：v3_order曾只在else内赋值而if v3_order在函数级(driver模式必NameError)。
 
 ### N轨（并行）：spatial_hash(均匀桶)+route_explore(顶点线探索A*+协商层保留)——93%→98%象限差距的根治
+
+## K20 M轮：Commit门禁+链序修正+短路修复器+无网格性能包（2026-10-26 三路调研驱动）
+
+### 诊断闭环（iter1 59短路的完整谱系）
+- 85%是0.16/0.2263mm微短桩(fanout/布线器格子stub互撞)，集中MCU逃逸区x∈[20,45]y∈[20,45]
+- 与旧轮(199短路=电源对信号)不同源——旧病已被stitch治愈；新病=引擎自产
+- preroute零收益根因：跑在fanout后=BGA场被55处stitch+dogbone封死→critical全nopath→
+  裸奔进bulk→CAN两成员独立布线互叠+PWM拥挤短路。M2修正：preroute提前到fanout前。
+
+### M1 Commit门禁（调研第一公理：商业EDA从不修cross-net short，构造期预防）
+commit_gate.py：世界坐标增量验证器——SpatialHash按层持固定铜+已提交铜，每网提交时
+全部items对附近异网铜精确间距判定，失败整批拒绝（原子性，抄Freerouting的
+never-half-a-trace）。接入三提交点(fluxrouter.cells_to_items/route_session.try_route_pair/
+route_explore.emit)。mini session实测：gate-fail=4次拦截（格子模型放行但世界几何冲突）。
+权衡：协商的"允许暂时重叠"被门禁收紧为fail-fast重试——数据证明重叠本就没被协商解决
+(K16的conflicted-forfeit已是补丁)，门禁只是把发现提前到提交点。
+FLUXNT_GATE=0可关（A/B用）。
+
+### M2 链序：preroute-critical → fanout-session → fluxrouter → FR → session
+fanout的Obstacles把预布铜当固定障碍（现有机制），dogbone的via_exact_ok自动避让。
+
+### M3 short_repair.py（修复侧兜底，kicad-tools分型模式）
+解析drc.rpt短路对→参与度计数→删参与度最高的短桩项→nets_for_reroute进外科手术重布
+(rip_nets+增量FR)。v1不做via重定位（会拉断连接的走线端点）。接入auto_route收尾
+（cleanup前）。
+
+### M4 route_explore性能包（调研组合）
+桶化邻居(2mm格3×3扫描替代全节点遍历)+懒验证(LazySP:只验证能改善gscore的边)+
+节点上限600(按离src-dst线距离)+最近邻18+加权A*(h×1.4)+自适应包围盒(先bbox+3mm,
+失败全图)+每网60s时限。mini: 143s→37-57s；产量13脏→8干净(门禁口径)。
+
+### M轮实测
+mini全链(M0-M3): **drc_zero门禁首次通过**(0短路)，2开路=基线，automation 81.8%，
+handoff=[IO6,EN]——R4产物链完整落地。

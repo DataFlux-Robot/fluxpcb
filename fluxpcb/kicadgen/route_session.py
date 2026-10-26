@@ -38,6 +38,9 @@ MAX_RIPUP = int(sys.argv[3]) if len(sys.argv) > 3 else 12
 ONLY_NETS = {s.strip() for s in sys.argv[4].split(",") if s.strip()} \
     if len(sys.argv) > 4 else None
 
+# M1 commit gate (world-geometry atomic verification; built in main)
+GATE = None
+
 T0 = time.time()
 board = pcbnew.LoadBoard(PCB)
 mm = 1000000
@@ -824,6 +827,14 @@ def try_route_pair(ob, pair, no_diag=False):
                 board.Remove(it)
             continue
         if pair_connected(pair):
+            # M1 commit gate: world-geometry verification against other
+            # nets' copper — the grid-based ob model passes stubs that
+            # collide between grid cells (fc iter1's micro-stub shorts)
+            if GATE is not None and not GATE.commit(board, items, nc):
+                for it in items:
+                    board.Remove(it)
+                _why("gate-fail")
+                continue
             ob.add_placed(items)
             STATS["session_tracks"].extend(items)
             return True
@@ -835,6 +846,11 @@ def try_route_pair(ob, pair, no_diag=False):
     path = astar(ob, nc, pair["a"], pair["b"], w, no_diag=_nd)
     if path:
         if pair_connected(pair):
+            if GATE is not None and not GATE.commit(board, path, nc):
+                for it in path:
+                    board.Remove(it)
+                _why("gate-fail")
+                return False
             ob.add_placed(path)
             STATS["session_tracks"].extend(path)
             return True
@@ -1133,6 +1149,15 @@ def module_fanout(ob, pairs):
 def main():
     boxes = bga_boxes()
     filled = fill_zones()
+    global GATE
+    GATE = None
+    if __import__("os").environ.get("FLUXNT_GATE", "1") != "0":
+        try:
+            import commit_gate as _cg
+            GATE = _cg.CommitGate.from_board(
+                board, [pcbnew.F_Cu, pcbnew.B_Cu])
+        except Exception:
+            GATE = None
     pairs, count0, frag = audit_pairs()
     # R3 preroute mode (argv[4] net whitelist): fanout/stitch phases are
     # SKIPPED and the sweep routes ONLY the whitelisted nets — the

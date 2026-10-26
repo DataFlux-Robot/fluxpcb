@@ -997,15 +997,13 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
         # clogged board where everything is nopath (measured 0/43 both old
         # and Z-round routers on committed fc).
         if v3_order:
-            fan = _run_session(kipy, pcb_path, cls_file, log=log)
-            if fan:
-                steps.append(f"fanout-session: {fan.get('start')}->{fan.get('final')} "
-                             f"(stitch {fan.get('stitched')}, dogbone+modfan)")
-            # R3 industry recipe: critical + differential-pair nets get
-            # FIRST claim on the good channels (preroute), then ride the
-            # Z1 fix-marking so no later engine rips them (the CAN H/L
-            # overlap shorts came from both members being routed
-            # independently in the bulk pass)
+            # M2 ordering fix (shorts-lineage diagnosis): preroute runs
+            # BEFORE the fanout session — after fanout the BGA field is
+            # plugged with stitches+dogbones and the critical nets' escape
+            # corridors are sealed (measured: preroute after fanout closed
+            # 0/26 nets, all nopath, CAN members then bulk-routed into
+            # each other). On a fresh board critical nets claim channels
+            # first; fanout treats prerouted copper as fixed obstacles.
             _pre = [n for n, c in net_classes.items()
                     if c == "critical" and n not in
                     {x for p in _pairs for x in p}]
@@ -1016,6 +1014,10 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
                 if pre:
                     steps.append(f"preroute-critical({len(_pre)}网): "
                                  f"{pre.get('start')}->{pre.get('final')}")
+            fan = _run_session(kipy, pcb_path, cls_file, log=log)
+            if fan:
+                steps.append(f"fanout-session: {fan.get('start')}->{fan.get('final')} "
+                             f"(stitch {fan.get('stitched')}, dogbone+modfan)")
             if os.environ.get("FLUXNT_ROUTER") == "pathfinder":
                 frn = _run_fluxrouter(kipy, pcb_path, cls_file, log=log)
                 if frn:
@@ -1074,6 +1076,30 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
     # closing DRC (+scrubber). One pass; if the scrubber removed
     # load-bearing copper, one more session re-closes what it broke.
     drc = run_drc(kicad_cli, pcb_path, rpt)
+    # M3 short repair (fallback for whatever slipped past the commit
+    # gate): delete shorting items, list their nets, re-close surgically
+    if drc["shorting"]:
+        _KGEN3 = Path(__file__).resolve().parent / "kicadgen"
+        try:
+            rc, out = _kipy(kipy, _KGEN3 / "short_repair.py",
+                            str(pcb_path), str(rpt), timeout=600)
+            line = [l for l in (out or "").splitlines()
+                    if l.strip().startswith("{")][-1]
+            _sr = json.loads(line)
+            steps.append(f"short-repair: 删{_sr['removed']}项/"
+                         f"{_sr['pairs']}对, 重布{len(_sr['nets_for_reroute'])}网")
+            if _sr["nets_for_reroute"]:
+                nets_arg = ",".join(_sr["nets_for_reroute"][:10])
+                _kipy(kipy, _KGEN3 / "rip_nets.py", str(pcb_path),
+                      nets_arg, timeout=300)
+                fr2 = route_with_freerouting(pcb_path, kipy, log=log,
+                                             net_classes=net_classes,
+                                             diff_pairs=_pairs)
+                steps.append(f"short-reroute FR: "
+                             f"{'ok' if fr2.get('ok') else fr2.get('error', '')[:50]}")
+            drc = run_drc(kicad_cli, pcb_path, rpt)
+        except (IndexError, ValueError, subprocess.TimeoutExpired):
+            pass
     scrubbed = False
     if drc["shorting"] or "[clearance]" in drc["text"] \
             or "[holes_co_located]" in drc["text"] \

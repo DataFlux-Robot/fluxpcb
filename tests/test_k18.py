@@ -138,3 +138,30 @@ class TestR5PlacementMargin:
                                 "diag": []},
                                [{"delta_opens": 0}, {"delta_opens": 1}])
         assert d["action"] == "escalate"
+
+
+class TestMRound:
+    def test_commit_gate_module(self):
+        src = (REPO / "fluxpcb" / "kicadgen" / "commit_gate.py").read_text(
+            encoding="utf-8")
+        assert "def commit(self, board, items, nc)" in src
+        assert "from_board" in src
+
+    def test_gate_wired_three_engines(self):
+        for f in ("fluxrouter.py", "route_session.py", "route_explore.py"):
+            src = (REPO / "fluxpcb" / "kicadgen" / f).read_text(
+                encoding="utf-8")
+            assert "GATE" in src and "GATE.commit" in src, f
+
+    def test_preroute_before_fanout(self):
+        src = (REPO / "fluxpcb" / "routing.py").read_text(encoding="utf-8")
+        i_pre = src.find("preroute-critical(")
+        i_fan = src.find("fanout-session:")
+        assert 0 < i_pre < i_fan
+
+    def test_short_repair_module(self):
+        src = (REPO / "fluxpcb" / "kicadgen" / "short_repair.py").read_text(
+            encoding="utf-8")
+        assert "nets_for_reroute" in src and "participation" in src
+        rsrc = (REPO / "fluxpcb" / "routing.py").read_text(encoding="utf-8")
+        assert "short-repair" in rsrc and "short_repair.py" in rsrc
