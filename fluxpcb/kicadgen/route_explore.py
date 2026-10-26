@@ -306,6 +306,12 @@ MAX_NEIGHBORS = 18       # nearest per expansion (research: node/edge
 H_WEIGHT = 1.4           # weighted A*: bounded-suboptimal, 5-20x fewer
                          # expansions (tscircuit's "greedy multiplier")
 NET_BUDGET_S = 60.0      # per-pair time budget; fail -> nopath, move on
+# board-level wall budget: stubborn nets x iterations multiply the
+# per-net budget into hours on fc (74min measured); past the deadline
+# every remaining pair this run fails fast instead of burning more
+import os as _os_env
+BOARD_BUDGET_S = float(_os_env.environ.get("FLUXNT_EXPLORE_BUDGET", "900"))
+_BOARD_DEADLINE = time.time() + BOARD_BUDGET_S
 _edge_cache = {}
 
 
@@ -324,6 +330,8 @@ def astar_explore(a, b, nc, cls_weight, net_name):
     x2, y2, _ = b
     w = net_w(net_name)
     t_start = time.time()
+    if time.time() > _BOARD_DEADLINE:
+        return None            # board budget exhausted: fail fast
 
     def _search(nodes):
         """Returns (goal_node, parent_dict) or (None, None)."""
