@@ -82,9 +82,17 @@ def _rule_assessment(report: dict) -> dict:
         nets = tax.get(cls) or []
         if not nets:
             continue
+        act_name = report.get("action_for", {}).get(cls, "reroute_nets")
+        # per-ACTION params (the contract): a uniform {"nets"} dict got
+        # rejected for adjust_placement ("缺少参数 moves") — borrow the
+        # first candidate's params shape for this class
+        _tpl = next((o for o in (report.get("extra", {}).get("candidates")
+                                 or {}).get(nets[0], [])
+                     if o.get("action") == act_name), None)
+        params = (_tpl or {}).get("params") or {"nets": nets[:10]}
         actions.append({
-            "action": report.get("action_for", {}).get(cls, "reroute_nets"),
-            "params": {"nets": nets[:10]},
+            "action": act_name,
+            "params": params,
             "expected_effect": f"{cls}:{len(nets)}网经上游动作闭合",
             "priority": pri,
         })
@@ -148,6 +156,14 @@ def flexibility(pcb_path: Path, pairs: list, taxonomy: dict,
     cands = {}
     for cls, nets in taxonomy.items():
         for net in nets:
+            if "#" in net:
+                # jumper halves (NET#J1): these are split nets awaiting
+                # ROUTING — re-jumpering them cascades (K13: 21 jumpers
+                # on a 3-open board). One action only.
+                cands[net] = [{"action": "reroute_nets",
+                               "params": {"nets": [net]},
+                               "expected_effect": "跳线半网布线闭合"}]
+                continue
             act = ACTION_FOR.get(cls, "reroute_nets")
             # every candidate MUST carry executable params — the fix-it
             # contract: a decision without params can never validate
@@ -184,15 +200,19 @@ def flexibility(pcb_path: Path, pairs: list, taxonomy: dict,
                                                    "dy_mm": 0.0}]},
                              "expected_effect": "挪器件开口后再布"})
             # M3: map-driven path candidates — the decision becomes a
-            # PATH with coordinates (the fix-it's final form)
+            # PATH with coordinates (the fix-it's final form). Priority:
+            # direct_link (map shows a free path) BEFORE transformation
+            # actions (jumper/move) — draw the line first, transform
+            # only when the map proves no path exists.
+            path_opts = []
             if plans and net in plans and plans[net].get("paths"):
                 for pl in plans[net]["paths"][:2]:
-                    opts.append({
+                    path_opts.append({
                         "action": "direct_link",
                         "params": {"net": net, "pts": pl["pts"],
                                    "width": 0.2},
                         "expected_effect":
                             f"图验证路径 {pl['length_mm']}mm 直连",
                     })
-            cands[net] = opts
+            cands[net] = path_opts + opts
     return cands
