@@ -55,8 +55,10 @@ def via_ok(x, y, nc, segs_by_layer, rects_by_layer, via_r=None,
     layer; hole-to-hole stays with DRC at commit)."""
     from routegrid import seg_seg_dist, pt_rect_dist
     _clear = (rules or {}).get("clearance", CLEAR)
-    via_r = (via_r if via_r is not None
-             else (rules or {}).get("via_dia", 0.5) / 2)
+    # T2-fix: via_r is the size of the via WE PLACE (rg.add_via annulus
+    # 0.25 -> 0.5 dia), NOT the design-rule MINIMUM (0.4/2=0.2 made the
+    # verifier looser — the T2 regression's root cause)
+    via_r = 0.25 if via_r is None else via_r
     for li in range(len(segs_by_layer)):
         for net, s, e, hw in segs_by_layer[li]:
             if net == nc:

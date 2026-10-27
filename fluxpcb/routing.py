@@ -1223,16 +1223,27 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
             steps.append(f"loop[{n}] 图: {_maps[:150]}")
         queue = list(sorted(assess.get("actions", []),
                             key=lambda a: a.get("priority", 9)))
+        cand_queue = []
         for net, opts in (report["extra"]["candidates"] or {}).items():
             for o in opts:
                 # USE the candidate's own params — rebuilding as
                 # {"nets": [...]} stripped direct_link's {net, pts,
                 # width} ("缺少参数 net" rejections) and adjust_
                 # placement's {moves}. The candidate IS the decision.
-                queue.append({"action": o["action"],
-                              "params": o.get("params", {"nets": [net]}),
-                              "expected_effect":
-                                  o.get("expected_effect", "")})
+                cand_queue.append({"action": o["action"],
+                                   "params": o.get("params",
+                                                  {"nets": [net]}),
+                                   "expected_effect":
+                                       o.get("expected_effect", "")})
+        # MAP-VERIFIED FIRST: a direct_link carries a path the geometry
+        # PROVED valid on this exact board state — run it before any
+        # mutating action (a reroute reshuffles the seams and the
+        # verified plan dies; TWIN journal: direct_link never got a
+        # turn because reroute_nets went first and closed its window)
+        cand_queue.sort(key=lambda a: 0 if a["action"] == "direct_link"
+                        else (1 if a["action"] == "corridor_rescue"
+                              else 2))
+        queue = cand_queue + queue
         acted = False
         for act in queue:
             key = (act.get("action"), json.dumps(

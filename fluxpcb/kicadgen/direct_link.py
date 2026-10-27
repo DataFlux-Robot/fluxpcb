@@ -32,6 +32,38 @@ if net is None:
     print(json.dumps({"drawn": 0, "error": f"net {net_name} missing"}))
     sys.exit(0)
 
+# T1b plan->execute re-verification: the plan was verified against the
+# board AT PLANNING TIME; between plan and draw the board may have
+# changed (T2/T3 runs: stale plans drew +5 shorts). RE-VERIFY the
+# whole polyline against the CURRENT board before placing one item —
+# the C0 contract applies to plans too.
+try:
+    import geomir
+    _segs, _rects = geomir.extract_objects(b, [pcbnew.F_Cu, pcbnew.B_Cu])
+    _nc = net.GetNetCode()
+    _bad = None
+    for (_p, _q) in zip(pts, pts[1:]):
+        if _p[2] != _q[2]:
+            ok, bl = geomir.via_ok(_p[0], _p[1], _nc, _segs, _rects)
+            if not ok:
+                _bad = f"via@{_p[:2]}: {bl}"
+                break
+            continue
+        ok, bl = geomir.verify_polyline(
+            [(_p[0], _p[1]), (_q[0], _q[1])], width, _nc,
+            _segs[_p[2]], _rects[_p[2]])
+        if not ok:
+            _bad = f"seg@{_p[:2]}->{_q[:2]}: {bl}"
+            break
+    if _bad is not None:
+        print(json.dumps({"drawn": 0,
+                          "error": "stale-plan rejected: " + _bad}))
+        sys.exit(0)
+except Exception as _e:
+    print(json.dumps({"drawn": 0,
+                      "error": "reverify failed: " + str(_e)[:80]}))
+    sys.exit(0)
+
 
 def layer_id(k):
     # 0 = F.Cu, 1 = B.Cu (conn_audit pair convention); inner as 2..
