@@ -40,8 +40,9 @@ for it in list(b.GetTracks()):
     except AttributeError:
         continue
 
-q = fp.GetPosition()
-fp.SetPosition(pcbnew.VECTOR2I(q.x + int(dx * MM), q.y + int(dy * MM)))
+# KiCad10 SWIG: GetPosition() can return a raw SwigPyObject proxy —
+# Move() is the robust mutation API
+fp.Move(pcbnew.VECTOR2I(int(dx * MM), int(dy * MM)))
 b.Save(pcb)
 print(json.dumps({"moved": True, "ripped": ripped, "nets": net_names,
                   "to": [round(q.x / MM + dx, 2), round(q.y / MM + dy, 2)]}))

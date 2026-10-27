@@ -31,7 +31,18 @@ import json
 import math
 from pathlib import Path
 
-CLEAR = 0.17          # mm — same rule as routegrid/commit_gate
+# DRC-TRUE clearance (0.15): the verifier must answer the SAME question
+# the DRC answers. 0.17 (routegrid's margin) rejected 0.021mm-near-miss
+# paths that would actually PASS DRC — the map must not lie on the safe
+# side so hard that it refuses legal fixes.
+CLEAR = float(__import__("os").environ.get("FLUXNT_GEOMIR_CLEAR", "0.15"))
+# SMD-to-SMD rule (KiCad default netclass has (clearance 37.5 (type
+# smd_smd)) = 0.0375mm): dense BGA/module pads sit 0.1-0.2mm apart BY
+# DESIGN and the DRC accepts it. The verifier must ask the DRC's exact
+# question per obstacle class — a uniform 0.15 rejected every path
+# whose start anchor sits in a dense pad field (the anchor itself).
+CLEAR_SMD = float(__import__("os").environ.get("FLUXNT_GEOMIR_CLEAR_SMD",
+                                              "0.0375"))
 
 
 # ===================================================== pure planning core
@@ -112,12 +123,12 @@ def verify_polyline(pts, width, nc, segs, rects):
                 t = k / n
                 x, y = p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t
                 d = pt_rect_dist(x, y, rect)
-                if d < CLEAR + own:
+                if d < CLEAR_SMD + own:
                     return False, {"type": "pad", "net": net,
                                    "at": [round(rect[0], 2),
                                           round(rect[1], 2)],
                                    "short_by_mm": round(
-                                       CLEAR + own - d, 3)}
+                                       CLEAR_SMD + own - d, 3)}
     return True, None
 
 
@@ -435,8 +446,10 @@ def plan_net(board, net_name, width=0.2):
             paths += ok
             rejects += rej
     # neighborhood window obstacles (the map around the failure)
-    win_segs = [s for s in segs if s[0] != nc][:400]
-    win_rects = [r for r in rects if r[0] != nc][:400]
+    flat_segs = [x for li_ in segs for x in li_]
+    flat_rects = [x for li_ in rects for x in li_]
+    win_segs = [s for s in flat_segs if s[0] != nc][:400]
+    win_rects = [r for r in flat_rects if r[0] != nc][:400]
     # blocker netcodes -> names (the decider needs to ACT on blockers:
     # the reference pattern is "reroute the blocker away, then link")
     nc2name = {}
@@ -454,7 +467,8 @@ def plan_net(board, net_name, width=0.2):
             "paths": paths, "rejects": rejects,
             "blockers": sorted({r["blocked_by"].get("net_name")
                                 for r in rejects
-                                if r.get("blocked_by")}) - {net_name, "0"},
+                                if r.get("blocked_by")}
+                               - {net_name, "0", ""}),
             "segs": win_segs, "rects": win_rects,
             "summary": summary}
 
