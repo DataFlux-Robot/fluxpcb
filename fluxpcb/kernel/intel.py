@@ -157,12 +157,24 @@ def flexibility(pcb_path: Path, pairs: list, taxonomy: dict,
     for cls, nets in taxonomy.items():
         for net in nets:
             if "#" in net:
-                # jumper halves (NET#J1): these are split nets awaiting
-                # ROUTING — re-jumpering them cascades (K13: 21 jumpers
-                # on a 3-open board). One action only.
-                cands[net] = [{"action": "reroute_nets",
-                               "params": {"nets": [net]},
-                               "expected_effect": "跳线半网布线闭合"}]
+                # jumper halves (NET#J1): split nets awaiting ROUTING —
+                # re-jumpering cascades (K13), but the halves are SHORT
+                # hops to the jumper pads (placed in free space): map-
+                # driven direct_link is exactly the right closer here.
+                half_opts = []
+                if plans and net in plans:
+                    for pp in (plans[net].get("paths") or [])[:2]:
+                        half_opts.append({
+                            "action": "direct_link",
+                            "params": {"net": net, "pts": pp["pts"],
+                                       "width": 0.2},
+                            "expected_effect":
+                                f"半网直连 {pp['length_mm']}mm",
+                        })
+                half_opts.append({"action": "reroute_nets",
+                                  "params": {"nets": [net]},
+                                  "expected_effect": "跳线半网布线闭合"})
+                cands[net] = half_opts
                 continue
             act = ACTION_FOR.get(cls, "reroute_nets")
             # every candidate MUST carry executable params — the fix-it
