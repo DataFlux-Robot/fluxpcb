@@ -32,6 +32,8 @@ ACTION_CONTRACT = {
     "rerun_fluxrouter": {"iters": int},
     "rerun_freerouting": {},
     "jumper": {"nets": list},
+    "direct_link": {"net": str, "pts": list},   # M3: decision = a PATH
+                                                # on the geomir map
     "adjust_placement": {"moves": list},
     "move_footprint": {"ref": str, "dx_mm": float, "dy_mm": float},
     "reassign_pins": {"nets": list},

@@ -974,6 +974,23 @@ def _loop_execute(act: dict, report: dict, kicad_cli: str, kipy: str,
     if name in ("finish", "escalate"):
         return {"summary": f"{name}:{params.get('reason', '')[:40]}",
                 "stop": True}
+    if name == "direct_link":
+        # M3: the decision IS a path on the geomir map — draw exactly it
+        import json as _j2
+        spec = {"net": params.get("net"), "pts": params.get("pts"),
+                "width": params.get("width", 0.2)}
+        sp = pcb_path.parent / "direct_link_spec.json"
+        sp.write_text(_j2.dumps(spec), encoding="utf-8")
+        with _Txn(kicad_cli, kipy, pcb_path, "loop:direct_link",
+                  level="light", log=log) as t:
+            _kipy(kipy, _KGENX / "direct_link.py", str(pcb_path),
+                  str(sp), timeout=300)
+        res = {"summary": f"direct_link {params.get('net')} "
+                          f"{len(params.get('pts') or []) - 1}段"}
+        if getattr(t, "violations", None):
+            res["rolled_back"] = t.violations
+            res["summary"] += " [回滚]"
+        return res
     if name == "reassign_pins":
         # C4 upstream regeneration: swap escape-crossing nets to better
         # AF balls via FC_PIN_OVERRIDE, regenerate board+schema
@@ -1143,13 +1160,39 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
         report = _intel.build(pcb_path, {"opens": qo, "shorts": qs},
                               pairs, diag=diag)
         report["pairs"] = pairs
+        # M: MAP-driven planning — each stubborn net gets its geomir
+        # plan (islands + verified paths + blockers + summary + SVG).
+        # This is the map the decider reads; the fix-it carries the
+        # path itself, not just a label.
+        plans = {}
+        if 0 < qo.value <= 40:
+            _KG = Path(__file__).resolve().parent / "kicadgen"
+            for _net in sorted({ln.split("|")[0]
+                                for ln in pairs})[:8]:
+                try:
+                    rc, out = _kipy(kipy, _KG / "geomir.py",
+                                    str(pcb_path), _net,
+                                    str(pcb_path), timeout=300)
+                    _line = [l for l in (out or "").splitlines()
+                             if l.strip().startswith("{")][-1]
+                    _pl = json.loads(_line)
+                    if _pl.get("paths") or _pl.get("islands"):
+                        plans[_net] = _pl
+                except (IndexError, ValueError,
+                        subprocess.TimeoutExpired):
+                    continue
+        report["extra"]["plans"] = plans
         report["extra"]["candidates"] = _intel.flexibility(
-            pcb_path, pairs, report["taxonomy"])
+            pcb_path, pairs, report["taxonomy"], plans=plans)
         assess = _intel.synthesize(report, log)
         causes = "; ".join(c.get("cause", "")[:24]
                            for c in assess.get("root_causes", [])[:2])
+        _maps = "; ".join(f"{k}:{v.get('summary', '')[:44]}"
+                          for k, v in list(plans.items())[:3])
         steps.append(f"loop[{n}] {assess.get('state')}: {qo.value}开/"
                      f"{qs.value}短 因[{causes}]")
+        if _maps:
+            steps.append(f"loop[{n}] 图: {_maps[:150]}")
         queue = list(sorted(assess.get("actions", []),
                             key=lambda a: a.get("priority", 9)))
         for net, opts in (report["extra"]["candidates"] or {}).items():

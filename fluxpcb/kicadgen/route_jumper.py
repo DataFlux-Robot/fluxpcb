@@ -243,6 +243,15 @@ def close(idx, name, nc, isl_keep, isl_rename):
         _dm = _rd.Diag()
     except Exception:
         _dm = None
+    # M-round fix: anchors must exist BEFORE the flood branch — q1/q2
+    # were only defined in the fallback, so the flood meeting-point
+    # logic hit NameError every time and silently degraded to the
+    # midpoint guess ("landed in packed field"). Dead code revived.
+    a1, a2 = anchor_of(isl_keep), anchor_of(isl_rename)
+    if a1 is None or a2 is None:
+        rollback()
+        return None
+    q1, q2 = a1.GetPosition(), a2.GetPosition()
     spot = None
     if _dm is not None:
         try:
@@ -264,11 +273,6 @@ def close(idx, name, nc, isl_keep, isl_rename):
         except Exception:
             spot = None
     if spot is None:
-        a1, a2 = anchor_of(isl_keep), anchor_of(isl_rename)
-        if a1 is None or a2 is None:
-            rollback()
-            return None
-        q1, q2 = a1.GetPosition(), a2.GetPosition()
         spot = find_spot((q1.x / mm + q2.x / mm) / 2,
                          (q1.y / mm + q2.y / mm) / 2)
     if spot is None:

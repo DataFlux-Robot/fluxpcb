@@ -139,7 +139,8 @@ def synthesize(report: dict, log=print) -> dict:
 
 
 # ---------------------------------------------------------------- flexibility
-def flexibility(pcb_path: Path, pairs: list, taxonomy: dict) -> dict:
+def flexibility(pcb_path: Path, pairs: list, taxonomy: dict,
+                plans: dict | None = None) -> dict:
     """Per-failing-net candidate actions with expected effects — the
     fix-it hints (point 4): the decision layer picks from candidates,
     it never writes open-ended answers."""
@@ -163,5 +164,29 @@ def flexibility(pcb_path: Path, pairs: list, taxonomy: dict) -> dict:
             elif cls == "power-fragment":
                 opts.append({"action": "rerun_session",
                              "expected_effect": "power_stitch 重缝合"})
+            else:
+                # unclassified persistent opens are the K13 class
+                # (sealed-anchor / transformation-needed): routing retry
+                # is exhausted by definition — give the FULL fallback
+                # ladder, the loop must never lack a next move
+                opts.append({"action": "jumper",
+                             "expected_effect": "0Ω 跨越孤岛(K13闭合机制)"})
+                opts.append({"action": "adjust_placement",
+                             "expected_effect": "挪器件开口后再布"})
+                opts.append({"action": "move_footprint",
+                             "expected_effect": "单器件微挪破封死",
+                             "params": {"ref": "_auto_", "dx_mm": 0.8,
+                                        "dy_mm": 0.0}})
+            # M3: map-driven path candidates — the decision becomes a
+            # PATH with coordinates (the fix-it's final form)
+            if plans and net in plans and plans[net].get("paths"):
+                for pl in plans[net]["paths"][:2]:
+                    opts.append({
+                        "action": "direct_link",
+                        "params": {"net": net, "pts": pl["pts"],
+                                   "width": 0.2},
+                        "expected_effect":
+                            f"图验证路径 {pl['length_mm']}mm 直连",
+                    })
             cands[net] = opts
     return cands
