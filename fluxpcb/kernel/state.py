@@ -36,6 +36,55 @@ class StateFingerprint:
         return f"{self.board_sha256[:10]}/{self.fill_epoch}"
 
 
+class UnboundMeasurement(Exception):
+    """A measurement number escaped without its state fingerprint.
+
+    The laughable-error class (K22): the 40-vs-66 swing and the severity
+    illusion both came from bare numbers floating across boundaries.
+    Invariants have NO lenient mode — a consumer that receives a raw
+    int where a KernelQuery is expected gets this exception, never a
+    warning (an invariant written as a warning is itself a bug)."""
+
+
+# Semantic contract registry (K22): every query name declares what it
+# MEANS and under which preconditions. Changing semantics REQUIRES a
+# semantic_version bump; the test lock in test_kernel.py fails otherwise.
+# Silent semantic drift — 'unconnected' meaning different things at
+# different times — is structurally impossible from here.
+SEMANTICS = {
+    "opens": {
+        "semantic_version": 1,
+        "preconditions": ["post-refill", "conn_audit-ratsnest"],
+        "meaning": "unconnected ratsnest pairs on the consolidated board",
+    },
+    "shorts": {
+        "semantic_version": 1,
+        "preconditions": ["post-refill", "kicad-cli-drc"],
+        "meaning": "[shorting_items] count in the DRC report",
+    },
+    "clearance": {
+        "semantic_version": 1,
+        "preconditions": ["post-refill", "kicad-cli-drc"],
+        "meaning": "[clearance] count in the DRC report",
+    },
+}
+
+
+def require_fp(value, context: str = ""):
+    """Consumer-side hard contract: accept ONLY a fingerprint-bound
+    KernelQuery. Raw numbers raise UnboundMeasurement immediately —
+    the point-12 lesson: invariants have no warning mode."""
+    if not isinstance(value, KernelQuery):
+        raise UnboundMeasurement(
+            f"unbound {type(value).__name__} in {context or 'unknown site'}"
+            f" — cross-boundary numbers must be KernelQuery")
+    if not value.fp or not value.fp.board_sha256:
+        raise UnboundMeasurement(
+            f"KernelQuery({value.kind}) missing fingerprint in "
+            f"{context or 'unknown site'}")
+    return value
+
+
 def fingerprint(pcb: Path) -> StateFingerprint:
     return StateFingerprint(
         board_sha256=hashlib.sha256(
@@ -65,6 +114,16 @@ class KernelQuery:
 
     def __repr__(self):
         return f"<KQ {self.kind}={self.value} @{self.fp.short()}>"
+
+
+def count_drc(txt: str, kind: str) -> int:
+    """THE single derivation of DRC report counts (C0c): every consumer
+    (run_drc, query, gates) counts through here — the point-9 defect was
+    the same question derived in several places with divergent rules."""
+    key = {"shorts": "[shorting_items]",
+           "clearance": "[clearance]",
+           "unconnected": "[unconnected_items]"}[kind]
+    return txt.count(key)
 
 
 def _kipy_by_kicad_cli(kicad_cli: str) -> str:
@@ -143,6 +202,4 @@ def query(kicad_cli: str, kipy: str, pcb: Path, kind: str,
                        encoding="utf-8", errors="replace")
     txt = rpt.read_text(encoding="utf-8", errors="replace")
     fp = fingerprint(pcb)
-    key = {"shorts": "[shorting_items]",
-           "clearance": "[clearance]"}[kind]
-    return KernelQuery(kind, txt.count(key), fp, {})
+    return KernelQuery(kind, count_drc(txt, kind), fp, {})

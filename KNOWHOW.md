@@ -517,3 +517,27 @@ handoff=[IO6,EN]——R4产物链完整落地。
 - severity政策修正：track/via_dangling+starved_thermal暂留ignore（FR注入固有断头桩会以~900违例淹没drc_zero，
   待桩清理pass后解禁——_DEFERRED_FUNCTIONAL清单跟踪）；unconnected_items永不回填（真连通性检查）
 - devboard J1/J2备用脚公式bug（len(row)<n_pins时覆盖信号脚）已修：备用GND只落在(len(row), n_pins]区间
+
+## K22 C轮：闭环信息传递机制 + 信息地基硬契约（2026-10-27 12缺陷点全修轮）
+
+泛化为: kernel/{intel,decision,constraints}.py（闭环三通道）+ kernel/state 硬契约(UnboundMeasurement/require_fp/SEMANTICS/count_drc) + _closed_loop（终止=0开路0短路）+ test_kernel 契约锁组。
+契约: 读=kernel.state.query（唯一测量入口，指纹强制）；写=Typed Decision→Txn（校验拒绝带fix-it回流、回滚带不变量明细回流）；语义前提=SEMANTICS 注册表（语义变更必须升版本）+ SEVERITIES_POLICY_VERSION。
+
+### 为什么"笑掉大牙"的错误之前从没被发现（诚实复盘）
+K7-K20 是救火式开发：错误是**作为"修复"被引入的**——severity 校准是为压 DRC 噪声（校准掉 79 开路的那次），裸数字是求快省事，warning 级不变量是为兼容旧产物。引入时没有语义契约、没有不变量测试，所以它们从未作为 bug 显形，只作为"能跑"存在。KNOWHOW 记录了事故，代码沉淀的是事故补丁——开发流程本身（按板救火、每轮最小修复、无设计闸门）就是缺陷载体。流程教训：任何补丁必须同时声明"契约:"与"泛化为:"，语义级测试与补丁同提交（lint.py 强制，K22 起生效）。
+
+### 12 缺陷点→修复映射（C 轮）
+- 点1 行业配方定位 → 目标=全自动零开路+迭代（闭环终止条件唯一）
+- 点2 DAG 无回边 → C3 _closed_loop（失败态→上游再生是合法边：reassign 再生成/挪器件/跳线/换脚均为回路一等动作）
+- 点3 绑定无下游约束+双向缺失 → C2 决策双向协议（校验拒绝带 fix-it 回流）+ C4 约束上行（escape_preferences→FC_PIN_OVERRIDE→mcu_ball_nets 契约，板+原理图同源）
+- 点4 失败不带修复动作 → C1 flexibility 柔性矩阵（每网候选动作+预期效果）+ C2 fix-it
+- 点6 下游 bug←上游因 → C1 归因（escape-crossing 的因在 pin 分配）+ C4 上游代价项
+- 点7/8 大拼盘 → C1 SituationReport 唯一情报载体（LLM 汇总，规则回退）
+- 点9/11 配置静默改语义 → SEMANTICS 注册表+SEVERITIES_POLICY_VERSION+测试快照锁
+- 点10 测量不绑定状态 → KernelQuery 唯一类型+require_fp 硬异常
+- 点12 warning 级不变量 → UnboundMeasurement 抛异常（不变量没有宽容模式）
+
+### C1/C2/C3 机制要点
+- intel.build: 多维（测量+分类+几何+历史+约束）→一份报告；synthesize: LLM 在线=统一评估（状态+根因排序+动作候选），离线=规则回退（分类学×动作映射，同输出形状）
+- decision: ACTION_CONTRACT 类型检查，拒绝=fixit（违反哪条/差多少/替代候选）回流 journal；Txn 结果（含回滚原因）回流 journal——下一轮情报读 journal
+- _closed_loop: measure→intel→decide→validate→Txn→record→measure；候选动作队列（评估序+每网柔性候选）防重复（tried 集）；预算耗尽出归因（不伪装成功）

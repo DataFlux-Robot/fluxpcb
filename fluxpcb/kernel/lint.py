@@ -30,4 +30,6 @@ def lint_knowhow(path: Path, first_kernel_round: int = 21) -> list:
         body = txt[start:start + (nxt.start() if nxt else len(txt))]
         if "泛化为" not in body and "个案" not in body:
             bad.append(f"{heading}: 缺少'泛化为:'标注（或显式'个案'）")
+        if knum >= 22 and "契约" not in body and "个案" not in body:
+            bad.append(f"{heading}: 缺少'契约:'声明(读什么/写什么/语义前提)")
     return bad

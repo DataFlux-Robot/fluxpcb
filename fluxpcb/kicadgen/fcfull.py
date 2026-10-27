@@ -77,15 +77,41 @@ def gen_hdr3x08(out_path: Path) -> Path:
     return out_path
 
 
-def mcu_ball_nets() -> dict[str, str]:
-    """ball -> net for every used MCU ball (FC_WANT + TIM3_CS2 + power)."""
+def mcu_ball_nets(project_dir: Path | None = None) -> dict[str, str]:
+    """ball -> net for every used MCU ball (FC_WANT + TIM3_CS2 + power).
+
+    C4 contract: FC_PIN_OVERRIDE.json ({net: new_ball}, written by the
+    closed loop's reassign_pins action) swaps escape-crossing nets to
+    better balls. Both board() and schematic() read through this single
+    function, so the two can never diverge again (kernel catch #2)."""
     from fluxpcb.kicadgen import mcu_db
     pins = mcu_db.load_st_xml(mcu_db.MCU_CONFIG["h743"]["xml"])
     pwm = dict(mcu_db.FC_PWM_MAP)
     pwm.update(FC_LOCAL_PWM)
-    return mcu_db.build_ball_nets("h743", pins,
-                                  want=mcu_db.FC_WANT + list(FC_LOCAL_PWM),
-                                  pwm_map=pwm)
+    ball_nets = mcu_db.build_ball_nets("h743", pins,
+                                       want=mcu_db.FC_WANT + list(FC_LOCAL_PWM),
+                                       pwm_map=pwm)
+    import json as _json
+    _base = project_dir if project_dir else Path(__file__).resolve().parents[2]
+    for cand in (_base / "FC_PIN_OVERRIDE.json",):
+        if not cand.exists():
+            continue
+        try:
+            ov = _json.loads(cand.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            continue
+        net_to_ball = {net: ball for ball, net in ball_nets.items()}
+        for net_name, new_ball in ov.items():
+            old_ball = net_to_ball.get(net_name)
+            if old_ball is None or new_ball == old_ball:
+                continue
+            displaced = ball_nets.get(new_ball, "")
+            ball_nets[new_ball] = net_name
+            if displaced:
+                ball_nets[old_ball] = displaced
+            else:
+                ball_nets.pop(old_ball, None)
+    return ball_nets
 
 
 class LocalFp(Fp):
@@ -260,9 +286,9 @@ NETS = [
 ]
 
 
-def board() -> Board:
+def board(project_dir: Path | None = None) -> Board:
     from fluxpcb.kicadgen import mcu_db as _mdb
-    ball_nets = mcu_ball_nets()
+    ball_nets = mcu_ball_nets(project_dir)
     b = Board(SLUG, W, H, sorted(set(NETS)), n_layers=6)
     pl = placement_refined()
 
@@ -400,7 +426,7 @@ def write_board(project_dir: Path) -> Path:
                          + "; ".join(issues[:4]))
     out = project_dir / "pcb" / "board" / (SLUG + ".kicad_pcb")
     out.parent.mkdir(parents=True, exist_ok=True)
-    pcb_write(board(), out)
+    pcb_write(board(project_dir), out)
     return out
 
 
@@ -444,8 +470,8 @@ def _sensor_symdef(name: str, pinmap: dict, lib: str) -> SymDef:
     return SymDef(f"flux:{lib}", pins, ref_prefix="U")
 
 
-def schematic() -> Schematic:
-    ball_nets = mcu_ball_nets()
+def schematic(project_dir: Path | None = None) -> Schematic:
+    ball_nets = mcu_ball_nets(project_dir)
     sp = json.loads((FCLIB / "sensor_pinmaps.json").read_text(encoding="utf-8"))
 
     sch = Schematic(title=SLUG, project=SLUG)
@@ -580,5 +606,5 @@ def write_schematic(project_dir: Path) -> Path:
     from fluxpcb.kicadgen.schematic import write as sch_write
     out = project_dir / "schematic" / "board" / (SLUG + ".kicad_sch")
     out.parent.mkdir(parents=True, exist_ok=True)
-    sch_write(schematic(), out)
+    sch_write(schematic(project_dir), out)
     return out

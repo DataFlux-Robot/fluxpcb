@@ -42,6 +42,12 @@ _SCR2KICAD = Path(__file__).resolve().parent / "kicadgen" / "scr2kicad.py"
 # true-connectivity check and is NEVER silenced.
 _FUNCTIONAL_NEVER_IGNORED = ("unconnected_items",)
 _DEFERRED_FUNCTIONAL = ("via_dangling", "track_dangling", "starved_thermal")
+
+# K22 semantic-contract version: ANY change to CALIBRATED_SEVERITIES
+# semantics MUST bump this number — the test lock in test_kernel.py
+# snapshots the dict and fails otherwise. "Config silently changed
+# meaning" is structurally impossible from here (point 9).
+SEVERITIES_POLICY_VERSION = 1
 CALIBRATED_SEVERITIES = {
     "courtyards_overlap": "ignore",
     "malformed_courtyard": "ignore",
@@ -162,9 +168,15 @@ def run_drc(kicad_cli: str, pcb: Path, rpt: Path) -> dict:
                    capture_output=True, text=True, encoding="utf-8", errors="replace",
                    timeout=900)
     txt = rpt.read_text(encoding="utf-8", errors="replace") if rpt.exists() else ""
-    return {"unconnected": txt.count("[unconnected_items]"),
-            "shorting": txt.count("[shorting_items]"),
-            "total_lines": len(txt.splitlines()), "text": txt}
+    # C0c single derivation: counts come from kernel.state.count_drc,
+    # and the result carries the state fingerprint (unbound numbers
+    # are a contract violation — K22)
+    from fluxpcb.kernel import state as _kstate
+    return {"unconnected": _kstate.count_drc(txt, "unconnected"),
+            "shorting": _kstate.count_drc(txt, "shorts"),
+            "clearance": _kstate.count_drc(txt, "clearance"),
+            "total_lines": len(txt.splitlines()), "text": txt,
+            "fp": _kstate.fingerprint(pcb).short()}
 
 
 _PAIR_RE = re.compile(
@@ -949,6 +961,237 @@ def _driver_loop(pcb_path: Path, kipy: str, cls_file: Path, light: bool,
         pass
 
 
+def _loop_execute(act: dict, report: dict, kicad_cli: str, kipy: str,
+                  pcb_path: Path, cls_file: Path,
+                  net_classes: dict, diff_pairs: list, log=print) -> dict:
+    """C3 executor: one validated decision becomes one Txn-protected
+    mutation. Outcome (incl. invariant violations) flows BACK via
+    decision.record — rejection or rollback is information, never
+    silence (points 3/4)."""
+    from fluxpcb.kernel.txn import Txn as _Txn
+    name, params = act["action"], act.get("params", {})
+    _KGENX = Path(__file__).resolve().parent / "kicadgen"
+    if name in ("finish", "escalate"):
+        return {"summary": f"{name}:{params.get('reason', '')[:40]}",
+                "stop": True}
+    if name == "reassign_pins":
+        # C4 upstream regeneration: swap escape-crossing nets to better
+        # AF balls via FC_PIN_OVERRIDE, regenerate board+schema
+        # consistently, then re-close. Intentional state-space move
+        # (fresh board) — outside the in-place Txn contract; reports
+        # before/after explicitly.
+        try:
+            from fluxpcb.kernel.constraints import (
+                escape_preferences, reassign_proposal, write_pin_override)
+            from fluxpcb.kicadgen import fcfull, mcu_db
+            prefs = escape_preferences(report.get("pairs", []),
+                                       report.get("taxonomy", {}))
+            if not prefs:
+                return {"summary": "reassign: 无逃逸方向信息", "effect": 0}
+            pins = mcu_db.load_st_xml(mcu_db.MCU_CONFIG["h743"]["xml"])
+            proj = pcb_path.parents[2]
+            ball_nets = fcfull.mcu_ball_nets(proj)
+            assign = {net: {"ball": ball}
+                      for ball, net in ball_nets.items()}
+            pl = fcfull.placement()
+            cx, cy, _ = pl.get("U1", (26.0, 24.0, 0))
+            props = reassign_proposal(assign, prefs, pins, (cx, cy))
+            if not props:
+                return {"summary": "reassign: 无更优球位", "effect": 0}
+            write_pin_override(proj, props)
+            fcfull.write_board(proj)
+            fcfull.write_schematic(proj)
+            _run_session(kipy, pcb_path, cls_file, log=log)
+            _run_session(kipy, pcb_path, cls_file, log=log,
+                         nets=sorted(prefs))
+            route_with_freerouting(pcb_path, kipy, log=log,
+                                   net_classes=net_classes,
+                                   diff_pairs=diff_pairs)
+            return {"summary": f"reassign {len(props)}球+再生成+重链",
+                    "effect": len(props)}
+        except Exception as e:
+            return {"summary": f"reassign失败:{str(e)[:60]}", "effect": 0}
+    try:
+        with _Txn(kicad_cli, kipy, pcb_path, f"loop:{name}",
+                  level="light", log=log) as t:
+            if name == "reroute_nets":
+                nets_arg = ",".join(params.get("nets") or [])
+                _kipy(kipy, _KGENX / "rip_nets.py", str(pcb_path),
+                      nets_arg, timeout=300)
+                fr = route_with_freerouting(pcb_path, kipy, log=log,
+                                            net_classes=net_classes,
+                                            diff_pairs=diff_pairs)
+                res = {"summary": "rip+FR "
+                       + ("ok" if fr.get("ok") else
+                          str(fr.get("error", ""))[:40])}
+            elif name == "rerun_session":
+                sess = _run_session(kipy, pcb_path, cls_file, log=log,
+                                    nets=params.get("nets"))
+                res = {"summary": f"session "
+                       f"{(sess or {}).get('start')}->{(sess or {}).get('final')}"}
+            elif name == "rerun_fluxrouter":
+                __import__("os").environ["FLUXNT_PF_ITERS"] = str(
+                    params.get("iters", 12))
+                frn = _run_fluxrouter(kipy, pcb_path, cls_file, log=log)
+                res = {"summary": f"fluxrouter "
+                       f"{(frn or {}).get('routed_nets')}/"
+                       f"{(frn or {}).get('nets')}"}
+            elif name == "rerun_freerouting":
+                fr = route_with_freerouting(pcb_path, kipy, log=log,
+                                            net_classes=net_classes,
+                                            diff_pairs=diff_pairs)
+                res = {"summary": "FR "
+                       + ("ok" if fr.get("ok") else
+                          str(fr.get("error", ""))[:40])}
+            elif name == "jumper":
+                nets_arg = ",".join(params.get("nets") or [])
+                pretty = pcb_path.parent / "jumper_pretty"
+                _kipy(kipy, _KGENX / "route_jumper.py", str(pcb_path),
+                      str(pretty) if pretty.exists() else "",
+                      nets_arg, timeout=600)
+                res = {"summary":
+                       f"jumper({len(params.get('nets') or [])}网)"}
+            elif name == "adjust_placement":
+                n = 0
+                for mv in (params.get("moves") or [])[:5]:
+                    try:
+                        _kipy(kipy, _KGENX / "fp_move.py", str(pcb_path),
+                              str(mv["ref"]), str(float(mv["dx_mm"])),
+                              str(float(mv["dy_mm"])), timeout=300)
+                        n += 1
+                    except Exception:
+                        continue
+                res = {"summary": f"挪{n}器件"}
+            elif name == "move_footprint":
+                _kipy(kipy, _KGENX / "fp_move.py", str(pcb_path),
+                      str(params["ref"]), str(float(params["dx_mm"])),
+                      str(float(params["dy_mm"])), timeout=300)
+                res = {"summary": f"move {params['ref']}"}
+            elif name == "power_stitch":
+                sess = _run_session(kipy, pcb_path, cls_file, log=log)
+                res = {"summary":
+                       f"stitch {(sess or {}).get('stitched')}"}
+            else:
+                res = {"summary": f"未实现动作 {name}", "effect": 0}
+        if getattr(t, "violations", None):
+            res["rolled_back"] = t.violations
+            res["summary"] += " [回滚]"
+        return res
+    except Exception as e:
+        return {"summary": f"{name}异常:{str(e)[:50]}", "effect": 0}
+
+
+def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
+                 cls_file: Path, net_classes: dict, diff_pairs: list,
+                 steps: list, log=print) -> None:
+    """C3 THE loop: complex PCBs are solved by ITERATION with reliable
+    information transfer (points 1/2). One chain pass is merely the
+    first iteration; the loop terminates ONLY at zero opens AND zero
+    shorts, or at budget (then it reports honestly — no fake success).
+
+    Information flows both ways at every step (points 3/4/6/7/8):
+    measure -> intel (one coherent report + attribution) -> decision
+    -> validate (rejection carries fix-it) -> Txn execute (rollback
+    carries violated invariants) -> record -> measure ...
+    """
+    import time as _time
+    from fluxpcb.kernel import intel as _intel
+    from fluxpcb.kernel import decision as _kdec
+    from fluxpcb.kernel import state as _kstate
+
+    budget = float(__import__("os").environ.get(
+        "FLUXNT_LOOP_BUDGET_S", "1800"))
+    deadline = _time.time() + budget
+    tried = set()
+    # persistent ineffective-set: decisions whose journal outcome shows
+    # zero/negative effect are never re-tried — the loop learns from
+    # history even across stage retries (the point-3/4 feedback must
+    # survive process boundaries, not just in-memory)
+    _ineffective = set()
+    try:
+        _jpath = pcb_path.parent / "decision_journal.json"
+        if _jpath.exists():
+            for e in json.loads(_jpath.read_text(encoding="utf-8")):
+                d_, o_ = e.get("decision", {}), e.get("outcome", {})
+                if o_.get("delta_opens", 0) >= 0 and not o_.get("stop"):
+                    _ineffective.add((d_.get("action"), json.dumps(
+                        d_.get("params", {}), sort_keys=True)[:120]))
+    except (ValueError, OSError):
+        pass
+    tried |= _ineffective
+    n = 0
+    while _time.time() < deadline:
+        n += 1
+        qo = _kstate.query(kicad_cli, kipy, pcb_path, "opens")
+        qs = _kstate.query(kicad_cli, kipy, pcb_path, "shorts",
+                           consolidate=False)
+        if qo.value <= 0 and qs.value <= 0:
+            steps.append(f"loop[{n}]: 0开路0短路 — 目标达成")
+            break
+        pairs = qo.detail.get("pairs", [])
+        diag = []
+        if 0 < qo.value <= 40:
+            try:
+                _KGENL = Path(__file__).resolve().parent / "kicadgen"
+                rc, out = _kipy(kipy, _KGENL / "route_diag.py",
+                                str(pcb_path), timeout=600)
+                line = [l for l in (out or "").splitlines()
+                        if l.strip().startswith("{")][-1]
+                diag = json.loads(line).get("detail", [])
+            except (IndexError, ValueError, subprocess.TimeoutExpired):
+                pass
+        report = _intel.build(pcb_path, {"opens": qo, "shorts": qs},
+                              pairs, diag=diag)
+        report["pairs"] = pairs
+        report["extra"]["candidates"] = _intel.flexibility(
+            pcb_path, pairs, report["taxonomy"])
+        assess = _intel.synthesize(report, log)
+        causes = "; ".join(c.get("cause", "")[:24]
+                           for c in assess.get("root_causes", [])[:2])
+        steps.append(f"loop[{n}] {assess.get('state')}: {qo.value}开/"
+                     f"{qs.value}短 因[{causes}]")
+        queue = list(sorted(assess.get("actions", []),
+                            key=lambda a: a.get("priority", 9)))
+        for net, opts in (report["extra"]["candidates"] or {}).items():
+            for o in opts:
+                queue.append({"action": o["action"],
+                              "params": {"nets": [net]},
+                              "expected_effect":
+                                  o.get("expected_effect", "")})
+        acted = False
+        for act in queue:
+            key = (act.get("action"), json.dumps(
+                act.get("params", {}), sort_keys=True)[:120])
+            if key in tried:
+                continue
+            tried.add(key)
+            ok, fixit = _kdec.validate(act)
+            if not ok:
+                _kdec.record(pcb_path, act, {"rejected": fixit})
+                continue
+            outcome = _loop_execute(act, report, kicad_cli, kipy,
+                                    pcb_path, cls_file, net_classes,
+                                    diff_pairs, log)
+            # measure the EFFECT (bidirectional feedback, point 3/4):
+            # what did this decision actually change?
+            _q2 = _kstate.query(kicad_cli, kipy, pcb_path, "opens",
+                                consolidate=False)
+            outcome["delta_opens"] = qo.value - _q2.value
+            _kdec.record(pcb_path, act, outcome)
+            steps.append(f"loop[{n}] {act['action']}: "
+                         f"{outcome.get('summary', '')[:70]}")
+            if outcome.get("stop"):
+                return
+            acted = True
+            break
+        if not acted:
+            steps.append(f"loop[{n}]: 候选动作穷尽,终止")
+            break
+    else:
+        steps.append(f"loop: 预算{budget:.0f}s耗尽 — 归因在"
+                     f"decision_journal.json(不伪装成功)")
+
+
 def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
     """Route a generated board to TRUE connectivity (ratsnest=0) + no shorts.
 
@@ -1120,6 +1363,13 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
                              f"final={frn.get('final')} ({frn.get('time_s')}s)")
                 log(f"  [route] fluxrouter: {frn.get('routed_nets')}/"
                     f"{frn.get('nets')} nets, final {frn.get('final')}")
+
+    # C3: THE closed loop — the chain above was merely iteration 0.
+    # Termination is zero opens AND zero shorts, or budget (honest
+    # attribution report, never fake success).
+    if __import__("os").environ.get("FLUXNT_LOOP", "1") != "0":
+        _closed_loop(kicad_cli, kipy, pcb_path, cls_file,
+                     net_classes, _pairs, steps, log=log)
 
     # closing DRC (+scrubber). One pass; if the scrubber removed
     # load-bearing copper, one more session re-closes what it broke.

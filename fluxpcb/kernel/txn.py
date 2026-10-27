@@ -57,6 +57,8 @@ class Txn:
         self.log = log
         self._snap: Path | None = None
         self.pre: dict = {}
+        self.violations: list = []      # outcome flow-back (C2): what
+                                        # the invariants caught
 
     # -- invariant measurement needs consolidated state, but full-level
     # I3 uses the DRC the critical boundaries already produce
@@ -84,13 +86,15 @@ class Txn:
     def __exit__(self, exc_type, exc, tb):
         if exc_type is not None:
             self._restore()
-            self._record(False, [f"engine-exception:{exc_type.__name__}"])
+            self.violations = [f"engine-exception:{exc_type.__name__}"]
+            self._record(False, self.violations)
             return False                       # propagate the error
         post = self._measure()
         violations = check_level(self.level, self.pre, post,
                                  tolerance=self.tol)
         if violations:
             self._restore()
+            self.violations = violations
             self._record(False, violations)
             self.log(f"  [kernel] TXN {self.name} 回滚: "
                      f"{'; '.join(violations)[:120]}")

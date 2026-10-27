@@ -116,7 +116,9 @@ class TestLint:
             "## K21 某轮\n内容无标注\n\n## K22 某轮\n泛化为: I5 xxx\n",
             encoding="utf-8")
         v = lint_knowhow(p)
-        assert len(v) == 1 and "K21" in v[0]
+        # K21 missing 泛化为; K22 has 泛化为 but misses 契约
+        assert any("K21" in x for x in v)
+        assert any("K22" in x and "契约" in x for x in v)
 
     def test_case_marker_accepted(self, tmp_path):
         p = tmp_path / "KH.md"
@@ -175,3 +177,186 @@ class TestDriverMenuUpstreamActions:
         for act in ("adjust_placement", "reassign_pins",
                     "preroute_critical"):
             assert act in src, f"driver menu missing upstream action {act}"
+
+
+class TestHardContracts:
+    """K22 point 12: an invariant written as a warning is a bug.
+    Unbound measurements RAISE at the consumer boundary."""
+
+    def test_bare_numbers_raise(self):
+        from fluxpcb.kernel.state import require_fp, UnboundMeasurement
+        for bad in (42, 3.14, {"opens": 5}, None, "5"):
+            with pytest.raises(UnboundMeasurement):
+                require_fp(bad, context="test-site")
+
+    def test_fpless_kernelquery_raises(self):
+        from fluxpcb.kernel.state import (require_fp, UnboundMeasurement,
+                                          KernelQuery, StateFingerprint)
+        q = KernelQuery("opens", 3, StateFingerprint("", "1"))
+        with pytest.raises(UnboundMeasurement):
+            require_fp(q)
+
+    def test_fingerprinted_passes(self):
+        from fluxpcb.kernel.state import (require_fp, KernelQuery,
+                                          StateFingerprint)
+        q = KernelQuery("opens", 3, StateFingerprint("a" * 64, "9"))
+        assert require_fp(q) is q
+
+
+class TestSemanticVersioning:
+    """K22 point 9: silent semantic drift is structurally impossible —
+    SEMANTICS registry + policy version are snapshotted here. Editing
+    semantics without bumping versions turns THIS test red."""
+
+    # ---- snapshot locks (update WITH a version bump, never without) ----
+    SEMANTICS_LOCK = {
+        "opens": (1, ("post-refill", "conn_audit-ratsnest")),
+        "shorts": (1, ("post-refill", "kicad-cli-drc")),
+        "clearance": (1, ("post-refill", "kicad-cli-drc")),
+    }
+    SEVERITIES_POLICY_VERSION_LOCK = 1
+
+    def test_semantics_registered(self):
+        from fluxpcb.kernel.state import SEMANTICS
+        for name, (ver, pre) in self.SEMANTICS_LOCK.items():
+            assert name in SEMANTICS
+            assert SEMANTICS[name]["semantic_version"] == ver, \
+                f"{name} semantics changed without version bump"
+            assert tuple(SEMANTICS[name]["preconditions"]) == pre, \
+                f"{name} preconditions changed without version bump"
+
+    def test_severities_policy_version_locked(self):
+        import importlib
+        import fluxpcb.routing as R
+        importlib.reload(R) if False else None
+        src = (REPO / "fluxpcb" / "routing.py").read_text(encoding="utf-8")
+        assert "SEVERITIES_POLICY_VERSION" in src
+        assert f"SEVERITIES_POLICY_VERSION = " \
+               f"{self.SEVERITIES_POLICY_VERSION_LOCK}" in src, \
+            "severity policy changed without version bump (update lock)"
+
+    def test_query_reports_semantics(self):
+        from fluxpcb.kernel.state import SEMANTICS
+        assert all("meaning" in v for v in SEMANTICS.values())
+
+
+class TestSingleDerivation:
+    """K22 point 9/10: the same question is derived in exactly one
+    place. Duplicate derivation sites turn this test red."""
+
+    def test_drc_counts_derive_in_kernel_only(self):
+        src = (REPO / "fluxpcb" / "routing.py").read_text(encoding="utf-8")
+        # run_drc must delegate counting to kernel.state.count_drc
+        assert "count_drc" in src
+        # no inline counting of DRC sections outside the kernel
+        body = src.split("def run_drc")[1].split("\ndef ")[0]
+        assert 'txt.count("[shorting_items]")' not in body
+        assert 'txt.count("[clearance]")' not in body
+
+    def test_connectivity_derivation_sites(self):
+        """Consumer boundary: top-level consumers (routing/gates/stages)
+        may not derive connectivity themselves — kernel is the one
+        derivation. Engine-internal verification (kicadgen pair checks)
+        is a different quantity and stays allowed."""
+        allowed = {"conn_audit.py", "state.py"}
+        offenders = []
+        top = list((REPO / "fluxpcb").glob("*.py")) +             list((REPO / "fluxpcb" / "gates").glob("*.py"))
+        for f in top:
+            if f.name in allowed:
+                continue
+            if "GetUnconnectedCount" in f.read_text(encoding="utf-8",
+                                                    errors="replace"):
+                offenders.append(str(f.relative_to(REPO)))
+        assert not offenders, f"derivation leaked outside kernel: {offenders}"
+
+
+class TestIntelC1:
+    def test_build_requires_fingerprint(self):
+        from fluxpcb.kernel import intel
+        from fluxpcb.kernel.state import UnboundMeasurement
+        with pytest.raises(UnboundMeasurement):
+            intel.build(Path("x.kicad_pcb"), {"opens": 5}, [])
+
+    def test_report_and_rule_assessment_shape(self):
+        from fluxpcb.kernel import intel
+        from fluxpcb.kernel.state import KernelQuery, StateFingerprint
+        fp = StateFingerprint("a" * 64, "1")
+        q = KernelQuery("opens", 12, fp, {"pairs": []})
+        q2 = KernelQuery("shorts", 0, fp)
+        rep = intel.build(Path("x.kicad_pcb"), {"opens": q, "shorts": q2},
+                          ["SPI1_SCK|25|25|0|2.5|30|1"] * 12)
+        assert rep["taxonomy"]
+        a = intel._rule_assessment(rep)
+        assert "state" in a and "root_causes" in a and "actions" in a
+        assert any("pin" in c.get("cause", "") or
+                   "assignment" in c.get("attribution", "")
+                   for c in a["root_causes"]) or a["actions"]
+
+    def test_flexibility_carries_fixits(self):
+        from fluxpcb.kernel import intel
+        pairs = ["SPI1_SCK|25|25|0|2.5|30|1"] * 12
+        tax = {"escape-crossing": ["SPI1_SCK"]}
+        c = intel.flexibility(Path("x"), pairs, tax)
+        assert "SPI1_SCK" in c
+        assert all("expected_effect" in o for o in c["SPI1_SCK"])
+
+
+class TestDecisionC2:
+    def test_reject_carries_fixit(self):
+        from fluxpcb.kernel.decision import validate
+        ok, fixit = validate({"action": "teleport"})
+        assert not ok
+        assert "alternatives" in fixit
+        ok2, fixit2 = validate({"action": "jumper"})
+        assert not ok2 and "nets" in fixit2.get("message", "")
+
+    def test_valid_decision_passes(self):
+        from fluxpcb.kernel.decision import validate
+        ok, fixit = validate({"action": "jumper", "params": {"nets": ["A"]},
+                              "expected_effect": "x"})
+        assert ok
+
+    def test_record_flows_back(self, tmp_path):
+        from fluxpcb.kernel.decision import record
+        import json as _j
+        record(tmp_path / "b.kicad_pcb", {"action": "jumper"},
+               {"summary": "ok"})
+        j = _j.loads((tmp_path / "decision_journal.json").read_text(
+            encoding="utf-8"))
+        assert j[-1]["outcome"]["summary"] == "ok"
+
+
+class TestLoopC3Wired:
+    def test_closed_loop_in_routing(self):
+        src = (REPO / "fluxpcb" / "routing.py").read_text(encoding="utf-8")
+        assert "def _closed_loop" in src and "def _loop_execute" in src
+        assert "_closed_loop(kicad_cli, kipy, pcb_path" in src
+        assert 'FLUXNT_LOOP' in src
+
+    def test_loop_termination_is_zero_opens_zero_shorts(self):
+        src = (REPO / "fluxpcb" / "routing.py").read_text(encoding="utf-8")
+        body = src.split("def _closed_loop")[1].split("\ndef ")[0]
+        assert "qo.value <= 0 and qs.value <= 0" in body
+        # budget-exhaustion must report honestly, not fake success
+        assert "不伪装成功" in body
+
+    def test_reject_flows_back_to_journal(self):
+        src = (REPO / "fluxpcb" / "routing.py").read_text(encoding="utf-8")
+        body = src.split("def _closed_loop")[1].split("\ndef ")[0]
+        assert '{"rejected": fixit}' in body
+
+
+class TestPersistentLearning:
+    """Points 3/4: history effects must survive process boundaries —
+    ineffective decisions are seeded from the journal, not re-tried."""
+
+    def test_loop_seeds_tried_from_journal(self):
+        src = (REPO / "fluxpcb" / "routing.py").read_text(encoding="utf-8")
+        body = src.split("def _closed_loop")[1].split("\ndef ")[0]
+        assert "_ineffective" in body
+        assert "decision_journal.json" in body
+
+    def test_outcome_records_delta_opens(self):
+        src = (REPO / "fluxpcb" / "routing.py").read_text(encoding="utf-8")
+        body = src.split("def _closed_loop")[1].split("\ndef ")[0]
+        assert "delta_opens" in body

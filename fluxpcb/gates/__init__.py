@@ -1046,21 +1046,23 @@ def routing_completeness(project_dir: Path, outputs: list[str], cfg: dict) -> Ga
     if not pcbs:
         return GateResult("routing_completeness", GateStatus.BLOCKED, "无PCB文件")
     findings, details = [], {}
-    audit = Path(__file__).resolve().parent.parent / "kicadgen" / "conn_audit.py"
+    # C0c: connectivity derivation lives ONLY in kernel.state — this
+    # gate no longer spawns its own conn_audit logic (the point-9
+    # "same question, many derivations" class is gone)
+    from fluxpcb.kernel import state as _kstate
     for pcb in pcbs:
-        p = _sub.run([kipy, str(audit), str(pcb)], capture_output=True,
-                     timeout=120, encoding="utf-8", errors="replace")
-        try:
-            data = _json.loads([l for l in (p.stdout or "").splitlines()
-                                if l.strip().startswith("{")][0])
-        except (ValueError, IndexError):
+        r = _kstate._conn_audit(kipy, pcb)
+        data = r.get("audit", {})
+        if not data:
             findings.append({"pcb": pcb.name,
-                            "issue": f"audit failed: {(p.stderr or 'no output')[-100:]}"})
+                            "issue": "kernel conn_audit failed"})
             continue
         rn = data.get("unconnected_ratsnest", -1)
         nw = data.get("nets_without_tracks", -1)
+        _fp = _kstate.fingerprint(pcb)
         details[pcb.name] = {"ratsnest_opens": rn, "nets_without_tracks": nw,
                              "total_nets": data.get("total_nets"),
+                             "fp": _fp.short(),          # bound to state
                              "missing": data.get("missing_list", [])[:8]}
         if rn > 0:
             findings.append({"pcb": pcb.name,
