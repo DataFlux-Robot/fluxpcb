@@ -541,3 +541,30 @@ K7-K20 是救火式开发：错误是**作为"修复"被引入的**——severit
 - intel.build: 多维（测量+分类+几何+历史+约束）→一份报告；synthesize: LLM 在线=统一评估（状态+根因排序+动作候选），离线=规则回退（分类学×动作映射，同输出形状）
 - decision: ACTION_CONTRACT 类型检查，拒绝=fixit（违反哪条/差多少/替代候选）回流 journal；Txn 结果（含回滚原因）回流 journal——下一轮情报读 journal
 - _closed_loop: measure→intel→decide→validate→Txn→record→measure；候选动作队列（评估序+每网柔性候选）防重复（tried 集）；预算耗尽出归因（不伪装成功）
+
+## K23 V轮：四流派×组合对照实验（2026-10-27 语料驱动轮）
+
+泛化为: kernel/rules.py（规则单源+加载探针）+ geomir.via_ok（via立体验证）+ 严格变好门禁（_closed_loop strict gate）+ direct_link落板重验 + widen_net/corridor_rescue 动作 + test_geomir 四流派测试组。
+契约: 读=kernel.rules.load_rules（规则唯一来源，带provenance）+ geomir计划（带状态指纹）；写=direct_link落板前必须按当前板重验（plan→execute失绑是短路来源）；语义前提=via_r=实际放置尺寸(0.25)非设计下限。
+
+### 实验矩阵（mini顽固残差，统一协议1200s预算）
+| 组 | opens | shorts | clr | automation | 机制判定 |
+|---|---|---|---|---|---|
+| T0 基线 | 1 | 10 | — | — | 参照 |
+| T1 via立体验证 | 2 | 2 | 5 | 86.4% | 短路10→2(8/10是via管径类) |
+| T2 规则单源单用 | 9 | 3 | 11 | 36.4% | **恶化**：via_r被规则下限0.4/2=0.2弄松+无门禁时电源网抖动(5→7→10开) |
+| T3 corridor_rescue | **1** | 4 | 7 | **95.5%** | **最佳闭合**但失效计划产短路 |
+| T4 严格门禁 | 2 | **0** | **0** | 81.8% | 干净，3负动作全拦 |
+| T1234 全组合 | 2 | 0 | 0 | 81.8% | =T4：门禁拦下失效direct_link(+5短) |
+
+### 机制级发现（实验的真金）
+1. **plan→execute状态失绑**：direct_link的计划在旧板态验证、画时板已变→+5短（T2/T3）；严格门禁正当拦截（T1234）。修复=落板前按当前板重验（C0契约对计划同样适用）——T1b。
+2. **规则值语义错位**：via_ok误把设计下限(0.4)当实际放置尺寸(0.5)——验证器变松。修复=via_r固定为实际annulus 0.25。这是"验证器拼凑病"的第4处，进一步证明规则单源必须配语义核对。
+3. **负动作毒性**：无门禁时电源网抖动使开路单调恶化(5→7→10)；严格门禁(ByTaymur:新DRC错误或递增开路即阻断)三次精准拦截。
+4. **闭合与干净的互补**：T3闭合力(1开)+T4防劣化(0短)正交——组合预期0/0。
+
+### 选型
+平局(T4=T1234=2/0/0)取简→胜出组合=T1+T4；但机制发现指向 **T1+T1b+T4+T3(安全时)+T2修正** 为0/0路径（TWIN验证组）。
+
+### 语料来源（pcb_analysis 259项目）
+T2=kipilot解析+ByTaymur加载探针+DaCapo7回读；T1=hyuhang822三约束+CyrilKafle坏例法；T3=aiignite widen_net_traces/reroute_net FAT；T4=ByTaymur严格变好门禁。
