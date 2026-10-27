@@ -123,7 +123,7 @@ class TestWiring:
     def test_executors_exist(self):
         for f, tokens in {
             "rip_nets.py": ["sys.argv[2].split(\",\")", "b.Save"],
-            "fp_move.py": ["SetPosition", "GetNetCode() in nets"],
+            "fp_move.py": ["Move(pcbnew.VECTOR2I", "GetNetCode() in nets"],
             "pin_swap.py": ["padA.SetNet(nb)", "padB.SetNet(na)"],
         }.items():
             src = (REPO / "fluxpcb" / "kicadgen" / f).read_text(

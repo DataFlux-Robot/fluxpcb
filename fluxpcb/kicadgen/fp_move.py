@@ -44,5 +44,7 @@ for it in list(b.GetTracks()):
 # Move() is the robust mutation API
 fp.Move(pcbnew.VECTOR2I(int(dx * MM), int(dy * MM)))
 b.Save(pcb)
+_bb = fp.GetBoundingBox()
 print(json.dumps({"moved": True, "ripped": ripped, "nets": net_names,
-                  "to": [round(q.x / MM + dx, 2), round(q.y / MM + dy, 2)]}))
+                  "to": [round((_bb.GetX() + _bb.GetWidth() / 2) / MM, 2),
+                         round((_bb.GetY() + _bb.GetHeight() / 2) / MM, 2)]}))
