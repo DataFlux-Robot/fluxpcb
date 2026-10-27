@@ -1197,8 +1197,12 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
                             key=lambda a: a.get("priority", 9)))
         for net, opts in (report["extra"]["candidates"] or {}).items():
             for o in opts:
+                # USE the candidate's own params — rebuilding as
+                # {"nets": [...]} stripped direct_link's {net, pts,
+                # width} ("缺少参数 net" rejections) and adjust_
+                # placement's {moves}. The candidate IS the decision.
                 queue.append({"action": o["action"],
-                              "params": {"nets": [net]},
+                              "params": o.get("params", {"nets": [net]}),
                               "expected_effect":
                                   o.get("expected_effect", "")})
         acted = False
