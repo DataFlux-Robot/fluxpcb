@@ -149,34 +149,40 @@ def flexibility(pcb_path: Path, pairs: list, taxonomy: dict,
     for cls, nets in taxonomy.items():
         for net in nets:
             act = ACTION_FOR.get(cls, "reroute_nets")
-            opts = [{"action": act,
+            # every candidate MUST carry executable params — the fix-it
+            # contract: a decision without params can never validate
+            opts = [{"action": act, "params": {"nets": [net]},
                      "expected_effect": f"{cls} 解因"}]
             if cls == "escape-crossing":
                 opts.append({"action": "reassign_pins",
+                             "params": {"nets": [net]},
                              "expected_effect": "换 AF 球位消交叉冲突"})
-                opts.append({"action": "jumper",
+                opts.append({"action": "jumper", "params": {"nets": [net]},
                              "expected_effect": "0Ω 跨越封死通道"})
             elif cls == "local-congestion":
-                opts.append({"action": "jumper",
+                opts.append({"action": "jumper", "params": {"nets": [net]},
                              "expected_effect": "0Ω 跨越局部堵点"})
                 opts.append({"action": "adjust_placement",
+                             "params": {"moves": [{"ref": "auto",
+                                                   "dx_mm": 1.0,
+                                                   "dy_mm": 0.0}]},
                              "expected_effect": "挪器件拉开通道"})
             elif cls == "power-fragment":
                 opts.append({"action": "rerun_session",
+                             "params": {"max_ripup": 6},
                              "expected_effect": "power_stitch 重缝合"})
             else:
                 # unclassified persistent opens are the K13 class
                 # (sealed-anchor / transformation-needed): routing retry
                 # is exhausted by definition — give the FULL fallback
                 # ladder, the loop must never lack a next move
-                opts.append({"action": "jumper",
+                opts.append({"action": "jumper", "params": {"nets": [net]},
                              "expected_effect": "0Ω 跨越孤岛(K13闭合机制)"})
                 opts.append({"action": "adjust_placement",
+                             "params": {"moves": [{"ref": "auto",
+                                                   "dx_mm": 1.0,
+                                                   "dy_mm": 0.0}]},
                              "expected_effect": "挪器件开口后再布"})
-                opts.append({"action": "move_footprint",
-                             "expected_effect": "单器件微挪破封死",
-                             "params": {"ref": "_auto_", "dx_mm": 0.8,
-                                        "dy_mm": 0.0}})
             # M3: map-driven path candidates — the decision becomes a
             # PATH with coordinates (the fix-it's final form)
             if plans and net in plans and plans[net].get("paths"):
