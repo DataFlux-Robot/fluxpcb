@@ -34,6 +34,10 @@ ACTION_CONTRACT = {
     "jumper": {"nets": list},
     "direct_link": {"net": str, "pts": list},   # M3: decision = a PATH
                                                 # on the geomir map
+    # T3 FAT-corridor rescue (reroute_net.py trick as a compound action):
+    # inflate the blockers, reroute them (they flee the fat walls),
+    # restore widths — the corridor opens for the target
+    "corridor_rescue": {"target": str, "blockers": list},
     "adjust_placement": {"moves": list},
     "move_footprint": {"ref": str, "dx_mm": float, "dy_mm": float},
     "reassign_pins": {"nets": list},

@@ -145,3 +145,87 @@ class TestProtocol:
             encoding="utf-8")
         assert "plans: dict | None" in src
         assert '"direct_link"' in src
+
+
+class TestT1ViaBarrel:
+    """CyrilKafle methodology: each check proven on a synthetic bad
+    case AND silent on a clean one. The 10 hop-repair shorts = via
+    barrels checked only on the path's layer."""
+
+    def test_via_blocked_by_other_layer_copper(self):
+        # a foreign track on layer 1 near the via site -> barrel shorts
+        segs = [[], [(2, (5.1, 0.0), (5.1, 1.0), 0.1)]]
+        rects = [[], []]
+        ok, bl = geomir.via_ok(5.0, 0.5, 1, segs, rects)
+        assert not ok and bl["type"] == "via-vs-track"
+
+    def test_via_clean(self):
+        segs = [[], [(2, (8.0, 0.0), (8.0, 1.0), 0.1)]]
+        ok, bl = geomir.via_ok(5.0, 0.5, 1, segs, [[], []])
+        assert ok and bl is None
+
+    def test_via_blocked_by_pad(self):
+        rects = [[], [(2, (5.2, 0.5, 0.3, 0.3, 0.0))]]
+        ok, bl = geomir.via_ok(5.0, 0.5, 1, [[], []], rects)
+        assert not ok and bl["type"] == "via-vs-pad"
+
+    def test_hop_repair_requires_via_ok(self):
+        src = (KGEN / "geomir.py").read_text(encoding="utf-8")
+        body = src.split("def _plan_paths_at_width")[1]
+        assert "via_ok(p[0], p[1]" in body and "via_ok(q[0], q[1]" in body
+
+
+class TestT4StrictGate:
+    def test_strict_gate_in_loop(self):
+        src = (REPO / "fluxpcb" / "routing.py").read_text(encoding="utf-8")
+        body = src.split("def _closed_loop")[1].split("\ndef ")[0]
+        assert "strict_rollback" in body
+        assert "_qs_before" in body and "_qs_after" in body
+        # restore-on-regression present
+        assert "_sh4.copy2(_pre_snap, pcb_path)" in body
+
+    def test_delta_shorts_recorded(self):
+        src = (REPO / "fluxpcb" / "routing.py").read_text(encoding="utf-8")
+        assert 'outcome["delta_shorts"]' in src
+
+
+class TestT2RuleTable:
+    """Corpus cures: parse status (kipilot), load probe (ByTaymur),
+    write-then-readback (DaCapo7)."""
+
+    def test_load_reads_pro(self, tmp_path):
+        import json as _j
+        from fluxpcb.kernel import rules
+        pro = tmp_path / "b.kicad_pro"
+        pro.write_text(_j.dumps({
+            "board": {"design_settings": {"rules": {"min_clearance": 0.2}}},
+            "net_settings": {"classes": [{"name": "Default",
+                                          "clearance": 0.2,
+                                          "track_width": 0.25,
+                                          "via_diameter": 0.6,
+                                          "via_drill": 0.3,
+                                          "smd_to_smd_clearance": 0.05}]},
+        }), encoding="utf-8")
+        r = rules.load_rules(tmp_path / "b.kicad_pcb")
+        assert r["clearance"] == 0.2
+        assert r["clearance_smd"] == 0.05
+        assert r["via_dia"] == 0.6
+        assert r["parse"]["source"]["clearance"].startswith("kicad_pro")
+
+    def test_probe_flags_fallback(self, tmp_path):
+        from fluxpcb.kernel import rules
+        r = rules.load_rules(tmp_path / "none.kicad_pcb")
+        bad = rules.verify_loaded(r)
+        assert bad, "fallback-sourced rules must surface in the probe"
+
+    def test_readback_detects_mismatch(self, tmp_path):
+        import json as _j
+        from fluxpcb.kernel import rules
+        pro = tmp_path / "b.kicad_pro"
+        pro.write_text(_j.dumps({"a": {"b": 1}}), encoding="utf-8")
+        assert rules.readback(pro, {"a.b": 1}) == []
+        assert rules.readback(pro, {"a.b": 2})
+
+    def test_geomir_verifier_takes_rules(self):
+        src = (KGEN / "geomir.py").read_text(encoding="utf-8")
+        assert "rules=None" in src and "_kr.load_rules" in src

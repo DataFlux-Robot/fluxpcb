@@ -55,7 +55,10 @@ class CommitGate:
         self.spatial = build_per_layer(gm)
 
     @classmethod
-    def from_board(cls, board, layer_ids, clear_mm=0.17):
+    def from_board(cls, board, layer_ids, clear_mm=None, rules=None):
+        # T2: rule table single source
+        if clear_mm is None:
+            clear_mm = (rules or {}).get("clearance", 0.17)
         """Build directly from board copper (no GridModel rasterization):
         pads -> rects, tracks -> segs, vias -> all-layer zero-length segs."""
         import routegrid as rg

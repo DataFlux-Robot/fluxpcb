@@ -974,6 +974,34 @@ def _loop_execute(act: dict, report: dict, kicad_cli: str, kipy: str,
     if name in ("finish", "escalate"):
         return {"summary": f"{name}:{params.get('reason', '')[:40]}",
                 "stop": True}
+    if name == "corridor_rescue":
+        # T3: widen blockers (FAT) -> rip+FR them away -> restore.
+        # The fat walls FORCE the blockers' new routes out of the
+        # corridor (reroute_net.py's proven trick, compound form).
+        import json as _j3
+        bl = ",".join(params.get("blockers") or [])
+        try:
+            with _Txn(kicad_cli, kipy, pcb_path, "loop:corridor_rescue",
+                      level="light", log=log) as t:
+                _kipy(kipy, _KGENX / "widen_net.py", str(pcb_path), bl,
+                      "1.5", timeout=300)
+                _kipy(kipy, _KGENX / "rip_nets.py", str(pcb_path), bl,
+                      timeout=300)
+                route_with_freerouting(pcb_path, kipy, log=log,
+                                       net_classes=net_classes,
+                                       diff_pairs=diff_pairs)
+                _kipy(kipy, _KGENX / "widen_net.py", str(pcb_path), bl,
+                      "--restore", str(pcb_path) + ".widths.json",
+                      timeout=300)
+            res = {"summary": f"corridor_rescue {params.get('target')} "
+                              f"vs {params.get('blockers')}"}
+            if getattr(t, "violations", None):
+                res["rolled_back"] = t.violations
+                res["summary"] += " [回滚]"
+            return res
+        except Exception as e:
+            return {"summary": f"corridor_rescue异常:{str(e)[:50]}",
+                    "effect": 0}
     if name == "direct_link":
         # M3: the decision IS a path on the geomir map — draw exactly it
         import json as _j2
@@ -1216,6 +1244,17 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
             if not ok:
                 _kdec.record(pcb_path, act, {"rejected": fixit})
                 continue
+            # T4 STRICT-IMPROVEMENT GATE (ByTaymur/PcbAi corpus rule:
+            # "new DRC errors or increased opens block the application").
+            # Snapshot first — the gate RESTORES on any regression
+            # (jumper d=-1 and direct_link +10-shorts classes die here).
+            _strict = __import__("os").environ.get(
+                "FLUXNT_V_STRICT", "1") != "0"
+            import shutil as _sh4
+            _pre_snap = pcb_path.with_suffix(".strict.bak")
+            _sh4.copy2(pcb_path, _pre_snap)
+            _qs_before = _kstate.query(kicad_cli, kipy, pcb_path, "shorts",
+                                       consolidate=False)
             outcome = _loop_execute(act, report, kicad_cli, kipy,
                                     pcb_path, cls_file, net_classes,
                                     diff_pairs, log)
@@ -1224,6 +1263,23 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
             _q2 = _kstate.query(kicad_cli, kipy, pcb_path, "opens",
                                 consolidate=False)
             outcome["delta_opens"] = qo.value - _q2.value
+            _qs_after = _kstate.query(kicad_cli, kipy, pcb_path, "shorts",
+                                      consolidate=False)
+            _dshorts = _qs_after.value - _qs_before.value
+            outcome["delta_shorts"] = _dshorts
+            if _strict and (_dshorts > 0 or outcome["delta_opens"] < 0):
+                # strict gate: any regression = restore the snapshot
+                # and treat the action as rejected (its side-effects
+                # never reach the board)
+                _sh4.copy2(_pre_snap, pcb_path)
+                outcome["strict_rollback"] = (
+                    f"delta_opens={outcome['delta_opens']} "
+                    f"delta_shorts={_dshorts}")
+                _kdec.record(pcb_path, act, outcome)
+                steps.append(f"loop[{n}] {act['action']}: "
+                             f"严格门禁回滚(+{_dshorts}短/"
+                             f"{-outcome['delta_opens']}开)")
+                continue
             _kdec.record(pcb_path, act, outcome)
             steps.append(f"loop[{n}] {act['action']}: "
                          f"{outcome.get('summary', '')[:70]}")

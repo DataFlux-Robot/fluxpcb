@@ -46,6 +46,33 @@ CLEAR_SMD = float(__import__("os").environ.get("FLUXNT_GEOMIR_CLEAR_SMD",
 
 
 # ===================================================== pure planning core
+def via_ok(x, y, nc, segs_by_layer, rects_by_layer, via_r=None,
+           rules=None):
+    """Through-via legality (T1): the barrel crosses EVERY layer, so it
+    must clear foreign copper on ALL of them. The 10 hop-repair shorts
+    came from checking only the path's layer. hyuhang822 rule: via
+    legality = strictest of the three constraints (barrel-vs-copper per
+    layer; hole-to-hole stays with DRC at commit)."""
+    from routegrid import seg_seg_dist, pt_rect_dist
+    _clear = (rules or {}).get("clearance", CLEAR)
+    via_r = (via_r if via_r is not None
+             else (rules or {}).get("via_dia", 0.5) / 2)
+    for li in range(len(segs_by_layer)):
+        for net, s, e, hw in segs_by_layer[li]:
+            if net == nc:
+                continue
+            if seg_seg_dist((x, y), (x, y), s, e) < _clear + hw + via_r:
+                return False, {"type": "via-vs-track", "net": net,
+                               "at": [round(x, 2), round(y, 2)]}
+        for net, rect in rects_by_layer[li]:
+            if net == nc:
+                continue
+            if pt_rect_dist(x, y, rect) < _clear + via_r:
+                return False, {"type": "via-vs-pad", "net": net,
+                               "at": [round(x, 2), round(y, 2)]}
+    return True, None
+
+
 def candidate_polylines(a, b, spans=None, bounds=None):
     """Ordered candidate polylines from a=(x,y) to b=(x,y): the two L
     shapes, then Z shapes with perpendicular mid-offsets both ways
@@ -152,7 +179,7 @@ def slot_waypoints(a, b, segs_by_layer, rects_by_layer, nc, width):
     return out
 
 
-def verify_polyline(pts, width, nc, segs, rects):
+def verify_polyline(pts, width, nc, segs, rects, rules=None):
     """World-geometry verification of one polyline against fixed copper
     lists (same rules as commit_gate — the single geometric truth).
 
@@ -161,6 +188,10 @@ def verify_polyline(pts, width, nc, segs, rects):
     for the fix-it feedback ("violated: X, by how much").
     """
     from routegrid import seg_seg_dist, pt_rect_dist
+    # T2: rule values come from the ONE table when provided (module
+    # constants remain the pure-test defaults)
+    _clear = (rules or {}).get("clearance", CLEAR)
+    _smd = (rules or {}).get("clearance_smd", CLEAR_SMD)
     own = width / 2
     for (p, q) in zip(pts, pts[1:]):
         pad = own + CLEAR + 0.05
@@ -169,12 +200,12 @@ def verify_polyline(pts, width, nc, segs, rects):
         for net, s, e, hw in segs:
             if net == nc:
                 continue
-            if seg_seg_dist(p, q, s, e) < CLEAR + hw + own:
+            if seg_seg_dist(p, q, s, e) < _clear + hw + own:
                 return False, {"type": "track", "net": net,
                                "at": [round((s[0] + e[0]) / 2, 2),
                                       round((s[1] + e[1]) / 2, 2)],
                                "short_by_mm": round(
-                                   CLEAR + hw + own -
+                                   _clear + hw + own -
                                    seg_seg_dist(p, q, s, e), 3)}
         for net, rect in rects:
             if net == nc:
@@ -184,12 +215,12 @@ def verify_polyline(pts, width, nc, segs, rects):
                 t = k / n
                 x, y = p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t
                 d = pt_rect_dist(x, y, rect)
-                if d < CLEAR_SMD + own:
+                if d < _smd + own:
                     return False, {"type": "pad", "net": net,
                                    "at": [round(rect[0], 2),
                                           round(rect[1], 2)],
                                    "short_by_mm": round(
-                                       CLEAR_SMD + own - d, 3)}
+                                       _smd + own - d, 3)}
     return True, None
 
 
@@ -297,7 +328,7 @@ WIDTH_LADDER_DEFAULT = (0.2, 0.15, 0.127, 0.11)
 
 
 def plan_paths(a, b, width, nc, segs_by_layer, rects_by_layer,
-               bounds=None, limit=4, width_ladder=None):
+               bounds=None, limit=4, width_ladder=None, rules=None):
     """Layer-resolved path search — THE single-net repair shape
     (i2c1_reroute: F.Cu -> via -> B.Cu -> via -> F.Cu):
       * plain polylines on EACH layer (a layer-0 path only fights
@@ -321,7 +352,7 @@ def plan_paths(a, b, width, nc, segs_by_layer, rects_by_layer,
                                       nc, width))
         _plan_paths_at_width(a, b, width, nc, segs_by_layer,
                              rects_by_layer, nlay, all_cands,
-                             verified, rejects, limit)
+                             verified, rejects, limit, rules)
         if len(verified) >= limit:
             break
     verified.sort(key=lambda v: (v["length_mm"], -v.get("width", 0.2)))
@@ -329,14 +360,15 @@ def plan_paths(a, b, width, nc, segs_by_layer, rects_by_layer,
 
 
 def _plan_paths_at_width(a, b, width, nc, segs_by_layer, rects_by_layer,
-                         nlay, all_cands, verified, rejects, limit):
+                         nlay, all_cands, verified, rejects, limit,
+                         rules=None):
     for li in range(nlay):
         for cand in all_cands:
             bad_seg = None
             for (p, q) in zip(cand, cand[1:]):
                 ok, blocker = verify_polyline(
                     [(p[0], p[1]), (q[0], q[1])], width, nc,
-                    segs_by_layer[li], rects_by_layer[li])
+                    segs_by_layer[li], rects_by_layer[li], rules)
                 if not ok:
                     bad_seg = (p, q, blocker)
                     break
@@ -358,8 +390,14 @@ def _plan_paths_at_width(a, b, width, nc, segs_by_layer, rects_by_layer,
                 quiet = 1 - li
                 ok2, blk2 = verify_polyline(
                     [(p[0], p[1]), (q[0], q[1])], width, nc,
-                    segs_by_layer[quiet], rects_by_layer[quiet])
-                if ok2:
+                    segs_by_layer[quiet], rects_by_layer[quiet], rules)
+                # T1: the vias' barrels cross ALL layers — verify them
+                # in 3D before accepting the hop (the 10-shorts bug)
+                v_ok = (via_ok(p[0], p[1], nc, segs_by_layer,
+                               rects_by_layer, rules=rules)[0]
+                        and via_ok(q[0], q[1], nc, segs_by_layer,
+                                   rects_by_layer, rules=rules)[0])
+                if ok2 and v_ok:
                     out = []
                     for pt in cand:
                         out.append([round(pt[0], 3), round(pt[1], 3), li])
@@ -408,8 +446,14 @@ def _plan_paths_at_width(a, b, width, nc, segs_by_layer, rects_by_layer,
                               a[1] + (b[1] - a[1]) * t + py * off))
         for quiet in range(1, nlay):
             for va in sites:
+                if not via_ok(va[0], va[1], nc, segs_by_layer,
+                              rects_by_layer, rules=rules)[0]:
+                    continue
                 for vb in sites:
                     if abs(va[0] - vb[0]) + abs(va[1] - vb[1]) < 1.5:
+                        continue
+                    if not via_ok(vb[0], vb[1], nc, segs_by_layer,
+                                  rects_by_layer, rules=rules)[0]:
                         continue
                     if len(verified) >= 3:
                         break
@@ -573,6 +617,18 @@ def plan_net(board, net_name, width=0.2):
     except Exception:
         pass
     segs, rects = extract_objects(board, lids)
+    # T2: the ONE rule table (provenance-checked; fallbacks surfaced)
+    try:
+        import sys as _s2
+        _s2.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        from kernel import rules as _kr
+        rule_table = (_kr.load_rules(Path(_s2.argv[1]))
+                      if len(_s2.argv) > 1
+                      and __import__("os").environ.get(
+                          "FLUXNT_V_RULES", "1") != "0"
+                      else None)
+    except Exception:
+        rule_table = None
     islands = islands_of(board, nc)
     paths, rejects = [], []
     try:
@@ -588,7 +644,7 @@ def plan_net(board, net_name, width=0.2):
             a = tuple(islands[0]["anchor"])
             b = tuple(islands[i]["anchor"])
             ok, rej = plan_paths(a, b, width, nc, segs, rects,
-                                 bounds=bounds)
+                                 bounds=bounds, rules=rule_table)
             for p in ok:
                 p["between"] = [0, i]
             paths += ok

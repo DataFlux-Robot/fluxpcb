@@ -239,5 +239,15 @@ def flexibility(pcb_path: Path, pairs: list, taxonomy: dict,
                         "expected_effect":
                             f"重布阻挡网{bl[:3]}让出走廊",
                     })
+                    # T3 playbook: FAT-corridor rescue (inflate blockers
+                    # so their reroute flees the corridor walls)
+                    if __import__("os").environ.get(
+                            "FLUXNT_V_RESCUE", "1") != "0":
+                        path_opts.append({
+                            "action": "corridor_rescue",
+                            "params": {"target": net, "blockers": bl[:3]},
+                            "expected_effect":
+                                f"膨胀{bl[:3]}逼其让出走廊",
+                        })
             cands[net] = path_opts + opts
     return cands
