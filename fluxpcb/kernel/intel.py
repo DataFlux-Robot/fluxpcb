@@ -205,14 +205,26 @@ def flexibility(pcb_path: Path, pairs: list, taxonomy: dict,
             # actions (jumper/move) — draw the line first, transform
             # only when the map proves no path exists.
             path_opts = []
-            if plans and net in plans and plans[net].get("paths"):
-                for pl in plans[net]["paths"][:2]:
+            if plans and net in plans:
+                pl = plans[net]
+                for pp in pl.get("paths", [])[:2]:
                     path_opts.append({
                         "action": "direct_link",
-                        "params": {"net": net, "pts": pl["pts"],
+                        "params": {"net": net, "pts": pp["pts"],
                                    "width": 0.2},
                         "expected_effect":
-                            f"图验证路径 {pl['length_mm']}mm 直连",
+                            f"图验证路径 {pp['length_mm']}mm 直连",
+                    })
+                # reference pattern (i2c1_reroute / reroute_net.py): the
+                # corridor is blocked? reroute the BLOCKER away first,
+                # then draw. Blocker names come from the map's rejects.
+                bl = [b for b in (pl.get("blockers") or []) if b]
+                if bl and not pl.get("paths"):
+                    path_opts.append({
+                        "action": "reroute_nets",
+                        "params": {"nets": bl[:3]},
+                        "expected_effect":
+                            f"重布阻挡网{bl[:3]}让出走廊",
                     })
             cands[net] = path_opts + opts
     return cands
