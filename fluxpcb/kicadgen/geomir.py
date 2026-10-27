@@ -91,6 +91,67 @@ def candidate_polylines(a, b, spans=None, bounds=None):
     return out
 
 
+def slot_waypoints(a, b, segs_by_layer, rects_by_layer, nc, width):
+    """Channel-midpoint candidates (the y=10.32 discovery, automated):
+    free-slot centers are derived from FACING OBSTACLE EDGES — two edges
+    with a gap >= 2*(clearance+own) leave a passable slot whose center
+    is the natural waypoint. Axis-aligned slots both ways + corner
+    combinations. This is how the expert loop found the 0.84mm seam
+    between module pad columns; now the map finds it itself."""
+    (x1, y1), (x2, y2) = a, b
+    need = CLEAR + width / 2 + 0.02
+    xs, ys = [], []
+    for li in range(len(segs_by_layer)):
+        for net, s, e, hw in segs_by_layer[li]:
+            if net == nc:
+                continue
+            xs += [min(s[0], e[0]) - hw, max(s[0], e[0]) + hw]
+            ys += [min(s[1], e[1]) - hw, max(s[1], e[1]) + hw]
+        for net, rect in rects_by_layer[li]:
+            if net == nc:
+                continue
+            cx, cy, hw2, hh2, _a = rect
+            xs += [cx - hw2, cx + hw2]
+            ys += [cy - hh2, cy + hh2]
+
+    def slots(edges, lo, hi):
+        # SUPERSET of slot centers: midpoint of every consecutive edge
+        # pair. Global gap math lies (edges at different x/z positions
+        # fake-split a local seam) — emit more, let the exact verifier
+        # be the single judge.
+        out = []
+        es = sorted(set(round(e, 3) for e in edges
+                        if lo - 2.5 <= e <= hi + 2.5))
+        out.append(lo - need - 0.1)
+        out.append(hi + need + 0.1)
+        for u, v in zip(es, es[1:]):
+            out.append((u + v) / 2)
+        return out
+
+    out = []
+    for sy in slots(ys, min(y1, y2), max(y1, y2)):
+        out.append([(x1, y1), (x1, sy), (x2, sy), (x2, y2)])
+    for sx in slots(xs, min(x1, x2), max(x1, x2)):
+        out.append([(x1, y1), (sx, y1), (sx, y2), (x2, y2)])
+    # corner combinations (slot x slot) — the expert 2-bend shapes
+    sxs = slots(xs, min(x1, x2), max(x1, x2))[:6]
+    sys_ = slots(ys, min(y1, y2), max(y1, y2))[:6]
+    for sx in sxs:
+        for sy in sys_:
+            out.append([(x1, y1), (sx, y1), (sx, sy), (x2, sy), (x2, y2)])
+    # FULL expert shape: west dodge + slot + east column (two x-slots) —
+    # the y=10.32 discovery needed BOTH the x=22.x dodge past the module
+    # pad column AND the x=33.x corridor for the final vertical
+    for sx1 in sxs:
+        for sx2 in sxs:
+            if abs(sx1 - sx2) < 1.0:
+                continue
+            for sy in sys_:
+                out.append([(x1, y1), (sx1, y1), (sx1, sy),
+                            (sx2, sy), (sx2, y2), (x2, y2)])
+    return out
+
+
 def verify_polyline(pts, width, nc, segs, rects):
     """World-geometry verification of one polyline against fixed copper
     lists (same rules as commit_gate — the single geometric truth).
@@ -232,40 +293,126 @@ def render_plan(plan, out_path, window=None):
 
 
 
+WIDTH_LADDER_DEFAULT = (0.2, 0.15, 0.127, 0.11)
+
+
 def plan_paths(a, b, width, nc, segs_by_layer, rects_by_layer,
-               bounds=None, limit=4):
+               bounds=None, limit=4, width_ladder=None):
     """Layer-resolved path search — THE single-net repair shape
     (i2c1_reroute: F.Cu -> via -> B.Cu -> via -> F.Cu):
       * plain polylines on EACH layer (a layer-0 path only fights
         layer-0 obstacles — dodges congestion on the other side)
-      * via-detour candidates: hop layers near the anchors, run on the
-        quiet layer, hop back (via sites offset 1-3mm from anchors)
-    Returns paths with pts as (x, y, layer) — direct_link's spec shape.
+      * via-detour candidates: hop layers along the line where an
+        F.Cu track intercepts (the y=14.29 crossing pattern)
+      * CHANNEL-MIDPOINT slots derived from facing obstacle edges —
+        the map discovers seams like the expert's y=10.32 on its own
+      * WIDTH CASCADE: seam feasibility is width-dependent (a 0.52mm
+        gap fits 0.11 but not 0.2) — the expert loop's 0.2->0.15->0.11
+        iteration runs automatically, widest-first.
+    Returns paths with pts as (x, y, layer) + width — direct_link's
+    spec shape.
     """
     verified, rejects = [], []
     nlay = len(segs_by_layer)
+    ladder = width_ladder or WIDTH_LADDER_DEFAULT
+    for width in (width,) + tuple(w for w in ladder if w < width):
+        all_cands = (candidate_polylines(a, b, bounds=bounds)
+                     + slot_waypoints(a, b, segs_by_layer, rects_by_layer,
+                                      nc, width))
+        _plan_paths_at_width(a, b, width, nc, segs_by_layer,
+                             rects_by_layer, nlay, all_cands,
+                             verified, rejects, limit)
+        if len(verified) >= limit:
+            break
+    verified.sort(key=lambda v: (v["length_mm"], -v.get("width", 0.2)))
+    return verified[:limit], rejects[:4]
+
+
+def _plan_paths_at_width(a, b, width, nc, segs_by_layer, rects_by_layer,
+                         nlay, all_cands, verified, rejects, limit):
     for li in range(nlay):
-        for cand in candidate_polylines(a, b, bounds=bounds):
-            ok, blocker = verify_polyline(
-                cand, width, nc, segs_by_layer[li], rects_by_layer[li])
-            if ok:
+        for cand in all_cands:
+            bad_seg = None
+            for (p, q) in zip(cand, cand[1:]):
+                ok, blocker = verify_polyline(
+                    [(p[0], p[1]), (q[0], q[1])], width, nc,
+                    segs_by_layer[li], rects_by_layer[li])
+                if not ok:
+                    bad_seg = (p, q, blocker)
+                    break
+            if bad_seg is None:
                 length = sum(math.dist(p, q)
                              for p, q in zip(cand, cand[1:]))
                 verified.append({"pts": [[round(x, 3), round(y, 3), li]
                                          for x, y in cand],
                                  "length_mm": round(length, 2),
+                                 "width": width,
                                  "mode": f"layer{li}"})
-            elif len(rejects) < 3:
+                continue
+            p, q, blocker = bad_seg
+            # CROSSING REPAIR: a cornered polyline blocked on ONE segment
+            # = a track intercepting the slot; hop that segment to the
+            # quiet layer with vias at the corners (the expert's y=14.29
+            # F-via-B-via-F crossing, automated)
+            if nlay >= 2:
+                quiet = 1 - li
+                ok2, blk2 = verify_polyline(
+                    [(p[0], p[1]), (q[0], q[1])], width, nc,
+                    segs_by_layer[quiet], rects_by_layer[quiet])
+                if ok2:
+                    out = []
+                    for pt in cand:
+                        out.append([round(pt[0], 3), round(pt[1], 3), li])
+                    # replace the blocked segment with the quiet hop:
+                    # duplicate its endpoints as via pairs (li->quiet,
+                    # run, quiet->li)
+                    i0 = next((i for i, pt in enumerate(out)
+                               if abs(pt[0] - round(p[0], 3)) < 1e-6
+                               and abs(pt[1] - round(p[1], 3)) < 1e-6),
+                              None)
+                    i1 = next((i for i, pt in enumerate(out)
+                               if abs(pt[0] - round(q[0], 3)) < 1e-6
+                               and abs(pt[1] - round(q[1], 3)) < 1e-6),
+                              None)
+                    if i0 is not None and i1 is not None and i1 == i0 + 1:
+                        seg = [out[i0], [out[i0][0], out[i0][1], quiet],
+                               [out[i1][0], out[i1][1], quiet], out[i1]]
+                        out = out[:i0] + seg + out[i1 + 1:]
+                        length = sum(
+                            math.dist(x[:2], y[:2])
+                            for x, y in zip(out, out[1:]))
+                        verified.append({
+                            "pts": out,
+                            "length_mm": round(length, 2),
+                            "width": width,
+                            "mode": f"hop-repair-L{li}->{quiet}"})
+                        continue
+            if len(rejects) < 3:
                 rejects.append({"pts": [[round(x, 3), round(y, 3), li]
                                         for x, y in cand],
                                 "blocked_by": blocker})
-    # via-detour: F(0) -> via -> quiet layer -> via -> F(0)
+    # via-detour: F(0) -> via -> quiet layer -> via -> F(0). Via sites
+    # sampled ALONG the direct line (the crossing-track pattern: hop to
+    # B.Cu exactly where an F.Cu track intercepts — the expert's
+    # y=14.29 crossing is now found by sampling, not hand-picked)
     if nlay >= 2:
+        import math as _m
+        L = _m.hypot(b[0] - a[0], b[1] - a[1]) or 1.0
+        px, py = -(b[1] - a[1]) / L, (b[0] - a[0]) / L
+        ts = [0.25, 0.4, 0.55, 0.7]
+        perps = (0.0, 0.4, -0.4, 0.8, -0.8)
+        sites = []
+        for t in ts:
+            for off in perps:
+                sites.append((a[0] + (b[0] - a[0]) * t + px * off,
+                              a[1] + (b[1] - a[1]) * t + py * off))
         for quiet in range(1, nlay):
-            for da in (1.5, 3.0):
-                for db in (1.5, 3.0):
-                    va = (a[0] + da, a[1] + da * 0.3)
-                    vb = (b[0] - db, b[1] - db * 0.3)
+            for va in sites:
+                for vb in sites:
+                    if abs(va[0] - vb[0]) + abs(va[1] - vb[1]) < 1.5:
+                        continue
+                    if len(verified) >= 3:
+                        break
                     cand = [(a[0], a[1], 0), (va[0], va[1], 0),
                             (va[0], va[1], quiet), (vb[0], vb[1], quiet),
                             (vb[0], vb[1], 0), (b[0], b[1], 0)]
@@ -288,6 +435,7 @@ def plan_paths(a, b, width, nc, segs_by_layer, rects_by_layer,
                             "pts": [[round(x, 3), round(y, 3), li]
                                     for x, y, li in cand],
                             "length_mm": round(length, 2),
+                            "width": width,
                             "mode": f"via-detour-L{quiet}"})
                     elif len(rejects) < 4:
                         rejects.append({"pts": [], "blocked_by": bad})

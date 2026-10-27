@@ -167,7 +167,7 @@ def flexibility(pcb_path: Path, pairs: list, taxonomy: dict,
                         half_opts.append({
                             "action": "direct_link",
                             "params": {"net": net, "pts": pp["pts"],
-                                       "width": 0.2},
+                                       "width": pp.get("width", 0.2)},
                             "expected_effect":
                                 f"半网直连 {pp['length_mm']}mm",
                         })
@@ -223,9 +223,10 @@ def flexibility(pcb_path: Path, pairs: list, taxonomy: dict,
                     path_opts.append({
                         "action": "direct_link",
                         "params": {"net": net, "pts": pp["pts"],
-                                   "width": 0.2},
+                                   "width": pp.get("width", 0.2)},
                         "expected_effect":
-                            f"图验证路径 {pp['length_mm']}mm 直连",
+                            f"图验证路径 {pp['length_mm']}mm"
+                            f"@{pp.get('width', 0.2)}mm 直连",
                     })
                 # reference pattern (i2c1_reroute / reroute_net.py): the
                 # corridor is blocked? reroute the BLOCKER away first,
