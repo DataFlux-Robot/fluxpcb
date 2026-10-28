@@ -959,13 +959,13 @@ def _driver_loop(pcb_path: Path, kipy: str, cls_file: Path, light: bool,
         _qf = _kstate.query(kicad_cli, kipy, pcb_path, "opens")
         _qs2 = _kstate.query(kicad_cli, kipy, pcb_path, "shorts",
                              consolidate=False)
-        (pcb_path.parent / "loop_final.json").write_text(_json.dumps(
+        (pcb_path.parent / "loop_final.json").write_text(json.dumps(
             {"opens": _qf.value, "shorts": _qs2.value,
              "fp": _qf.fp.short(), "iterations": n,
              "history": history_log}, ensure_ascii=False, indent=1),
             encoding="utf-8")
-    except Exception:
-        pass
+    except Exception as _e:
+        steps.append(f"loop_final写入失败: {str(_e)[:40]}")
     try:
         (pcb_path.parent / "driver_decisions.json").write_text(
             json.dumps({"decisions": drv.decisions, "history": drv.history,
@@ -1436,13 +1436,13 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
             # measurement is on disk (item-4, hardened)
             try:
                 (pcb_path.parent / "loop_final.json").write_text(
-                    _json.dumps(
+                    json.dumps(
                         {"opens": _q2.value, "shorts": _qs_after.value,
                          "fp": _q2.fp.short(), "iterations": n,
                          "last_action": act.get("action")},
                         ensure_ascii=False, indent=1), encoding="utf-8")
-            except Exception:
-                pass
+            except Exception as _e:
+                steps.append(f"loop_final写入失败: {str(_e)[:40]}")
             steps.append(f"loop[{n}] {act['action']}: "
                          f"{outcome.get('summary', '')[:70]}")
             if outcome.get("stop"):
