@@ -1431,6 +1431,18 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
                              f"{-outcome['delta_opens']}开)")
                 continue
             _kdec.record(pcb_path, act, outcome)
+            # CRASH-SAFE terminal state: refresh loop_final after every
+            # action — whatever point a run dies, the latest loop-end
+            # measurement is on disk (item-4, hardened)
+            try:
+                (pcb_path.parent / "loop_final.json").write_text(
+                    _json.dumps(
+                        {"opens": _q2.value, "shorts": _qs_after.value,
+                         "fp": _q2.fp.short(), "iterations": n,
+                         "last_action": act.get("action")},
+                        ensure_ascii=False, indent=1), encoding="utf-8")
+            except Exception:
+                pass
             steps.append(f"loop[{n}] {act['action']}: "
                          f"{outcome.get('summary', '')[:70]}")
             if outcome.get("stop"):
