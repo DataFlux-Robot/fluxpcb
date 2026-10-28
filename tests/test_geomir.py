@@ -229,3 +229,80 @@ class TestT2RuleTable:
     def test_geomir_verifier_takes_rules(self):
         src = (KGEN / "geomir.py").read_text(encoding="utf-8")
         assert "rules=None" in src and "_kr.load_rules" in src
+
+
+class TestPlaceOpt:
+    """Stream ①: margin-aware moves (DaCapo7 check-space-first) +
+    attribution bias (elcruzo GNN-lite)."""
+
+    def _mk_board(self, tmp_path):
+        """Synthetic board: 3 fp clusters — A free zone, B crowded."""
+        import subprocess
+        code = (
+            "import pcbnew\n"
+            "b = pcbnew.BOARD()\n"
+            "import sys\n"
+            "for ref, x, y, w, h in [('R1', 10, 10, 2, 2), "
+            "('R2', 20, 10, 2, 2), ('R3', 20.6, 10, 2, 2), "
+            "('C1', 30, 10, 2, 2)]:\n"
+            "    fp = pcbnew.FOOTPRINT(b)\n"
+            "    fp.SetReference(ref)\n"
+            "    fp.SetPosition(pcbnew.VECTOR2I(int(x*1e6), int(y*1e6)))\n"
+            "    fp.SetValue(ref)\n"
+            "    b.Add(fp)\n"
+            "edge = pcbnew.PCB_SHAPE(b)\n"
+            "edge.SetShape(pcbnew.SHAPE_T_RECT)\n"
+            "edge.SetStart(pcbnew.VECTOR2I(0, 0))\n"
+            "edge.SetEnd(pcbnew.VECTOR2I(50000000, 20000000))\n"
+            "edge.SetLayer(pcbnew.Edge_Cuts)\n"
+            "b.Add(edge)\n"
+            f"pcbnew.SaveBoard(r'{tmp_path}/t.kicad_pcb', b)\n"
+            "print('OK')\n")
+        p = subprocess.run([sys.executable, "-c", code],
+                           capture_output=True, text=True, timeout=60)
+        assert "OK" in p.stdout, p.stderr[-200:]
+        return tmp_path / "t.kicad_pcb"
+
+    def test_margin_rejects_overlap(self, tmp_path):
+        import subprocess
+        pcb = self._mk_board(tmp_path)
+        code = (
+            "import sys, json\n"
+            "sys.path.insert(0, r'"
+            + str(KGEN).replace("\\", "/") + "')\n"
+            "import pcbnew, place_opt\n"
+            f"b = pcbnew.LoadBoard(r'{str(pcb).replace(chr(92), '/')}')\n"
+            "print(json.dumps({'r': place_opt.margin_ok(b, 'R3', -0.4, 0)}))\n")
+        p = subprocess.run([sys.executable, "-c", code],
+                           capture_output=True, text=True, timeout=60,
+                           encoding="utf-8", errors="replace")
+        d = json.loads([l for l in p.stdout.splitlines()
+                        if l.strip().startswith("{")][-1])
+        assert not d["r"]["ok"], d
+        assert d["r"]["reason"] in ("footprint-overlap", "board-edge")
+
+    def test_margin_accepts_free(self, tmp_path):
+        import subprocess
+        pcb = self._mk_board(tmp_path)
+        code = (
+            "import sys, json\n"
+            "sys.path.insert(0, r'"
+            + str(KGEN).replace("\\", "/") + "')\n"
+            "import pcbnew, place_opt\n"
+            f"b = pcbnew.LoadBoard(r'{str(pcb).replace(chr(92), '/')}')\n"
+            "print(json.dumps({'r': place_opt.margin_ok(b, 'C1', -5, 0)}))\n")
+        p = subprocess.run([sys.executable, "-c", code],
+                           capture_output=True, text=True, timeout=60,
+                           encoding="utf-8", errors="replace")
+        d = json.loads([l for l in p.stdout.splitlines()
+                        if l.strip().startswith("{")][-1])
+        assert d["r"]["ok"], d
+
+    def test_wiring(self):
+        from fluxpcb.kernel.decision import ACTION_CONTRACT
+        assert "optimize_placement" in ACTION_CONTRACT
+        src = (REPO / "fluxpcb" / "kernel" / "intel.py").read_text(
+            encoding="utf-8")
+        assert "optimize_placement" in src
+        rsrc = (REPO / "fluxpcb" / "routing.py").read_text(encoding="utf-8")
+        assert "place_opt.py" in rsrc

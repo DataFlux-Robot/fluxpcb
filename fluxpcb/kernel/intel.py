@@ -241,6 +241,16 @@ def flexibility(pcb_path: Path, pairs: list, taxonomy: dict,
                     })
                     # T3 playbook: FAT-corridor rescue (inflate blockers
                     # so their reroute flees the corridor walls)
+                    # stream ①: margin-aware placement move — when the
+                    # corridor is sealed, moving the blocking component
+                    # is the upstream fix (UCSD: placement owns ~80% of
+                    # routability)
+                    path_opts.append({
+                        "action": "optimize_placement",
+                        "params": {"net": net},
+                        "expected_effect":
+                            f"margin挪件{bl[:2]}让出走廊",
+                    })
                     if __import__("os").environ.get(
                             "FLUXNT_V_RESCUE", "1") != "0":
                         path_opts.append({

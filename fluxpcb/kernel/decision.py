@@ -38,6 +38,9 @@ ACTION_CONTRACT = {
     # inflate the blockers, reroute them (they flee the fat walls),
     # restore widths — the corridor opens for the target
     "corridor_rescue": {"target": str, "blockers": list},
+    # stream ①: margin-aware placement move (elcruzo GNN-lite bias +
+    # DaCapo7 check-space-first + kabidey nudge loop)
+    "optimize_placement": {"net": str},
     "adjust_placement": {"moves": list},
     "move_footprint": {"ref": str, "dx_mm": float, "dy_mm": float},
     "reassign_pins": {"nets": list},

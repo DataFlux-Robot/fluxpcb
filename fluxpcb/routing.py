@@ -974,6 +974,40 @@ def _loop_execute(act: dict, report: dict, kicad_cli: str, kipy: str,
     if name in ("finish", "escalate"):
         return {"summary": f"{name}:{params.get('reason', '')[:40]}",
                 "stop": True}
+    if name == "optimize_placement":
+        # stream ①: placement co-optimization — margin-checked moves
+        # ranked by attribution (blockers flee the corridor), then the
+        # net reroutes on the new geometry; the strict gate judges.
+        import json as _j5
+        try:
+            rc, out = _kipy(kipy, _KGENX / "place_opt.py",
+                            str(pcb_path), str(params.get("net", "")),
+                            timeout=600)
+            _lines = [l for l in (out or "").splitlines()
+                      if l.strip().startswith("{")]
+            _pl = _j5.loads(_lines[-1]) if _lines else {}
+            cands = _pl.get("candidates") or []
+            if not cands:
+                return {"summary": "optimize_placement: 无margin合法候选",
+                        "effect": 0}
+            best = cands[0]
+            rc, out = _kipy(kipy, _KGENX / "place_opt.py",
+                            str(pcb_path), str(params.get("net", "")),
+                            "--apply", str(best["dx_mm"]),
+                            str(best["dy_mm"]), str(best["ref"]),
+                            timeout=600)
+            # reroute the net on the new geometry
+            fr = route_with_freerouting(pcb_path, kipy, log=log,
+                                        net_classes=net_classes,
+                                        diff_pairs=diff_pairs)
+            return {"summary": f"optimize_placement {best['ref']}"
+                               f"{best['dx_mm']},{best['dy_mm']}"
+                               f"(margin {best['margin_mm']})"
+                               f" -> FR {'ok' if fr.get('ok') else 'fail'}",
+                    "effect": 1}
+        except Exception as e:
+            return {"summary": f"optimize_placement异常:{str(e)[:50]}",
+                    "effect": 0}
     if name == "corridor_rescue":
         # T3: widen blockers (FAT) -> rip+FR them away -> restore.
         # The fat walls FORCE the blockers' new routes out of the
