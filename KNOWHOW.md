@@ -577,3 +577,10 @@ T2=kipilot解析+ByTaymur加载探针+DaCapo7回读；T1=hyuhang822三约束+Cyr
 - 实测闭环 P1（胜出配方+①）：13 决策、optimize_placement 执行 2 次（C2 0.93mm/R2 1.97mm，margin 1.4/1.09）→ 严格门禁判不划算回滚；终态 9开/0短/0clr
 - **诚实结论**：挪件机制安全运转但**单步挪件不打开走廊**——(a) 评分器的"挪哪"过于朴素（径向远离中点，elcruzo 的 GNN 学的是更准的 where）；(b) 挪件+FR 复合动作中 FR 太弱，吃不下走廊打开的机会；(c) 开路数被 stage 重试噪声主导，单轮对照不可归因——实验协议本身该改进（循环终态 vs stage 终态分离测量）
 - 语料对照：kabidey nudge loop 准则已内嵌；DaCapo7 的 gap_nudge"挪线"（非挪件）是姊妹原语——残差可能更需要挪线而非挪件
+
+### 四项改进实测（P2-P5 轮，loop_final 崩溃安全测量）
+- **item-1 gap_nudge（挪线）**：实弹执行（EN nudge 4 条/IO6 2 条），拓扑不变+pad 保持验证——机制工作；但这两处仍是"still-blocked"（挪 0.2mm 不足以打开被多面夹击的缝，挪线幅度/方向还需与 slot 分析联动）
+- **item-2 组合收尾**：optimize_placement→geomir 重规划→direct_link 的链路实弹（C2 垩直挪件 margin 2.0 → direct_link），比 FR 收尾可靠
+- **item-3 自由槽评分**：阻挡者候选改为垂直于走廊轴双向+margin 排序（blocker-out-of-band），替代径向猜测
+- **item-4 loop_final 崩溃安全测量**：逐动作落盘生效（迭代 3/8 均记录 2开/0短+指纹）——实验协议从 stage 噪声中解耦；**修复过程本身暴露静默 except 类第 2 例**（_json NameError 被 except:pass 吞掉——kernel 要消灭的病在 kernel 自己的测量代码里复发），已改为可见 steps 记录
+- 终态：loop 稳定在 2开/0短（迭代 3→8 恒定）——几何地板确认；四机制全部实弹工作，残差 2 开需要流派②（搜索完备）或布局协同的多步变换
