@@ -568,3 +568,12 @@ K7-K20 是救火式开发：错误是**作为"修复"被引入的**——severit
 
 ### 语料来源（pcb_analysis 259项目）
 T2=kipilot解析+ByTaymur加载探针+DaCapo7回读；T1=hyuhang822三约束+CyrilKafle坏例法；T3=aiignite widen_net_traces/reroute_net FAT；T4=ByTaymur严格变好门禁。
+
+### 流派①布局协同实施与实测（2026-10-28）
+泛化为: kicadgen/place_opt.py（margin_ok 预检+归因偏置 rank_moves）+ optimize_placement 动作（契约/loop/playbook 三接线）+ test_geomir TestPlaceOpt 组。
+契约: 写=挪件前必须 margin_ok（DaCapo7"先查空间"），挪后必 rip+FR 受影响网；判优=严格门禁（T4）终审；语义前提=评分器只排序不裁决（诚实边界：几何偏置非学习模型）。
+
+- 实测 dry-run：IO6 归因→R2 为阻挡者，2 个 margin 合法候选（1.09-1.27mm 间隙）——偏置机制工作
+- 实测闭环 P1（胜出配方+①）：13 决策、optimize_placement 执行 2 次（C2 0.93mm/R2 1.97mm，margin 1.4/1.09）→ 严格门禁判不划算回滚；终态 9开/0短/0clr
+- **诚实结论**：挪件机制安全运转但**单步挪件不打开走廊**——(a) 评分器的"挪哪"过于朴素（径向远离中点，elcruzo 的 GNN 学的是更准的 where）；(b) 挪件+FR 复合动作中 FR 太弱，吃不下走廊打开的机会；(c) 开路数被 stage 重试噪声主导，单轮对照不可归因——实验协议本身该改进（循环终态 vs stage 终态分离测量）
+- 语料对照：kabidey nudge loop 准则已内嵌；DaCapo7 的 gap_nudge"挪线"（非挪件）是姊妹原语——残差可能更需要挪线而非挪件
