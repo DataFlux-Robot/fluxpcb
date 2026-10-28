@@ -41,6 +41,9 @@ ACTION_CONTRACT = {
     # stream ①: margin-aware placement move (elcruzo GNN-lite bias +
     # DaCapo7 check-space-first + kabidey nudge loop)
     "optimize_placement": {"net": str},
+    # item-1: gap_nudge — shift the BLOCKING TRACKS 0.1-0.3mm (DaCapo7
+    # sibling primitive; topology unchanged, pad-contained)
+    "gap_nudge": {"net": str},
     "adjust_placement": {"moves": list},
     "move_footprint": {"ref": str, "dx_mm": float, "dy_mm": float},
     "reassign_pins": {"nets": list},

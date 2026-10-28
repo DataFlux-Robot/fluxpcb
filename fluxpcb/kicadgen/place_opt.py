@@ -141,7 +141,15 @@ def rank_moves(board, plan, limit=8):
 
     out = []
     seen = set()
-    # blocker moves: away from corridor midpoint
+    # scorer upgrade: the FREE-SLOT side, not radial guess. The corridor
+    # axis is a->b; the blocker must leave the corridor BAND, so the
+    # move direction is PERPENDICULAR to the axis — both sides are
+    # candidate directions and margin_ok's margin tells which side is
+    # the free slot (larger margin = the opening).
+    ax_, ay_ = b[0] - a[0], b[1] - a[1]
+    Lax = math.hypot(ax_, ay_) or 1.0
+    pux, puy = -ay_ / Lax, ax_ / Lax
+    dirs = [(pux, puy), (-pux, -puy)]
     for ref in blocker_refs:
         fp = next((f for f in board.GetFootprints()
                    if f.GetReference() == ref), None)
@@ -152,18 +160,23 @@ def rank_moves(board, plan, limit=8):
         L = math.hypot(vx, vy) or 1.0
         ux, uy = vx / L, vy / L
         for dist in (1.0, 2.0, 3.0):
-            dx, dy = round(ux * dist, 2), round(uy * dist, 2)
-            key = (ref, dx, dy)
-            if key in seen:
-                continue
-            seen.add(key)
-            m = margin_ok(board, ref, dx, dy)
-            if not m["ok"]:
-                continue
-            out.append({"ref": ref, "dx_mm": dx, "dy_mm": dy,
-                        "kind": "blocker-away",
-                        "margin_mm": m["margin_mm"],
-                        "score": 100 + int(m["margin_mm"] * 10) - dist * 5})
+            for dux, duy in dirs + [(ux, uy)]:
+                dx, dy = round(dux * dist, 2), round(duy * dist, 2)
+                key = (ref, dx, dy)
+                if key in seen:
+                    continue
+                seen.add(key)
+                m = margin_ok(board, ref, dx, dy)
+                if not m["ok"]:
+                    continue
+                # the free-slot side ranks up: perpendicular moves that
+                # clear the band with margin to spare
+                band_bonus = 20 if (dux, duy) in dirs[:2] else 0
+                out.append({"ref": ref, "dx_mm": dx, "dy_mm": dy,
+                            "kind": "blocker-out-of-band",
+                            "margin_mm": m["margin_mm"],
+                            "score": 100 + band_bonus
+                            + int(m["margin_mm"] * 10) - dist * 5})
     # island moves: along the corridor axis (keep the net's anchors
     # shiftable but gentle — smallest moves first)
     dirx, diry = b[0] - a[0], b[1] - a[1]

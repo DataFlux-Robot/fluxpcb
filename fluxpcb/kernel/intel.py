@@ -241,6 +241,16 @@ def flexibility(pcb_path: Path, pairs: list, taxonomy: dict,
                     })
                     # T3 playbook: FAT-corridor rescue (inflate blockers
                     # so their reroute flees the corridor walls)
+                    # item-1: 挪线先于挪件 — shifting the blocking
+                    # tracks 0.2mm costs an order less than moving parts
+                    # (DaCapo7 gap_nudge; the residual is often tracks
+                    # hugging too tight, not parts sitting wrong)
+                    path_opts.append({
+                        "action": "gap_nudge",
+                        "params": {"net": net},
+                        "expected_effect":
+                            f"挪线{bl[:2]}让出走廊(拓扑不变)",
+                    })
                     # stream ①: margin-aware placement move — when the
                     # corridor is sealed, moving the blocking component
                     # is the upstream fix (UCSD: placement owns ~80% of

@@ -952,6 +952,20 @@ def _driver_loop(pcb_path: Path, kipy: str, cls_file: Path, light: bool,
         if opens == 0:
             steps.append(f"driver[{step}]: opens=0 达成")
             break
+    # item-4: loop-terminal measurement — the stage retries mutate the
+    # board afterwards; experiments must read THIS (fingerprinted)
+    # instead of the noisy post-stage state
+    try:
+        _qf = _kstate.query(kicad_cli, kipy, pcb_path, "opens")
+        _qs2 = _kstate.query(kicad_cli, kipy, pcb_path, "shorts",
+                             consolidate=False)
+        (pcb_path.parent / "loop_final.json").write_text(_json.dumps(
+            {"opens": _qf.value, "shorts": _qs2.value,
+             "fp": _qf.fp.short(), "iterations": n,
+             "history": history_log}, ensure_ascii=False, indent=1),
+            encoding="utf-8")
+    except Exception:
+        pass
     try:
         (pcb_path.parent / "driver_decisions.json").write_text(
             json.dumps({"decisions": drv.decisions, "history": drv.history,
@@ -974,6 +988,67 @@ def _loop_execute(act: dict, report: dict, kicad_cli: str, kipy: str,
     if name in ("finish", "escalate"):
         return {"summary": f"{name}:{params.get('reason', '')[:40]}",
                 "stop": True}
+    if name == "gap_nudge":
+        # item-1: 挪线而非挪件 — shift the blocking track chains
+        # perpendicular to the corridor (map's reject point + band
+        # direction), pad-contained, then surgical re-close
+        import json as _j6
+        try:
+            net_name = str(params.get("net", ""))
+            rc, out = _kipy(kipy, _KGENX / "geomir.py", str(pcb_path),
+                            net_name, str(pcb_path), timeout=600)
+            _pl6 = [l for l in (out or "").splitlines()
+                    if l.strip().startswith("{")]
+            plan6 = json.loads(_pl6[-1]) if _pl6 else {}
+            rej = (plan6.get("rejects") or [{}])[0].get("blocked_by")                 or {}
+            at = rej.get("at")
+            isl = plan6.get("islands") or []
+            if not at or len(isl) < 2:
+                return {"summary": "gap_nudge: 无阻挡点/岛", "effect": 0}
+            # perpendicular to the corridor axis (the free-slot side is
+            # chosen by the nudge's own space check — try both, keep the
+            # one that commits)
+            a_, b_ = isl[0]["anchor"], isl[1]["anchor"]
+            ax, ay = b_[0] - a_[0], b_[1] - a_[1]
+            Lc = (ax * ax + ay * ay) ** 0.5 or 1.0
+            px_, py_ = -ay / Lc, ax / Lc
+            res = {"nudged": 0}
+            for ds in ((px_, py_), (-px_, -py_)):
+                rc, out = _kipy(kipy, _KGENX / "gap_nudge.py",
+                                str(pcb_path), str(at[0]), str(at[1]),
+                                str(ds[0]), str(ds[1]), "0.2",
+                                timeout=300)
+                _rl = [l for l in (out or "").splitlines()
+                       if l.strip().startswith("{")]
+                res = json.loads(_rl[-1]) if _rl else {"nudged": 0}
+                if res.get("nudged"):
+                    break
+            closer = "none"
+            if res.get("nudged"):
+                rc2, out2 = _kipy(kipy, _KGENX / "geomir.py",
+                                  str(pcb_path), net_name,
+                                  str(pcb_path), timeout=600)
+                _p2 = [l for l in (out2 or "").splitlines()
+                       if l.strip().startswith("{")]
+                plan2 = json.loads(_p2[-1]) if _p2 else {}
+                pths = plan2.get("paths") or []
+                if pths:
+                    sp = pcb_path.parent / "direct_link_spec.json"
+                    sp.write_text(json.dumps(
+                        {"net": net_name, "pts": pths[0]["pts"],
+                         "width": pths[0].get("width", 0.2)}))
+                    _kipy(kipy, _KGENX / "direct_link.py",
+                          str(pcb_path), str(sp), timeout=300)
+                    closer = "direct_link"
+                else:
+                    closer = "still-blocked"
+            return {"summary": f"gap_nudge {net_name}@{at}"
+                               f" nudged={res.get('nudged', 0)}"
+                               f" -> {closer}",
+                    "effect": res.get("nudged", 0)}
+        except Exception as e:
+            return {"summary": f"gap_nudge异常:{str(e)[:50]}",
+                    "effect": 0}
     if name == "optimize_placement":
         # stream ①: placement co-optimization — margin-checked moves
         # ranked by attribution (blockers flee the corridor), then the
@@ -996,14 +1071,39 @@ def _loop_execute(act: dict, report: dict, kicad_cli: str, kipy: str,
                             "--apply", str(best["dx_mm"]),
                             str(best["dy_mm"]), str(best["ref"]),
                             timeout=600)
-            # reroute the net on the new geometry
-            fr = route_with_freerouting(pcb_path, kipy, log=log,
-                                        net_classes=net_classes,
-                                        diff_pairs=diff_pairs)
+            # COMBO: surgical close on the new geometry — re-plan and
+            # draw the map-verified path (FR is too weak to capitalize
+            # on the opened corridor; the map + direct_link is the
+            # proven closer), FR only as fallback
+            net_name = str(params.get("net", ""))
+            closer = "none"
+            try:
+                rc2, out2 = _kipy(kipy, _KGENX / "geomir.py",
+                                  str(pcb_path), net_name,
+                                  str(pcb_path), timeout=600)
+                _pl2 = [l for l in (out2 or "").splitlines()
+                        if l.strip().startswith("{")]
+                plan2 = json.loads(_pl2[-1]) if _pl2 else {}
+                pths = plan2.get("paths") or []
+                if pths:
+                    sp = pcb_path.parent / "direct_link_spec.json"
+                    sp.write_text(json.dumps(
+                        {"net": net_name, "pts": pths[0]["pts"],
+                         "width": pths[0].get("width", 0.2)}))
+                    _kipy(kipy, _KGENX / "direct_link.py",
+                          str(pcb_path), str(sp), timeout=300)
+                    closer = f"direct_link {pths[0].get('length_mm')}mm"
+                else:
+                    fr = route_with_freerouting(
+                        pcb_path, kipy, log=log,
+                        net_classes=net_classes, diff_pairs=diff_pairs)
+                    closer = "FR " + ("ok" if fr.get("ok") else "fail")
+            except Exception as e2:
+                closer = f"closer异常:{str(e2)[:30]}"
             return {"summary": f"optimize_placement {best['ref']}"
                                f"{best['dx_mm']},{best['dy_mm']}"
                                f"(margin {best['margin_mm']})"
-                               f" -> FR {'ok' if fr.get('ok') else 'fail'}",
+                               f" -> {closer}",
                     "effect": 1}
         except Exception as e:
             return {"summary": f"optimize_placement异常:{str(e)[:50]}",
@@ -1199,6 +1299,7 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
         pass
     tried |= _ineffective
     n = 0
+    history_log = []
     while _time.time() < deadline:
         n += 1
         qo = _kstate.query(kicad_cli, kipy, pcb_path, "opens")
@@ -1312,6 +1413,7 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
                                       consolidate=False)
             _dshorts = _qs_after.value - _qs_before.value
             outcome["delta_shorts"] = _dshorts
+            history_log.append(outcome)
             if _strict and (_dshorts > 0 or outcome["delta_opens"] < 0):
                 # strict gate: any regression = restore the snapshot
                 # and treat the action as rejected (its side-effects

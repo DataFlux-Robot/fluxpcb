@@ -306,3 +306,37 @@ class TestPlaceOpt:
         assert "optimize_placement" in src
         rsrc = (REPO / "fluxpcb" / "routing.py").read_text(encoding="utf-8")
         assert "place_opt.py" in rsrc
+
+
+class TestGapNudgeAndCombo:
+    """item-1 挪线 (DaCapo7) + item-2 combo close + item-3 free-slot
+    scorer + item-4 loop_final measurement."""
+
+    def test_gap_nudge_module_and_pad_containment(self):
+        src = (KGEN / "gap_nudge.py").read_text(encoding="utf-8")
+        assert "pad containment" in src or "pad_containment" in src \
+            or "STAY inside" in src
+        assert "moves[key]" in src          # group vertices move together
+
+    def test_scorer_uses_band_direction(self):
+        src = (KGEN / "place_opt.py").read_text(encoding="utf-8")
+        assert "blocker-out-of-band" in src
+        assert "pux, puy" in src            # perpendicular to corridor
+
+    def test_combo_close_in_loop(self):
+        src = (REPO / "fluxpcb" / "routing.py").read_text(encoding="utf-8")
+        body = src.split('if name == "optimize_placement"')[1] \
+            .split("if name ==")[0]
+        assert "geomir.py" in body and "direct_link.py" in body
+
+    def test_loop_final_measurement(self):
+        src = (REPO / "fluxpcb" / "routing.py").read_text(encoding="utf-8")
+        assert "loop_final.json" in src
+        assert "history_log" in src
+
+    def test_gap_nudge_action_registered(self):
+        from fluxpcb.kernel.decision import ACTION_CONTRACT
+        assert "gap_nudge" in ACTION_CONTRACT
+        isrc = (REPO / "fluxpcb" / "kernel" / "intel.py").read_text(
+            encoding="utf-8")
+        assert '"gap_nudge"' in isrc
