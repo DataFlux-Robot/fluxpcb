@@ -1381,6 +1381,9 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
         queue = cand_queue + queue
         acted = False
         for act in queue:
+            if _time.time() > deadline:
+                break          # budget ALSO bounds the action queue
+                               # (15 actions x double-DRC blew the cap)
             key = (act.get("action"), json.dumps(
                 act.get("params", {}), sort_keys=True)[:120])
             if key in tried:
