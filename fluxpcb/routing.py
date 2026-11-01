@@ -1816,7 +1816,12 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
                                "clearance", consolidate=False)
             return gap_v + _w_clear * float(qc.value) / 5.0
         except Exception:
-            return gap_v      # 测不到间距不冒充(保持纯缺口)
+            # 测不到间距不冒充(保持纯缺口) —— 但必须响亮计数
+            # (C2 实验教训: 静默降级让 A/B 跑了空臂)
+            _clear_fb.append(1)
+            return gap_v
+
+    _clear_fb = []      # 间距项降级计数(响亮, 环末报入 steps)
 
     def _grind_micro(qo, pairs, report, plans, cls_of):
         """一磨山微步: 预测排序选 (残差,算子) -> _gated_step -> 记账。
@@ -1869,8 +1874,10 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
             use_fallback = obj_before < 0
             if use_fallback:
                 # 兜底目标 = 全局开路数(FC_L13 教训: 换球后的开路
-                # 对是'焊盘簇<->孤铜'形态, gap 不可测 -> 假停滞)
-                obj_before = float(qo.value)
+                # 对是'焊盘簇<->孤铜'形态, gap 不可测 -> 假停滞)。
+                # C2 教训: fallback 路径也必须接 w_clearance 复合,
+                # 否则争抢期 lazy-plan 全超时 -> 全程空臂
+                obj_before = _obj_with_clearance(float(qo.value))
             ctx = {"blockers": plan.get("blockers") or [],
                    "plan": plan,
                    "op_params": _op_params,
@@ -1898,8 +1905,8 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
                                   tag=f"grind[{n}]", iter_no=n)
             # objective 重测(单网重规划 — 磨山的测量成本)
             if use_fallback:
-                obj_after = float(outcome.get("_opens_after",
-                                              qo.value))
+                obj_after = _obj_with_clearance(float(
+                    outcome.get("_opens_after", qo.value)))
             else:
                 try:
                     _rc4, _out4 = _kipy(kipy, _KG4 / "geomir.py",
@@ -2464,6 +2471,10 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
                      f"{round(100.0 * _auto / _routable, 1)}%")
     except Exception as _e:
         steps.append(f"scorecard skipped: {_e}")
+    if _clear_fb:
+        # 响亮: w_clearance 间距项测量降级次数(空臂事故的报警器)
+        steps.append(f"w_clearance 间距项降级 {len(_clear_fb)} 次"
+                     f"(测量失败, 目标退纯缺口/开路数)")
     return {"iterations": it, **last, "clean": clean, "steps": steps,
             "automation_pct": locals().get("_auto_pct"),
             "jumpers_placed": jumpers, "handoff": handoff}
