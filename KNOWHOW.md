@@ -799,3 +799,16 @@ T2=kipilot解析+ByTaymur加载探针+DaCapo7回读；T1=hyuhang822三约束+Cyr
 - **终态 10开/0短/55间距**(基线47->10, 降78%); 短路全程为零(门禁路径)
 - 修复链教训: 算子注册≠算子入梯(candidates_for 漏挂=选不中); KIID.GetAsString KiCad10 断裂; 严格门禁快照(strict.bak)是唯一可靠回滚点(.ckpt 0字节坏档)
 - 裸跑损伤后的正确恢复序列: strict.bak 回滚 -> 门禁内重做 — 永远在门禁里施工
+
+
+## K37: 收尾夜四线证伪 + 活体全链验收(2026-11-02)
+- **活体 LLM 全链验收 3/3 过**: 提案3条(≥3)/假设类别3类(重构问题·打破假设·换尺度, ≥2)/creative+tuning+bold 齐; hypothesis 可证伪句式穿过解析层(字段丢失修复实证); _discipline_ok=PASS。零手写(候选由规划器产出)。
+- **四线证伪(全部带机制级证据, 反例账)**:
+  1. H1 换球: cand臂与基线持平+1短 —— 换球适用格是逃逸拥塞不是可收割残差;
+  2. H2 走廊: 修复后规划器对原板报无路 —— '4条验证走廊'是 hop-repair 尾巴未验鬼影(验你所发修复的又一实证);
+  3. H3 挪件: margin 合法(U2 margin 1.56)但重布崩盘(10->30开, 53处 no-path-unreachable) —— **margin 合法性≠可重布性**, 挪件需要连通保全型重布;
+  4. rip堵线: 撕 GND/OSC_IN 后 SDMMC1_CMD 仍 no path +3断头 —— 多重锁死, 单点撕不够;
+  5. gap_nudge 硬类: 16 连击全被连通保全契约拒 —— 0.04+ 短差不是 nudge 尺度。
+- **SDMMC1_CMD 形态定案**: escape-sealed(D12 球场死位, net48/51 封死)+corridor-locked(多重墙) —— 归格 geometry×escape, 需组合算子或换板解决。
+- **机制存活者**: 收割链(harvest->direct_link) —— 3V3 对 d_opens=1 零损伤 + 证书核过(islands_after=1+实时对账)。
+- **新契约资产**: 证书库(假增益语义级终结)/一网对一规则(跨轮叠积 required 漂移修复)/w_clearance 目标通道(磨山看见间距)/board_pool 5板+arena。

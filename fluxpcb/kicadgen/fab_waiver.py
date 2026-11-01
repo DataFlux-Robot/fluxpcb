@@ -179,6 +179,22 @@ def write_waivers(dru_path: Path, waivers: list,
         # KiCad 静默忽略无 (version 1) 头的 .kicad_dru ——
         # 全部豁免规则假生效的根因(PROBE_FAILED 实证)
         old = "(version 1)" + chr(10) + old
+    # 一网对一规则(反例账): 跨轮累积的同对旧规则(不同名)会被 KiCad
+    # 任意优先级'严格者赢'复发(PROBE 对账 required 摆动实证) ——
+    # 写新块前先摘同对旧 flux_* 块
+    def _strip_pair(txt, a, b):
+        out_blocks = []
+        parts = txt.split("(rule ")
+        head = parts[0]
+        for p in parts[1:]:
+            blk = "(rule " + p
+            is_flux = '"' in blk and blk.split('"')[1].startswith(
+                ("flux_waiver", "flux_policy"))
+            if is_flux and a in blk and b in blk:
+                continue
+            out_blocks.append(blk)
+        return head + "".join(out_blocks)
+
     n = 0
     for blk in blocks:
         name = blk.split('"')[1]
@@ -186,6 +202,10 @@ def write_waivers(dru_path: Path, waivers: list,
             names_out.append(name)
         if name in old:
             continue
+        _m = re.search(r"A\.NetName == '([^']+)'", blk)
+        _m2 = re.search(r"B\.NetName == '([^']+)'", blk)
+        if _m and _m2:
+            old = _strip_pair(old, _m.group(1), _m2.group(1))
         old += ("\n" if old and not old.endswith("\n") else "") + blk
         n += 1
     if n:

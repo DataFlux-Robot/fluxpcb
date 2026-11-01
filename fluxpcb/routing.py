@@ -1803,6 +1803,20 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
             "FLUXNT_OP_PARAMS", "{}") or "{}")
     except ValueError:
         _op_params = {}      # 坏参不崩环(响亮降级为无参数)
+    # C2 w_clearance 接线(让磨山看见间距): obj = 走廊缺口 +
+    # w_c*clearance/5 —— 此前 w_clearance 只写在 variant 字典无人消费
+    _w_clear = float(__import__("os").environ.get(
+        "FLUXNT_W_CLEARANCE", "0") or 0)
+
+    def _obj_with_clearance(gap_v):
+        if _w_clear <= 0 or gap_v < 0:
+            return gap_v
+        try:
+            qc = _kstate.query(kicad_cli, kipy, pcb_path,
+                               "clearance", consolidate=False)
+            return gap_v + _w_clear * float(qc.value) / 5.0
+        except Exception:
+            return gap_v      # 测不到间距不冒充(保持纯缺口)
 
     def _grind_micro(qo, pairs, report, plans, cls_of):
         """一磨山微步: 预测排序选 (残差,算子) -> _gated_step -> 记账。
@@ -1849,7 +1863,7 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
                         plan = _pl6
                 except (subprocess.TimeoutExpired, OSError):
                     pass    # 计数已记, 下一步不再烧 600s
-            obj_before = _gap_obj(plan)
+            obj_before = _obj_with_clearance(_gap_obj(plan))
             if obj_before == 0 and plan.get("paths"):
                 op = "harvest"      # 有验证路径直接收割(闭合副产品)
             use_fallback = obj_before < 0
@@ -1892,7 +1906,8 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
                                         str(pcb_path), net,
                                         str(pcb_path), timeout=600)
                     _plan_after = _last_json(_out4)
-                    obj_after = _gap_obj(_plan_after)
+                    obj_after = _obj_with_clearance(
+                        _gap_obj(_plan_after))
                 except (subprocess.TimeoutExpired, OSError):
                     obj_after = obj_before   # 测不到 = 不计改善
             res = _grind.record_step(net, op, act.get("params", {}),
