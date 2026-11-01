@@ -106,13 +106,17 @@ def escape_crossings(assign: dict, prefs: dict, ball_xy_of) -> list:
 
 
 def reassign_proposal(ball_nets: dict, prefs: dict, pins_db: dict,
-                      mcu_center, limit: int = 12) -> dict:
+                      mcu_center, limit: int = 12,
+                      mode: str = "") -> dict:
     """Propose ball swaps for escape-crossing nets.
 
     ball_nets: {signal: {"ball", ...}} current assignment (mcu_db form)
     prefs:     {net/signal: (dx,dy)} escape bearing
     pins_db:   {ball: {"signals": [...]}} AF multiplexing table
     mcu_center: (x_mm, y_mm)
+    mode: 搜索深度门(修 mode 死字段: 三个换球算子此前执行同一
+      搜索) — 'swap_pair'=仅成对交换 / 'swap_chain3'=仅三元旋转 /
+      'single_drift'=仅单球漂移 / ''=全阶(兼容旧调用)。
 
     Score = alignment of (ball - center) bearing with the escape
     bearing; a candidate ball must carry the signal in its AF family
@@ -152,10 +156,13 @@ def reassign_proposal(ball_nets: dict, prefs: dict, pins_db: dict,
     assign = {sig: d for sig, d in ball_nets.items()}
     cur_cross = escape_crossings(assign, prefs, _xy_of)
     rounds = 0
-    while cur_cross and rounds < 3 and len(out) < limit:
+    _do_pair = mode in ("", "swap_pair")
+    _do_c3 = mode in ("", "swap_chain3")
+    while (cur_cross and rounds < 3 and len(out) < limit
+           and mode != "single_drift"):
         rounds += 1
         best_swap = None   # (cross_after, s1, b2, s2, b1)
-        for (s1, s2) in cur_cross:
+        for (s1, s2) in (cur_cross if _do_pair else ()):
             c1 = ball_nets.get(s1, {}).get("ball")
             c2 = ball_nets.get(s2, {}).get("ball")
             if not c1 or not c2 or c1 == c2:
@@ -171,7 +178,7 @@ def reassign_proposal(ball_nets: dict, prefs: dict, pins_db: dict,
                 key = (len(after), s1, c2, s2, c1)
                 if best_swap is None or key < best_swap:
                     best_swap = key
-        if best_swap is None:
+        if best_swap is None and _do_c3:
             # Phase A2: 三元旋转(swap_chain3) — 两两交换解不动的
             # 三体对冲, A→B→C→A 旋转可能整体解序
             best_c3 = None
@@ -220,6 +227,8 @@ def reassign_proposal(ball_nets: dict, prefs: dict, pins_db: dict,
             assign[a3] = {"ball": c1}
             cur_cross = escape_crossings(assign, prefs, _xy_of)
             continue
+        if best_swap is None:
+            break        # mode=swap_pair 无成对解 / chain3 已试尽
         _na, s1, b2, s2, b1 = best_swap
         out[s1] = b2
         out[s2] = b1
@@ -230,7 +239,8 @@ def reassign_proposal(ball_nets: dict, prefs: dict, pins_db: dict,
         return out
 
     # ── Phase B: 单球改善(交换解不掉的残余, 旧启发式保留) ──
-    for sig, (dx, dy) in list(prefs.items()):
+    for sig, (dx, dy) in (list(prefs.items())
+                          if mode in ("", "single_drift") else ()):
         if sig not in rev or sig in out or len(out) >= limit:
             continue
         cur = ball_nets.get(sig)

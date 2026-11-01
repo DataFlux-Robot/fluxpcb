@@ -585,13 +585,24 @@ class TestHarness:
         ts = harness.generate_fixed_tests('task', [])
         assert ts['frozen'] is True
         assert ts['source'] == 'rule'   # 离线内置, 不冒充
+        names = [t['name'] for t in ts['tests']]
+        assert 'contracts_preflight' in names   # 反例引理种子
         r = harness.run_fixed_tests(ts, {'rollbacks': 0,
                                         'gain': 1, 'wall': 50,
                                         'wall_base': 100,
-                                        'floor': 0})
+                                        'floor': 0,
+                                        'contracts_ok': True})
         assert r['passed'] is True
-        r2 = harness.run_fixed_tests(ts, {'rollbacks': 1})
+        r2 = harness.run_fixed_tests(ts, {'rollbacks': 1,
+                                          'contracts_ok': True})
         assert r2['passed'] is False
+        # 契约预检红灯 = 整体不过(反例引理是前置门)
+        r3 = harness.run_fixed_tests(ts, {'rollbacks': 0,
+                                          'gain': 1, 'wall': 50,
+                                          'wall_base': 100,
+                                          'floor': 0,
+                                          'contracts_ok': False})
+        assert r3['passed'] is False
 
     def test_prompts_contain_discipline(self):
         from fluxpcb.kernel import harness

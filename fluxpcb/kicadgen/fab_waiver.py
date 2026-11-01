@@ -139,7 +139,8 @@ def _rule_name(it: dict) -> str:
                          str(it["actual_mm"]).replace(".", "p"))
 
 
-def write_waivers(dru_path: Path, waivers: list) -> int:
+def write_waivers(dru_path: Path, waivers: list,
+                  names_out: list = None) -> int:
     """豁免 = .kicad_dru 命名规则: 该网对间距下限 = actual(工艺能力
     声明)。无证据/无网名 = 响亮拒绝(契约1)。后写优先。
     同网对合并为**一条**规则取最小 actual —— 一规则对一网对(PWM
@@ -181,6 +182,8 @@ def write_waivers(dru_path: Path, waivers: list) -> int:
     n = 0
     for blk in blocks:
         name = blk.split('"')[1]
+        if names_out is not None:
+            names_out.append(name)
         if name in old:
             continue
         old += ("\n" if old and not old.endswith("\n") else "") + blk
@@ -220,12 +223,29 @@ def fab_close(kicad_cli: str, pcb: Path,
     items = parse_clearance(run_drc_json(kicad_cli, pcb))
     waivers, genuine = classify(items, fab_min_mm, tol_mm)
     dru_path = pcb.parent / (pcb.stem + ".kicad_dru")
+    rule_names = []
     if waivers:
-        write_waivers(dru_path, waivers)
+        write_waivers(dru_path, waivers, names_out=rule_names)
         pr = probe(kicad_cli, pcb, waivers)
     else:
         pr = {"probe": "NO_WAIVERS", "still_waived": 0,
               "total_clearance_after": len(items)}
+    # 政策放行证书(方案④: 地板+探针+命名规则+审计证据随行)
+    try:
+        import sys as _s5
+        _s5.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        from kernel import proofs as _pf
+        _pf.write_cert(_pf.make_waiver_cert(
+            policy_floor_mm=POLICY_FLOOR_MM,
+            probe=pr.get("probe"),
+            rule_names=rule_names,
+            audit={"source": "fab_close",
+                   "evidence": {k2: pr.get(k2) for k2 in
+                                ("still_waived",
+                                 "total_clearance_after")}}),
+            pcb.parent / "certs.jsonl")
+    except Exception:
+        pass    # 证书缺失=上层按不合格处理
     rep = pcb.parent / "fab_waivers.json"
     rep.write_text(json.dumps(
         {"waivers": waivers, "genuine": genuine, "probe": pr,

@@ -64,6 +64,7 @@ except Exception:
 #   ② 同网过孔在附近(fanout_repair 狗骨) -> 借道: 端点改指过孔;
 #   ③ 否则端点打附着过孔(via_ok 全层把关, 不过诚实失败)。
 via_pts = []          # [(x, y, why)] 全部待打过孔位置
+attach_log = []       # 端点三态日志(证书消费)
 for idx in (0, -1):
     x, y, li = pts[idx]
     target_layer = layer_id(li)
@@ -82,6 +83,7 @@ for idx in (0, -1):
                 on = [pcbnew.F_Cu, pcbnew.B_Cu]
             pad_on = target_layer in on
     if pad_here is not None and pad_on:
+        attach_log.append({"endpoint": idx, "mode": "same-layer"})
         continue                    # ① 同层直连
     # ② 借道: 最近同网过孔(狗骨) — 端点改指过孔位置
     near = None
@@ -94,9 +96,14 @@ for idx in (0, -1):
             near = (d, vp.x / MM, vp.y / MM)
     if near is not None:
         pts[idx] = [round(near[1], 3), round(near[2], 3), li]
+        attach_log.append({"endpoint": idx, "mode": "via-borrow",
+                           "via_at": [round(near[1], 3),
+                                      round(near[2], 3)]})
         continue
     # ③ 附着过孔
     via_pts.append((x, y, "endpoint-attach"))
+    attach_log.append({"endpoint": idx, "mode": "attach-via",
+                       "via_ok": False})
 for (px, py, pli), (qx, qy, qli) in zip(pts, pts[1:]):
     if pli != qli and (px, py) not in [(v[0], v[1]) for v in via_pts]:
         via_pts.append((px, py, "layer-change"))
@@ -132,6 +139,9 @@ except Exception as _e:
     print(json.dumps({"drawn": 0,
                       "error": "reverify failed: " + str(_e)[:80]}))
     sys.exit(0)
+for _a in attach_log:
+    if _a.get("mode") == "attach-via":
+        _a["via_ok"] = True        # via_pts 全过核才走到这
 
 items = []
 prev = None
@@ -163,7 +173,37 @@ try:
 except Exception as e:
     # fill 失败必须随报告可见 — 静默会让下游测量读到空填充
     fill_err = str(e)[:80]
+
+# 连通实测(闭合=测量语义): 保存前后同进程 islands 计数
+import geomir as _gm2
+b.BuildConnectivity()
+_islands_after = len(_gm2.islands_of(b, _nc))
+
 b.Save(pcb_path)
+
+# 出闭合证书(方案④: 小核复核 + 实时对账由 grader 做)
+try:
+    import sys as _s4
+    _s4.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from kernel import proofs as _pf
+    _cert = _pf.make_closure_cert(
+        net=net_name, path_pts=pts,
+        endpoint_attach=attach_log,
+        rule_table_ref="kernel.rules:" + str(
+            (_rules or {}).get("parse", {})
+            .get("source", {}).get("clearance", "fallback")),
+        measured_after={"islands_after": _islands_after,
+                        "drawn": len(items),
+                        "fill_error": fill_err})
+    _pf.write_cert(_cert, Path(pcb_path).parent / "certs.jsonl")
+except Exception as _ce:
+    # 证书缺失 = 上层按不合格处理, 不冒充 —— 但失败必须响亮
+    print(json.dumps({"drawn": len(items), "net": net_name,
+                      "cert_error": str(_ce)[:80],
+                      "islands_after": _islands_after,
+                      "fill_error": fill_err}))
+    raise SystemExit(0)
 print(json.dumps({"drawn": len(items), "net": net_name,
                   "segs": len(pts) - 1, "vias": len(via_pts),
+                  "islands_after": _islands_after,
                   "fill_error": fill_err}))

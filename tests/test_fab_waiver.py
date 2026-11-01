@@ -62,16 +62,25 @@ class TestParseClassify:
         assert g[0]["verdict"] == "genuine-violation"
 
     def test_three_class_separation(self):
-        # 真实 P6 案例: 0.137 gap 在工艺带内但弯 13μm 超窗 ->
-        # bend-too-big(不是 genuine-violation, 不是 waived)
+        # 真实 P6 案例: 0.137 gap 弯 13μm 超窗 —— C3 政策层后:
+        # actual >= 政策地板 0.12 且弯折 <= 0.03 -> policy-waiver
+        # (显式政策放行, evidence 随行), 不再落 genuine
         [it] = fab_waiver.parse_clearance({"violations": [_ZH_VIOL]})
         w, g = fab_waiver.classify([it])
-        assert not w and g[0]["verdict"] == "bend-too-big"
-        # 窗内近失(4.8μm) -> waived
+        assert w and not g
+        assert w[0]["verdict"] == "policy-waiver" and w[0]["policy"]
+        assert w[0]["evidence"] and w[0]["nets"]
+        # 地板下(0.11)仍必须 bend-too-big 落 genuine(政策不越地板)
+        [it3] = fab_waiver.parse_clearance(
+            {"violations": [_viol(0.15, 0.11)]})
+        w3, g3 = fab_waiver.classify([it3])
+        assert not w3 and g3[0]["verdict"] == "bend-too-big"
+        # 窗内近失(4.8μm) -> waived(工艺裕量, 非政策)
         [it2] = fab_waiver.parse_clearance(
             {"violations": [_viol(0.15, 0.1452)]})
         w2, g2 = fab_waiver.classify([it2])
         assert w2 and not g2
+        assert w2[0]["verdict"] == "waived-fab-margin"
         # 短缺超窗且低于工艺能力 -> genuine
         [it3] = fab_waiver.parse_clearance(
             {"violations": [_viol(0.15, 0.05)]})

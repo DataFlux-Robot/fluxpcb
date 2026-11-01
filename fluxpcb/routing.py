@@ -1506,7 +1506,9 @@ def _loop_execute(act: dict, report: dict, kicad_cli: str, kipy: str,
                       for ball, net in ball_nets.items()}
             pl = fcfull.placement()
             cx, cy, _ = pl.get("U1", (26.0, 24.0, 0))
-            props = reassign_proposal(assign, prefs, pins, (cx, cy))
+            props = reassign_proposal(assign, prefs, pins, (cx, cy),
+                                      mode=str(params.get("mode") or
+                                               ""))
             if not props:
                 return {"summary": "reassign: 无更优球位", "effect": 0}
             write_pin_override(proj, props)
@@ -1794,6 +1796,13 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
     _KG4 = Path(__file__).resolve().parent / "kicadgen"
     _plan_try = {}       # 地图懒取尝试计数 {net: n} — 每窗每网 ≤2 次
                          # (超时/空图都计数: 600s 超时不能逐步重烧预算)
+    # variant ops_params -> ctx.op_params(变体参数化算子面接线:
+    # 此前 ops_params 只写不读, emit 的 ctx.op_params 恒空)
+    try:
+        _op_params = json.loads(__import__("os").environ.get(
+            "FLUXNT_OP_PARAMS", "{}") or "{}")
+    except ValueError:
+        _op_params = {}      # 坏参不崩环(响亮降级为无参数)
 
     def _grind_micro(qo, pairs, report, plans, cls_of):
         """一磨山微步: 预测排序选 (残差,算子) -> _gated_step -> 记账。
@@ -1837,7 +1846,8 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
                 # 对是'焊盘簇<->孤铜'形态, gap 不可测 -> 假停滞)
                 obj_before = float(qo.value)
             ctx = {"blockers": plan.get("blockers") or [],
-                   "plan": plan}
+                   "plan": plan,
+                   "op_params": _op_params}
             if _l2_op:
                 op = _l2_op       # C2 A/B 窗: 候选臂钉扎实验算子
             try:

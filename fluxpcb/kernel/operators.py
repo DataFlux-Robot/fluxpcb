@@ -65,10 +65,17 @@ _EXPERIMENTAL: dict = {}
 
 
 def load_registry(path=None) -> int:
-    """载入实验算子注册表(损坏=空, 失效安全)。"""
+    """载入实验算子注册表(损坏=空, 失效安全)。
+    路径单源: 显式 path > FLUXNT_OPS_REGISTRY(调用方注入, A/B 臂的
+    dst 注册表/采纳注册表) > 仓库根 ops_registry.json。
+    (断裂案: z_ab 写工作区根、z_l2 写 z_lab、loader 读仓库根 ——
+    三方错位, 注入恒静默 no-op。)"""
     import json as _j
+    import os as _os
     from pathlib import Path as _P
     global _EXPERIMENTAL
+    if path is None:
+        path = _os.environ.get("FLUXNT_OPS_REGISTRY") or None
     p = _P(path) if path else _P(__file__).resolve().parent.parent \
         .parent / "ops_registry.json"
     try:
