@@ -78,15 +78,23 @@ def load_rules(pcb_path) -> dict:
             import re
             txt = dru.read_text(encoding="utf-8", errors="replace")
             # (rule X (constraint clearance (min 0.2mm)))
-            for m in re.finditer(
-                    r"\(constraint\s+(clearance|track_width|hole_size)"
-                    r"\s*\(min\s+([\d.]+)\s*mm\)\)", txt):
-                kind, val = m.group(1), float(m.group(2))
-                key = {"clearance": "clearance",
-                       "track_width": "track_width",
-                       "hole_size": "via_drill"}[kind]
-                out[key] = val
-                parse["source"][key] = f"kicad_dru:{kind}"
+            # 只认全局约束: 跳过 flux_* per-pair 豁免/政策规则 —— 它们
+            # 的 min 是个别网对的工艺声明, 不是全局设计约束(旧版把最后
+            # 一条豁免 min 当全局 clearance = 规则表污染, 实测 0.1426
+            # 来自某条 waiver rule)
+            for blk in re.split(r"\(rule\s", txt)[1:]:
+                name = blk.split('"')[1] if '"' in blk else ""
+                if name.startswith(("flux_waiver", "flux_policy")):
+                    continue
+                for m in re.finditer(
+                        r"\(constraint\s+(clearance|track_width|hole_size)"
+                        r"\s*\(min\s+([\d.]+)\s*mm\)\)", blk):
+                    kind, val = m.group(1), float(m.group(2))
+                    key = {"clearance": "clearance",
+                           "track_width": "track_width",
+                           "hole_size": "via_drill"}[kind]
+                    out[key] = val
+                    parse["source"][key] = f"kicad_dru:{kind}"
         except (OSError, ValueError) as e:
             parse["errors"].append(f"kicad_dru: {e}")
     out["parse"] = parse

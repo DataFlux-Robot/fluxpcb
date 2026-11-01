@@ -121,7 +121,7 @@ for e in entries:
     for (x, y, kind, ln) in live:
         for net in e["nets"]:
             it = find_item(x, y, kind, net)
-            if it is not None and it.m_Uuid.GetAsString() not in removed_ids:
+            if it is not None and it.m_Uuid.AsString() not in removed_ids:
                 items.append((it, net, ln))
                 break
     if not items:
@@ -132,7 +132,7 @@ for e in entries:
     # track endpoints attached to it); the victim's net goes to the
     # reroute list and the surgical reroute_nets pass re-closes it
     try:
-        removed_ids.add(victim.m_Uuid.GetAsString())
+        removed_ids.add(victim.m_Uuid.AsString())
         b.Remove(victim)
         removed += 1
         reroute.add(vnet)

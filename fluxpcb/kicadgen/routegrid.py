@@ -52,6 +52,23 @@ _PTH = getattr(pcbnew, "PAD_ATTRIB_PTH",
 _LAYER_BY_NAME = {"F.Cu": pcbnew.F_Cu, "B.Cu": pcbnew.B_Cu}
 
 
+def all_copper_ids(board):
+    """ALL copper layers (verification view). via_ok 的契约是"过孔
+    穿每层管径都要清" — 而 FC_L7 的 In2/In3(power_copper)上有真实
+    信号走线, signal_layer_ids 的"电源内层纯平面"假设让验证失明
+    (2 短路全是过孔撞 power_copper 走线)。布线层选择是策略,
+    验证看见一切是契约 — 两者必须分开。"""
+    try:
+        return [int(l) for l in board.GetEnabledLayers().CuStack()]
+    except AttributeError:
+        out = []
+        for k in range(32):
+            lid = getattr(pcbnew, "In%d_Cu" % k, None)
+            if lid is not None:
+                out.append(lid)
+        return [pcbnew.F_Cu] + out + [pcbnew.B_Cu]
+
+
 def signal_layer_ids(board, cons=None):
     """pcbnew layer ids of routable signal layers for this board.
 
@@ -143,7 +160,7 @@ def pad_rect(pad):
 
 def pt_rect_dist(px, py, rect):
     import math
-    cx, cy, hw, hh, ang = rect
+    cx, cy, hw, hh, ang = rect[:5]
     if ang:
         ca, sa = math.cos(ang), math.sin(ang)
         dx, dy = px - cx, py - cy

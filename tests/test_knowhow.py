@@ -170,3 +170,40 @@ class TestPrompts:
         txt = (REPO / "prompts" / "route_repair.md").read_text(encoding="utf-8")
         assert "component_nudges" in txt
         assert "走线坐标" in txt             # forbids coordinate tracks
+
+
+class TestSilentExceptLint:
+    """静默 except 审查(_json 教训第 2 例固化): 核心集硬失败,
+    有理由标注放行, 有可见动作放行."""
+
+    def test_dirty_flagged_annotated_pass(self, tmp_path):
+        from fluxpcb.kernel import lint
+        f = tmp_path / "x.py"
+        f.write_text("try:" + chr(10) + "    x()" + chr(10)
+                     + "except ValueError:" + chr(10)
+                     + "    pass" + chr(10), encoding="utf-8")
+        v = lint.lint_silent_excepts(f)
+        assert v and "静默except" in v[0]
+        f.write_text("try:" + chr(10) + "    x()" + chr(10)
+                     + "except ValueError:" + chr(10)
+                     + "    pass    # ok-silent: 探针" + chr(10),
+                     encoding="utf-8")
+        assert lint.lint_silent_excepts(f) == []
+
+    def test_loud_body_passes(self, tmp_path):
+        from fluxpcb.kernel import lint
+        f = tmp_path / "x.py"
+        f.write_text("try:" + chr(10) + "    x()" + chr(10)
+                     + "except ValueError as e:" + chr(10)
+                     + "    print(e)" + chr(10), encoding="utf-8")
+        assert lint.lint_silent_excepts(f) == []
+
+    def test_core_set_clean(self):
+        # 测量/变更核心: 裸 pass/continue 一律不许(可见或标注二选一)
+        from fluxpcb.kernel import lint
+        from pathlib import Path as P
+        repo = P(__file__).resolve().parent.parent
+        bad = []
+        for rel in lint.CORE_SILENT_EXCEPT:
+            bad += lint.lint_silent_excepts(repo / rel)
+        assert bad == [], bad

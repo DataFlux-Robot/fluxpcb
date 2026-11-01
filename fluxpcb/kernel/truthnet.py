@@ -47,19 +47,26 @@ def parse_d356(path: Path) -> dict:
     Both 317 and 327 carry net/ref/pin at identical columns; via
     records have ref='VIA' and empty pin (skipped).
     """
+    # fc 实测教训: 定宽列切分在多位引脚上静默截断(B17->B1, D16->D1)
+    # — pin 字段起点随 ref 宽度浮动, 固定列界不可靠. 改分词解析:
+    # 317/327 + net + ref + '-'开头的 pin(其余 token 是坐标/孔径).
+    # 回归锁见 tests: 真实 KiCad 10 行样.
+    import re as _re
+    _rec = _re.compile(r"^3[12]7(\S+)\s+(\S+)(?:\s+(-\S+))?")
     nets = {}
     for line in path.read_text(encoding="utf-8", errors="replace") \
             .splitlines():
         if not (line.startswith("317") or line.startswith("327")):
             continue
-        net = line[3:19].strip()
-        ref = line[19:24].strip()
-        pin = line[24:29].strip().lstrip("-")
-        if not net:
+        m = _rec.match(line)
+        if not m:
             continue
-        nets.setdefault(net, set())
-        if ref and pin:
-            nets[net].add(f"{ref}.{pin}")
+        net = m.group(1)
+        ref = m.group(2)
+        pin = (m.group(3) or "").lstrip("-")
+        if not net or not pin:
+            continue            # VIA 记录(无 '-pin')跳过
+        nets.setdefault(net, set()).add(f"{ref}.{pin}")
     return {k: v for k, v in nets.items() if v}
 
 
@@ -107,8 +114,46 @@ def parse_kicad_netlist(path: Path) -> dict:
     return nets
 
 
+def resolve_annotation(board_nets: dict, sch_nets: dict) -> dict:
+    """图同构注解对齐(SINA 2607.01609): 板图某 ref 与原理图某 ref 的
+    (网,引脚)集全同 -> 是注解缺失(REF** vs U3), 不是连通差异。
+    返回 {板图ref: 原理图ref} 映射。"""
+    def _refs(nets):
+        out = {}
+        for net, pins in nets.items():
+            for p in pins:
+                if "." in p:
+                    r, pin = p.rsplit(".", 1)
+                    out.setdefault(r, set()).add((net, pin))
+        return out
+
+    b_refs = _refs(board_nets)
+    s_refs = _refs(sch_nets)
+    mapping = {}
+    for br, sig in b_refs.items():
+        if br in s_refs:
+            continue
+        for sr, ssig in s_refs.items():
+            if sr in b_refs or sr in mapping.values():
+                continue
+            if sig == ssig and len(sig) >= 2:
+                mapping[br] = sr
+                break
+    return mapping
+
+
 def compare(board_nets: dict, sch_nets: dict) -> dict:
-    """The audit verdict: what the fab will etch vs the intent."""
+    """The audit verdict: what the fab will etch vs the intent.
+    C4: 注解同构先对齐(REF**↔U3), 残差才是真连通差异。"""
+    mapping = resolve_annotation(board_nets, sch_nets)
+    if mapping:
+        def _remap(pins):
+            out = set()
+            for p in pins:
+                r, pin = p.rsplit(".", 1) if "." in p else (p, "")
+                out.add(mapping.get(r, r) + ("." + pin if pin else ""))
+            return out
+        board_nets = {n: _remap(ps) for n, ps in board_nets.items()}
     missing = {n: sorted(pins) for n, pins in sch_nets.items()
                if n not in board_nets}
     pin_mismatch = {}
@@ -120,6 +165,7 @@ def compare(board_nets: dict, sch_nets: dict) -> dict:
             }
     return {"nets_sch": len(sch_nets), "nets_board": len(board_nets),
             "missing_nets": missing, "pin_mismatch": pin_mismatch,
+            "annotation_map": mapping,
             "clean": not missing and not pin_mismatch}
 
 

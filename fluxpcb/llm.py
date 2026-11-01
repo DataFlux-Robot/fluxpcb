@@ -51,12 +51,19 @@ class LLMAdapter:
         }
         if schema:
             body["response_format"] = {"type": "json_object"}
+        # ollama 本地模型专属字段(关思考+输出上限) — 仅本地端点携带,
+        # 远程 OpenAI 兼容端点会因未知字段报 400(实测)
+        if ("127.0.0.1" in self.base_url or "localhost" in self.base_url):
+            body["options"] = {"num_predict": 512}
+            body["chat_template_kwargs"] = {"enable_thinking": False}
+            body["think"] = False
         req = urllib.request.Request(
             f"{self.base_url}/chat/completions",
             data=json.dumps(body).encode(),
             headers={"Authorization": f"Bearer {key}",
                      "Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=120) as r:
+        _tmo = int(os.environ.get("FLUXNT_LLM_TIMEOUT", "300"))
+        with urllib.request.urlopen(req, timeout=_tmo) as r:
             data = json.loads(r.read())
         return {"ok": True, "text": data["choices"][0]["message"]["content"], "error": ""}
 
@@ -70,7 +77,8 @@ class LLMAdapter:
             data=json.dumps(body).encode(),
             headers={"x-api-key": key, "anthropic-version": "2023-06-01",
                      "Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=120) as r:
+        _tmo = int(os.environ.get("FLUXNT_LLM_TIMEOUT", "300"))
+        with urllib.request.urlopen(req, timeout=_tmo) as r:
             data = json.loads(r.read())
         return {"ok": True, "text": "".join(b.get("text", "") for b in data["content"]),
                 "error": ""}

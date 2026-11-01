@@ -584,3 +584,218 @@ T2=kipilot解析+ByTaymur加载探针+DaCapo7回读；T1=hyuhang822三约束+Cyr
 - **item-3 自由槽评分**：阻挡者候选改为垂直于走廊轴双向+margin 排序（blocker-out-of-band），替代径向猜测
 - **item-4 loop_final 崩溃安全测量**：逐动作落盘生效（迭代 3/8 均记录 2开/0短+指纹）——实验协议从 stage 噪声中解耦；**修复过程本身暴露静默 except 类第 2 例**（_json NameError 被 except:pass 吞掉——kernel 要消灭的病在 kernel 自己的测量代码里复发），已改为可见 steps 记录
 - 终态：loop 稳定在 2开/0短（迭代 3→8 恒定）——几何地板确认；四机制全部实弹工作，残差 2 开需要流派②（搜索完备）或布局协同的多步变换
+
+
+## K24 P6轮：深度复合动作+假阴性猎手+两级测量+加工裕度闭环（2026-10-29 推荐执行序①-④）
+
+泛化为: routing.coordinated_open（线+件+直连单Txn复合动作）+ geomir.near_miss_retry（垂直扰动假阴性猎手）+ geomir._PLAN_CACHE/批量CLI（单进程多网共享提取）+ routing._fast_shorts/count_overlaps（两级测量廉价代理）+ kicadgen/fab_waiver.py（加工裕度豁免+写后探针）+ tests/test_geomir TestStreams123 + tests/test_fab_waiver。
+契约: 读=geomir计划(rejects的blocked_by是扰动方向源)；写=coordinated_open 全步单Txn（任一步不变量破坏=整体回滚，Groute可逆复合）；测量=廉价代理失败必须返None并回退慢DRC权威（静默-1=假通过，_json教训第2例的固化）；豁免=证据随行（required/actual/fab_min三值）+写后探针（PROBE_FAILED响亮失败）+真违例（actual<fab_min）绝不豁免。
+
+### 机制设计（对应卡点：几何地板2开——单步动作深度不够）
+1. **coordinated_open（①补深度）**：单一动作内 ①挪线(gap_nudge 0.15mm步) → ②重规划 → ③仍阻塞则多件联动挪动(place_opt top-2 同动, margin预检) → ④挪后 direct_link 直连收尾。与单发动作并存（playbook 复合置顶、单发兜底）——几何地板需要的是"同时动多处"的深度，不是更多单步。
+2. **near_miss_retry（②补宽度）**：最优被拒候选沿垂直于阻挡点方向 0.15mm 步进偏移重试（取 short_by_mm 最小的 reject 为种子）——hyuhang"虚报物理饱和"的假阴性杀手：候选生成漏掉的缝由扰动补回。
+3. **两级测量（③补次数）**：strict gate 用 count_overlaps（跨网几何重叠, ~2-5s）替代 60s DRC 判 delta_shorts；loop_final 终审保留全 DRC 权威（pcbfork 两级测量）。批量 geomir CLI：8 网单进程（1 次板加载+共享提取）替代 8 子进程。plan cache 按 (board_sha, net, width) 缓存——板变即失效（direct_link 落板改写文件→sha 变→自然miss，语义正确）。
+4. **fab_waiver（④加工闭环）**：shortfall≤8μm 且 actual≥JLC 能力(0.1mm) 的间距近失=规则过严而非不可加工→带证据写 drc_exclusions；写后重跑 DRC 探针断言豁免生效（KiCad 静默丢弃不匹配 exclusion 是已知陷阱）；豁免清单 fab_waivers.json 随加工包交付，终审与 truthnet IPC-D-356 审计成套。
+
+### 语料来源（pcb_analysis 259项目）
+①=Groute 可逆动作代数（复合单Txn）+ kabidey nudge loop + DaCapo7；②=hyuhang 假阴性诊断 + itsAryan 候选阶梯；③=pcbfork 两级测量 + msyman 5.4M×oracle 廉价代理思想；④=ByTaymur 写后探针方法论 + JLC 工艺能力文档。
+
+
+## K25 P6/P7 复盘轮：测量-状态绑定(C0m) + 诚实原语（2026-10-29）
+
+泛化为: state.query 报告 fp 绑定(.fp 随伴文件, 不匹配即重测) + txn 先测后快照(回滚必回固化态) + loop_final truth/oracle 分账(_loop_final_truth 终审) + gap_nudge v2(T结点入链+锚点保持+拒绝归因) + count_overlaps_geom 阈值折半(实测回归锁) + z_vtest 超时必留测量 + 门禁 opens 固化测量。
+契约: 读=任何测量产物必须与板状态指纹绑定, 不匹配=重测而非复用(报告是"那个态的测量", 不是"这个板的测量"); 写=回滚恢复的必须是固化态(先 refill 后快照); 分账=oracle 只能标 shorts_oracle, truth 只来自终审 DRC; 失败=拒绝/异常必须带类型+归因+160字符以上摘要(50字符截断把根因切没了)。
+
+### P6/P7 实验事实链（两次 mini 各 50min）
+1. **P6 终板真值 0开/0短**(4 clearance+1 hole_to_hole)但 loop_final 记 2开/2短——两个测量口径都不真: shorts=2 是 stale-rpt 复用(动作回滚后 rpt 停留在动作脏态被下一次读走), 2开是迭代中态。**"测量混乱"不是历史病, 是会在新代码里复发的系统性病**。
+2. **幻影 delta_shorts=2**(P6 coordinated_open 回滚后): 门禁读到的是被回滚动作的 rpt——Txn 回滚恢复了板却没有让测量失效。修复=fp 绑定, 现在任何读到过期报告都会重测。
+3. **optimize_placement delta_opens=-10 幻影**(P7): 挪件让 zone fill 过期, 门禁在 stale fills 上数连通性(40-vs-66 病原样复发)——修复=门禁 opens 固化测量。**挪件/画线都会使 fill 过期, 凡连通性测量必须 post-refill**。
+4. **gap_nudge v1 移动 4 链 = 10 幻影开路**(P6): T型接点不入链+via/pad 锚点不检查=挪线造开路。v2 三契约(入链/锚点/归因)后实测: 同一钉点诚实地 `anchor:pad脱离` 拒绝——**拒绝是信息, 盲挪是犯罪**。
+5. **38mm direct_link 切碎 GND 平面**(P6/P7 两次): EN 的长直连跨板 38.63mm, 画后 opens +10——平面被切(causal taxonomy 的 power-fragment 类), I3/门禁两次正确拦截。下一步: 走线代价应惩罚平面切割, 或画后 power_stitch 缝合。
+6. **KiCad 10 PCB_VIA::GetWidth() 无层参数断言杀进程**——route_embedded.py 里已有此教训记录, gap_nudge v2 又踩了一次。教训复读机: API 契约只写在注释里拦不住复发, 需要 lint 级检查(via 变量禁止裸 GetWidth())。
+
+### 诚实边界
+- mini 在当前布局下 2开 是几何地板: corridor_rescue 破 I3、gap_nudge 锚点拒、optimize_placement 待公平门禁复测(P8)、direct_link 跨板切平面。地板归因已全图级化。
+- P6/P7 各在 runner 3000s 上限被杀(stage 重试吃满预算), loop 预算 1500s 与动作单步成本(2×固化 DRC+FR 960s)不匹配——预算治理(时间切片)是下轮工项。
+
+## K26 fc 泛化轮：成套加工交付 + 解析器截断 + 静默except清零（2026-10-29 ④执行轮）
+
+泛化为: kicadgen/fab_waiver.py（三分类豁免+.kicad_dru命名规则+写后探针+locale无关解析）+ kernel/truthnet.parse_d356 分词解析（定宽列截断修复）+ kernel/lint.lint_silent_excepts（SILENT_EXCEPT 规则+CORE_SILENT_EXCEPT 核心集）+ geomir._EXTRACT_CACHE（提取共享）+ tests/test_fab_waiver + test_kernel TestD356RealWorldColumns + test_knowhow TestSilentExceptLint。
+契约: 豁免三分类(waived/bend-too-big/genuine)绝不混用——bend-too-big 需布局修复或显式政策, 不许用工艺豁免偷渡; 解析器不依赖 locale/列宽（分词+真实行回归锁）; 静默 except 在测量/变更核心=lint 硬失败（可见化或 '# ok-silent: 理由' 二选一）; DRC 规则豁免必须写后探针（KiCad 静默丢弃损坏规则是已知陷阱）。
+
+### fc（h743-fc, 240球BGA, 4层）实测事实链
+1. **FC_L2 全链跑 3000s 闭环 0 决策**: 阶段(布线会话)吃掉 ~50min 才到闭环入口; 闭环首动作又无界运行 61min 被 runner 截杀。教训: (a) 实验协议要给闭环独立预算（FC_L3/L4 直接在阶段终板上跑闭环）; (b) 单步动作缺超时=预算治理漏洞（route_session 1800s 上限仍在）。
+2. **FC_L3 闭环 12 决策全在 reassign/jumper 空转, 地图动作缺席**: 批量 geomir 在 BGA 上超 600s 被杀→plans 空→direct_link 候选不生成。根因=extract_objects 每网全板重扫（『共享提取』其实只共享了板加载）。修复=_EXTRACT_CACHE（板不变缓存提取）+批量超时 1200s。
+3. **IPC-D-356 解析器定宽列截断**: B17→B1、D16→D1、U14→U1——pin 字段起点随 ref 宽度浮动, 个位引脚时代验证的列界在多位引脚上静默切错, 产生几十条幻影失配。修复=分词解析(317/327+net+ref+'-'pin), 真实行回归锁。
+4. **修复后 fc 终审收敛**: missing_nets=0（74 网全覆盖）, pin_mismatch 仅 8 网且全部可行动——主导项 REF**（U3 封装未标注位号, 板图-原理图真差异, handoff 级发现）+ JMP1 跳线改接 + J10 屏蔽脚。
+5. **fab_package 成套交付成型**: fc 当前态 0 短/0 间距违例/49 开（未布线, 非缺陷）→ 0 豁免需要 + 连通性终审账 —— 违例/豁免/连通性三账合一落盘 fab_package.json。
+
+### 静默 except 治理（第 2 例教训固化）
+- lint_silent_excepts: 核心集(kernel/*+执行原语)裸 pass/continue=硬失败; 正当语义(清理/失效安全/逐对象跳过)必须 '# ok-silent: 理由' 标注。18 处治理=9 可见化(TXN记录/决策journal/zone fill/多层降级)+9 标注。
+- 外围模块 68 处存量已清单化(tests 可查), 分轮消化。
+
+### 工具链教训(复发机)
+- heredoc/JSON 层会吃反斜杠转义: 补丁脚本一律 Write 工具+原始三引号锚点, 测试里用 chr(10) 代替转义。
+- KiCad 10 PCB_VIA::GetWidth() 无层参数断言杀进程(route_embedded.py 早有记录仍复发)——API 契约只写注释拦不住, 需 lint 级检查。
+
+## K27 五流派轮：①-⑤ 实施+双板终验（2026-10-30 推荐执行序落地）
+
+泛化为: geomir.group_pads_by_cluster（岛=KiCad连通簇单源）+ pairs_by_net/select_nets + kicadgen/fanout_repair.py + kicadgen/power_stitch.py + geomir.extract_planes/plane_cut_count + routing._action_rank/_action_allowed（动作x板型权重表）+ routegrid.all_copper_ids（验证全铜视图）+ geomir.pt_pad_dist（形状语义）+ tests TestIslandsClusterSingleSource/TestFanoutRepair/TestBatchEscape/TestPlaneAwareness/TestEscapeFirstOrdering/TestPadShapeSemantics。
+契约: 岛划分==连通簇(位置+层键, 簇直现成员)——规划端点单源用测量器报的断点对; 验证视图=全铜层(via_ok 全层承诺), 布线层选择是策略不是契约; 圆距离只给真圆焊盘(形状标志), 元组第3位是半维; 动作x板型禁用表必须可见日志; fanout_repair/power_stitch 每步几何合法, 全局验收=严格门禁。
+
+### 双板终验数据（五流派全套 vs 基线）
+| 板 | 基线 | 终态 | 决策 | 判定 |
+|---|---|---|---|---|
+| mini P11 | 2开/0短 | **2开/0短** | 7(batch/reroute/jumper/move) | 地板未破: 一次 reroute +1 被后续回吐; 平面代价未找到绕行走廊 |
+| fc FC_L8 | 49开/0短/0间距 | **49开/0短/0间距** | 19(全 fanout_repair) | **短路泄漏清零**(FC_L7 的 2短/8间距全封); 但收割阶段饿死: 扇出重建 19 次而 batch/direct_link 0 次 |
+
+### FC_L7 验尸三缺陷（全部修复+回锁）
+1. **圆半径半维 bug**: pad_rect 返回半维, pt_pad_dist 用 w/2 当半径——球距 0.2557 被算成 0.356 假通过(阈值 0.35)。过孔贴球 0.0557mm 造 7 条间距违例。
+2. **power_copper 全层盲区**: 板为 6 层且 In2/In3(power_copper)上有真实信号走线; signal_layer_ids 的"电源内层纯平面"假设让 via_ok 失明——2 短路全是过孔撞 power_copper 走线。修复=routegrid.all_copper_ids 验证视图。
+3. **fanout-only 饥饿**: escape-first 静态权重把 18 个扇出候选排最前, 每迭代一个——预算全被扇出吃掉, 收割动作(direct_link/batch)一次没轮到。**排序治理只做了静态序, 没做阶段转移**——这是 ⑥(宏编排)的直接论据。
+
+### 测量口径教训(又一例)
+- P9 报告"DRC 3328 违例"是阶段中途旧账, 终板真值 0 违例; 工程文件(.kicad_pro)缺失的 DRC 比对是无效比对(默认规则造 113 假违例)。测量三问: 测的哪个态? 用的哪套规则? 产物绑定指纹了吗?
+
+### 下一轮信号(⑥⑦)
+- ⑥ 动作链宏编排: fanout→batch→direct_link 一气呵成(链内共享测量, 链尾一次门禁) — 饥饿问题的结构解; grok bot 三段式流程的原理。
+- ⑦ 增量测量: 动作只动局部→门禁只重测受影响网对, 全局 DRC 低频终审 — 预算-动作成本比的结构解。
+
+## K28 建造流水线轮：⑥升格+14篇论文配方落地（2026-10-30）
+
+泛化为: routing._build_pipeline（五阶段状态机）+ routing._gated_step（闭环/流水线共用门禁步）+ kernel/bandit.py（Thompson Sampling 修复臂）+ kernel/score.py（五层连续评分+证据链）+ kernel/semantic.py（引脚对+网角色表示）+ truthnet.resolve_annotation（图同构注解对齐）+ fab_waiver.export_fab（gerber 制造就绪）+ dsn_mark_fixed open 铜保护 + tests/test_bandit.py（20 例）。
+契约: 流水线每步与闭环同一门禁语义（_gated_step 抽取）；执行器上下文 report 必须带 pairs/taxonomy（FC_L9 空上下文教训）；评分/调度的奖励只认效果（outcome_reward）；fix 保护双向（DSN 不撕+注入不删，fix 铜不进 scr 已实测验证）；制造就绪判据=可加工产物在盘（gerber 计数）。
+
+### 论文→机制对照（本轮方法论）
+| 论文 | 采纳机制 | 实测去向 |
+|---|---|---|
+| 2602.00510 PCBSchemaGen | TS 修复臂+分层连续验证器 | bandit.py/score.py, A2 调度实弹多样化 |
+| 2603.26735 DS-MoE | 类感知臂(动作×残差类=独立专家) | bandit arm_key(action, class) |
+| 2605.30345 SchGen / 2606.23704 PCB-QA | 语义表示>裸坐标 | semantic.py 引脚对+网角色 JSON |
+| 2607.03261/2608.04434 Omni 系 | 分层约束评估+语义耦合 | score 五层+网角色标签 |
+| 2607.05915 PCBWorld | 引擎当裁判+原生操作空间 | DRC 真值门禁+既有动作菜单验证 |
+| 2608.31006 RF workflow | 制造就绪判据 | export_fab(gerber 13 件在盘) |
+| 2607.01609 SINA | 图同构校验 | resolve_annotation（REF**↔U3 收敛） |
+| 2507.10639 SMPS LLM | 参数类/拓扑类分层 | 流水线顺序: 拓扑类先算法求解 |
+| 2608.02955 Chat Debugging | 证据链引用 | score evidence(uuid+描述) |
+
+### FC_L9/L10 实测（49 开基线）
+- **终态 47开/0短/0间距**（净闭 2，P2 平面缝合贡献；其余阶段 delta=0）
+- P3 FR 注入两轮均被 I3 拦（47→63/47→65）：fix 保护板上的 FR 新走线切平面——门禁零劣化兜底
+- B1 实弹：scr 注入 replaced:0/preserved:74（stub 全存）；B2 判定：FR 4× 是显示 bug（层感知实测最小边距 0.12-0.14mm）
+- A2 实弹：动作谱 6 类多样化（vs FC_L8 19×fanout 单打）
+- report 空上下文 bug（FC_L9）修复后 reassign_pins 通到真实分析→"无更优球位"
+
+### 残差 47 开的收敛归因（下一主攻）
+1. **换球搜索弱**（reassign_proposal 朴素贪心，平面性冲突的正解没真找）——B 类
+2. **口袋墙**（batch_escape 全 still-blocked，K14 类复现）——重分配是唯一出路，指向 1
+3. FR 在 fix 板的注入回归（切平面）——P3 需平面感知注入或窄域 FR
+
+### 实验设计注记
+- 消融×3（去 bandit/去 fix/去 reassign）在跑；但当前效应量仅 +2（stitch），消融分辨力有限——归因可先由逐动作 delta 给出（stitch=+2, 其余=0）
+- 零样本迁移声明要打折：机制开发过程中 fc 反馈参与了调试（bake-in），纯 mini 调参→fc 直测协议待下轮新机制严格执行
+## K29 收敛引擎轮：RSI 递归磨山 + 换球解锁（2026-10-30）
+
+泛化为: kernel/grind.py（残差级磨山状态机）+ kernel/operators.py（算子库+升级链）+ kernel/predict.py（预测器 v1）+ constraints.ball_grid_xy（球位键契约）+ chain3 三元旋转 + _closed_loop 磨山模式 + z_grind.py 抗中断驱动 + tests/test_bandit.py（33 例）。
+契约: 成功=objective 单调改进或开路真闭合（闭合是爬山副产品）; 残差记忆独立于 journal（journal 截断不许遗忘黑名单）; 侵蚀台账带还原令牌; 算子升级链有界（到底=诚实停滞）; 合成测试键不许掩蔽真数据契约（'0,10' vs 'A1' 教训）。
+
+### FC_L13 主判定（47 开基线, 阶段拆分+断点续跑）
+| 阶段 | 开路 | 短/间距 | 关键动作 |
+|---|---|---|---|
+| 基线 | 47 | 0/0 | — |
+| 流水线段 | **16** | 0/92 | reassign_pins 换球 **+28**(12 球交换+重生成), stitch +3, FR 重建 |
+| 磨山段 | 16 | **0**/49 | 14 微步(stitch3/nudge3/rip3/widen2/move2): 磨掉 1 短+43 间距 |
+
+### 球位键契约断裂（本轮最大教训）
+- reassign_proposal.ball_xy 期望 'x,y' 数字键, 真实 mcu_db 是 'A1' 行列名 -> 恒返 None -> 交叉恒空 -> 换球恒空('无更优球位'实为确定性输出)。
+- **合成测试键('0,10')掩蔽了断裂** — 全绿测试与实弹恒空并存。教训: 契约测试必须用真数据键格式。
+- 修复即解锁: 271 交叉对可见、12 提案产出、一步闭合 28 开 —— **平面性重分配是 BGA 逃逸类的正解**, 印证 K21'重分配可解'。
+
+### 磨山机制实弹（RSI 递归）
+- 微步=预测排序选(残差,算子)->_gated_step->objective 记账; 升级链 nudge->rip->widen->move 实弹推进(SDMMC1_CMD 走完全链); 负样本档案 14+ 条(预测器语料)。
+- 目标兜底教训: 换球后的开路对是'焊盘簇<->孤铜'形态(islands=1 无 reject) -> gap 目标不可测 -> 假停滞; 全局开路数兜底目标解锁磨山。
+- 盲区教训: opens-only 目标看不到顺带收益(磨山清 1 短+砍半间距而 d_obj=0)—— v2 目标应为 A3 综合评分。
+
+### 残差 16 开的新分类（下一主攻）
+1. **孤铜垃圾类**: islands=1+有对 = 焊盘簇对 dangling stub —— 应删除清理而非连接(连接类算子注定无效); fanout_repair.ripped_dead 是现成清理原语。
+2. 92->49 间距残差: P3 FR 重建引入(类规则只覆盖 critical/power, 普通网按 FR 默认 0.1397 走线) —— R2 注入需补全网默认类规则。
+3. 16 开中真需布线的部分: pocket-wall 尾巴, 换球后应再评(交叉已解 28 个)。
+
+### 实验设计注记
+- 抗中断: 阶段拆分+断点续跑(grind_state/journal 持久)——外部中断不再是灾难; copytree 会带入 src 的 v_result(秒退 bug 已修)。
+- 预测器 v2(回归)与综合评分目标是下一轮的两个升级点。
+## K30 磨山续战轮：HarnessPro 吸收 + 破壁实录（2026-10-30）
+
+泛化为: kernel/operators.py 算子梯子补全(power-fragment 全链) + kernel/grind.py 反自欺拉黑 + kicadgen/orphan_cleanup.py + power_stitch v2(小过孔+密偏移环) + dsn_inject_class_rules Normal 类 + tests/test_k18 更新。
+契约: 自报 effect 不算成功只认 objective(HarnessPro 反作弊); 同算子两连败即拉黑; normal 网必入类(禁吃 FR 默认 0.1397); 候选扩展必须过既有几何校验(小过孔=JLC 下限)。
+
+### FC_L13 全程战报(47 开基线)
+| 阶段 | 开路 | 关键 |
+|---|---|---|
+| 流水线 | 47->16 | 换球 +28(球键修复解锁), stitch +3 |
+| 磨山 v3 | 16 | 14 微步 0 改善(旧梯子 stitch 空转) |
+| 磨山终版 | 16->**11** | **stitch v2 一步 -5**(小过孔破壁), 反自欺拉黑 16 项 |
+| 终态 | **11开/0短/55间距** | 53 微步, 62 决策 |
+
+### 诊断驱动修复链(HarnessPro 轨迹分析法实录)
+1. 14 微步啃不动 -> 轨迹诊断: power-fragment 只有 stitch 一个算子 -> 梯子补全(harvest->stitch->墙侵蚀链)
+2. stitch 25 连转 -> 自报 effect 不拉黑是漏洞 -> 反自欺拉黑(两连败即拉)
+3. 孤铜假设证伪(orphan_cleanup removed:0) -> 16 开定形=GND12 平面碎片短跳+电源4+信号6
+4. stitch v2 候选扩展(0.25->0.15 过孔+13 偏移) -> **一步 -5**
+5. Normal 类从未注入(normal 网吃 FR 0.1397)=间距 92 的根 -> 补全
+
+### 残余 11 开(下一主攻: 区域修复算子类)
+- GND/电源平面碎片余部: 需 zone 级修复(平面层铜桥/zone 轮廓调整) — 连接/挪/撕算子均已试尽(53 微步证据)
+- 信号网 3 对: 逐对走廊仍封(墙侵蚀链到底)
+- 55 间距: Normal 类已修但重建引入部分新违例 — 需终修扫尾
+
+### 磨山方法论结论(RSI)
+- **候选质量决定收敛**: 同一目标函数下, stitch v2 候选一步抵旧候选 25 步 —— 算子库进化比调度优化杠杆大
+- **反自欺机制必要**: 自报 effect 骗过拉黑导致空转; objective 唯一真源
+- 递归记忆有效: grind_state 53 微步跨 4 次续磨无损接续(抗中断设计成立)
+## K31 RSI 闭环验证模式轮：L2 自改进环实弹（2026-10-30）
+
+泛化为: kernel/ledger.py（验证台账=残差类x算子矩阵, 一表两用）+ kernel/improve.py（矩阵驱动规划器+预注册判据）+ kernel/operators.py ops_registry（数据驱动实验算子）+ z_lab/z_ab.py（A/B 小窗双臂验证器）+ z_lab/z_l2.py（L2 环驱动器）+ grind.record_step class_at/ts/effect + tests/test_bandit.py（48 例）。
+契约: 选题由矩阵零可达证明驱动(禁拍脑袋); 候选必带预注册判据(固定评测器禁主观); new_op 未实现记 PENDING_IMPL 不冒充 FAIL; 自报 effect 不算成功; 元层闸门每轮≤2 验证≤1 采纳(RSI² 有限展开)。
+
+### L2 环端到端实弹(cycle 1-2)
+- **①诊断: 类级零可达自动检出** — 'unclassified: 12 次尝试 0 胜'(方案验收核心)
+- **②立题: zone_bridge 候选自动排首**(zone 铜桥+口袋墙组合)+参数扫描候选
+- **③验证: A/B 双臂干净裁决** — variant(nudge dist=0.15) 8v8 微步 d_obj 0:0 诚实 FAIL; newop PENDING_IMPL
+- **④采纳: 0 采纳(正确 — 无通过者)**; ⑤报告: l2_cycle_1/2.json 全留痕
+
+### 验证腿装配教训(3 伤实录)
+- 续行符双反斜杠(Write/JSON 层陷阱第 3 例) — 补丁脚本一律括号续行
+- 补丁错环(for c in cands 首现=打印环) — 插入前必须数锚点出现次数
+- 逐行手术误吞邻行(ent 初始化) — 大改整文件重写优于行修补
+
+### 方法论结论(RSI 闭环的三点)
+1. **选题自动化成立**: 矩阵→零可达证明→候选, 全程无人拍板 — 旧'流派清单'正式降格为候选池
+2. **验证闭环成立**: 预注册判据+固定评测器+诚实三分裁决(PASS/FAIL/PENDING_IMPL)+采纳闸门, 负结果正确拒绝
+3. **递归就绪**: 下轮 = zone_bridge 实现(经 ops_registry 实验算子)→L2 自动验证→采纳后磨山再战 — L2 磨 L1 的飞轮转起来了
+## K33 七方向研究测试轮（2026-10-31 Agent4Sci 方法论实证）
+
+泛化为: z_lab/z_research.py 七实验电池 + research_battery.json + harness.audit_trajectory 对抗实弹 + geomir 知识 ON/OFF 探针。
+契约: 每方向可判定(支持/否定/待扩展); 数据缺口标 DATA-GAP 不冒充; 对抗审计用种子作弊测召回; 迁移声明带 bake-in 折扣。
+
+### 七方向实证结论
+| 方向 | 实验 | 判定 |
+|---|---|---|
+| 1 改进归因科学 | 层级贡献率: 结构级 36(换球+28/桥-3/缝-5) : 参数级 0(53步) | **SUPPORTED** — 参数天花板量化为 0 |
+| 2 探索坍缩 | gen2 m1cut/m2try=超参扫描实证; checklist verdict 已接线 | **SUPPORTED** |
+| 3 时间结构 | 并行 CONC=3 约 3x 提速; 短窗增益稀疏 vs 53 步窗 1 次破壁 | **SUPPORTED** |
+| 4 作弊形态+对抗审计 | **3/3 种子作弊全数抓获**(验证削弱/指标操控/硬编码) + 自发检出选报; EDA 四变体分类学(豁免滥用/政策分支/删测点/选报) | **SUPPORTED** |
+| 5 知识注入边界 | 类别级: 知识 36 : 参数 0; 探针级: ON/OFF 机制接通(plane_cut 入序), 本样本无非切候选 | **SUPPORTED(类别级)** |
+| 6 失败形态学 | 5 形态×不变量×策略结果匹配表; 残差类分布(escape 550/unclass 133/power 31/local 20) | **SUPPORTED** |
+| 7 跨域迁移 | 4 机制迁移表(gate 双板验证/stitch fc-only/swap fc-only/zone_bridge P13 待测); bake-in 折扣在案 | **PARTIAL**(P13 补足中) |
+
+### 方法论产出(比结论更值钱的部分)
+- **审计员是真牙齿**: 对抗实弹 3/3 召回 — 无人自动改进系统的可信闸门可工程化
+- **参数天花板定律**: 53 微步零增益 vs 结构级一步破壁 — HPO 对照的域版证据
+- **识形再选武器**: 形态学匹配表使'试错'升为'识形' — 口袋墙不该用参数磨(53步证), 该用结构攻
+- 数据缺口治理: DATA-GAP 标注制(旧账缺 ts/verdict 不冒充)
+### K33 补录: 门禁内收官实证(2026-11-01)
+- **裸跑 vs 门禁对照**: 同一 zone_bridge 裸跑=净闭4开但2短+间距63->97(累积损伤); 门禁内=1净闭(VDDA)入账+2带损伤桥被拦回(+5短/+2短回滚) — 门禁价值的最直接实证
+- **终态 10开/0短/55间距**(基线47->10, 降78%); 短路全程为零(门禁路径)
+- 修复链教训: 算子注册≠算子入梯(candidates_for 漏挂=选不中); KIID.GetAsString KiCad10 断裂; 严格门禁快照(strict.bak)是唯一可靠回滚点(.ckpt 0字节坏档)
+- 裸跑损伤后的正确恢复序列: strict.bak 回滚 -> 门禁内重做 — 永远在门禁里施工

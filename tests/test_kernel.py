@@ -360,3 +360,146 @@ class TestPersistentLearning:
         src = (REPO / "fluxpcb" / "routing.py").read_text(encoding="utf-8")
         body = src.split("def _closed_loop")[1].split("\ndef ")[0]
         assert "delta_opens" in body
+
+class TestD356RealWorldColumns:
+    '''fc 实测: 定宽列在多位引脚上截断(B17->B1) — 分词解析回归锁'''
+
+    def test_multichar_pins_survive(self, tmp_path):
+        from fluxpcb.kernel import truthnet
+        f = tmp_path / 'b.d356'
+        rows = [
+            '317FDCAN1_RX        U1    -B17        A01X+012756Y-007244X0157Y0000R000S2',
+            '327FDCAN1_TX        U1    -D16        A01X+012756Y-007244X0157Y0000R000S2',
+            '327FDCAN2_TX        U1    -U14        A01X+012756Y-007244X0157Y0000R000S2',
+            '327FDCAN1_RX        U8    -4          A01X+013789Y-009411X0768Y0236R000S2',
+            '317FDCAN1_RX        VIA        MD0098PA00X+013549Y-006549X0236Y0000R000S3',
+        ]
+        f.write_text(chr(10).join(rows) + chr(10),
+                     encoding='utf-8')
+        d = truthnet.parse_d356(f)
+        assert d['FDCAN1_RX'] == {'U1.B17', 'U8.4'}
+        assert d['FDCAN1_TX'] == {'U1.D16'}
+        assert d['FDCAN2_TX'] == {'U1.U14'}
+
+class TestTruthnetIsoAlign:
+    '''C4 图同构注解对齐(SINA): REF**<->U3 收敛为一条注解发现'''
+
+    def test_annotation_gap_collapses(self):
+        from fluxpcb.kernel import truthnet
+        board = {'3V3': {'REF**.5', 'REF**.8'},
+                 'GND': {'REF**.6'},
+                 'IMU2_INT1': {'REF**.4'}}
+        sch = {'3V3': {'U3.5', 'U3.8'},
+               'GND': {'U3.6'},
+               'IMU2_INT1': {'U3.4'}}
+        r = truthnet.compare(board, sch)
+        assert r['annotation_map'] == {'REF**': 'U3'}
+        assert r['clean'] is True        # 注解对齐后无真差异
+
+    def test_true_diff_remains(self):
+        from fluxpcb.kernel import truthnet
+        board = {'3V3': {'REF**.5', 'REF**.8'},
+                 'OSC32_IN': {'JMP1.1'}}
+        sch = {'3V3': {'U3.5', 'U3.8'},
+               'OSC32_IN': {'U1.C2'}}
+        r = truthnet.compare(board, sch)
+        assert r['annotation_map'] == {'REF**': 'U3'}
+        assert r['clean'] is False
+        assert 'OSC32_IN' in r['pin_mismatch']   # 真差异保留
+        assert '3V3' not in r['pin_mismatch']
+
+class TestSwapSearch:
+    '''换球搜索强化: 交叉计数目标+AF 成对交换(K28 主攻)'''
+
+    def _setup(self):
+        # 两个对冲信号: S1 在上球逃下, S2 在下球逃上 = 1 对交叉
+        ball_nets = {'S1': {'ball': '0,10'}, 'S2': {'ball': '0,-10'}}
+        prefs = {'S1': (0.0, -1.0), 'S2': (0.0, 1.0)}
+        # AF 复用: 两球都承载两信号(可互换)
+        pins_db = {'0,10': {'signals': ['S1', 'S2']},
+                   '0,-10': {'signals': ['S1', 'S2']}}
+        return ball_nets, prefs, pins_db
+
+    def test_crossing_detected(self):
+        from fluxpcb.kernel.constraints import escape_crossings
+        ball_nets, prefs, _ = self._setup()
+        xy = lambda b: tuple(float(v) for v in b.split(','))
+        c = escape_crossings(ball_nets, prefs, xy)
+        assert c == [('S1', 'S2')]
+
+    def test_swap_resolves_crossing(self):
+        from fluxpcb.kernel.constraints import reassign_proposal
+        ball_nets, prefs, pins_db = self._setup()
+        out = reassign_proposal(ball_nets, prefs, pins_db, (0, 0))
+        assert out.get('S1') == '0,-10'   # 交换解交叉
+        assert out.get('S2') == '0,10'
+
+    def test_no_swap_when_af_blocks(self):
+        from fluxpcb.kernel.constraints import reassign_proposal
+        ball_nets, prefs, _ = self._setup()
+        pins_db = {'0,10': {'signals': ['S1']},      # 不可换
+                   '0,-10': {'signals': ['S2']}}
+        out = reassign_proposal(ball_nets, prefs, pins_db, (0, 0))
+        assert out.get('S1') != '0,-10'   # AF 禁换则不换
+
+    def test_no_crossing_no_move(self):
+        from fluxpcb.kernel.constraints import reassign_proposal
+        ball_nets = {'S1': {'ball': '0,10'}, 'S2': {'ball': '0,-10'}}
+        prefs = {'S1': (0.0, 1.0), 'S2': (0.0, -1.0)}   # 同向不冲
+        pins_db = {'0,10': {'signals': ['S1', 'S2']},
+                   '0,-10': {'signals': ['S1', 'S2']}}
+        out = reassign_proposal(ball_nets, prefs, pins_db, (0, 0))
+        assert out == {}
+
+class TestBallKeyContract:
+    '''0.2 真键格式回归锁: 'A1' 行列名(合成 '0,10' 键曾掩蔽断裂)'''
+
+    def test_ball_grid_xy_real_keys(self):
+        from fluxpcb.kernel.constraints import ball_grid_xy
+        assert ball_grid_xy('A1') == (1.0, 0.0)   # 列1, 行A=0
+        assert ball_grid_xy('B9') == (9.0, 1.0)
+        assert ball_grid_xy('T3') == (3.0, 19.0)  # 行T=19
+        assert ball_grid_xy('AA5') == (5.0, 26.0)  # 双字母行
+        assert ball_grid_xy('0,10') == (0.0, 10.0)  # 旧格式回兼容
+        assert ball_grid_xy('??') is None
+
+    def test_swap_search_with_real_keys(self):
+        # 'A1' 形键的对冲交叉 + AF 交换(此前合成键才跑通)
+        from fluxpcb.kernel.constraints import (
+            reassign_proposal, escape_crossings, ball_grid_xy)
+        ball_nets = {'S1': {'ball': 'A1'}, 'S2': {'ball': 'C3'}}
+        # A1=(1,0) 在左上, C3=(3,2) 在右下; S1 向右下逃, S2 向左上逃 = 对冲
+        prefs = {'S1': (0.7, 0.7), 'S2': (-0.7, -0.7)}
+        pins_db = {'A1': {'signals': ['S1', 'S2']},
+                   'C3': {'signals': ['S1', 'S2']}}
+        c = escape_crossings(ball_nets, prefs, ball_grid_xy)
+        assert c == [('S1', 'S2')]
+        out = reassign_proposal(ball_nets, prefs, pins_db, (0, 0))
+        assert out.get('S1') == 'C3' and out.get('S2') == 'A1'
+
+    def test_mcu_center_not_used_for_grid_keys(self):
+        # 球空间自洽: 'A1' 键下不拿板 mm 坐标做 cos(旧断裂之二)
+        from fluxpcb.kernel.constraints import reassign_proposal
+        ball_nets = {'S1': {'ball': 'A1'}, 'S2': {'ball': 'C3'}}
+        prefs = {'S1': (0.7, 0.7), 'S2': (-0.7, -0.7)}
+        pins_db = {'A1': {'signals': ['S1', 'S2']},
+                   'C3': {'signals': ['S1', 'S2']}}
+        out = reassign_proposal(ball_nets, prefs, pins_db,
+                                (999.0, -999.0))   # 荒谬中心不影响
+        assert out.get('S1') == 'C3'   # 交叉解仍成立
+    def test_chain3_rotation(self):
+        # 真 chain3 场景: 对换全被 AF 禁, 旋转被 AF 放行
+        # 循环 AF: S1@{A1,B2}, S2@{B2,C3}, S3@{C3,A1}
+        # 旋转 S1->B2, S2->C3, S3->A1 三方皆 AF 合法
+        from fluxpcb.kernel.constraints import (
+            reassign_proposal, escape_crossings, ball_grid_xy)
+        ball_nets = {'S1': {'ball': 'A1'}, 'S2': {'ball': 'B2'},
+                     'S3': {'ball': 'C3'}}
+        prefs = {'S1': (1.0, 0.0), 'S2': (-1.0, 0.0), 'S3': (-1.0, 0.0)}
+        pins_db = {'A1': {'signals': ['S1', 'S3']},
+                   'B2': {'signals': ['S1', 'S2']},
+                   'C3': {'signals': ['S2', 'S3']}}
+        # 前置: 此场景确有交叉
+        assert escape_crossings(ball_nets, prefs, ball_grid_xy)
+        out = reassign_proposal(ball_nets, prefs, pins_db, (0, 0))
+        assert out.get('S1') == 'B2' and out.get('S2') == 'C3'             and out.get('S3') == 'A1'   # 旋转解序

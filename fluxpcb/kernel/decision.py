@@ -44,10 +44,22 @@ ACTION_CONTRACT = {
     # item-1: gap_nudge — shift the BLOCKING TRACKS 0.1-0.3mm (DaCapo7
     # sibling primitive; topology unchanged, pad-contained)
     "gap_nudge": {"net": str},
+    # stream ① depth: coordinated_open — nudge tracks + move parts
+    # (multi-ref joint) + replan + direct_link as ONE atomic transform
+    # (线+件同动, 挪后直连; Groute invertible compound)
+    "coordinated_open": {"net": str},
+    # ③ 多网协同: 一族网单 Txn 规划/挪线/挪件/直连, 任一网破坏
+    # 不变量整体回滚(Groute 可逆复合的多网版)
+    "batch_escape": {"nets": list},
     "adjust_placement": {"moves": list},
     "move_footprint": {"ref": str, "dx_mm": float, "dy_mm": float},
+    # ① BGA 扇出重构: 定向清死桩+重建 dog-bone(escape-crossing 主攻)
+    "fanout_repair": {"nets": list},
     "reassign_pins": {"nets": list},
-    "power_stitch": {},
+    # ② 定向平面缝合(曾是无参动作->退化为重跑整个 session)
+    "power_stitch": {"nets": list},
+    # C1: 平面铜桥(跨切缝下潜桥接, _zb 实测 11->8)
+    "zone_bridge": {"nets": list},
     "finish": {"reason": str},
     "escalate": {"reason": str},
 }
@@ -111,7 +123,9 @@ def record(pcb_path: Path, decision: dict, outcome: dict) -> None:
         entries = []
     entries.append({"decision": decision, "outcome": outcome})
     try:
-        j.write_text(json.dumps(entries[-50:], ensure_ascii=False,
+        j.write_text(json.dumps(entries[-200:], ensure_ascii=False,
                                 indent=1), encoding="utf-8")
-    except OSError:
-        pass
+    except OSError as e:
+        # 决策历史丢失必须可见(_json 教训同类)
+        print(f"[decision] journal写入失败: {str(e)[:60]}",
+              file=__import__("sys").stderr)

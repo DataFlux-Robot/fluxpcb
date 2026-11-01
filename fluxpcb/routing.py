@@ -387,6 +387,10 @@ def dsn_inject_class_rules(dsn_path: Path, classes: dict, pairs: list) -> int:
         cls_block("Critical", buckets["critical"], 150, 170)
     if buckets["power"]:
         cls_block("Power", buckets["power"], 400, 200)
+    if buckets["normal"]:
+        # FC_L13 诊断: normal 类从未注入 -> 普通网留 kicad_default
+        # 吃 FR 默认 0.1397 -> 92 间距违例的根因
+        cls_block("Normal", buckets["normal"], 150, 150)
     for i, (a, b) in enumerate(pairs):
         cls_block(f"PAIR_{i}", [a, b], 150, 170)
         # coupling gap between the two members: large enough that the
@@ -406,6 +410,7 @@ def dsn_inject_class_rules(dsn_path: Path, classes: dict, pairs: list) -> int:
         claimed.update(p)
     claimed.update(buckets["critical"])
     claimed.update(buckets["power"])
+    claimed.update(buckets["normal"])
     import re as _re2
 
     def _strip_default(m):
@@ -616,10 +621,18 @@ def route_with_freerouting(pcb_path: Path, kipy: str, log=print,
         # contains only the open nets)
         preserve, open_nets = _compute_route_sets(pcb_path, kipy, log=log)
         if preserve is not None:
-            n_fixed = dsn_mark_fixed(dsn, preserve)
+            # B1(建造流水线): open 网的既有铜(逃逸 stub)也要 fix —
+            # 否则 FR 把 (type route) 当可撕对象, 互毁 dog-bone。
+            # FR 从 stub 端点续布(grok 配方"FR 一次"的前提)。
+            # FLUXNT_FIX_OPEN=0 关闭(消融开关)。
+            _fo = __import__("os").environ.get(
+                "FLUXNT_FIX_OPEN", "1") != "0"
+            _prot = set(preserve) | (set(open_nets) if _fo else set())
+            n_fixed = dsn_mark_fixed(dsn, _prot)
             log(f"  [route] Z1 dsn-fix: {n_fixed} 段/孔标fix "
-                f"({len(preserve)} 已连通网保留, {len(open_nets)} 开路网待布)")
-            preserve_file.write_text(json.dumps(sorted(preserve)),
+                f"({len(preserve)} 已连通网保留, {len(open_nets)} 开路网待布"
+                f"{', open铜已保护' if _fo else ''})")
+            preserve_file.write_text(json.dumps(sorted(_prot)),
                                      encoding="utf-8")
         else:
             preserve_file.write_text("[]", encoding="utf-8")
@@ -792,6 +805,105 @@ def _run_fluxrouter(kipy: str, pcb_path: Path, cls_file: Path, log=print) -> dic
         log(f"  [route] fluxrouter无JSON: {(out or '')[-160:]}")
         return None
 
+
+
+
+# ⑤ 动作x板型权重表(escape-first): BGA 板先扇出重构、再协同收割、
+# 后单发直连 — jumper/FR 系在 BGA 上实测 7 连负/炸 126 开, 禁用。
+_BGA_ORDER = {"fanout_repair": 0, "batch_escape": 1, "direct_link": 2,
+              "coordinated_open": 3, "corridor_rescue": 4,
+              "power_stitch": 3}
+_BGA_BAN = {"jumper", "rerun_freerouting", "reroute_nets"}
+_FLAT_ORDER = {"direct_link": 0, "corridor_rescue": 1}
+
+
+def _action_rank(action: str, is_bga: bool) -> int:
+    if is_bga:
+        return _BGA_ORDER.get(action, 5)
+    return _FLAT_ORDER.get(action, 2)
+
+
+def _action_allowed(action: str, is_bga: bool) -> bool:
+    return not (is_bga and action in _BGA_BAN)
+
+
+def _KG_SELECT(pairs, fragmented, k):
+    """④ 选网严重度序(geomir.select_nets 的轻量同义, 免 kipy 依赖)."""
+    nets = {str(ln).split("|")[0] for ln in (pairs or []) if str(ln).strip()}
+    return sorted(nets,
+                  key=lambda n: (-(int(fragmented.get(n, 0))), n))[:k]
+
+
+def _loop_final_truth(kicad_cli: str, kipy: str, pcb_path: Path,
+                      log=print):
+    from fluxpcb.kernel import state as _kstate   # 模块级函数自持导入
+    """item-4 终审: one consolidated truth block on loop_final.json —
+    'shorts'/'clearance' here are DRC-truth (fp-bound reads), the
+    per-action refresh only ever claimed 'shorts_oracle'."""
+    try:
+        qs = _kstate.query(kicad_cli, kipy, pcb_path, "shorts",
+                           consolidate=True)
+        qo = _kstate.query(kicad_cli, kipy, pcb_path, "opens",
+                           consolidate=False)
+        qc = _kstate.query(kicad_cli, kipy, pcb_path, "clearance",
+                           consolidate=False)
+        pf = pcb_path.parent / "loop_final.json"
+        data = (json.loads(pf.read_text(encoding="utf-8"))
+                if pf.exists() else {})
+        data.update({"opens": qo.value, "shorts": qs.value,
+                     "clearance": qc.value, "fp": qo.fp.short(),
+                     "truth": True})
+        pf.write_text(json.dumps(data, ensure_ascii=False, indent=1),
+                      encoding="utf-8")
+    except Exception as e:
+        # loud: 终审失败必须可见, 绝不静默当"无问题"
+        log(f"  loop_final终审测量失败: {str(e)[:60]}")
+
+
+def _fast_shorts(kipy: str, pcb_path: Path):
+    """stream ③: cheap shorts proxy — cross-net geometric overlaps
+    (geomir.count_overlaps, one kipy pass ≈ 2-5s) vs the 60s DRC. The
+    strict gate runs many checks per loop; the terminal loop_final keeps
+    the full DRC as the authority. Returns None on ANY failure — the
+    caller falls back to the slow DRC; a silent -1 would fake a pass
+    (the _json lesson: a failing check never silently succeeds)."""
+    _KG = Path(__file__).resolve().parent / "kicadgen"
+    try:
+        rc, out = _kipy(kipy, _KG / "geomir.py", str(pcb_path),
+                        "__overlaps__", timeout=120)
+        _ln = [l for l in (out or "").splitlines()
+               if l.strip().startswith("{")][-1]
+        v = json.loads(_ln).get("overlaps")
+        return int(v) if v is not None else None
+    except Exception:
+        return None
+
+
+def _last_json(out: str) -> dict:
+    _ls = [l for l in (out or "").splitlines()
+           if l.strip().startswith("{")]
+    try:
+        return json.loads(_ls[-1]) if _ls else {}
+    except ValueError:
+        return {}
+
+
+def _geomir_close(kipy: str, pcb_path: Path, net_name: str) -> str:
+    """replan on CURRENT board state + surgical close (T1b: direct_link
+    itself re-verifies the plan at draw time)."""
+    _KG = Path(__file__).resolve().parent / "kicadgen"
+    plan = _last_json(_kipy(kipy, _KG / "geomir.py", str(pcb_path),
+                            net_name, str(pcb_path), timeout=600)[1])
+    pths = plan.get("paths") or []
+    if not pths:
+        return "still-blocked"
+    sp = pcb_path.parent / "direct_link_spec.json"
+    sp.write_text(json.dumps(
+        {"net": net_name, "pts": pths[0]["pts"],
+         "width": pths[0].get("width", 0.2)}))
+    _kipy(kipy, _KG / "direct_link.py", str(pcb_path), str(sp),
+          timeout=300)
+    return f"direct_link {pths[0].get('length_mm')}mm"
 
 def _driver_loop(pcb_path: Path, kipy: str, cls_file: Path, light: bool,
                  steps: list, log=print) -> None:
@@ -975,6 +1087,66 @@ def _driver_loop(pcb_path: Path, kipy: str, cls_file: Path, light: bool,
         pass
 
 
+def _gated_step(act: dict, report: dict, kicad_cli: str, kipy: str,
+                 pcb_path: Path, cls_file: Path, net_classes: dict,
+                 diff_pairs: list, qo, steps: list, log=print,
+                 tag: str = "step", iter_no: int = -1) -> dict:
+    """T4 严格门禁一步(闭环与流水线共用): 快照->oracle->执行->测效果
+    ->回滚或落账。返回 outcome(含 delta_opens/delta_shorts,
+    劣化时含 strict_rollback)。"""
+    from fluxpcb.kernel import decision as _kdec
+    from fluxpcb.kernel import state as _kstate
+    _strict = __import__("os").environ.get("FLUXNT_V_STRICT", "1") != "0"
+    import shutil as _sh4
+    _pre_snap = pcb_path.with_suffix(".strict.bak")
+    _sh4.copy2(pcb_path, _pre_snap)
+    _qs_before = _fast_shorts(kipy, pcb_path)
+    _slow = False
+    if _qs_before is None:      # oracle failed -> slow authority
+        _slow = True
+        _qs_before = _kstate.query(
+            kicad_cli, kipy, pcb_path, "shorts",
+            consolidate=False).value
+    outcome = _loop_execute(act, report, kicad_cli, kipy,
+                            pcb_path, cls_file, net_classes,
+                            diff_pairs, log)
+    # EFFECT 测量必须固化(挪件/画线使 fill 过期)
+    _q2 = _kstate.query(kicad_cli, kipy, pcb_path, "opens",
+                        consolidate=True)
+    outcome["delta_opens"] = qo.value - _q2.value
+    _qs_after = (None if _slow else _fast_shorts(kipy, pcb_path))
+    if _qs_after is None:
+        _qs_after = _kstate.query(
+            kicad_cli, kipy, pcb_path, "shorts",
+            consolidate=False).value
+    _dshorts = _qs_after - _qs_before
+    outcome["delta_shorts"] = _dshorts
+    outcome["_opens_after"] = _q2.value
+    if _strict and (_dshorts > 0 or outcome["delta_opens"] < 0):
+        _sh4.copy2(_pre_snap, pcb_path)
+        outcome["strict_rollback"] = (
+            f"delta_opens={outcome['delta_opens']} "
+            f"delta_shorts={_dshorts}")
+        _kdec.record(pcb_path, act, outcome)
+        steps.append(f"{tag} {act['action']}: "
+                     f"严格门禁回滚(+{_dshorts}短/"
+                     f"{-outcome['delta_opens']}开)")
+        return outcome
+    _kdec.record(pcb_path, act, outcome)
+    try:
+        (pcb_path.parent / "loop_final.json").write_text(
+            json.dumps(
+                {"opens": _q2.value, "shorts_oracle": _qs_after,
+                 "fp": _q2.fp.short(), "iterations": iter_no,
+                 "last_action": act.get("action")},
+                ensure_ascii=False, indent=1), encoding="utf-8")
+    except Exception as _e:
+        steps.append(f"loop_final写入失败: {str(_e)[:40]}")
+    steps.append(f"{tag} {act['action']}: "
+                 f"{outcome.get('summary', '')[:70]}")
+    return outcome
+
+
 def _loop_execute(act: dict, report: dict, kicad_cli: str, kipy: str,
                   pcb_path: Path, cls_file: Path,
                   net_classes: dict, diff_pairs: list, log=print) -> dict:
@@ -988,6 +1160,162 @@ def _loop_execute(act: dict, report: dict, kicad_cli: str, kipy: str,
     if name in ("finish", "escalate"):
         return {"summary": f"{name}:{params.get('reason', '')[:40]}",
                 "stop": True}
+    if name == "fanout_repair":
+        # ① BGA 扇出重构: 定向清死桩+重建 dog-bone, 单 Txn 原子
+        # (route_session 的 dogbone_fanout 不可定向/不可重跑, 闭环
+        #  需要的是按网有界代价的动作原语)
+        bl = ",".join(params.get("nets") or [])
+        try:
+            with _Txn(kicad_cli, kipy, pcb_path, "loop:fanout_repair",
+                      level="light", log=log) as t:
+                rc, out = _kipy(kipy, _KGENX / "fanout_repair.py",
+                                str(pcb_path), bl, timeout=600)
+                fr = _last_json(out)
+            res = {"summary": "fanout_repair %s: placed=%s dead=%s "
+                              "skip=%s" % (params.get("nets"),
+                                           fr.get("placed", 0),
+                                           fr.get("ripped_dead", 0),
+                                           fr.get("skipped", 0)),
+                   "effect": fr.get("placed", 0)}
+            if getattr(t, "violations", None):
+                res["rolled_back"] = t.violations
+                res["summary"] += " [回滚]"
+                res["effect"] = 0
+            return res
+        except Exception as e:
+            return {"summary": "fanout_repair异常[%s]:%s"
+                    % (type(e).__name__, str(e)[:160]), "effect": 0}
+    if name == "batch_escape":
+        # ③ 多网协同重排: 逐网"规划->挪线/挪件->直连", 单 Txn 原子。
+        # 与 ① 分工: fanout_repair 重建扇出, 本动作收割重建后的多网
+        # 直连; 与单发 coordinated_open 的差别是**一族网共享一次
+        # 全有或全无** — 后网吃到前网让出的几何(Groute 复合语义)
+        nets = [str(x) for x in (params.get("nets") or [])][:6]
+        trace = []
+        if not nets:
+            return {"summary": "batch_escape: 缺参数 nets", "effect": 0}
+        try:
+            with _Txn(kicad_cli, kipy, pcb_path, "loop:batch_escape",
+                      level="light", log=log) as t:
+                for net_name in nets:
+                    closer = _geomir_close(kipy, pcb_path, net_name)
+                    if closer == "still-blocked":
+                        # 挪线让缝(阻塞点垂直扰动)
+                        plan0 = _last_json(_kipy(
+                            kipy, _KGENX / "geomir.py", str(pcb_path),
+                            net_name, str(pcb_path), timeout=600)[1])
+                        rej = (plan0.get("rejects") or [{}])[0].get(
+                            "blocked_by") or {}
+                        at = rej.get("at")
+                        if at:
+                            for ds in ((0.0, 1.0), (0.0, -1.0)):
+                                rn = _last_json(_kipy(
+                                    kipy, _KGENX / "gap_nudge.py",
+                                    str(pcb_path), str(at[0]),
+                                    str(at[1]), str(ds[0]), str(ds[1]),
+                                    "0.2", timeout=300)[1])
+                                if rn.get("nudged"):
+                                    trace.append(f"{net_name} nudged")
+                                    break
+                        closer = _geomir_close(kipy, pcb_path, net_name)
+                    if closer == "still-blocked":
+                        # 挪一件再收(margin 预检由 place_opt 自带)
+                        cands = (_last_json(_kipy(
+                            kipy, _KGENX / "place_opt.py", str(pcb_path),
+                            net_name, timeout=600)[1])
+                            .get("candidates") or [])
+                        if cands:
+                            best = cands[0]
+                            ra = _last_json(_kipy(
+                                kipy, _KGENX / "place_opt.py",
+                                str(pcb_path), net_name, "--apply",
+                                str(best["dx_mm"]), str(best["dy_mm"]),
+                                str(best["ref"]), timeout=600)[1])
+                            if ra.get("applied"):
+                                trace.append(f"{net_name} moved")
+                        closer = _geomir_close(kipy, pcb_path, net_name)
+                    trace.append(f"{net_name}:{closer}")
+            n_ok = sum(1 for x in trace if "direct_link" in x)
+            res = {"summary": "batch_escape %d网: %s" % (
+                       len(nets), "; ".join(trace)[:150]),
+                   "effect": n_ok}
+            if getattr(t, "violations", None):
+                res["rolled_back"] = t.violations
+                res["summary"] += " [回滚]"
+                res["effect"] = 0
+            return res
+        except Exception as e:
+            return {"summary": "batch_escape异常[%s]:%s"
+                    % (type(e).__name__, str(e)[:160]), "effect": 0}
+    if name == "coordinated_open":
+        # stream ① depth: ONE atomic compound — nudge blocking track
+        # chains, then joint multi-ref part moves (margin-checked),
+        # then replan + direct_link close, all in one Txn so a mid-step
+        # invariant break restores everything (Groute invertible
+        # compound). Singles (gap_nudge/optimize_placement) stay as
+        # cheap actions; this is the depth move for geometric floors.
+        net_name = str(params.get("net", ""))
+        trace = []
+        if not net_name:
+            return {"summary": "coordinated_open: 缺参数 net",
+                    "effect": 0}
+        try:
+            with _Txn(kicad_cli, kipy, pcb_path,
+                      "loop:coordinated_open", level="light",
+                      log=log) as t:
+                # step 1: nudge (cheapest first — 挪线先于挪件)
+                plan0 = _last_json(_kipy(
+                    kipy, _KGENX / "geomir.py", str(pcb_path),
+                    net_name, str(pcb_path), timeout=600)[1])
+                rej = (plan0.get("rejects") or [{}])[0].get(
+                    "blocked_by") or {}
+                at = rej.get("at")
+                isl = plan0.get("islands") or []
+                if at and len(isl) >= 2:
+                    a_, b_ = isl[0]["anchor"], isl[1]["anchor"]
+                    ax, ay = b_[0] - a_[0], b_[1] - a_[1]
+                    Lc = (ax * ax + ay * ay) ** 0.5 or 1.0
+                    px_, py_ = -ay / Lc, ax / Lc
+                    for ds in ((px_, py_), (-px_, -py_)):
+                        rn = _last_json(_kipy(
+                            kipy, _KGENX / "gap_nudge.py",
+                            str(pcb_path), str(at[0]), str(at[1]),
+                            str(ds[0]), str(ds[1]), "0.2",
+                            timeout=300)[1])
+                        if rn.get("nudged"):
+                            trace.append("nudge x%d" % rn["nudged"])
+                            break
+                # step 2: replan; if still blocked, joint part moves
+                # (top-2 candidates move TOGETHER — 多件联动)
+                closer = _geomir_close(kipy, pcb_path, net_name)
+                if closer == "still-blocked":
+                    cands = (_last_json(_kipy(
+                        kipy, _KGENX / "place_opt.py", str(pcb_path),
+                        net_name, timeout=600)[1])
+                        .get("candidates") or [])
+                    for best in cands[:2]:
+                        ra = _last_json(_kipy(
+                            kipy, _KGENX / "place_opt.py",
+                            str(pcb_path), net_name, "--apply",
+                            str(best["dx_mm"]), str(best["dy_mm"]),
+                            str(best["ref"]), timeout=600)[1])
+                        if ra.get("applied"):
+                            trace.append("move %s%s,%s" % (
+                                best["ref"], best["dx_mm"],
+                                best["dy_mm"]))
+                    # step 3: 挪后直连 on the moved geometry
+                    closer = _geomir_close(kipy, pcb_path, net_name)
+            res = {"summary": "coordinated_open %s: %s -> %s" % (
+                       net_name, "+".join(trace) or "无挪动", closer),
+                   "effect": 1 if closer != "still-blocked" else 0}
+            if getattr(t, "violations", None):
+                res["rolled_back"] = t.violations
+                res["summary"] += " [回滚]"
+                res["effect"] = 0
+            return res
+        except Exception as e:
+            return {"summary": "coordinated_open异常[%s]:%s"
+                    % (type(e).__name__, str(e)[:160]), "effect": 0}
     if name == "gap_nudge":
         # item-1: 挪线而非挪件 — shift the blocking track chains
         # perpendicular to the corridor (map's reject point + band
@@ -1016,7 +1344,8 @@ def _loop_execute(act: dict, report: dict, kicad_cli: str, kipy: str,
             for ds in ((px_, py_), (-px_, -py_)):
                 rc, out = _kipy(kipy, _KGENX / "gap_nudge.py",
                                 str(pcb_path), str(at[0]), str(at[1]),
-                                str(ds[0]), str(ds[1]), "0.2",
+                                str(ds[0]), str(ds[1]),
+                                str(params.get("dist", 0.2)),
                                 timeout=300)
                 _rl = [l for l in (out or "").splitlines()
                        if l.strip().startswith("{")]
@@ -1047,7 +1376,8 @@ def _loop_execute(act: dict, report: dict, kicad_cli: str, kipy: str,
                                f" -> {closer}",
                     "effect": res.get("nudged", 0)}
         except Exception as e:
-            return {"summary": f"gap_nudge异常:{str(e)[:50]}",
+            return {"summary": f"gap_nudge异常[{type(e).__name__}]"
+                               f":{str(e)[:160]}",
                     "effect": 0}
     if name == "optimize_placement":
         # stream ①: placement co-optimization — margin-checked moves
@@ -1106,7 +1436,8 @@ def _loop_execute(act: dict, report: dict, kicad_cli: str, kipy: str,
                                f" -> {closer}",
                     "effect": 1}
         except Exception as e:
-            return {"summary": f"optimize_placement异常:{str(e)[:50]}",
+            return {"summary": f"optimize_placement异常"
+                               f"[{type(e).__name__}]:{str(e)[:160]}",
                     "effect": 0}
     if name == "corridor_rescue":
         # T3: widen blockers (FAT) -> rip+FR them away -> restore.
@@ -1134,7 +1465,8 @@ def _loop_execute(act: dict, report: dict, kicad_cli: str, kipy: str,
                 res["summary"] += " [回滚]"
             return res
         except Exception as e:
-            return {"summary": f"corridor_rescue异常:{str(e)[:50]}",
+            return {"summary": f"corridor_rescue异常"
+                               f"[{type(e).__name__}]:{str(e)[:160]}",
                     "effect": 0}
     if name == "direct_link":
         # M3: the decision IS a path on the geomir map — draw exactly it
@@ -1246,10 +1578,29 @@ def _loop_execute(act: dict, report: dict, kicad_cli: str, kipy: str,
                       str(params["ref"]), str(float(params["dx_mm"])),
                       str(float(params["dy_mm"])), timeout=300)
                 res = {"summary": f"move {params['ref']}"}
+            elif name == "zone_bridge":
+                # C1: 跨切缝铜桥(hop-repair 下潜) — PENDING_IMPL 收官
+                _zn = ",".join(params.get("nets") or [])
+                rc, out = _kipy(kipy, _KGENX / "zone_bridge.py",
+                                str(pcb_path), _zn, timeout=900)
+                _zr = _last_json(out)
+                res = {"summary": "zone_bridge %s: bridged=%s skip=%s"
+                       % (params.get("nets"),
+                          _zr.get("bridged", 0),
+                          _zr.get("skipped", 0)),
+                       "effect": _zr.get("bridged", 0)}
             elif name == "power_stitch":
-                sess = _run_session(kipy, pcb_path, cls_file, log=log)
-                res = {"summary":
-                       f"stitch {(sess or {}).get('stitched')}"}
+                # ② 定向缝合工具(via-in-pad/偏置过孔钉碎片) 取代
+                # "重跑整个 session" 的退化实现
+                _pn = ",".join(params.get("nets") or [])
+                rc, out = _kipy(kipy, _KGENX / "power_stitch.py",
+                                str(pcb_path), _pn, timeout=600)
+                _ps = _last_json(out)
+                res = {"summary": "power_stitch %s: stitched=%s skip=%s"
+                       % (params.get("nets"),
+                          _ps.get("stitched", 0),
+                          _ps.get("skipped", 0)),
+                       "effect": _ps.get("stitched", 0)}
             else:
                 res = {"summary": f"未实现动作 {name}", "effect": 0}
         if getattr(t, "violations", None):
@@ -1258,6 +1609,124 @@ def _loop_execute(act: dict, report: dict, kicad_cli: str, kipy: str,
         return res
     except Exception as e:
         return {"summary": f"{name}异常:{str(e)[:50]}", "effect": 0}
+
+
+def _build_pipeline(kicad_cli: str, kipy: str, pcb_path: Path,
+                    cls_file: Path, net_classes: dict, diff_pairs: list,
+                    steps: list, log=print, budget_s: float = 3600) -> dict:
+    """⑥ 建造流水线: 五阶段状态机(grok 三段式的机器化).
+
+    P1 逃逸重构(拓扑类->算法求解器: fanout_repair+reassign_pins)
+    P2 平面缝合(power_stitch)
+    P3 全局布线(grok"FR 一次", B1 fix-open 保护既有逃逸铜)
+    P4 收割(参数类->batch_escape/direct_link)
+    P5 由调用方: 闭环保险丝(_closed_loop)+fab_package 终审。
+
+    阶段间 conn_audit+连续评分(A3), 无进展推进(2602.00510);
+    每步走 _gated_step(与闭环同一门禁语义)。
+    """
+    import subprocess as _sp
+    import time as _time
+    from fluxpcb.kernel import state as _kstate
+    from fluxpcb.kernel import causal as _kcause
+    from fluxpcb.kernel import score as _kscore
+
+    t0 = _time.time()
+    report: dict = {}
+    history: list = []
+
+    def _drc_json():
+        rpt = pcb_path.parent / "pipeline_drc.json"
+        try:
+            _sp.run([kicad_cli, "pcb", "drc", "--format", "json",
+                     "-o", str(rpt), "--severity-all", str(pcb_path)],
+                    capture_output=True, timeout=900)
+        except (OSError, _sp.TimeoutExpired):
+            pass    # ok-silent: 读不到报告=评分层分数暴露缺口
+        return _kscore.load_drc_json(rpt)
+
+    def _measure():
+        qo = _kstate.query(kicad_cli, kipy, pcb_path, "opens",
+                           consolidate=True)
+        pairs = qo.detail.get("pairs", [])
+        sc = _kscore.score_board(qo.value,
+                                 max(qo.value, len(pairs), 1),
+                                 _drc_json())
+        return qo, pairs, sc
+
+    class _Shim:
+        pass
+
+    def _baseline(val):
+        s = _Shim()
+        s.value = val
+        return s
+
+    qo, pairs, sc = _measure()
+    log(f"[pipeline] start: {qo.value}开 score={sc['score']} "
+        f"{sc['layers']}")
+    for phase_no, phase in enumerate(("P1-逃逸重构", "P2-平面缝合",
+                                      "P3-全局布线", "P4-收割")):
+        if _time.time() - t0 > budget_s:
+            steps.append(f"pipeline: 预算耗尽 @{phase}")
+            break
+        if qo.value <= 0:
+            steps.append("pipeline: 0 开路,提前完工")
+            break
+        taxonomy = _kcause.classify(pairs, []) or {}
+        # 执行器上下文契约: report 必须带 pairs/taxonomy(FC_L9 教训:
+        # 空 report 让 reassign_pins 报"无逃逸方向信息")
+        report = {"pairs": pairs, "taxonomy": taxonomy}
+        acts: list = []
+        if phase_no == 0:
+            esc = [n for c, ns in taxonomy.items()
+                   if c == "escape-crossing" for n in ns]
+            if esc:
+                acts.append({"action": "fanout_repair",
+                             "params": {"nets": esc[:12]}})
+                if __import__("os").environ.get(
+                        "FLUXNT_REASSIGN", "1") != "0":
+                    acts.append({"action": "reassign_pins",
+                                 "params": {"nets": esc[:6]}})
+        elif phase_no == 1:
+            pw = [n for c, ns in taxonomy.items()
+                  if c == "power-fragment" for n in ns]
+            if pw:
+                acts.append({"action": "power_stitch",
+                             "params": {"nets": pw[:6]}})
+        elif phase_no == 2:
+            acts.append({"action": "rerun_freerouting", "params": {}})
+        else:
+            cls_of = {n: c for c, ns in taxonomy.items() for n in ns}
+            rem = [n for n, c in cls_of.items()
+                   if c in ("escape-crossing", "unclassified",
+                            "local-congestion")][:6]
+            if rem:
+                acts.append({"action": "batch_escape",
+                             "params": {"nets": rem}})
+        if not acts:
+            steps.append(f"pipeline {phase}: 无适配动作,推进")
+            continue
+        pre_sc = sc
+        for act in acts:
+            if _time.time() - t0 > budget_s:
+                break
+            outcome = _gated_step(act, report, kicad_cli, kipy, pcb_path,
+                                  cls_file, net_classes, diff_pairs,
+                                  qo, steps, log,
+                                  tag=f"pipeline[{phase}]",
+                                  iter_no=phase_no)
+            history.append(outcome)
+            if not outcome.get("strict_rollback"):
+                qo = _baseline(outcome.get("_opens_after", qo.value))
+        qo, pairs, sc = _measure()
+        gain = round(sc["score"] - pre_sc.get("score", 0), 4)
+        steps.append(f"pipeline {phase}: score {pre_sc.get('score')}"
+                     f"->{sc['score']} ({gain:+}), {qo.value}开")
+        log(f"[pipeline] {phase}: score {pre_sc.get('score')}->"
+            f"{sc['score']} ({gain:+}), {qo.value}开")
+    return {"history": history, "final_score": sc,
+            "opens": qo.value, "pairs": len(pairs)}
 
 
 def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
@@ -1292,7 +1761,10 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
         if _jpath.exists():
             for e in json.loads(_jpath.read_text(encoding="utf-8")):
                 d_, o_ = e.get("decision", {}), e.get("outcome", {})
-                if o_.get("delta_opens", 0) >= 0 and not o_.get("stop"):
+                # 语义: delta>0=开路减少=有效. 零/负效果才拉黑
+                # (曾是 >=0 — 反向: 成功被拉黑、回滚失败跨轮反复重试,
+                #  FC_L3/L4 的 jumper 空转就是它喂出来的)
+                if o_.get("delta_opens", 0) <= 0 and not o_.get("stop"):
                     _ineffective.add((d_.get("action"), json.dumps(
                         d_.get("params", {}), sort_keys=True)[:120]))
     except (ValueError, OSError):
@@ -1300,6 +1772,111 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
     tried |= _ineffective
     n = 0
     history_log = []
+    # A2: Thompson Sampling 修复臂调度器(PCBSchemaGen 配方) —
+    # 从 journal 重建后验(跨轮学习), FLUXNT_BANDIT=0 回退静态权重(消融)
+    from fluxpcb.kernel import bandit as _kbandit
+    _bandit = _kbandit.ArmBandit(
+        state_path=pcb_path.parent / "bandit_state.json")
+    _bandit.ingest_journal(pcb_path.parent / "decision_journal.json")
+    _use_bandit = __import__("os").environ.get(
+        "FLUXNT_BANDIT", "1") != "0"
+    # 阶段4 磨山模式(FLUXNT_GRIND=1): 残差定向多轮微步 — 单步只求
+    # objective 单调改进(闭合是爬山副产品), 跨轮续磨(grind_state 持久)
+    from fluxpcb.kernel import grind as _kgrind
+    from fluxpcb.kernel import predict as _kpred
+    from fluxpcb.kernel import operators as _kops
+    from fluxpcb.kernel.grind import gap_objective as _gap_obj
+    _grind = _kgrind.GrindState(pcb_path.parent / "grind_state.json")
+    _grind_on = __import__("os").environ.get("FLUXNT_GRIND", "1") != "0"
+    _micro_count = 0
+    _kops.load_registry()          # D1: 实验算子注册表
+    _l2_op = __import__("os").environ.get("FLUXNT_L2_OP", "")
+    _KG4 = Path(__file__).resolve().parent / "kicadgen"
+    _plan_try = {}       # 地图懒取尝试计数 {net: n} — 每窗每网 ≤2 次
+                         # (超时/空图都计数: 600s 超时不能逐步重烧预算)
+
+    def _grind_micro(qo, pairs, report, plans, cls_of):
+        """一磨山微步: 预测排序选 (残差,算子) -> _gated_step -> 记账。
+        返回 ("stalled"|"done"|"stepped", outcome|None)。"""
+        for net, cls in cls_of.items():
+            _grind.set_class(net, cls)
+        residuals = {}
+        for net in cls_of:
+            residuals[_kgrind.residual_key(net, 0)] = \
+                _grind.residual(net)
+        cands = _kpred.rank_microsteps(residuals, cls_of, _bandit,
+                                       _grind)
+        for c in cands:
+            net, op = c["net"], c["op"]
+            plan = plans.get(net) or {}
+            # 地图缺席自愈(FC_L13 根因: 批量出图 TimeoutExpired ->
+            # plans 空 -> harvest 的门永远关着, 墙侵蚀链 blind vs []):
+            # 单网懒取(单网路径实测不超时), 负缓存防连环超时烧预算
+            if not (plan.get("paths") or plan.get("islands")) and \
+                    _plan_try.get(net, 0) < 2:
+                _plan_try[net] = _plan_try.get(net, 0) + 1
+                try:
+                    _rc6, _out6 = _kipy(kipy, _KG4 / "geomir.py",
+                                        str(pcb_path), net,
+                                        str(pcb_path),
+                                        str(pcb_path.parent
+                                            / "loop_pairs.tmp.txt"),
+                                        timeout=600)
+                    _pl6 = _last_json(_out6)
+                    if _pl6.get("paths") or _pl6.get("islands"):
+                        plans[net] = _pl6
+                        plan = _pl6
+                except (subprocess.TimeoutExpired, OSError):
+                    pass    # 计数已记, 下一步不再烧 600s
+            obj_before = _gap_obj(plan)
+            if obj_before == 0 and plan.get("paths"):
+                op = "harvest"      # 有验证路径直接收割(闭合副产品)
+            use_fallback = obj_before < 0
+            if use_fallback:
+                # 兜底目标 = 全局开路数(FC_L13 教训: 换球后的开路
+                # 对是'焊盘簇<->孤铜'形态, gap 不可测 -> 假停滞)
+                obj_before = float(qo.value)
+            ctx = {"blockers": plan.get("blockers") or [],
+                   "plan": plan}
+            if _l2_op:
+                op = _l2_op       # C2 A/B 窗: 候选臂钉扎实验算子
+            try:
+                act = _kops.emit(op, net, ctx)
+            except ValueError:
+                continue
+            ok, fixit = _kdec.validate(act)
+            if not ok:
+                continue
+            outcome = _gated_step(act, report, kicad_cli, kipy,
+                                  pcb_path, cls_file, net_classes,
+                                  diff_pairs, qo, steps, log,
+                                  tag=f"grind[{n}]", iter_no=n)
+            # objective 重测(单网重规划 — 磨山的测量成本)
+            if use_fallback:
+                obj_after = float(outcome.get("_opens_after",
+                                              qo.value))
+            else:
+                try:
+                    _rc4, _out4 = _kipy(kipy, _KG4 / "geomir.py",
+                                        str(pcb_path), net,
+                                        str(pcb_path), timeout=600)
+                    _plan_after = _last_json(_out4)
+                    obj_after = _gap_obj(_plan_after)
+                except (subprocess.TimeoutExpired, OSError):
+                    obj_after = obj_before   # 测不到 = 不计改善
+            res = _grind.record_step(net, op, act.get("params", {}),
+                                     obj_before, obj_after, outcome,
+                                     cls=c.get("class"))
+            if _use_bandit:
+                _bandit.update(op, c["class"],
+                               _kbandit.outcome_reward(outcome))
+                _bandit.save()
+            history_log.append(outcome)
+            if outcome.get("stop"):
+                return "done", outcome
+            return "stepped", outcome
+        return "stalled", None
+
     while _time.time() < deadline:
         n += 1
         qo = _kstate.query(kicad_cli, kipy, pcb_path, "opens")
@@ -1310,7 +1887,15 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
             break
         pairs = qo.detail.get("pairs", [])
         diag = []
-        if 0 < qo.value <= 40:
+        # 地图规划上限: 曾是硬编码 <=40(fc 49开永远进不来=地图动作
+        # 静默缺席的根因). 现为 FLUXNT_PLAN_CAP 可调(默认200), 跳过
+        # 必须可见 — 配置不许静默改语义.
+        _plan_cap = int(__import__("os").environ.get(
+            "FLUXNT_PLAN_CAP", "200"))
+        if qo.value > _plan_cap:
+            steps.append(f"loop[{n}]: {qo.value}开 > 规划上限"
+                         f"{_plan_cap} — 地图规划跳过(FLUXNT_PLAN_CAP)")
+        if 0 < qo.value <= _plan_cap:
             try:
                 _KGENL = Path(__file__).resolve().parent / "kicadgen"
                 rc, out = _kipy(kipy, _KGENL / "route_diag.py",
@@ -1321,29 +1906,43 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
             except (IndexError, ValueError, subprocess.TimeoutExpired):
                 pass
         report = _intel.build(pcb_path, {"opens": qo, "shorts": qs},
-                              pairs, diag=diag)
+                              pairs, diag=diag,
+                              net_classes=net_classes,
+                              diff_pairs=diff_pairs)
         report["pairs"] = pairs
         # M: MAP-driven planning — each stubborn net gets its geomir
         # plan (islands + verified paths + blockers + summary + SVG).
         # This is the map the decider reads; the fix-it carries the
         # path itself, not just a label.
         plans = {}
-        if 0 < qo.value <= 40:
+        if 0 < qo.value <= _plan_cap:
             _KG = Path(__file__).resolve().parent / "kicadgen"
-            for _net in sorted({ln.split("|")[0]
-                                for ln in pairs})[:8]:
-                try:
-                    rc, out = _kipy(kipy, _KG / "geomir.py",
-                                    str(pcb_path), _net,
-                                    str(pcb_path), timeout=300)
-                    _line = [l for l in (out or "").splitlines()
-                             if l.strip().startswith("{")][-1]
-                    _pl = json.loads(_line)
-                    if _pl.get("paths") or _pl.get("islands"):
-                        plans[_net] = _pl
-                except (IndexError, ValueError,
-                        subprocess.TimeoutExpired):
-                    continue
+            # ④ 选网单源: 碎片化严重度降序(旧版字母序丢严重度)
+            _nets8 = _KG_SELECT(pairs,
+                                qo.detail.get("fragmented") or {}, 8)
+            try:
+                # ④ 规划端点单源: pairs 文件随批传给 geomir
+                _pf = pcb_path.parent / "loop_pairs.tmp.txt"
+                _pf.write_text("\n".join(pairs), encoding="utf-8")
+                # stream ③: ONE process plans all nets (one board load,
+                # shared extraction) instead of one subprocess per net
+                rc, out = _kipy(kipy, _KG / "geomir.py",
+                                str(pcb_path), ",".join(_nets8),
+                                str(pcb_path), str(_pf), timeout=1200)
+                for _line in (out or "").splitlines():
+                    if not _line.strip().startswith("{"):
+                        continue
+                    try:
+                        _pl = json.loads(_line)
+                        if _pl.get("paths") or _pl.get("islands"):
+                            plans[_pl.get("net", "")] = _pl
+                    except ValueError:
+                        continue
+            except (IndexError, ValueError,
+                    subprocess.TimeoutExpired) as _e:
+                # 批量出图失败=地图动作全场缺席 — 必须可见
+                steps.append(f"loop[{n}]: 批量出图失败"
+                             f"[{type(_e).__name__}] {str(_e)[:60]}")
         report["extra"]["plans"] = plans
         report["extra"]["candidates"] = _intel.flexibility(
             pcb_path, pairs, report["taxonomy"], plans=plans)
@@ -1375,10 +1974,65 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
         # mutating action (a reroute reshuffles the seams and the
         # verified plan dies; TWIN journal: direct_link never got a
         # turn because reroute_nets went first and closed its window)
-        cand_queue.sort(key=lambda a: 0 if a["action"] == "direct_link"
-                        else (1 if a["action"] == "corridor_rescue"
-                              else 2))
+        # ⑤ escape-first + 板型适配: BGA 板(几何聚类检出)走
+        # 扇出重构->协同收割->直连序, 并禁用实测负效动作
+        from fluxpcb.kernel import causal as _kcause
+        _is_bga = bool(_kcause.bga_boxes_from_pairs(pairs or []))
+        if _is_bga:
+            _nb = [a for a in cand_queue
+                   if not _action_allowed(a.get("action", ""), True)]
+            if _nb:
+                steps.append(f"loop[{n}]: BGA 板禁用动作 "
+                             f"{sorted({a.get('action') for a in _nb})}")
+            cand_queue = [a for a in cand_queue
+                          if _action_allowed(a.get("action", ""), True)]
+            queue = [a for a in queue
+                     if _action_allowed(a.get("action", ""), True)]
+        if _use_bandit:
+            _cls_of = {}
+            for _c, _ns in (report.get("taxonomy") or {}).items():
+                for _n in _ns:
+                    _cls_of[str(_n)] = _c
+            cand_queue = _bandit.rank(cand_queue, _cls_of)
+        else:
+            cand_queue.sort(key=lambda a: _action_rank(
+                a.get("action", ""), _is_bga))
         queue = cand_queue + queue
+        if _grind_on:
+            # C2 A/B 窗: FLUXNT_GRIND_STEPS 限微步数(对照实验用)
+            _max_steps = int(__import__("os").environ.get(
+                "FLUXNT_GRIND_STEPS", "0"))
+            if _max_steps and _micro_count >= _max_steps:
+                steps.append(f"loop[{n}]: 磨山步数窗 {_max_steps} 到, "
+                             f"窗口收束(A/B 对照)")
+                break
+            cls_of_g = {}
+            for _c, _ns in (report.get("taxonomy") or {}).items():
+                for _n in _ns:
+                    cls_of_g[str(_n)] = _c
+            # A1 DPP(测试集物理隔离): residual_split.json 冻结切分,
+            # FLUXNT_GRIND_SPLIT 指定本轮可见 split(空=全量, 兼容旧跑)
+            _want_split = __import__("os").environ.get(
+                "FLUXNT_GRIND_SPLIT", "")
+            _spf = pcb_path.parent / "residual_split.json"
+            if _want_split and _spf.exists():
+                try:
+                    _split = json.loads(_spf.read_text(
+                        encoding="utf-8"))
+                    cls_of_g = {n: c for n, c in cls_of_g.items()
+                                if _split.get(n) == _want_split}
+                except (ValueError, OSError):
+                    pass    # ok-silent: 切分文件坏=退回全量(失效安全)
+            _st, _o = _grind_micro(qo, pairs, report, plans, cls_of_g)
+            _micro_count += 1
+            if _st == "done":
+                _loop_final_truth(kicad_cli, kipy, pcb_path, log)
+                return
+            if _st == "stalled":
+                steps.append(f"loop[{n}]: 磨山全停滞(算子链到底), "
+                             f"诚实终止 — 归因在 grind_state.json")
+                break
+            continue                # 一迭代一微步(磨山节奏)
         acted = False
         for act in queue:
             if _time.time() > deadline:
@@ -1393,59 +2047,29 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
             if not ok:
                 _kdec.record(pcb_path, act, {"rejected": fixit})
                 continue
-            # T4 STRICT-IMPROVEMENT GATE (ByTaymur/PcbAi corpus rule:
-            # "new DRC errors or increased opens block the application").
-            # Snapshot first — the gate RESTORES on any regression
-            # (jumper d=-1 and direct_link +10-shorts classes die here).
-            _strict = __import__("os").environ.get(
-                "FLUXNT_V_STRICT", "1") != "0"
-            import shutil as _sh4
-            _pre_snap = pcb_path.with_suffix(".strict.bak")
-            _sh4.copy2(pcb_path, _pre_snap)
-            _qs_before = _kstate.query(kicad_cli, kipy, pcb_path, "shorts",
-                                       consolidate=False)
-            outcome = _loop_execute(act, report, kicad_cli, kipy,
-                                    pcb_path, cls_file, net_classes,
-                                    diff_pairs, log)
-            # measure the EFFECT (bidirectional feedback, point 3/4):
-            # what did this decision actually change?
-            _q2 = _kstate.query(kicad_cli, kipy, pcb_path, "opens",
-                                consolidate=False)
-            outcome["delta_opens"] = qo.value - _q2.value
-            _qs_after = _kstate.query(kicad_cli, kipy, pcb_path, "shorts",
-                                      consolidate=False)
-            _dshorts = _qs_after.value - _qs_before.value
-            outcome["delta_shorts"] = _dshorts
+            # T4 STRICT-IMPROVEMENT GATE — 已抽为 _gated_step
+            # (闭环与建造流水线共用同一执行语义)
+            outcome = _gated_step(act, report, kicad_cli, kipy,
+                                  pcb_path, cls_file, net_classes,
+                                  diff_pairs, qo, steps, log,
+                                  tag=f"loop[{n}]", iter_no=n)
             history_log.append(outcome)
-            if _strict and (_dshorts > 0 or outcome["delta_opens"] < 0):
-                # strict gate: any regression = restore the snapshot
-                # and treat the action as rejected (its side-effects
-                # never reach the board)
-                _sh4.copy2(_pre_snap, pcb_path)
-                outcome["strict_rollback"] = (
-                    f"delta_opens={outcome['delta_opens']} "
-                    f"delta_shorts={_dshorts}")
-                _kdec.record(pcb_path, act, outcome)
-                steps.append(f"loop[{n}] {act['action']}: "
-                             f"严格门禁回滚(+{_dshorts}短/"
-                             f"{-outcome['delta_opens']}开)")
+            if _use_bandit:
+                _cls_of2 = {}
+                for _c, _ns in (report.get("taxonomy") or {}).items():
+                    for _n in _ns:
+                        _cls_of2[str(_n)] = _c
+                _nets_p = act.get("params", {}).get("nets") or []
+                _net0 = str(act.get("params", {}).get(
+                    "net") or (_nets_p[0] if _nets_p else ""))
+                _bandit.update(act.get("action", ""),
+                               _cls_of2.get(_net0, ""),
+                               _kbandit.outcome_reward(outcome))
+                _bandit.save()
+            if outcome.get("strict_rollback"):
                 continue
-            _kdec.record(pcb_path, act, outcome)
-            # CRASH-SAFE terminal state: refresh loop_final after every
-            # action — whatever point a run dies, the latest loop-end
-            # measurement is on disk (item-4, hardened)
-            try:
-                (pcb_path.parent / "loop_final.json").write_text(
-                    json.dumps(
-                        {"opens": _q2.value, "shorts": _qs_after.value,
-                         "fp": _q2.fp.short(), "iterations": n,
-                         "last_action": act.get("action")},
-                        ensure_ascii=False, indent=1), encoding="utf-8")
-            except Exception as _e:
-                steps.append(f"loop_final写入失败: {str(_e)[:40]}")
-            steps.append(f"loop[{n}] {act['action']}: "
-                         f"{outcome.get('summary', '')[:70]}")
             if outcome.get("stop"):
+                _loop_final_truth(kicad_cli, kipy, pcb_path, log)
                 return
             acted = True
             break
@@ -1455,6 +2079,7 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
     else:
         steps.append(f"loop: 预算{budget:.0f}s耗尽 — 归因在"
                      f"decision_journal.json(不伪装成功)")
+    _loop_final_truth(kicad_cli, kipy, pcb_path, log)
 
 
 def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
@@ -1577,6 +2202,18 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
                     log(f"  [route] fluxrouter: {frn.get('routed_nets')}/"
                         f"{frn.get('nets')} nets, final {frn.get('final')}")
 
+        # ⑥ 建造流水线默认接管 FR+session 盲重试段
+        # (FLUXNT_PIPELINE=0 回退旧链 = 消融开关)
+        _pl_on = (__import__("os").environ.get(
+            "FLUXNT_PIPELINE", "1") != "0" and not light)
+        if _pl_on:
+            _pl = _build_pipeline(kicad_cli, kipy, pcb_path, cls_file,
+                                  net_classes, _pairs, steps, log=log)
+            steps.append(
+                f"pipeline: {len(_pl.get('history', []))}步 "
+                f"终={_pl.get('opens')}开 "
+                f"score={_pl.get('final_score', {}).get('score')}")
+
         # Freerouting under a FULL transaction (I1+I2+I3: the injection
         # boundary where layer-mapping and overlap classes once struck)
 
@@ -1584,7 +2221,8 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
         # rerouter; completed the 240-ball h743-fc in ~18min once given a
         # 1800s budget). The session engine finishes its residue (power-plane
         # stitching + the pairs FR leaves). FLUXNT_FR=0 disables.
-        if os.environ.get("FLUXNT_FR", "1") != "0" and not light:
+        if (os.environ.get("FLUXNT_FR", "1") != "0" and not light
+                and not _pl_on):
             _prio = [n for n, c in net_classes.items() if c == "critical"]
             from fluxpcb.kernel.txn import Txn as _TxnFR
             with _TxnFR(kicad_cli, kipy, pcb_path, "freerouting",
@@ -1600,7 +2238,8 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
 
         it = 0
         prev = rn0["ratsnest"] if rn0 else -1
-        for it in range(1, (1 if light else max_iterations) + 1):
+        for it in range(1, ((0 if _pl_on else
+                             (1 if light else max_iterations))) + 1):
             sess = _run_session(kipy, pcb_path, cls_file, log=log)
             if sess is None:
                 steps.append(f"session{it}: failed")
@@ -1620,7 +2259,8 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
         # PathFinder pass (K14): FLUXNT_ROUTER=pathfinder enables — the
         # negotiated rerouting closes what the sequential session cannot.
         # (In FLUXNT_V3 order it already ran before Freerouting.)
-        if os.environ.get("FLUXNT_ROUTER") == "pathfinder" and not v3_order:
+        if (os.environ.get("FLUXNT_ROUTER") == "pathfinder"
+                and not v3_order and not _pl_on):
             frn = _run_fluxrouter(kipy, pcb_path, cls_file, log=log)
             if frn:
                 steps.append(f"fluxrouter: iters={frn.get('iters')} "

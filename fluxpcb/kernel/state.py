@@ -155,19 +155,29 @@ def _conn_audit(kipy: str, pcb: Path) -> dict:
         try:
             pairs_file.unlink()
         except OSError:
-            pass
+            pass    # ok-silent: 临时文件清理, 读不到就当无 pairs
 
 
 def refill_and_save(kicad_cli: str, pcb: Path, rpt: Path | None = None):
     """The ONE canonical state-consolidation step (identical to the
     gate's): refill all zones and save the board. Every measurement in
-    the chain must run AFTER this."""
+    the chain must run AFTER this.
+
+    C0m: the report is BOUND to the state it measured — a sibling
+    .fp file records the board fingerprint; a reader that finds a
+    mismatched fp must RE-DERIVE, never reuse (the rolled-back
+    action's shorts were once read as the restored board's truth)."""
     rpt = rpt or pcb.parent / "kernel_drc.rpt"
     subprocess.run([kicad_cli, "pcb", "drc", "--exit-code-violations",
                     "--refill-zones", "--save-board", "-o", str(rpt),
                     str(pcb)],
                    capture_output=True, text=True, timeout=900,
                    encoding="utf-8", errors="replace")
+    try:
+        (pcb.parent / (rpt.name + ".fp")).write_text(
+            fingerprint(pcb).short(), encoding="utf-8")
+    except OSError:
+        pass    # ok-silent: fp写失败=失效安全(无fp->读者自动重测)
 
 
 def query(kicad_cli: str, kipy: str, pcb: Path, kind: str,
@@ -193,13 +203,27 @@ def query(kicad_cli: str, kipy: str, pcb: Path, kind: str,
                                 "fragmented_nets", {})})
     # DRC-text kinds
     rpt = pcb.parent / "kernel_drc.rpt"
-    refill_and_save(kicad_cli, pcb, rpt) if False else None
-    if not rpt.exists():
-        # ensure a report exists (consolidate already wrote one)
+    fp = fingerprint(pcb)
+    # C0m state-binding: the report is reusable ONLY if its companion
+    # fp matches the board being asked about — a report written for
+    # another state (e.g. mid-rollback) is not a measurement of THIS
+    # board. Mismatch or doubt -> fresh in-memory-refill DRC.
+    bpf = pcb.parent / (rpt.name + ".fp")
+    bound = False
+    if rpt.exists() and bpf.exists():
+        try:
+            bound = (bpf.read_text(encoding="utf-8").strip()
+                     == fp.short())
+        except OSError:
+            bound = False
+    if not bound:
         subprocess.run([kicad_cli, "pcb", "drc", "--exit-code-violations",
-                        "-o", str(rpt), str(pcb)],
+                        "--refill-zones", "-o", str(rpt), str(pcb)],
                        capture_output=True, text=True, timeout=900,
                        encoding="utf-8", errors="replace")
+        try:
+            bpf.write_text(fp.short(), encoding="utf-8")
+        except OSError:
+            pass    # ok-silent: fp写失败=失效安全(无fp->读者自动重测)
     txt = rpt.read_text(encoding="utf-8", errors="replace")
-    fp = fingerprint(pcb)
     return KernelQuery(kind, count_drc(txt, kind), fp, {})

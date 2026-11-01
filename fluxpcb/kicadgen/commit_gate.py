@@ -77,14 +77,14 @@ class CommitGate:
                         if pad.IsOnLayer(lid):
                             gate.spatial[li].add_rect(nc, rect)
                 except (AttributeError, TypeError):
-                    continue
+                    continue    # ok-silent: 畸形焊盘逐个跳过
         for it in board.GetTracks():
             try:
                 nc = it.GetNetCode()
                 for li, geom in _item_geoms(it, layer_ids):
                     gate.spatial[li].add_seg(nc, geom[0], geom[1], geom[2])
             except (AttributeError, TypeError):
-                continue
+                continue    # ok-silent: 畸形走线逐个跳过
         return gate
 
     # -------------------------------------------------- geometry check

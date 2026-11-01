@@ -75,11 +75,16 @@ class Txn:
                 "clearance": qc.value}
 
     def __enter__(self):
+        # C0m: measure FIRST (it consolidates zone fills), THEN
+        # snapshot — a rollback must restore a CONSOLIDATED state.
+        # The old order snapshotted stale fills and every restore
+        # handed the loop a stale-fill board (the 40-vs-66 trap
+        # reborn at the transaction layer).
+        self.pre = self._measure()
         ckpt = self.pcb.parent / ".ckpt"
         ckpt.mkdir(exist_ok=True)
         self._snap = ckpt / f"{int(time.time())}-{self.name}.kicad_pcb"
         shutil.copy2(self.pcb, self._snap)
-        self.pre = self._measure()
         self._pre_fp = state.fingerprint(self.pcb).short()
         return self
 
@@ -107,7 +112,7 @@ class Txn:
             try:
                 old.unlink()
             except OSError:
-                pass
+                pass    # ok-silent: 清理旧快照失败不破坏事务语义
         return False
 
     def _restore(self):
@@ -132,5 +137,6 @@ class Txn:
         try:
             mf.write_text(json.dumps(entries, ensure_ascii=False,
                                      indent=1), encoding="utf-8")
-        except OSError:
-            pass
+        except OSError as e:
+            # 记录丢失必须可见(链谱是 kernel 的可信度本身)
+            self.log(f"  [kernel] TXN记录写入失败: {str(e)[:60]}")

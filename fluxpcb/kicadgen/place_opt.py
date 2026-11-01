@@ -54,7 +54,7 @@ def _fp_shape(fp):
                 cy = (bb.GetY() + bb.GetHeight() / 2) / MM
                 return cx, cy, hw, hh
         except Exception:
-            continue
+            continue    # ok-silent: 单焊盘探测失败回落下一形状
     return px, py, 0.0, 0.0
 
 
@@ -223,7 +223,7 @@ if __name__ == "__main__":
                         b.Remove(it)
                         ripped += 1
                 except AttributeError:
-                    continue
+                    continue    # ok-silent: 畸形对象逐个跳过
             b.Save(pcb)
             print(json.dumps({"moved": ref, "ripped": ripped,
                               "nets": sorted(nets)[:8]}))

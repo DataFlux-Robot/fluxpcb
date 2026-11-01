@@ -37,7 +37,7 @@ def _parse_pairs(pairs_lines: list[str]):
                         (float(parts[1]), float(parts[2])),
                         (float(parts[4]), float(parts[5]))))
         except ValueError:
-            continue
+            continue    # ok-silent: 坏行跳过, 归因表尽力而为
     return out
 
 
@@ -50,7 +50,16 @@ def bga_boxes_from_pairs(pairs, min_span: float = 8.0) -> list:
     and sufficient span."""
     CELL = 4.0
     cells = {}
-    for _net, a, b in pairs:
+    for _row in pairs:
+        if isinstance(_row, str):
+            _parts = _row.split("|")
+            if len(_parts) < 7:
+                continue
+            _net = _parts[0]
+            a = (float(_parts[1]), float(_parts[2]))
+            b = (float(_parts[4]), float(_parts[5]))
+        else:
+            _net, a, b = _row
         for p in (a, b):
             cells.setdefault((int(p[0] / CELL), int(p[1] / CELL)),
                              []).append(p)
@@ -127,7 +136,9 @@ def classify(pairs_lines: list[str], diag_verdicts: list | None = None,
 # the reverse edges: failure class -> the upstream move that removes
 # the CAUSE (not the symptom)
 ACTION_FOR = {
-    "escape-crossing": "reassign_pins",
+    # ①: 扇出重构是 escape-crossing 的结构解;
+    # reassign_pins 降为 intel 里的备选(换球位)
+    "escape-crossing": "fanout_repair",
     "power-fragment": "power_stitch",
     "placement-blocked": "adjust_placement",
     "local-congestion": "reroute_nets",

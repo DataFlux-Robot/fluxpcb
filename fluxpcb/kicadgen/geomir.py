@@ -69,7 +69,7 @@ def via_ok(x, y, nc, segs_by_layer, rects_by_layer, via_r=None,
         for net, rect in rects_by_layer[li]:
             if net == nc:
                 continue
-            if pt_rect_dist(x, y, rect) < _clear + via_r:
+            if pt_pad_dist(x, y, rect) < _clear + via_r:
                 return False, {"type": "via-vs-pad", "net": net,
                                "at": [round(x, 2), round(y, 2)]}
     return True, None
@@ -139,7 +139,7 @@ def slot_waypoints(a, b, segs_by_layer, rects_by_layer, nc, width):
         for net, rect in rects_by_layer[li]:
             if net == nc:
                 continue
-            cx, cy, hw2, hh2, _a = rect
+            cx, cy, hw2, hh2, _a = rect[:5]   # 6元组带圆标志
             xs += [cx - hw2, cx + hw2]
             ys += [cy - hh2, cy + hh2]
 
@@ -216,7 +216,7 @@ def verify_polyline(pts, width, nc, segs, rects, rules=None):
             for k in range(n + 1):
                 t = k / n
                 x, y = p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t
-                d = pt_rect_dist(x, y, rect)
+                d = pt_pad_dist(x, y, rect)
                 if d < _smd + own:
                     return False, {"type": "pad", "net": net,
                                    "at": [round(rect[0], 2),
@@ -303,7 +303,7 @@ def render_plan(plan, out_path, window=None):
         s.append(f'<line x1="{px(ax)}" y1="{py(ay)}" x2="{px(bx)}" '
                  f'y2="{py(by)}" stroke="#bbb" stroke-width="2"/>')
     for (net, rect) in plan.get("rects", []):
-        cx, cy, hw, hh, _a = rect
+        cx, cy, hw, hh, _a = rect[:5]     # 6元组带圆标志
         s.append(f'<rect x="{px(cx - hw)}" y="{py(cy - hh)}" '
                  f'width="{hw * 2 * scale:.1f}" height="{hh * 2 * scale:.1f}" '
                  f'fill="#ddd" stroke="#999"/>')
@@ -330,7 +330,8 @@ WIDTH_LADDER_DEFAULT = (0.2, 0.15, 0.127, 0.11)
 
 
 def plan_paths(a, b, width, nc, segs_by_layer, rects_by_layer,
-               bounds=None, limit=4, width_ladder=None, rules=None):
+               bounds=None, limit=4, width_ladder=None, rules=None,
+               planes_by_layer=None):
     """Layer-resolved path search — THE single-net repair shape
     (i2c1_reroute: F.Cu -> via -> B.Cu -> via -> F.Cu):
       * plain polylines on EACH layer (a layer-0 path only fights
@@ -357,7 +358,22 @@ def plan_paths(a, b, width, nc, segs_by_layer, rects_by_layer,
                              verified, rejects, limit, rules)
         if len(verified) >= limit:
             break
-    verified.sort(key=lambda v: (v["length_mm"], -v.get("width", 0.2)))
+    if not verified and rejects:
+        # stream ②: the best near-miss gets perturbed and retried —
+        # a candidate missing by 0.015mm is a false negative, not a wall
+        verified.extend(near_miss_retry(a, b, width, nc, segs_by_layer,
+                                        rects_by_layer, rejects,
+                                        rules=rules))
+    # ② 平面完整性优先: 跨平面数是第一排序键(切 GND 平面 = 制造
+    # power-fragment 开路), 长度次之
+    if planes_by_layer:
+        for v in verified:
+            v["plane_cut"] = plane_cut_count(v["pts"], planes_by_layer)
+        verified.sort(key=lambda v: (v["plane_cut"], v["length_mm"],
+                                     -v.get("width", 0.2)))
+    else:
+        verified.sort(key=lambda v: (v["length_mm"],
+                                     -v.get("width", 0.2)))
     return verified[:limit], rejects[:4]
 
 
@@ -365,7 +381,12 @@ def _plan_paths_at_width(a, b, width, nc, segs_by_layer, rects_by_layer,
                          nlay, all_cands, verified, rejects, limit,
                          rules=None):
     for li in range(nlay):
-        for cand in all_cands:
+        for cand0 in all_cands:
+            if len(verified) >= limit:
+                break       # 满额早停(修复后全搜索成本暴涨的直接来源)
+            # "验你所发": 出库 pts 是 round(x,3) —— 验证必须对圆整后
+            # 坐标做, 否则 plan 过、execute 拒(USART6 3μm 边际拒案)
+            cand = [(round(x, 3), round(y, 3)) for x, y in cand0]
             bad_seg = None
             for (p, q) in zip(cand, cand[1:]):
                 ok, blocker = verify_polyline(
@@ -415,9 +436,33 @@ def _plan_paths_at_width(a, b, width, nc, segs_by_layer, rects_by_layer,
                                and abs(pt[1] - round(q[1], 3)) < 1e-6),
                               None)
                     if i0 is not None and i1 is not None and i1 == i0 + 1:
-                        seg = [out[i0], [out[i0][0], out[i0][1], quiet],
-                               [out[i1][0], out[i1][1], quiet], out[i1]]
+                        quiet_i = quiet % nlay    # 负索引规范化(li≥2 时
+                                                  # 1-li 为负, 验证靠回绕
+                                                  # 一致但绘制端会错层)
+                        seg = [out[i0], [out[i0][0], out[i0][1], quiet_i],
+                               [out[i1][0], out[i1][1], quiet_i], out[i1]]
                         out = out[:i0] + seg + out[i1 + 1:]
+                        # hop 修复只验了被挡段+过孔 —— **其余段必须全量
+                        # 重验**(USART6 拒案: 验证在第一段 break, 尾巴
+                        # 未验就被发出, reverify 以 0.003 差拒之)
+                        tail_ok = True
+                        for (u, v2) in zip(out, out[1:]):
+                            if u[2] != v2[2]:
+                                continue    # 层跳由 v_ok 覆盖
+                            if not verify_polyline(
+                                    [(u[0], u[1]), (v2[0], v2[1])], width,
+                                    nc, segs_by_layer[u[2]],
+                                    rects_by_layer[u[2]], rules)[0]:
+                                tail_ok = False
+                                break
+                        if not tail_ok:
+                            # 整条弃: 记 reject 后继续下一候选
+                            if len(rejects) < 3:
+                                rejects.append({
+                                    "pts": [[round(x, 3), round(y, 3), li]
+                                            for x, y in cand],
+                                    "blocked_by": blocker})
+                            continue
                         length = sum(
                             math.dist(x[:2], y[:2])
                             for x, y in zip(out, out[1:]))
@@ -491,6 +536,7 @@ def _plan_paths_at_width(a, b, width, nc, segs_by_layer, rects_by_layer,
 
 # ==================================================== board adapter layer
 def extract_objects(board, layer_ids):
+    import pcbnew
     """Plain-geometry extraction, PER LAYER (consumed by verify_polyline
     — the same lists commit_gate feeds, i.e. ONE geometric truth).
 
@@ -507,11 +553,19 @@ def extract_objects(board, layer_ids):
             try:
                 nc = pad.GetNetCode()
                 cx, cy, hw, hh, ang = rg.pad_rect(pad)
+                # 形状标志: 真圆焊盘(BGA 球)走圆距离; 方形焊盘保持
+                # 矩形语义(圆化会放松方角 -> 布线穿角)
+                try:
+                    _rnd = (int(pad.GetShape()) ==
+                            int(pcbnew.PAD_SHAPE_CIRCLE))
+                except (AttributeError, TypeError):
+                    _rnd = False
                 for li, lid in enumerate(layer_ids):
                     if pad.IsOnLayer(lid):
-                        rects[li].append((nc, (cx, cy, hw, hh, ang)))
+                        rects[li].append(
+                            (nc, (cx, cy, hw, hh, ang, _rnd)))
             except (AttributeError, TypeError):
-                continue
+                continue    # ok-silent: 畸形焊盘逐个跳过
     for it in board.GetTracks():
         try:
             nc = it.GetNetCode()
@@ -531,7 +585,7 @@ def extract_objects(board, layer_ids):
                 segs[li].append((nc, (s.x / MM, s.y / MM),
                                  (e.x / MM, e.y / MM), w / 2))
         except (AttributeError, TypeError):
-            continue
+            continue    # ok-silent: 畸形走线逐个跳过
     return segs, rects
 
 
@@ -540,9 +594,74 @@ def pcbnew_via_t(board):
     return pcbnew.PCB_VIA_T
 
 
+def pairs_by_net(pairs_lines):
+    """conn_audit pairs 行 'net|x|y|l|x|y|l' -> {net: [((x,y),(x,y)),...]}
+    —— ④ 规划端点单源: 直接用测量器报的断点对, 不再用岛质心。"""
+    out = {}
+    for ln in pairs_lines or []:
+        parts = str(ln).split("|")
+        if len(parts) < 7:
+            continue
+        net = parts[0]
+        # 格式 net|x|y|layer|x|y|layer — layer 在 [3]/[6]
+        a = (round(float(parts[1]), 3), round(float(parts[2]), 3))
+        b = (round(float(parts[4]), 3), round(float(parts[5]), 3))
+        out.setdefault(net, []).append((a, b))
+    return out
+
+
+def select_nets(pairs_lines, fragmented=None, k=8):
+    """④ 选网单源: 开路对所属网按碎片化严重度降序(岛数多者先),
+    平局字母序 —— 旧版纯字母序把严重度信息丢在选网处。"""
+    fragmented = fragmented or {}
+    nets = {str(ln).split("|")[0] for ln in (pairs_lines or [])
+            if str(ln).strip()}
+    return sorted(nets,
+                  key=lambda n: (-(int(fragmented.get(n, 0))), n))[:k]
+
+
+def group_pads_by_cluster(pads, connected_of, key_of):
+    """④ 单源岛划分: 焊盘按 KiCad 连通簇分组 —— 两个焊盘同岛当且仅当
+    同一 GetConnectedItems 簇(zone 连通的焊盘在彼此簇里直现)。
+    键 = key_of(pad)(位置+层), 只有焊盘参与 union —— 旧版三个 bug
+    (走线只入 START 死分支 / zone 轮廓点当连接键 / 无层键叠放误合并)
+    在簇语义下全部不存在: 簇本身就是 KiCad 的连通真值。
+    pads: [(pad, key)];  connected_of(pad) -> iterable of pads;
+    纯函数, 假 conn 可测。"""
+    class UF:
+        def __init__(self):
+            self.p = {}
+
+        def find(self, x):
+            self.p.setdefault(x, x)
+            while self.p[x] != x:
+                self.p[x] = self.p[self.p[x]]
+                x = self.p[x]
+            return x
+
+        def union(self, a, b):
+            ra, rb = self.find(a), self.find(b)
+            if ra != rb:
+                self.p[ra] = rb
+
+    by_key = {k: k for (_p, k) in pads}
+    uf = UF()
+    for _p, k in pads:
+        uf.find(k)
+    for pad, k in pads:
+        for nb in connected_of(pad):
+            nk = key_of(nb)
+            if nk in by_key:
+                uf.union(k, nk)
+    groups = {}
+    for pad, k in pads:
+        groups.setdefault(uf.find(k), []).append(pad)
+    return list(groups.values())
+
+
 def islands_of(board, nc):
-    """Islands of a net: position-keyed union-find over pads+track
-    anchors (same method as route_jumper.open_islands / conn_audit)."""
+    """Islands of a net — ④ 单源: 与 conn_audit/ratsnest 同一簇语义
+    (group_pads_by_cluster)。输出形状保持 {pads/anchor/bbox} 兼容。"""
     class UF:
         def __init__(self):
             self.p = {}
@@ -560,37 +679,43 @@ def islands_of(board, nc):
                 self.p[ra] = rb
 
     MM = 1000000
+    import pcbnew
     board.BuildConnectivity()
     conn = board.GetConnectivity()
-    uf = UF()
+
+    def _key(it):
+        # 位置+层集合: 叠放焊盘(同XY异层)必须是不同键(旧 bug 的根源)
+        q = it.GetPosition()
+        try:
+            lays = tuple(sorted(int(ly) for ly in it.GetLayerSet().Seq()))
+        except AttributeError:
+            try:
+                lays = tuple(sorted(
+                    ly for ly in (pcbnew.F_Cu, pcbnew.B_Cu)
+                    if it.IsOnLayer(ly)))
+            except AttributeError:
+                lays = ()
+        return (q.x, q.y, lays)
+
     pads = []
     for fp in board.GetFootprints():
         for pad in fp.Pads():
             if pad.GetNetCode() != nc:
                 continue
-            q = pad.GetPosition()
-            k = (q.x, q.y)
-            pads.append((pad, k))
-            uf.find(k)
-            try:
-                for nb in conn.GetConnectedItems(pad):
-                    if nb.GetNetCode() != nc:
-                        continue
-                    try:
-                        nq = nb.GetPosition()
-                        uf.union(k, (nq.x, nq.y))
-                    except AttributeError:
-                        s, e = nb.GetStart(), nb.GetEnd()
-                        uf.union(k, (s.x, s.y))
-                        uf.union(k, (e.x, e.y))
-            except (AttributeError, TypeError):
-                pass
-    groups = {}
-    for pad, k in pads:
-        groups.setdefault(uf.find(k), []).append(
-            (k[0] / MM, k[1] / MM))
+            pads.append((pad, _key(pad)))
+
+    def _cluster(pad):
+        try:
+            return [it for it in conn.GetConnectedItems(pad)
+                    if getattr(it, "GetNetCode", lambda: 0)() == nc]
+        except (AttributeError, TypeError):
+            return []    # ok-silent: 畸形对象逐个跳过(单对象不拖垮提取)
+
+    groups = group_pads_by_cluster(pads, _cluster, _key)
     islands = []
-    for pts in groups.values():
+    for grp in groups:
+        pts = [(_p.GetPosition().x / MM, _p.GetPosition().y / MM)
+               for _p in grp]
         xs = [p[0] for p in pts]
         ys = [p[1] for p in pts]
         islands.append({
@@ -604,7 +729,241 @@ def islands_of(board, nc):
     return islands
 
 
-def plan_net(board, net_name, width=0.2):
+def near_miss_retry(a, b, width, nc, segs_by_layer, rects_by_layer,
+                    rejects, rules=None, n_shifts=8):
+    """Stream ② — the false-negative killer (hyuhang: 'why does it say
+    unroutable when space exists?'): the best rejected candidate missed
+    by a hair (0.015-0.3mm) — shift the polyline PERPENDICULARLY AWAY
+    from its blocker and retry. This recovers the seams that candidate
+    generation happens to miss by one width of margin."""
+    from routegrid import seg_seg_dist
+    if not rejects:
+        return []
+    best = min(rejects,
+               key=lambda r: (r.get("blocked_by") or {}).get(
+                   "short_by_mm", 9))
+    bl = best.get("blocked_by") or {}
+    pts = best.get("pts") or []
+    at = bl.get("at")
+    if not pts or not at:
+        return []
+    # shift axis: perpendicular to the failing segment, away from the
+    # blocker point
+    (x1, y1), (x2, y2) = tuple(pts[0][:2]), tuple(pts[-1][:2])
+    dx, dy = x2 - x1, y2 - y1
+    L = math.hypot(dx, dy) or 1.0
+    px, py = -dy / L, dx / L
+    bx, by = at
+    # sign: away from the blocker
+    if (bx - x1) * px + (by - y1) * py > 0:
+        px, py = -px, -py
+    out = []
+    for k in range(1, n_shifts + 1):
+        off = k * 0.15
+        # 验你所发: 圆整后再验(出库即 round(x,3))
+        cand = [(round(x + px * off, 3), round(y + py * off, 3))
+                for (x, y) in [tuple(pt[:2]) for pt in pts]]
+        ok = True
+        for (p, q) in zip(cand, cand[1:]):
+            li = pts[0][2] if len(pts[0]) > 2 else 0
+            v, _bl = verify_polyline([p, q], width, nc,
+                                     segs_by_layer[li],
+                                     rects_by_layer[li], rules)
+            if not v:
+                ok = False
+                break
+        if ok:
+            li = pts[0][2] if len(pts[0]) > 2 else 0
+            out.append({"pts": [[round(x, 3), round(y, 3), li]
+                                for x, y in cand],
+                        "length_mm": round(sum(
+                            math.dist(p, q)
+                            for p, q in zip(cand, cand[1:])), 2),
+                        "width": width,
+                        "mode": f"near-miss-shift-{off:.2f}"})
+            if len(out) >= 2:
+                break
+    return out
+
+
+def extract_planes(board, layer_ids):
+    """② 平面掩膜: 每层的外来网 zone 填充多边形(顶点列, 每多边形
+    截断 256 顶点) — 地图此前完全看不见 zone, 38mm 直连把 GND 平面
+    切碎(power-fragment)而规划器毫无感知。planes_by_layer[li] =
+    [(nc, [(x,y),...]), ...]。"""
+    MM = 1000000.0
+    out = [[] for _ in layer_ids]
+    try:
+        zones = board.Zones()
+    except Exception:
+        return out
+    for z in zones:
+        nc = z.GetNetCode()
+        if not nc:
+            continue        # keepout/无网 zone 不是平面
+        for li, lid in enumerate(layer_ids):
+            if not z.IsOnLayer(lid):
+                continue
+            try:
+                ps = z.GetFilledPolysList(lid)
+                for oi in range(ps.OutlineCount()):
+                    ol = ps.Outline(oi)
+                    pts = []
+                    for pi in range(min(ol.PointCount(), 256)):
+                        cp = ol.CPoint(pi)
+                        pts.append((cp.x / MM, cp.y / MM))
+                    if len(pts) >= 3:
+                        out[li].append((nc, pts))
+            except Exception:
+                pass    # ok-silent: 单 zone 提取失败不拖垮规划(代价
+                        # 缺失退回纯长度排序, DRC 终审仍在)
+    return out
+
+
+def plane_cut_count(pts, planes_by_layer):
+    """路径跨平面数: 线段与外来网 zone 多边形相交计数(代价项)."""
+    def _seg_poly_hit(p, q, poly):
+        n = len(poly)
+        for (x, y) in (p, q):
+            inside = False
+            for i in range(n):
+                x1, y1 = poly[i]
+                x2, y2 = poly[(i + 1) % n]
+                if (y1 > y) != (y2 > y) and \
+                        x < (x2 - x1) * (y - y1) / (y2 - y1 + 1e-12) + x1:
+                    inside = not inside
+            if inside:
+                return True
+        for i in range(n):
+            x1, y1 = poly[i]
+            x2, y2 = poly[(i + 1) % n]
+            d = ((x2 - x1) * (p[1] - y1) - (y2 - y1) * (p[0] - x1))
+            e = ((x2 - x1) * (q[1] - y1) - (y2 - y1) * (q[0] - x1))
+            f = ((q[0] - p[0]) * (y1 - p[1]) - (q[1] - p[1]) * (x1 - p[0]))
+            g = ((q[0] - p[0]) * (y2 - p[1]) - (q[1] - p[1]) * (x2 - p[0]))
+            if (d * e < 0) and (f * g < 0):
+                return True
+        return False
+
+    cuts = 0
+    for (p, q) in zip(pts, pts[1:]):
+        li = p[2] if len(p) > 2 else 0
+        cross_layer = (len(p) > 2 and len(q) > 2 and p[2] != q[2])
+        if cross_layer:
+            continue        # 跨层段(过孔)不切平面
+        p2 = (p[0], p[1])
+        q2 = (q[0], q[1])
+        for (nc, poly) in (planes_by_layer[li]
+                           if li < len(planes_by_layer) else []):
+            if _seg_poly_hit(p2, q2, poly):
+                cuts += 1
+    return cuts
+
+
+def pt_pad_dist(x, y, rect):
+    """点到焊盘距离 — **真圆焊盘**(extract_objects 的形状标志)按圆
+    算: BGA 球是圆的, 矩形近似把对角净空从 0.366 压到 0.283,
+    0.8mm 间距的狗骨过孔位被自己的模型挡死(实测归因)。
+    其余焊盘保持矩形语义 — 圆化方形焊盘会放松方角(布线穿角)。"""
+    cx, cy, w, h = rect[0], rect[1], rect[2], rect[3]
+    rot = rect[4] if len(rect) > 4 else 0.0
+    is_round = len(rect) > 5 and bool(rect[5])
+    if is_round and not rot:
+        # 元组第 3 位是**半维**(pad_rect 返回 hw/hh) — 半径就是 w。
+        # 曾用 w/2: 球距 0.2557 被算成 0.356 假通过(FC_L7 验尸)
+        return max(0.0, math.hypot(x - cx, y - cy) - w)
+    from routegrid import pt_rect_dist
+    return pt_rect_dist(x, y, rect)
+
+
+def _seg_rect_dist(a, b, rect):
+    """segment-to-axis-aligned-rect outline distance (0 if crossing).
+    rect = (cx, cy, w, h, rot); rot ignored in the proxy (the DRC
+    terminal authority handles rotated pads — this is a fast oracle)."""
+    cx, cy, w, h = rect[0], rect[1], rect[2], rect[3]
+    x0, x1 = cx - w / 2, cx + w / 2
+    y0, y1 = cy - h / 2, cy + h / 2
+    corners = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+    from routegrid import seg_seg_dist as _ssd
+    return min(_ssd(a, b, corners[k], corners[(k + 1) % 4])
+               for k in range(4))
+
+
+def _rect_rect_overlap(r1, r2):
+    """axis-aligned pad-pad overlap (rot ignored — the proxy's honest
+    approximation; rotated cases fall to the DRC authority)."""
+    x1, y1, w1, h1 = r1[0], r1[1], r1[2], r1[3]
+    x2, y2, w2, h2 = r2[0], r2[1], r2[2], r2[3]
+    return (abs(x1 - x2) < (w1 + w2) / 2
+            and abs(y1 - y2) < (h1 + h2) / 2)
+
+
+def count_overlaps_geom(segs, rects):
+    """Pure-geometry cross-net overlap counter (the stream ③ oracle).
+    THRESHOLD contract: overlap means copper edges INTERPENETRATE —
+    centerline distance < half-width sum. The first version compared
+    against FULL width sums and counted legal near-pairs as shorts
+    (a false-positive factory).
+    COVERAGE contract: seg-seg + seg-rect + rect-rect. The FC_L4
+    escape (jumper placed a pad ONTO a foreign pad, committed at
+    delta 0/0) was a pad-pad short the v1 coverage never counted —
+    any copper class the oracle cannot see is a gate blind spot."""
+    from routegrid import seg_seg_dist
+    n = 0
+    for li in range(len(segs)):
+        s_list = segs[li]
+        r_list = rects[li]
+        for i in range(len(s_list)):
+            net1, a1, b1, w1 = s_list[i]
+            for j in range(i + 1, len(s_list)):
+                net2, a2, b2, w2 = s_list[j]
+                if net1 == net2 or not net1 or not net2:
+                    continue
+                if seg_seg_dist(a1, b1, a2, b2) < (w1 + w2) / 2:
+                    n += 1
+                    if n > 500:
+                        return n
+        for (net1, a1, b1, w1) in s_list:
+            for (net2, rect) in r_list:
+                if net1 == net2 or not net1 or not net2:
+                    continue
+                if _seg_rect_dist(a1, b1, rect) < w1 / 2:
+                    n += 1
+                    if n > 500:
+                        return n
+        for i in range(len(r_list)):
+            net1, r1 = r_list[i]
+            for j in range(i + 1, len(r_list)):
+                net2, r2 = r_list[j]
+                if net1 == net2 or not net1 or not net2:
+                    continue
+                if _rect_rect_overlap(r1, r2):
+                    n += 1
+                    if n > 500:
+                        return n
+    return n
+
+
+def count_overlaps(board, layer_ids):
+    """Stream ③ cheap-oracle proxy for SHORTS (pcbfork two-tier):
+    pairwise cross-net geometric overlaps — O(n^2) but n~500 in C-speed
+    tuple math; the strict gate can use this instead of a 60s DRC, with
+    the full DRC as the terminal authority at loop end."""
+    segs, rects = extract_objects(board, layer_ids)
+    return count_overlaps_geom(segs, rects)
+
+
+_PLAN_CACHE = {}
+_EXTRACT_CACHE = {}
+
+
+def plan_net(board, net_name, width=0.2, board_sha=None, pairs=None):
+    # stream ③: cache plans keyed by board state + net — unchanged
+    # board means unchanged geometry, so the 20s-per-net plan cost
+    # vanishes for repeated queries in one loop iteration
+    key = (board_sha or "", net_name, width)
+    if key in _PLAN_CACHE:
+        return _PLAN_CACHE[key]
     """THE decision package for one stubborn net: islands + verified
     paths between island anchors + what blocks the rest + summary."""
     net = board.FindNet(net_name)
@@ -613,12 +972,25 @@ def plan_net(board, net_name, width=0.2):
     nc = net.GetNetCode()
     import pcbnew
     lids = [pcbnew.F_Cu, pcbnew.B_Cu]
+    _layer_fb = False
     try:
         import routegrid as rg
-        lids = rg.signal_layer_ids(board)
+        # 提取全铜层(验证/经由校验的契约视图); 候选仍按层生成
+        lids = rg.all_copper_ids(board)
     except Exception:
-        pass
-    segs, rects = extract_objects(board, lids)
+        # 多层板上静默降级到两层=漏检内层障碍 — 必须带标记
+        _layer_fb = True
+    # fc 泛化关键: 全板提取只做一次(逐网重扫是 fc 上批量出图
+    # 超时的根因 — 8 网 = 8 次全板扫描). 单进程内板不变, 缓存安全;
+    # 跨进程天然失效(板文件变 -> sha 变).
+    global _EXTRACT_CACHE
+    _ex_key = (board_sha or id(board), tuple(lids))
+    _ex = _EXTRACT_CACHE.get(_ex_key)
+    if _ex is not None:
+        segs, rects = _ex
+    else:
+        segs, rects = extract_objects(board, lids)
+        _EXTRACT_CACHE[_ex_key] = (segs, rects)
     # T2: the ONE rule table (provenance-checked; fallbacks surfaced)
     try:
         import sys as _s2
@@ -641,12 +1013,24 @@ def plan_net(board, net_name, width=0.2):
                   (bb.GetY() + bb.GetHeight()) / MM)
     except Exception:
         bounds = None
-    if len(islands) >= 2:
+    # ④ 规划端点单源: pairs(测量器报的断点对)优先, 岛锚点兜底
+    _planes = extract_planes(board, lids)
+    if pairs:
+        for pi, (pa, pb) in enumerate(pairs):
+            ok, rej = plan_paths(pa, pb, width, nc, segs, rects,
+                                 bounds=bounds, rules=rule_table,
+                                 planes_by_layer=_planes)
+            for p in ok:
+                p["between"] = ["pair", pi]
+            paths += ok
+            rejects += rej
+    elif len(islands) >= 2:
         for i in range(1, len(islands)):
             a = tuple(islands[0]["anchor"])
             b = tuple(islands[i]["anchor"])
             ok, rej = plan_paths(a, b, width, nc, segs, rects,
-                                 bounds=bounds, rules=rule_table)
+                                 bounds=bounds, rules=rule_table,
+                                 planes_by_layer=_planes)
             for p in ok:
                 p["between"] = [0, i]
             paths += ok
@@ -663,13 +1047,14 @@ def plan_net(board, net_name, width=0.2):
         for _nc, _ni in board.GetNetInfo().NetsByNetcode().items():
             nc2name[int(_nc)] = _ni.GetNetname()
     except Exception:
-        pass
+        pass    # ok-silent: 名字表尽力而为(缺名回落netcode)
     for r in rejects:
         bl = r.get("blocked_by")
         if bl and isinstance(bl.get("net"), int):
             bl["net_name"] = nc2name.get(bl["net"], str(bl["net"]))
     summary = summarize(net_name, islands, paths, rejects)
-    return {"net": net_name, "netcode": nc, "islands": islands,
+    result = {"net": net_name, "netcode": nc, "islands": islands,
+            "layer_fallback": _layer_fb,
             "paths": paths, "rejects": rejects,
             "blockers": sorted({r["blocked_by"].get("net_name")
                                 for r in rejects
@@ -677,20 +1062,41 @@ def plan_net(board, net_name, width=0.2):
                                - {net_name, "0", ""}),
             "segs": win_segs, "rects": win_rects,
             "summary": summary}
+    _PLAN_CACHE[key] = result
+    return result
 
 
 # ==================================================== CLI
 if __name__ == "__main__":
     import sys
     import pcbnew
-    pcb, net_name = sys.argv[1], sys.argv[2]
+    pcb, nets_arg = sys.argv[1], sys.argv[2]
     out_prefix = sys.argv[3] if len(sys.argv) > 3 else pcb
+    pairs_file = Path(sys.argv[4]) if len(sys.argv) > 4 else None
     b = pcbnew.LoadBoard(pcb)
-    plan = plan_net(b, net_name)
-    svg = f"{out_prefix}.{net_name}.plan.svg"
+    if nets_arg == "__overlaps__":
+        import routegrid as _rg
+        lids = _rg.all_copper_ids(b)   # oracle 也必须看见全铜层
+        print(json.dumps({"overlaps": count_overlaps(b, lids)}))
+        sys.exit(0)
     try:
-        render_plan(plan, svg)
-        plan["svg"] = svg
-    except Exception as e:
-        plan["svg_error"] = str(e)[:80]
-    print(json.dumps(plan, ensure_ascii=False))
+        board_sha = __import__("hashlib").sha256(
+            Path(pcb).read_bytes()).hexdigest()
+    except Exception:
+        board_sha = ""
+    # stream ③: comma-separated nets planned in ONE process — one board
+    # load + shared extraction instead of one subprocess per net
+    _pbn = {}
+    if pairs_file and pairs_file.exists():
+        _pbn = pairs_by_net(pairs_file.read_text(
+            encoding="utf-8").splitlines())
+    for net_name in [x for x in nets_arg.split(",") if x.strip()]:
+        plan = plan_net(b, net_name.strip(), board_sha=board_sha,
+                        pairs=_pbn.get(net_name.strip()))
+        svg = f"{out_prefix}.{net_name.strip()}.plan.svg"
+        try:
+            render_plan(plan, svg)
+            plan["svg"] = svg
+        except Exception as e:
+            plan["svg_error"] = str(e)[:80]
+        print(json.dumps(plan, ensure_ascii=False))

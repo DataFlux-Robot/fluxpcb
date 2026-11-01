@@ -25,7 +25,9 @@ from pathlib import Path
 
 
 def build(pcb_path: Path, measurements: dict, pairs: list,
-          diag: list | None = None, extra: dict | None = None) -> dict:
+          diag: list | None = None, extra: dict | None = None,
+          net_classes: dict | None = None,
+          diff_pairs: list | None = None) -> dict:
     """Fold every dimension into one report dict.
 
     measurements: {"opens": KernelQuery, "shorts": KernelQuery, ...}
@@ -33,6 +35,7 @@ def build(pcb_path: Path, measurements: dict, pairs: list,
     """
     from .state import require_fp
     from .causal import classify, ACTION_FOR
+    from .semantic import semantic_view
 
     for k, v in measurements.items():
         require_fp(v, context=f"intel.build[{k}]")
@@ -50,6 +53,8 @@ def build(pcb_path: Path, measurements: dict, pairs: list,
         "taxonomy": taxonomy,
         "action_for": ACTION_FOR,
         "diag": diag or [],
+        "semantic": semantic_view(pairs, taxonomy, net_classes,
+                                  diff_pairs),
         "history": history,
         "extra": extra or {},
         "fp": measurements["opens"].fp.short(),
@@ -182,6 +187,8 @@ def flexibility(pcb_path: Path, pairs: list, taxonomy: dict,
             opts = [{"action": act, "params": {"nets": [net]},
                      "expected_effect": f"{cls} 解因"}]
             if cls == "escape-crossing":
+                # ①: 主选已由 ACTION_FOR 换为 fanout_repair(结构解),
+                # 下面是备选梯(换球位/跨接)
                 opts.append({"action": "reassign_pins",
                              "params": {"nets": [net]},
                              "expected_effect": "换 AF 球位消交叉冲突"})
@@ -196,9 +203,15 @@ def flexibility(pcb_path: Path, pairs: list, taxonomy: dict,
                                                    "dy_mm": 0.0}]},
                              "expected_effect": "挪器件拉开通道"})
             elif cls == "power-fragment":
+                # ② 定向缝合(独立工具)取代"重跑整个 session"
+                opts.append({"action": "power_stitch",
+                             "params": {"nets": [net]},
+                             "expected_effect":
+                                 "via-in-pad 定向缝合平面碎片"})
                 opts.append({"action": "rerun_session",
                              "params": {"max_ripup": 6},
-                             "expected_effect": "power_stitch 重缝合"})
+                             "expected_effect":
+                                 "session 级重缝合(备选)"})
             else:
                 # unclassified persistent opens are the K13 class
                 # (sealed-anchor / transformation-needed): routing retry
@@ -241,6 +254,15 @@ def flexibility(pcb_path: Path, pairs: list, taxonomy: dict,
                     })
                     # T3 playbook: FAT-corridor rescue (inflate blockers
                     # so their reroute flees the corridor walls)
+                    # stream ① leads: ONE compound that nudges the
+                    # tracks AND moves the parts AND closes (线+件同动,
+                    # 挪后直连) — depth beats a ladder of singles
+                    path_opts.append({
+                        "action": "coordinated_open",
+                        "params": {"net": net},
+                        "expected_effect":
+                            f"线+件协同让出走廊并直连(bl={bl[:2]})",
+                    })
                     # item-1: 挪线先于挪件 — shifting the blocking
                     # tracks 0.2mm costs an order less than moving parts
                     # (DaCapo7 gap_nudge; the residual is often tracks
@@ -270,4 +292,17 @@ def flexibility(pcb_path: Path, pairs: list, taxonomy: dict,
                                 f"膨胀{bl[:3]}逼其让出走廊",
                         })
             cands[net] = path_opts + opts
+    # ③ 同类多网 -> 协同批量候选(挂给首网, 参数带全族; 半网排除)
+    for _cls, _ns in (taxonomy or {}).items():
+        if len(_ns) >= 2 and _cls in ("escape-crossing",
+                                      "unclassified"):
+            _fam = [x for x in _ns if "#" not in x][:6]
+            if len(_fam) >= 2:
+                _first = _fam[0]
+                cands.setdefault(_first, []).insert(0, {
+                    "action": "batch_escape",
+                    "params": {"nets": _fam},
+                    "expected_effect":
+                        f"{_cls} 族 {len(_fam)} 网协同重排(单Txn)",
+                })
     return cands

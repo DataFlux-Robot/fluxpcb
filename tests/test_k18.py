@@ -77,7 +77,8 @@ class TestR2ClassRules:
         head = blk.group(0).split("(rule")[0]
         assert blk
         assert " A" not in head and " C" not in head
-        assert "D" in head
+        assert " D" not in head      # normal 也认领(FC_L13 新契约)
+        assert '(class "Normal"' in txt   # Normal 类块存在
 
     def test_pair_coupling_gap(self, tmp_path):
         _, txt = self._inject(tmp_path)

@@ -1,0 +1,2365 @@
+(export
+	(version "E")
+	(design
+		(source "E:\\DATA\\vscode\\ZCODE\\flux-neurotransmitter\\projects\\esp32s31-dev\\schematic\\board\\esp32s31-dev.kicad_sch")
+		(date "2026-10-26T22:42:51")
+		(tool "Eeschema 10.0.6")
+		(sheet
+			(number "1")
+			(name "/")
+			(tstamps "/")
+			(title_block
+				(title "esp32s31-dev")
+				(company "FluxPCB")
+				(rev "A")
+				(date "2026-10-20")
+				(source "esp32s31-dev.kicad_sch")
+				(comment
+					(number "1")
+					(value "")
+				)
+				(comment
+					(number "2")
+					(value "")
+				)
+				(comment
+					(number "3")
+					(value "")
+				)
+				(comment
+					(number "4")
+					(value "")
+				)
+				(comment
+					(number "5")
+					(value "")
+				)
+				(comment
+					(number "6")
+					(value "")
+				)
+				(comment
+					(number "7")
+					(value "")
+				)
+				(comment
+					(number "8")
+					(value "")
+				)
+				(comment
+					(number "9")
+					(value "")
+				)
+			)
+		)
+	)
+	(components
+		(comp
+			(ref "C1")
+			(value "10uF")
+			(description "10uF")
+			(fields
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "10uF")
+			)
+			(libsource
+				(lib "flux")
+				(part "C_0603")
+				(description "FluxPCB module symbol")
+			)
+			(property
+				(name "Sheetname")
+				(value "esp32s31-dev")
+			)
+			(property
+				(name "Sheetfile")
+				(value "esp32s31-dev.kicad_sch")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "5b94ff57-1513-4c6b-9639-212b2ef7f06d")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C2")
+			(value "10uF")
+			(description "10uF")
+			(fields
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "10uF")
+			)
+			(libsource
+				(lib "flux")
+				(part "C_0603")
+				(description "FluxPCB module symbol")
+			)
+			(property
+				(name "Sheetname")
+				(value "esp32s31-dev")
+			)
+			(property
+				(name "Sheetfile")
+				(value "esp32s31-dev.kicad_sch")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "47c6605b-513d-4184-8d3c-db229cf93ddd")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "C3")
+			(value "100nF")
+			(description "100nF")
+			(fields
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "100nF")
+			)
+			(libsource
+				(lib "flux")
+				(part "C_0603")
+				(description "FluxPCB module symbol")
+			)
+			(property
+				(name "Sheetname")
+				(value "esp32s31-dev")
+			)
+			(property
+				(name "Sheetfile")
+				(value "esp32s31-dev.kicad_sch")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "bfb45b6d-241f-4ff3-88ac-8fc48a93666f")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "D1")
+			(value "RED")
+			(description "RED")
+			(fields
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "RED")
+			)
+			(libsource
+				(lib "flux")
+				(part "LED")
+				(description "FluxPCB module symbol")
+			)
+			(property
+				(name "Sheetname")
+				(value "esp32s31-dev")
+			)
+			(property
+				(name "Sheetfile")
+				(value "esp32s31-dev.kicad_sch")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "0c0aedfd-7931-49d1-8a2b-ecd101c1a7da")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "J1")
+			(value "HDR-1")
+			(description "HDR-1")
+			(fields
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "HDR-1")
+			)
+			(libsource
+				(lib "flux")
+				(part "HDR14")
+				(description "FluxPCB module symbol")
+			)
+			(property
+				(name "Sheetname")
+				(value "esp32s31-dev")
+			)
+			(property
+				(name "Sheetfile")
+				(value "esp32s31-dev.kicad_sch")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "ff1f6f55-f7eb-46da-8641-20198ed17409")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "4")
+						)
+						(pin
+							(num "5")
+						)
+						(pin
+							(num "6")
+						)
+						(pin
+							(num "7")
+						)
+						(pin
+							(num "8")
+						)
+						(pin
+							(num "9")
+						)
+						(pin
+							(num "10")
+						)
+						(pin
+							(num "11")
+						)
+						(pin
+							(num "12")
+						)
+						(pin
+							(num "13")
+						)
+						(pin
+							(num "14")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "J2")
+			(value "HDR-2")
+			(description "HDR-2")
+			(fields
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "HDR-2")
+			)
+			(libsource
+				(lib "flux")
+				(part "HDR14")
+				(description "FluxPCB module symbol")
+			)
+			(property
+				(name "Sheetname")
+				(value "esp32s31-dev")
+			)
+			(property
+				(name "Sheetfile")
+				(value "esp32s31-dev.kicad_sch")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "770c623f-247f-4116-9a5a-9b2872685738")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "4")
+						)
+						(pin
+							(num "5")
+						)
+						(pin
+							(num "6")
+						)
+						(pin
+							(num "7")
+						)
+						(pin
+							(num "8")
+						)
+						(pin
+							(num "9")
+						)
+						(pin
+							(num "10")
+						)
+						(pin
+							(num "11")
+						)
+						(pin
+							(num "12")
+						)
+						(pin
+							(num "13")
+						)
+						(pin
+							(num "14")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "J3")
+			(value "HDR-PROG")
+			(description "HDR-PROG")
+			(fields
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "HDR-PROG")
+			)
+			(libsource
+				(lib "flux")
+				(part "HDR4")
+				(description "FluxPCB module symbol")
+			)
+			(property
+				(name "Sheetname")
+				(value "esp32s31-dev")
+			)
+			(property
+				(name "Sheetfile")
+				(value "esp32s31-dev.kicad_sch")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "ada0f370-b540-4ce7-b314-8a1e479eda1e")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "4")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "J4")
+			(value "USB-C")
+			(description "USB-C")
+			(fields
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "USB-C")
+			)
+			(libsource
+				(lib "flux")
+				(part "USB_C_16P")
+				(description "FluxPCB module symbol")
+			)
+			(property
+				(name "Sheetname")
+				(value "esp32s31-dev")
+			)
+			(property
+				(name "Sheetfile")
+				(value "esp32s31-dev.kicad_sch")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "3ee6e702-8f40-4f70-a54e-dc25d3854bf0")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "A4")
+						)
+						(pin
+							(num "A9")
+						)
+						(pin
+							(num "A1")
+						)
+						(pin
+							(num "A12")
+						)
+						(pin
+							(num "B4")
+						)
+						(pin
+							(num "B9")
+						)
+						(pin
+							(num "B1")
+						)
+						(pin
+							(num "B12")
+						)
+						(pin
+							(num "A6")
+						)
+						(pin
+							(num "A7")
+						)
+						(pin
+							(num "B6")
+						)
+						(pin
+							(num "B7")
+						)
+						(pin
+							(num "A5")
+						)
+						(pin
+							(num "B5")
+						)
+						(pin
+							(num "S1")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "MOD1")
+			(value "ESP32-S31-WROOM-3U")
+			(description "ESP32-S31-WROOM-3U")
+			(fields
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "ESP32-S31-WROOM-3U")
+			)
+			(libsource
+				(lib "flux")
+				(part "ESP32-S31-WROOM-3U")
+				(description "FluxPCB module symbol")
+			)
+			(property
+				(name "Sheetname")
+				(value "esp32s31-dev")
+			)
+			(property
+				(name "Sheetfile")
+				(value "esp32s31-dev.kicad_sch")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "f73484ac-22d2-4af4-9261-3a5cb995be80")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "26")
+						)
+						(pin
+							(num "47")
+						)
+						(pin
+							(num "48")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "4")
+						)
+						(pin
+							(num "5")
+						)
+						(pin
+							(num "6")
+						)
+						(pin
+							(num "7")
+						)
+						(pin
+							(num "10")
+						)
+						(pin
+							(num "11")
+						)
+						(pin
+							(num "12")
+						)
+						(pin
+							(num "13")
+						)
+						(pin
+							(num "14")
+						)
+						(pin
+							(num "15")
+						)
+						(pin
+							(num "16")
+						)
+						(pin
+							(num "17")
+						)
+						(pin
+							(num "18")
+						)
+						(pin
+							(num "19")
+						)
+						(pin
+							(num "20")
+						)
+						(pin
+							(num "21")
+						)
+						(pin
+							(num "22")
+						)
+						(pin
+							(num "23")
+						)
+						(pin
+							(num "24")
+						)
+						(pin
+							(num "25")
+						)
+						(pin
+							(num "40")
+						)
+						(pin
+							(num "41")
+						)
+						(pin
+							(num "42")
+						)
+						(pin
+							(num "43")
+						)
+						(pin
+							(num "44")
+						)
+						(pin
+							(num "45")
+						)
+						(pin
+							(num "46")
+						)
+						(pin
+							(num "68")
+						)
+						(pin
+							(num "69")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R1")
+			(value "1k")
+			(description "1k")
+			(fields
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "1k")
+			)
+			(libsource
+				(lib "flux")
+				(part "R_0603")
+				(description "FluxPCB module symbol")
+			)
+			(property
+				(name "Sheetname")
+				(value "esp32s31-dev")
+			)
+			(property
+				(name "Sheetfile")
+				(value "esp32s31-dev.kicad_sch")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "6cfa2906-6fbb-4171-8235-24ddf7e406aa")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R2")
+			(value "10k")
+			(description "10k")
+			(fields
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "10k")
+			)
+			(libsource
+				(lib "flux")
+				(part "R_0603")
+				(description "FluxPCB module symbol")
+			)
+			(property
+				(name "Sheetname")
+				(value "esp32s31-dev")
+			)
+			(property
+				(name "Sheetfile")
+				(value "esp32s31-dev.kicad_sch")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "5aa7d038-e624-49d3-a690-6fd9f9208b55")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R5")
+			(value "5.1k")
+			(description "5.1k")
+			(fields
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "5.1k")
+			)
+			(libsource
+				(lib "flux")
+				(part "R_0603")
+				(description "FluxPCB module symbol")
+			)
+			(property
+				(name "Sheetname")
+				(value "esp32s31-dev")
+			)
+			(property
+				(name "Sheetfile")
+				(value "esp32s31-dev.kicad_sch")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "c584a2fd-6de0-44c3-b390-8b840d43408f")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "R6")
+			(value "5.1k")
+			(description "5.1k")
+			(fields
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "5.1k")
+			)
+			(libsource
+				(lib "flux")
+				(part "R_0603")
+				(description "FluxPCB module symbol")
+			)
+			(property
+				(name "Sheetname")
+				(value "esp32s31-dev")
+			)
+			(property
+				(name "Sheetfile")
+				(value "esp32s31-dev.kicad_sch")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "42cc14b1-a390-45d8-ab8a-560b06c2fb02")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "SW1")
+			(value "RESET")
+			(description "RESET")
+			(fields
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "RESET")
+			)
+			(libsource
+				(lib "flux")
+				(part "SW_PUSH")
+				(description "FluxPCB module symbol")
+			)
+			(property
+				(name "Sheetname")
+				(value "esp32s31-dev")
+			)
+			(property
+				(name "Sheetfile")
+				(value "esp32s31-dev.kicad_sch")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "33c8905e-edbb-4353-9037-5c4eeafab10e")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+					)
+				)
+			)
+		)
+		(comp
+			(ref "U1")
+			(value "AP2112K-3.3")
+			(description "AP2112K-3.3")
+			(fields
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "AP2112K-3.3")
+			)
+			(libsource
+				(lib "flux")
+				(part "AP2112K")
+				(description "FluxPCB module symbol")
+			)
+			(property
+				(name "Sheetname")
+				(value "esp32s31-dev")
+			)
+			(property
+				(name "Sheetfile")
+				(value "esp32s31-dev.kicad_sch")
+			)
+			(sheetpath
+				(names "/")
+				(tstamps "/")
+			)
+			(tstamps "0538ae45-9491-4d80-a7e4-e5239aad0f83")
+			(units
+				(unit
+					(name "A")
+					(pins
+						(pin
+							(num "1")
+						)
+						(pin
+							(num "2")
+						)
+						(pin
+							(num "3")
+						)
+						(pin
+							(num "5")
+						)
+					)
+				)
+			)
+		)
+	)
+	(groups)
+	(variants)
+	(libparts
+		(libpart
+			(lib "flux")
+			(part "AP2112K")
+			(description "FluxPCB module symbol")
+			(fields
+				(field
+					(name "Reference") "U")
+				(field
+					(name "Value") "AP2112K")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "FluxPCB module symbol")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "VIN")
+					(type "power_in")
+				)
+				(pin
+					(num "2")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "3")
+					(name "EN")
+					(type "passive")
+				)
+				(pin
+					(num "5")
+					(name "VOUT")
+					(type "power_out")
+				)
+			)
+		)
+		(libpart
+			(lib "flux")
+			(part "C_0603")
+			(description "FluxPCB module symbol")
+			(fields
+				(field
+					(name "Reference") "C")
+				(field
+					(name "Value") "C_0603")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "FluxPCB module symbol")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "A")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "B")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "flux")
+			(part "ESP32-S31-WROOM-3U")
+			(description "FluxPCB module symbol")
+			(fields
+				(field
+					(name "Reference") "MOD")
+				(field
+					(name "Value") "ESP32-S31-WROOM-3U")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "FluxPCB module symbol")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "2")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "3")
+					(name "3V3")
+					(type "power_in")
+				)
+				(pin
+					(num "4")
+					(name "3V3")
+					(type "power_in")
+				)
+				(pin
+					(num "5")
+					(name "EN")
+					(type "passive")
+				)
+				(pin
+					(num "6")
+					(name "IO2")
+					(type "passive")
+				)
+				(pin
+					(num "7")
+					(name "IO3")
+					(type "passive")
+				)
+				(pin
+					(num "10")
+					(name "IO4")
+					(type "passive")
+				)
+				(pin
+					(num "11")
+					(name "IO5")
+					(type "passive")
+				)
+				(pin
+					(num "12")
+					(name "IO6")
+					(type "passive")
+				)
+				(pin
+					(num "13")
+					(name "IO7")
+					(type "passive")
+				)
+				(pin
+					(num "14")
+					(name "IO8")
+					(type "passive")
+				)
+				(pin
+					(num "15")
+					(name "IO9")
+					(type "passive")
+				)
+				(pin
+					(num "16")
+					(name "IO10")
+					(type "passive")
+				)
+				(pin
+					(num "17")
+					(name "IO11")
+					(type "passive")
+				)
+				(pin
+					(num "18")
+					(name "IO12")
+					(type "passive")
+				)
+				(pin
+					(num "19")
+					(name "IO13")
+					(type "passive")
+				)
+				(pin
+					(num "20")
+					(name "IO14")
+					(type "passive")
+				)
+				(pin
+					(num "21")
+					(name "IO15")
+					(type "passive")
+				)
+				(pin
+					(num "22")
+					(name "IO16")
+					(type "passive")
+				)
+				(pin
+					(num "23")
+					(name "IO17")
+					(type "passive")
+				)
+				(pin
+					(num "24")
+					(name "IO18")
+					(type "passive")
+				)
+				(pin
+					(num "25")
+					(name "IO19")
+					(type "passive")
+				)
+				(pin
+					(num "26")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "40")
+					(name "USB_DP")
+					(type "passive")
+				)
+				(pin
+					(num "41")
+					(name "USB_DM")
+					(type "passive")
+				)
+				(pin
+					(num "42")
+					(name "IO33")
+					(type "passive")
+				)
+				(pin
+					(num "43")
+					(name "IO34")
+					(type "passive")
+				)
+				(pin
+					(num "44")
+					(name "IO35")
+					(type "passive")
+				)
+				(pin
+					(num "45")
+					(name "IO36")
+					(type "passive")
+				)
+				(pin
+					(num "46")
+					(name "IO37")
+					(type "passive")
+				)
+				(pin
+					(num "47")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "48")
+					(name "GND")
+					(type "power_in")
+				)
+				(pin
+					(num "68")
+					(name "TX0")
+					(type "passive")
+				)
+				(pin
+					(num "69")
+					(name "RX0")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "flux")
+			(part "HDR14")
+			(description "FluxPCB module symbol")
+			(fields
+				(field
+					(name "Reference") "J")
+				(field
+					(name "Value") "HDR14")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "FluxPCB module symbol")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "P1")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "P2")
+					(type "passive")
+				)
+				(pin
+					(num "3")
+					(name "P3")
+					(type "passive")
+				)
+				(pin
+					(num "4")
+					(name "P4")
+					(type "passive")
+				)
+				(pin
+					(num "5")
+					(name "P5")
+					(type "passive")
+				)
+				(pin
+					(num "6")
+					(name "P6")
+					(type "passive")
+				)
+				(pin
+					(num "7")
+					(name "P7")
+					(type "passive")
+				)
+				(pin
+					(num "8")
+					(name "P8")
+					(type "passive")
+				)
+				(pin
+					(num "9")
+					(name "P9")
+					(type "passive")
+				)
+				(pin
+					(num "10")
+					(name "P10")
+					(type "passive")
+				)
+				(pin
+					(num "11")
+					(name "P11")
+					(type "passive")
+				)
+				(pin
+					(num "12")
+					(name "P12")
+					(type "passive")
+				)
+				(pin
+					(num "13")
+					(name "P13")
+					(type "passive")
+				)
+				(pin
+					(num "14")
+					(name "P14")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "flux")
+			(part "HDR4")
+			(description "FluxPCB module symbol")
+			(fields
+				(field
+					(name "Reference") "J")
+				(field
+					(name "Value") "HDR4")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "FluxPCB module symbol")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "P1")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "P2")
+					(type "passive")
+				)
+				(pin
+					(num "3")
+					(name "P3")
+					(type "passive")
+				)
+				(pin
+					(num "4")
+					(name "P4")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "flux")
+			(part "LED")
+			(description "FluxPCB module symbol")
+			(fields
+				(field
+					(name "Reference") "D")
+				(field
+					(name "Value") "LED")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "FluxPCB module symbol")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "A")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "K")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "flux")
+			(part "R_0603")
+			(description "FluxPCB module symbol")
+			(fields
+				(field
+					(name "Reference") "R")
+				(field
+					(name "Value") "R_0603")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "FluxPCB module symbol")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "A")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "B")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "flux")
+			(part "SW_PUSH")
+			(description "FluxPCB module symbol")
+			(fields
+				(field
+					(name "Reference") "SW")
+				(field
+					(name "Value") "SW_PUSH")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "FluxPCB module symbol")
+			)
+			(pins
+				(pin
+					(num "1")
+					(name "A")
+					(type "passive")
+				)
+				(pin
+					(num "2")
+					(name "B")
+					(type "passive")
+				)
+			)
+		)
+		(libpart
+			(lib "flux")
+			(part "USB_C_16P")
+			(description "FluxPCB module symbol")
+			(fields
+				(field
+					(name "Reference") "J")
+				(field
+					(name "Value") "USB_C_16P")
+				(field
+					(name "Footprint")
+				)
+				(field
+					(name "Datasheet")
+				)
+				(field
+					(name "Description") "FluxPCB module symbol")
+			)
+			(pins
+				(pin
+					(num "A1")
+					(name "GND")
+					(type "passive")
+				)
+				(pin
+					(num "A4")
+					(name "VBUS")
+					(type "passive")
+				)
+				(pin
+					(num "A5")
+					(name "CC1")
+					(type "passive")
+				)
+				(pin
+					(num "A6")
+					(name "D+")
+					(type "passive")
+				)
+				(pin
+					(num "A7")
+					(name "D-")
+					(type "passive")
+				)
+				(pin
+					(num "A9")
+					(name "VBUS")
+					(type "passive")
+				)
+				(pin
+					(num "A12")
+					(name "GND")
+					(type "passive")
+				)
+				(pin
+					(num "B1")
+					(name "GND")
+					(type "passive")
+				)
+				(pin
+					(num "B4")
+					(name "VBUS")
+					(type "passive")
+				)
+				(pin
+					(num "B5")
+					(name "CC2")
+					(type "passive")
+				)
+				(pin
+					(num "B6")
+					(name "D+")
+					(type "passive")
+				)
+				(pin
+					(num "B7")
+					(name "D-")
+					(type "passive")
+				)
+				(pin
+					(num "B9")
+					(name "VBUS")
+					(type "passive")
+				)
+				(pin
+					(num "B12")
+					(name "GND")
+					(type "passive")
+				)
+				(pin
+					(num "S1")
+					(name "SH")
+					(type "passive")
+				)
+			)
+		)
+	)
+	(libraries
+		(library
+			(logical "flux")
+			(uri "${KIPRJMOD}/flux.kicad_sym")
+		)
+	)
+	(nets
+		(net
+			(code "1")
+			(name "3V3")
+			(class "Default")
+			(node
+				(ref "C2")
+				(pin "1")
+				(pinfunction "A_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "D1")
+				(pin "1")
+				(pinfunction "A_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J1")
+				(pin "2")
+				(pinfunction "P2_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "J3")
+				(pin "1")
+				(pinfunction "P1_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "3")
+				(pinfunction "3V3_3")
+				(pintype "power_in")
+			)
+			(node
+				(ref "MOD1")
+				(pin "4")
+				(pinfunction "3V3_4")
+				(pintype "power_in")
+			)
+			(node
+				(ref "R2")
+				(pin "1")
+				(pinfunction "A_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "U1")
+				(pin "5")
+				(pinfunction "VOUT_5")
+				(pintype "power_out")
+			)
+		)
+		(net
+			(code "2")
+			(name "5V")
+			(class "Default")
+			(node
+				(ref "C1")
+				(pin "1")
+				(pinfunction "A_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J1")
+				(pin "1")
+				(pinfunction "P1_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J4")
+				(pin "A4")
+				(pinfunction "VBUS_A4")
+				(pintype "passive")
+			)
+			(node
+				(ref "J4")
+				(pin "A9")
+				(pinfunction "VBUS_A9")
+				(pintype "passive")
+			)
+			(node
+				(ref "J4")
+				(pin "B4")
+				(pinfunction "VBUS_B4")
+				(pintype "passive")
+			)
+			(node
+				(ref "J4")
+				(pin "B9")
+				(pinfunction "VBUS_B9")
+				(pintype "passive")
+			)
+			(node
+				(ref "U1")
+				(pin "1")
+				(pinfunction "VIN_1")
+				(pintype "power_in")
+			)
+			(node
+				(ref "U1")
+				(pin "3")
+				(pinfunction "EN_3")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "3")
+			(name "CC1")
+			(class "Default")
+			(node
+				(ref "J4")
+				(pin "A5")
+				(pinfunction "CC1_A5")
+				(pintype "passive")
+			)
+			(node
+				(ref "R5")
+				(pin "1")
+				(pinfunction "A_1")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "4")
+			(name "CC2")
+			(class "Default")
+			(node
+				(ref "J4")
+				(pin "B5")
+				(pinfunction "CC2_B5")
+				(pintype "passive")
+			)
+			(node
+				(ref "R6")
+				(pin "1")
+				(pinfunction "A_1")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "5")
+			(name "EN")
+			(class "Default")
+			(node
+				(ref "C3")
+				(pin "1")
+				(pinfunction "A_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J1")
+				(pin "4")
+				(pinfunction "P4_4")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "5")
+				(pinfunction "EN_5")
+				(pintype "passive")
+			)
+			(node
+				(ref "R2")
+				(pin "2")
+				(pinfunction "B_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "SW1")
+				(pin "1")
+				(pinfunction "A_1")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "6")
+			(name "GND")
+			(class "Default")
+			(node
+				(ref "C1")
+				(pin "2")
+				(pinfunction "B_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C2")
+				(pin "2")
+				(pinfunction "B_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "C3")
+				(pin "2")
+				(pinfunction "B_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "J1")
+				(pin "10")
+				(pinfunction "P10_10")
+				(pintype "passive")
+			)
+			(node
+				(ref "J1")
+				(pin "11")
+				(pinfunction "P11_11")
+				(pintype "passive")
+			)
+			(node
+				(ref "J1")
+				(pin "12")
+				(pinfunction "P12_12")
+				(pintype "passive")
+			)
+			(node
+				(ref "J1")
+				(pin "13")
+				(pinfunction "P13_13")
+				(pintype "passive")
+			)
+			(node
+				(ref "J1")
+				(pin "14")
+				(pinfunction "P14_14")
+				(pintype "passive")
+			)
+			(node
+				(ref "J1")
+				(pin "3")
+				(pinfunction "P3_3")
+				(pintype "passive")
+			)
+			(node
+				(ref "J1")
+				(pin "9")
+				(pinfunction "P9_9")
+				(pintype "passive")
+			)
+			(node
+				(ref "J2")
+				(pin "1")
+				(pinfunction "P1_1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J2")
+				(pin "10")
+				(pinfunction "P10_10")
+				(pintype "passive")
+			)
+			(node
+				(ref "J2")
+				(pin "11")
+				(pinfunction "P11_11")
+				(pintype "passive")
+			)
+			(node
+				(ref "J2")
+				(pin "12")
+				(pinfunction "P12_12")
+				(pintype "passive")
+			)
+			(node
+				(ref "J2")
+				(pin "13")
+				(pinfunction "P13_13")
+				(pintype "passive")
+			)
+			(node
+				(ref "J2")
+				(pin "14")
+				(pinfunction "P14_14")
+				(pintype "passive")
+			)
+			(node
+				(ref "J2")
+				(pin "8")
+				(pinfunction "P8_8")
+				(pintype "passive")
+			)
+			(node
+				(ref "J2")
+				(pin "9")
+				(pinfunction "P9_9")
+				(pintype "passive")
+			)
+			(node
+				(ref "J3")
+				(pin "2")
+				(pinfunction "P2_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "J4")
+				(pin "A1")
+				(pinfunction "GND_A1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J4")
+				(pin "A12")
+				(pinfunction "GND_A12")
+				(pintype "passive")
+			)
+			(node
+				(ref "J4")
+				(pin "B1")
+				(pinfunction "GND_B1")
+				(pintype "passive")
+			)
+			(node
+				(ref "J4")
+				(pin "B12")
+				(pinfunction "GND_B12")
+				(pintype "passive")
+			)
+			(node
+				(ref "J4")
+				(pin "S1")
+				(pinfunction "SH_S1")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "1")
+				(pinfunction "GND_1")
+				(pintype "power_in")
+			)
+			(node
+				(ref "MOD1")
+				(pin "2")
+				(pinfunction "GND_2")
+				(pintype "power_in")
+			)
+			(node
+				(ref "MOD1")
+				(pin "26")
+				(pinfunction "GND_26")
+				(pintype "power_in")
+			)
+			(node
+				(ref "MOD1")
+				(pin "47")
+				(pinfunction "GND_47")
+				(pintype "power_in")
+			)
+			(node
+				(ref "MOD1")
+				(pin "48")
+				(pinfunction "GND_48")
+				(pintype "power_in")
+			)
+			(node
+				(ref "R1")
+				(pin "2")
+				(pinfunction "B_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "R5")
+				(pin "2")
+				(pinfunction "B_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "R6")
+				(pin "2")
+				(pinfunction "B_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "SW1")
+				(pin "2")
+				(pinfunction "B_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "U1")
+				(pin "2")
+				(pinfunction "GND_2")
+				(pintype "power_in")
+			)
+		)
+		(net
+			(code "7")
+			(name "IO2")
+			(class "Default")
+			(node
+				(ref "J1")
+				(pin "5")
+				(pinfunction "P5_5")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "6")
+				(pinfunction "IO2_6")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "8")
+			(name "IO3")
+			(class "Default")
+			(node
+				(ref "J1")
+				(pin "6")
+				(pinfunction "P6_6")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "7")
+				(pinfunction "IO3_7")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "9")
+			(name "IO4")
+			(class "Default")
+			(node
+				(ref "J1")
+				(pin "7")
+				(pinfunction "P7_7")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "10")
+				(pinfunction "IO4_10")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "10")
+			(name "IO5")
+			(class "Default")
+			(node
+				(ref "J1")
+				(pin "8")
+				(pinfunction "P8_8")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "11")
+				(pinfunction "IO5_11")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "11")
+			(name "IO6")
+			(class "Default")
+			(node
+				(ref "J2")
+				(pin "2")
+				(pinfunction "P2_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "12")
+				(pinfunction "IO6_12")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "12")
+			(name "IO7")
+			(class "Default")
+			(node
+				(ref "J2")
+				(pin "3")
+				(pinfunction "P3_3")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "13")
+				(pinfunction "IO7_13")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "13")
+			(name "IO8")
+			(class "Default")
+			(node
+				(ref "J2")
+				(pin "4")
+				(pinfunction "P4_4")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "14")
+				(pinfunction "IO8_14")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "14")
+			(name "IO9")
+			(class "Default")
+			(node
+				(ref "J2")
+				(pin "5")
+				(pinfunction "P5_5")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "15")
+				(pinfunction "IO9_15")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "15")
+			(name "IO10")
+			(class "Default")
+			(node
+				(ref "J2")
+				(pin "6")
+				(pinfunction "P6_6")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "16")
+				(pinfunction "IO10_16")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "16")
+			(name "IO11")
+			(class "Default")
+			(node
+				(ref "J2")
+				(pin "7")
+				(pinfunction "P7_7")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "17")
+				(pinfunction "IO11_17")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "17")
+			(name "LED_PWR")
+			(class "Default")
+			(node
+				(ref "D1")
+				(pin "2")
+				(pinfunction "K_2")
+				(pintype "passive")
+			)
+			(node
+				(ref "R1")
+				(pin "1")
+				(pinfunction "A_1")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "18")
+			(name "RX0")
+			(class "Default")
+			(node
+				(ref "J3")
+				(pin "4")
+				(pinfunction "P4_4")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "69")
+				(pinfunction "RX0_69")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "19")
+			(name "TX0")
+			(class "Default")
+			(node
+				(ref "J3")
+				(pin "3")
+				(pinfunction "P3_3")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "68")
+				(pinfunction "TX0_68")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "20")
+			(name "USB_DM")
+			(class "Default")
+			(node
+				(ref "J4")
+				(pin "A7")
+				(pinfunction "D-_A7")
+				(pintype "passive")
+			)
+			(node
+				(ref "J4")
+				(pin "B7")
+				(pinfunction "D-_B7")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "41")
+				(pinfunction "USB_DM_41")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "21")
+			(name "USB_DP")
+			(class "Default")
+			(node
+				(ref "J4")
+				(pin "A6")
+				(pinfunction "D+_A6")
+				(pintype "passive")
+			)
+			(node
+				(ref "J4")
+				(pin "B6")
+				(pinfunction "D+_B6")
+				(pintype "passive")
+			)
+			(node
+				(ref "MOD1")
+				(pin "40")
+				(pinfunction "USB_DP_40")
+				(pintype "passive")
+			)
+		)
+		(net
+			(code "22")
+			(name "unconnected-(MOD1-IO12-Pad18)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "18")
+				(pinfunction "IO12_18")
+				(pintype "passive+no_connect")
+			)
+		)
+		(net
+			(code "23")
+			(name "unconnected-(MOD1-IO13-Pad19)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "19")
+				(pinfunction "IO13_19")
+				(pintype "passive+no_connect")
+			)
+		)
+		(net
+			(code "24")
+			(name "unconnected-(MOD1-IO14-Pad20)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "20")
+				(pinfunction "IO14_20")
+				(pintype "passive+no_connect")
+			)
+		)
+		(net
+			(code "25")
+			(name "unconnected-(MOD1-IO15-Pad21)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "21")
+				(pinfunction "IO15_21")
+				(pintype "passive+no_connect")
+			)
+		)
+		(net
+			(code "26")
+			(name "unconnected-(MOD1-IO16-Pad22)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "22")
+				(pinfunction "IO16_22")
+				(pintype "passive+no_connect")
+			)
+		)
+		(net
+			(code "27")
+			(name "unconnected-(MOD1-IO17-Pad23)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "23")
+				(pinfunction "IO17_23")
+				(pintype "passive+no_connect")
+			)
+		)
+		(net
+			(code "28")
+			(name "unconnected-(MOD1-IO18-Pad24)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "24")
+				(pinfunction "IO18_24")
+				(pintype "passive+no_connect")
+			)
+		)
+		(net
+			(code "29")
+			(name "unconnected-(MOD1-IO19-Pad25)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "25")
+				(pinfunction "IO19_25")
+				(pintype "passive+no_connect")
+			)
+		)
+		(net
+			(code "30")
+			(name "unconnected-(MOD1-IO33-Pad42)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "42")
+				(pinfunction "IO33_42")
+				(pintype "passive+no_connect")
+			)
+		)
+		(net
+			(code "31")
+			(name "unconnected-(MOD1-IO34-Pad43)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "43")
+				(pinfunction "IO34_43")
+				(pintype "passive+no_connect")
+			)
+		)
+		(net
+			(code "32")
+			(name "unconnected-(MOD1-IO35-Pad44)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "44")
+				(pinfunction "IO35_44")
+				(pintype "passive+no_connect")
+			)
+		)
+		(net
+			(code "33")
+			(name "unconnected-(MOD1-IO36-Pad45)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "45")
+				(pinfunction "IO36_45")
+				(pintype "passive+no_connect")
+			)
+		)
+		(net
+			(code "34")
+			(name "unconnected-(MOD1-IO37-Pad46)")
+			(class "Default")
+			(node
+				(ref "MOD1")
+				(pin "46")
+				(pinfunction "IO37_46")
+				(pintype "passive+no_connect")
+			)
+		)
+	)
+)
