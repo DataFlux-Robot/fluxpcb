@@ -37,6 +37,21 @@ import routegrid as rg                               # noqa: E402
 pcb_path = Path(sys.argv[1])
 net_names = [x for x in (sys.argv[2] if len(sys.argv) > 2 else "")
              .split(",") if x.strip()]
+# H2 扇出-走廊融合: 走廊方向提示(可选, "dx,dy") —— 狗骨朝验证走廊
+# 方向放, 而不是只按棋盘奇偶/板心序(H1 教训: 球场死位的自由通道
+# 在走廊侧, 板心序候选全灭)
+DIR = None
+if len(sys.argv) > 3 and "," in (sys.argv[3] or ""):
+    try:
+        _dx, _dy = sys.argv[3].split(",")
+        DIR = (float(_dx), float(_dy))
+    except ValueError:
+        DIR = None
+# H2b 逃逸破封: 狗骨全灭时撕邻网堵线(D12 实测被 net48/net51
+# 内层逃逸线物理封死)。FANOUT_RIP=1 = **只撕不放**(单进程单变更
+# —— SWIG 板变更后再用旧代理实测 segfault, 破封与放置分进程),
+# 撕后本工具正常模式(无 RIP)重跑即放狗骨。
+RIP = __import__("os").environ.get("FANOUT_RIP", "0") == "1"
 b = pcbnew.LoadBoard(str(pcb_path))
 b.BuildConnectivity()
 conn = b.GetConnectivity()
@@ -97,6 +112,7 @@ def _cluster_has_via(pad, nc):
 
 
 placed = ripped = skipped = unescaped = 0
+placed_vias = {}        # H2: {net: [x, y]} 狗骨 via = 走廊规划端点身份
 report = []
 for net_name in net_names:
     net = b.FindNet(net_name)
@@ -167,8 +183,23 @@ for net_name in net_names:
         ol = math.hypot(ox, oy) or 1.0
         cands += [(ox / ol * half * 1.5, oy / ol * half * 1.5),
                   (-ox / ol * half * 1.5, -oy / ol * half * 1.5)]
-        cands.sort(key=lambda d: math.hypot(px + d[0] - cx,
-                                            py + d[1] - cy))
+        if DIR:
+            # 走廊方向候选(±0.5 半距垂直偏移 + 1x/2.5x 径向)
+            hx, hy = DIR
+            hl = math.hypot(hx, hy) or 1.0
+            hx, hy = hx / hl, hy / hl
+            px_, py_ = -hy, hx
+            cands += [(hx * half * 1.0, hy * half * 1.0),
+                      (hx * half * 1.5 + px_ * half * 0.5,
+                       hy * half * 1.5 + py_ * half * 0.5),
+                      (hx * half * 1.5 - px_ * half * 0.5,
+                       hy * half * 1.5 - py_ * half * 0.5),
+                      (hx * half * 2.5, hy * half * 2.5)]
+            # 走廊方向优先排序(dot 降序), 板心序退居
+            cands.sort(key=lambda d: -(d[0] * hx + d[1] * hy))
+        else:
+            cands.sort(key=lambda d: math.hypot(px + d[0] - cx,
+                                                py + d[1] - cy))
         done = False
         for (dx, dy) in cands:
             vx, vy = px + dx, py + dy
@@ -196,18 +227,56 @@ for net_name in net_names:
             v.SetNet(net)
             b.Add(v)
             placed += 1
+            placed_vias[net_name] = [round(vx, 3), round(vy, 3)]
             done = True
             break
+        if not done and RIP:
+            # H2b 破封(只撕不放): 收集全候选失败的阻塞网, 撕球周
+            # 2.5*half 内该网走线; 放置留给下一次正常模式运行
+            blockers = set()
+            for (dx, dy) in cands:
+                vx, vy = px + dx, py + dy
+                ok_v, bl_v = geomir.via_ok(vx, vy, nc, segs, rects,
+                                           via_r=VIA_R)
+                if not ok_v and isinstance(bl_v, dict):
+                    bn = bl_v.get("net")
+                    if isinstance(bn, int) and bn != nc:
+                        blockers.add(bn)
+            ripped_here = 0
+            for t in list(b.GetTracks()):
+                if type(t).__name__ != "PCB_TRACK":
+                    continue
+                if t.GetNetCode() not in blockers:
+                    continue
+                s, e = t.GetStart(), t.GetEnd()
+                d1 = math.hypot(s.x / MM - px, s.y / MM - py)
+                d2 = math.hypot(e.x / MM - px, e.y / MM - py)
+                if min(d1, d2) <= half * 2.5:
+                    b.Remove(t)
+                    ripped_here += 1
+            if ripped_here:
+                ripped += ripped_here
+                report.append({
+                    "net": net_name, "mode": "rip-unseal",
+                    "ripped_nets": sorted(blockers),
+                    "ripped_segs": ripped_here,
+                    "next": "rerun fanout_repair (normal mode) "
+                            "to place dogbone"})
         if not done:
             skipped += 1
 
 fill_err = None
-try:
-    pcbnew.ZONE_FILLER(b).Fill(b.Zones())
-except Exception as e:
-    fill_err = str(e)[:80]    # fill 失败必须随报告可见
+if not RIP:
+    # RIP 模式跳过 fill: KiCad10 SWIG 的 Remove+ZONE_FILLER 实测
+    # segfault(b.Zones() 访问违例) —— 撕模式只存板, 重填交给后续
+    # 工具(route_session/direct_link/放置模式都会 ZONE_FILLER)
+    try:
+        pcbnew.ZONE_FILLER(b).Fill(b.Zones())
+    except Exception as e:
+        fill_err = str(e)[:80]    # fill 失败必须随报告可见
 b.Save(str(pcb_path))
 print(json.dumps({"placed": placed, "ripped_dead": ripped,
                   "skipped": skipped, "nets": net_names,
                   "unescaped": unescaped, "report": report[:6],
+                  "placed_vias": placed_vias,
                   "fill_error": fill_err}))
