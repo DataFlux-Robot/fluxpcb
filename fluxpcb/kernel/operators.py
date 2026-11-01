@@ -126,21 +126,34 @@ def emit(op: str, net: str, ctx: dict | None = None) -> dict:
         pp = {"net": net}
         pp.update({k: v for k, v in (ctx.get("op_params") or {}).items()
                    if k in ("dist", "dx", "dy")})
+        at = (ctx.get("at") or [None])[0]
+        if at:
+            pp["at"] = at
         return {"action": "gap_nudge", "params": pp,
                 "expected_effect": "挪阻塞线让缝(dist=%s)"
                                    % pp.get("dist", 0.2)}
     if act == "reroute_nets":
         bl = ctx.get("blockers") or []
-        return {"action": "reroute_nets",
-                "params": {"nets": ([net] + list(bl))[:4]},
+        pp = {"nets": ([net] + list(bl))[:4]}
+        at = (ctx.get("at") or [None])[0]
+        if at:
+            pp["at"] = at
+        return {"action": "reroute_nets", "params": pp,
                 "expected_effect": "撕阻塞网重布让走廊"}
     if act == "corridor_rescue":
         bl = ctx.get("blockers") or []
-        return {"action": "corridor_rescue",
-                "params": {"target": net, "blockers": list(bl)[:3]},
+        pp = {"target": net, "blockers": list(bl)[:3]}
+        at = (ctx.get("at") or [None])[0]
+        if at:
+            pp["at"] = at
+        return {"action": "corridor_rescue", "params": pp,
                 "expected_effect": "FAT 走廊逼退阻挡"}
     if act == "optimize_placement":
-        return {"action": "optimize_placement", "params": {"net": net},
+        pp = {"net": net}
+        at = (ctx.get("at") or [None])[0]
+        if at:
+            pp["at"] = at
+        return {"action": "optimize_placement", "params": pp,
                 "expected_effect": "挪阻挡件开走廊"}
     if act == "zone_bridge":
         return {"action": "zone_bridge", "params": {"nets": [net]},

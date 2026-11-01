@@ -69,9 +69,29 @@ class GrindState:
         if r is None:
             r = {"net": net, "pair_idx": pair_idx, "class": "",
                  "objective": {"kind": "", "trace": []},
-                 "ops": [], "blacklist": [], "erosion": []}
+                 "ops": [], "blacklist": [], "erosion": [],
+                 "morphology": {}}      # 阶段5②: 形态格坐标+证据
             self.data["residuals"][key] = r
         return r
+
+    def classify_morphology(self, net: str, features: dict,
+                            pair_idx: int = 0) -> dict:
+        """形态格归类(证据随行, 不再只出网名)。features 由调用方
+        从 plan/测量收集(cls/gap_mm/dogbone_blocked/planarity...)。
+        换球/挪件后置 reclass_pending=True, 下窗重分类。"""
+        from . import morphology
+        m = morphology.morphology_of(features or {})
+        r = self.residual(net, pair_idx)
+        prev = r.get("morphology") or {}
+        m["reclass_pending"] = prev.get("reclass_pending", False)
+        m["history"] = (prev.get("history") or [])[-4:]
+        if prev.get("cell") and prev["cell"] != m["cell"]:
+            m["history"] = m["history"] + [
+                {"from": prev["cell"], "to": m["cell"],
+                 "ts": round(time.time())}]
+        r["morphology"] = m
+        self.save()
+        return m
 
     def set_class(self, net: str, cls: str, pair_idx: int = 0):
         self.residual(net, pair_idx)["class"] = cls
@@ -105,6 +125,16 @@ class GrindState:
             "ts": round(time.time()),
             "effect": outcome.get("effect", 0),
         })
+        # 形态重触发(阶段5②): 拓扑/几何类算子成功后形态可能变
+        # (换球后'焊盘簇<->孤铜'新形态, K29 教训) — 置重分类标记,
+        # 下窗 classify_morphology 重归格
+        if improved and any(t in op for t in
+                            ("swap", "drift", "move_blocker",
+                             "zone_bridge", "direct_link", "harvest")):
+            m = r.get("morphology") or {}
+            m["reclass_pending"] = True
+            r["morphology"] = m
+
         # 防自欺(HarnessPro 反作弊): 自报 effect 不算成功, 只认
         # objective/开路; 同算子两连败即拉黑 — 杜绝 stitch 式空转
         _same_fails = sum(1 for o in r["ops"]
@@ -135,18 +165,45 @@ class GrindState:
 
     @staticmethod
     def op_sig(op: str, params: dict) -> str:
-        return "%s:%s" % (op, json.dumps(params or {},
-                                         sort_keys=True)[:80])
+        # P2 位置簇: params['at'] 位置进签名 —— 同算子异地不连坐
+        sig = "%s:%s" % (op, json.dumps(params or {},
+                                        sort_keys=True)[:80])
+        at = (params or {}).get("at")
+        if isinstance(at, (list, tuple)) and len(at) >= 2:
+            try:
+                sig += "@%d,%d" % (round(float(at[0])),
+                                   round(float(at[1])))
+            except (TypeError, ValueError):
+                pass
+        return sig
 
     def is_blacklisted(self, net: str, op: str, params: dict,
                        pair_idx: int = 0) -> bool:
         return self.op_sig(op, params) in \
             self.residual(net, pair_idx)["blacklist"]
 
-    def op_blacklisted(self, net: str, op: str, pair_idx: int = 0) -> bool:
-        """按算子名粒度拉黑(同算子不同参数一并避让 — 磨山粒度)。"""
-        return any(b.startswith(op + ":") for b in
-                   self.residual(net, pair_idx)["blacklist"])
+    def op_blacklisted(self, net: str, op: str, pair_idx: int = 0,
+                       at=None) -> bool:
+        """算子避让(双粒度, P2 兄弟替代):
+        at 给出 -> 位置簇粒度(同算子同位置败过才避, 异地不连坐,
+        同位置换兄弟算子);
+        at 缺省 -> 名称粒度(同算子任意参数避让 — 防自旋磨山粒度)。"""
+        bl = self.residual(net, pair_idx)["blacklist"]
+        if at is None:
+            return any(b.startswith(op + ":") for b in bl)
+        try:
+            cl = "@%d,%d" % (round(float(at[0])), round(float(at[1])))
+        except (TypeError, ValueError):
+            cl = None
+        for b in bl:
+            if not b.startswith(op + ":"):
+                continue
+            if cl is None:
+                return True
+            b_at = b.split("@")[-1] if "@" in b else None
+            if b_at == cl[1:] or b_at is None:
+                return True
+        return False
 
     def stalled(self, net: str, k: int = 3, pair_idx: int = 0) -> bool:
         """连续 k 步无改善 = 该残差停滞(算子升级信号, 阶段5)。"""

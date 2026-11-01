@@ -1809,6 +1809,18 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
         返回 ("stalled"|"done"|"stepped", outcome|None)。"""
         for net, cls in cls_of.items():
             _grind.set_class(net, cls)
+            # 阶段5② 形态格归类(证据随行): plan 特征 -> 不变量格
+            _pl = plans.get(net) or {}
+            _feats = {"class": cls,
+                      "dogbone_blocked": bool(
+                          _pl.get("dogbone_blocked")),
+                      "escape_crossings": len(
+                          _pl.get("rejects") or []) and cls ==
+                          "escape-crossing"}
+            try:
+                _grind.classify_morphology(net, _feats)
+            except Exception:
+                pass    # 形态归类失败不挡磨山(记账尽力而为)
         residuals = {}
         for net in cls_of:
             residuals[_kgrind.residual_key(net, 0)] = \
@@ -1847,7 +1859,16 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
                 obj_before = float(qo.value)
             ctx = {"blockers": plan.get("blockers") or [],
                    "plan": plan,
-                   "op_params": _op_params}
+                   "op_params": _op_params,
+                   # P2 遥测: 堵点位置随 ctx 流动(黑单位置簇粒度用)
+                   "at": [r["blocked_by"]["at"] for r in
+                          (plan.get("rejects") or [])
+                          if (r.get("blocked_by") or {}).get("at")]}
+            # 执行期同位避让: 同算子同位置已败过 -> 换兄弟算子
+            # (全局拉黑在 rank 层保留=防自旋; 位置层不再误伤异地)
+            if _grind.op_blacklisted(net, op,
+                                     at=(ctx["at"] or [None])[0]):
+                continue
             if _l2_op:
                 op = _l2_op       # C2 A/B 窗: 候选臂钉扎实验算子
             try:

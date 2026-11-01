@@ -97,6 +97,36 @@ def research_context(knowhow: Path, grind_data: dict,
 
 _CT_CACHE = {}
 
+_SKILL_LEDGER = Path("E:/DATA/vscode/ZCODE/z_lab/skills_ledger.json")
+
+
+def skill_ledger(refs: list = None, outcome: str = "",
+                 skill: str = "") -> dict:
+    """skill 淘汰指标(阶段4验收): 引用计数+跨板存活记账。
+    refs: 提案文本中解析出的 skill:<name> 引用(计数);
+    outcome: 'adopted'|'falsified'|'survived:<board>'(存活记账)。
+    淘汰规则: 引用 0 且存活 0 的 skill 文档自动出清。"""
+    try:
+        led = json.loads(_SKILL_LEDGER.read_text(encoding="utf-8")) \
+            if _SKILL_LEDGER.exists() else {}
+    except (OSError, ValueError):
+        led = {}
+    for r in refs or []:
+        e = led.setdefault(r, {"citations": 0, "outcomes": []})
+        e["citations"] = int(e.get("citations", 0)) + 1
+    if skill and outcome:
+        e = led.setdefault(skill, {"citations": 0, "outcomes": []})
+        e["outcomes"].append({"outcome": outcome,
+                              "ts": round(time.time())})
+        e["outcomes"] = e["outcomes"][-50:]
+    try:
+        _SKILL_LEDGER.write_text(
+            json.dumps(led, ensure_ascii=False, indent=1),
+            encoding="utf-8")
+    except OSError:
+        pass    # 账本写失败不冒充成功(下次调用重试)
+    return led
+
 
 def contracts_preflight(repo_root=None) -> bool:
     """contracts_preflight 评测器: 六条反例引理回归(tests/
@@ -301,12 +331,18 @@ _PLAN_SYS = (
 
 def _parse_proposals(props: list) -> list:
     """提案解析(单源): hypothesis/hypothesis_class 不再在解析层丢失;
-    无 edit 的结构性提案标 PENDING_IMPL 不丢弃(修复静默丢弃暗坑)。"""
+    无 edit 的结构性提案标 PENDING_IMPL 不丢弃(修复静默丢弃暗坑)。
+    同时提取 skill:<name> 引用入淘汰账本(引用计数)。"""
     out = []
+    import re as _re
+    all_refs = []
     for pr in props[:5]:
         edits = pr.get("edit") or {}
         if not isinstance(edits, dict):
             edits = {}
+        _txt = "%s %s" % (pr.get("changes", ""), pr.get("hypothesis", ""))
+        refs = _re.findall(r"skill:([\w\-]+)", _txt)
+        all_refs.extend(refs)
         out.append({
             "source": "llm",
             "verdict": pr.get("verdict", ""),
@@ -318,8 +354,11 @@ def _parse_proposals(props: list) -> list:
             "cost_impact": pr.get("cost_impact", ""),
             "risks": pr.get("risks", ""),
             "edits": edits,
+            "skill_refs": refs,
             "status": "" if edits else "PENDING_IMPL",
         })
+    if all_refs:
+        skill_ledger(refs=sorted(set(all_refs)))
     return out
 
 
