@@ -2184,7 +2184,7 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
             _want_split = __import__("os").environ.get(
                 "FLUXNT_GRIND_SPLIT", "")
             _spf = pcb_path.parent / "residual_split.json"
-            if _want_split and _spf.exists():
+            if _want_split and _want_split != "all" and _spf.exists():
                 try:
                     _split = json.loads(_spf.read_text(
                         encoding="utf-8"))
