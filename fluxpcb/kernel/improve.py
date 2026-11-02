@@ -123,6 +123,73 @@ def propose(matrix: dict, gap_classes: list | None = None) -> list:
     return out
 
 
+# ── 阶段4: 四原子动作空间(OpenRSI Draft/Improve/Debug/Crossover) ──
+RSI_ACTIONS = ("draft", "improve", "debug", "crossover")
+
+
+def propose_rsi(matrix: dict, journal_rows: list | None = None) -> list:
+    """四原子动作 -> 算子进化候选(进 ops_registry 的种子)。
+      draft     : 零可达类新算子(=R1, 换名归类)
+      improve   : 零胜格参数变体(=R2, 换名归类)
+      debug     : 连败算子的修复案(同算子换机制部件, 非再拧旋钮)
+      crossover : 跨类优胜算子重组(A 类赢家的部件 + B 类赢家的部件
+                  -> 第三类复合算子; 结构性新组合)
+    全部候选过固定套件+证书沙盒; 跨板存活 >=2/4 才转正(阶段4验收)。
+    """
+    out = propose(matrix)
+    for c in out:
+        c["rsi_action"] = "draft" if c["kind"] == "new_op" else "improve"
+    # debug: 连败(trials>=2 且 wins==0)的算子 -> 修复案
+    for cell in _ledger.zero_reach(matrix, list(OP_VARIANTS.keys())):
+        if cell.get("trials", 0) < 2:
+            continue
+        spec = OP_VARIANTS.get(cell["op"]) or {}
+        out.append({
+            "id": "debug-%s-%s" % (cell["cls"], cell["op"]),
+            "kind": "op_repair",
+            "rsi_action": "debug",
+            "applies_to": cell["cls"],
+            "op": cell["op"],
+            "changes": "修复 %s 在 %s 的连败: 换机制部件(%s 之外的"
+                       "参数族/前提条件), 非同参重试"
+                       % (cell["op"], cell["cls"],
+                          (spec.get("params_grid") or ["原参"])[0]),
+            "expected_impact": "翻案零胜格",
+            "cost": "medium",
+            "risk": "修复无效(沙盒裁决)",
+            "prereg_criteria": _prereg("op_variant", cell["cls"]),
+            "params_grid": [],
+        })
+    # crossover: 跨类赢家部件重组
+    winners = {}
+    for cls, ops in (matrix or {}).items():
+        for op, st in (ops or {}).items():
+            if (st.get("wins") or 0) > 0:
+                winners.setdefault(cls, []).append(op)
+    cls_list = sorted(winners)
+    if len(cls_list) >= 2:
+        a, b = cls_list[0], cls_list[1]
+        third = cls_list[2] if len(cls_list) > 2 else a
+        out.append({
+            "id": "xover-%s-%s-%s" % (a, b, third),
+            "kind": "op_combo",
+            "rsi_action": "crossover",
+            "applies_to": third,
+            "changes": "重组 %s@%s 与 %s@%s 的机制部件 -> %s 复合算子"
+                       % (winners[a][0], a, winners[b][0], b, third),
+            "expected_impact": "跨域部件借用(结构性新组合)",
+            "cost": "high",
+            "risk": "部件不兼容(沙盒裁决)",
+            "prereg_criteria": _prereg("new_op", third),
+            "sketch": {"name": "xover-%s-%s" % (winners[a][0],
+                                                winners[b][0]),
+                       "changes": "复合序列(先 %s 后 %s)"
+                                  % (winners[a][0], winners[b][0]),
+                       "primitives": [winners[a][0], winners[b][0]]},
+        })
+    return out
+
+
 def rank_candidates(cands: list) -> list:
     """候选排序: new_op(补短边)>op_variant(翻案)>objective;
     同 kind 内 cost 低者先(便宜的先验证)。"""
