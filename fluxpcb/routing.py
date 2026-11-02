@@ -1832,6 +1832,18 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
     from fluxpcb.kernel.grind import gap_objective as _gap_obj
     _grind = _kgrind.GrindState(pcb_path.parent / "grind_state.json")
     _grind_on = __import__("os").environ.get("FLUXNT_GRIND", "1") != "0"
+    # 窗级反自旋(臂饥饿真根因): grind_state 继承的历史黑名单把候选
+    # 全杀光 -> 每窗入场即 stalled 0 步(A/B 空臂的深层根因)。语义修正:
+    # 防自旋 = **窗内** 2 连败即避让; 跨窗重试正是训练的探索面 ——
+    # 入窗归档清零(archive 保留证据链)
+    if _grind_on:
+        for _r in _grind.data.get("residuals", {}).values():
+            if _r.get("blacklist"):
+                _r.setdefault("blacklist_archive", []).extend(
+                    [{"sig": s, "ts": round(_time.time())}
+                     for s in _r["blacklist"]])
+                _r["blacklist"] = []
+        _grind.save()
     _micro_count = 0
     _kops.load_registry()          # D1: 实验算子注册表
     _l2_op = __import__("os").environ.get("FLUXNT_L2_OP", "")
