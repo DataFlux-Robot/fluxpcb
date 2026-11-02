@@ -893,9 +893,18 @@ def _last_json(out: str) -> dict:
 # 命中的一定是当前几何的 plan。赢面: A/B 双臂同 BASE 初始态、
 # arena/rollout 重复拷贝、obj_after 喂下一步 obj_before(同 sha)。
 # 缓存目录在板目录下 = 随 copytree 遗传给每个副本(预热即全池受益)。
+def _plan_cache_dir(board_dir) -> Path:
+    # 共享缓存(FLUXNT_PLAN_CACHE)优先: 板 sha 键使跨板跨窗共享安全;
+    # 缺省板内 plan_cache/(随 copytree 遗传)。空窗教训: 每窗冷拷
+    # BASE -> 板内缓存永不暖, 全局共享才是样本效率关键
+    import os as _os
+    g = _os.environ.get("FLUXNT_PLAN_CACHE", "")
+    return Path(g) if g else (Path(board_dir) / "plan_cache")
+
+
 def _plan_cache_get(board_dir, net, sha16):
     try:
-        p = Path(board_dir) / "plan_cache" / ("%s__%s.json" % (net, sha16))
+        p = _plan_cache_dir(board_dir) / ("%s__%s.json" % (net, sha16))
         if p.exists():
             d = json.loads(p.read_text(encoding="utf-8"))
             if d.get("paths") or d.get("islands"):
@@ -909,8 +918,8 @@ def _plan_cache_put(board_dir, net, sha16, plan):
     if not plan or not (plan.get("paths") or plan.get("islands")):
         return
     try:
-        d = Path(board_dir) / "plan_cache"
-        d.mkdir(exist_ok=True)
+        d = _plan_cache_dir(board_dir)
+        d.mkdir(parents=True, exist_ok=True)
         # 瘦身: 巨型几何列表不入缓存(消费方只用 paths/rejects/
         # islands/blockers/summary; segs/rects 是 geomir 内部视图)
         slim = {k: v for k, v in plan.items()
