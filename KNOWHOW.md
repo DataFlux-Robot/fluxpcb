@@ -812,3 +812,10 @@ T2=kipilot解析+ByTaymur加载探针+DaCapo7回读；T1=hyuhang822三约束+Cyr
 - **SDMMC1_CMD 形态定案**: escape-sealed(D12 球场死位, net48/51 封死)+corridor-locked(多重墙) —— 归格 geometry×escape, 需组合算子或换板解决。
 - **机制存活者**: 收割链(harvest->direct_link) —— 3V3 对 d_opens=1 零损伤 + 证书核过(islands_after=1+实时对账)。
 - **新契约资产**: 证书库(假增益语义级终结)/一网对一规则(跨轮叠积 required 漂移修复)/w_clearance 目标通道(磨山看见间距)/board_pool 5板+arena。
+
+
+## K46: 空窗根因 5/6(z_lab 侧修复, 训练环稳定化)(2026-11-02)
+- **根因5 Windows 文件锁**: 上窗 freerouting 残句柄占 freerouting.log -> rmtree PermissionError -> 下一窗瞬崩(隔窗死模式真凶)。z_rollout/z_ab 工作区删除改重试+末次忽略。
+- **根因6 曲线计数历史污染**: z_rsi_round 数 wins 混入 BASE 历史胜场(wins=3 实为历史) —— ts 过滤只计窗内新算子(与 z_ab 同病同修)。
+- 前四根因(K43-45): 黑名单继承/variant缺id/缓存不共享/split='all' 过滤空。六根因全部 C 类(基础结构), 方向与路线层未动摇 —— A-E 归因的工程实证。
+- 训练环第五次启动(全修复态), 归真 arena 并行中。
