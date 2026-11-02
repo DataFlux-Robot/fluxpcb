@@ -24,10 +24,13 @@ import pcbnew
 MM = 1000000
 BGA_PADS_MIN = 60          # route_session/clear_bcup 同款启发式
 STUB_W = 0.15              # dog-bone 短桩宽
-VIA_R = 0.2                # BGA dog-bone 过孔 annulus(0.4mm via):
-                           # 0.8mm 间距四孔中心净空 ~0.366mm, 0.25 的
-                           # 大过孔物理放不进 — 实测归因后的尺寸
-VIA_DRILL = 0.1
+VIA_R = float(__import__("os").environ.get(
+    "FANOUT_VIA_R", "0.2"))   # BGA dog-bone 过孔 annulus(默认0.4mm
+                              # via); 小过孔档 0.15=0.3mm 外径(JLC
+                              # 多层最小 0.25 外径, 0.2 钻孔常规档) ——
+                              # 0.4mm 全灭的球场死位在小过孔下复测
+VIA_DRILL = float(__import__("os").environ.get(
+    "FANOUT_VIA_DRILL", "0.1"))
 DEAD_STUB_MM = 0.3         # 死桩判定长度上限
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))

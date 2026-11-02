@@ -888,6 +888,48 @@ def _last_json(out: str) -> dict:
         return {}
 
 
+# ── plan 持久缓存(阶段0.1: 样本效率前提) ──────────────────────────
+# 键 = (板文件 sha16, net) —— **精确键无陈旧性**: 板一变 sha 就变,
+# 命中的一定是当前几何的 plan。赢面: A/B 双臂同 BASE 初始态、
+# arena/rollout 重复拷贝、obj_after 喂下一步 obj_before(同 sha)。
+# 缓存目录在板目录下 = 随 copytree 遗传给每个副本(预热即全池受益)。
+def _plan_cache_get(board_dir, net, sha16):
+    try:
+        p = Path(board_dir) / "plan_cache" / ("%s__%s.json" % (net, sha16))
+        if p.exists():
+            d = json.loads(p.read_text(encoding="utf-8"))
+            if d.get("paths") or d.get("islands"):
+                return d
+    except (OSError, ValueError):
+        pass
+    return None
+
+
+def _plan_cache_put(board_dir, net, sha16, plan):
+    if not plan or not (plan.get("paths") or plan.get("islands")):
+        return
+    try:
+        d = Path(board_dir) / "plan_cache"
+        d.mkdir(exist_ok=True)
+        # 瘦身: 巨型几何列表不入缓存(消费方只用 paths/rejects/
+        # islands/blockers/summary; segs/rects 是 geomir 内部视图)
+        slim = {k: v for k, v in plan.items()
+                if k not in ("segs", "rects", "svg")}
+        (d / ("%s__%s.json" % (net, sha16))).write_text(
+            json.dumps(slim, ensure_ascii=False), encoding="utf-8")
+    except (OSError, ValueError, TypeError):
+        pass    # 缓存写失败不挡环(下次重取)
+
+
+def _board_sha16(pcb_path) -> str:
+    try:
+        import hashlib
+        return hashlib.sha256(
+            Path(pcb_path).read_bytes()).hexdigest()[:16]
+    except OSError:
+        return "noshape"
+
+
 def _geomir_close(kipy: str, pcb_path: Path, net_name: str) -> str:
     """replan on CURRENT board state + surgical close (T1b: direct_link
     itself re-verifies the plan at draw time)."""
@@ -1795,6 +1837,7 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
     _l2_op = __import__("os").environ.get("FLUXNT_L2_OP", "")
     _KG4 = Path(__file__).resolve().parent / "kicadgen"
     _plan_try = {}       # 地图懒取尝试计数 {net: n} — 每窗每网 ≤2 次
+    _ep = "%s#%d" % (pcb_path.stem, int(_time.time()))  # 0.3 episode 标识
                          # (超时/空图都计数: 600s 超时不能逐步重烧预算)
     # variant ops_params -> ctx.op_params(变体参数化算子面接线:
     # 此前 ops_params 只写不读, emit 的 ctx.op_params 恒空)
@@ -1854,20 +1897,29 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
             # 单网懒取(单网路径实测不超时), 负缓存防连环超时烧预算
             if not (plan.get("paths") or plan.get("islands")) and \
                     _plan_try.get(net, 0) < 2:
-                _plan_try[net] = _plan_try.get(net, 0) + 1
-                try:
-                    _rc6, _out6 = _kipy(kipy, _KG4 / "geomir.py",
-                                        str(pcb_path), net,
-                                        str(pcb_path),
-                                        str(pcb_path.parent
-                                            / "loop_pairs.tmp.txt"),
-                                        timeout=600)
-                    _pl6 = _last_json(_out6)
-                    if _pl6.get("paths") or _pl6.get("islands"):
-                        plans[net] = _pl6
-                        plan = _pl6
-                except (subprocess.TimeoutExpired, OSError):
-                    pass    # 计数已记, 下一步不再烧 600s
+                # 0.1 缓存优先(精确 sha 键, 无陈旧性): 命中即免 600s
+                _sha = _board_sha16(pcb_path)
+                _pl6 = _plan_cache_get(pcb_path.parent, net, _sha)
+                if _pl6:
+                    plans[net] = _pl6
+                    plan = _pl6
+                else:
+                    _plan_try[net] = _plan_try.get(net, 0) + 1
+                    try:
+                        _rc6, _out6 = _kipy(kipy, _KG4 / "geomir.py",
+                                            str(pcb_path), net,
+                                            str(pcb_path),
+                                            str(pcb_path.parent
+                                                / "loop_pairs.tmp.txt"),
+                                            timeout=600)
+                        _pl6 = _last_json(_out6)
+                        if _pl6.get("paths") or _pl6.get("islands"):
+                            plans[net] = _pl6
+                            plan = _pl6
+                            _plan_cache_put(pcb_path.parent, net, _sha,
+                                            _pl6)
+                    except (subprocess.TimeoutExpired, OSError):
+                        pass    # 计数已记, 下一步不再烧 600s
             obj_before = _obj_with_clearance(_gap_obj(plan))
             if obj_before == 0 and plan.get("paths"):
                 op = "harvest"      # 有验证路径直接收割(闭合副产品)
@@ -1892,6 +1944,7 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
                 continue
             if _l2_op:
                 op = _l2_op       # C2 A/B 窗: 候选臂钉扎实验算子
+            _t_step = _time.time()
             try:
                 act = _kops.emit(op, net, ctx)
             except ValueError:
@@ -1903,26 +1956,46 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
                                   pcb_path, cls_file, net_classes,
                                   diff_pairs, qo, steps, log,
                                   tag=f"grind[{n}]", iter_no=n)
+            # 0.2 真实 per-op 计费(替 rollouts 的总时均摊)
+            outcome["wall_s"] = round(_time.time() - _t_step, 1)
             # objective 重测(单网重规划 — 磨山的测量成本)
             if use_fallback:
                 obj_after = _obj_with_clearance(float(
                     outcome.get("_opens_after", qo.value)))
             else:
                 try:
-                    _rc4, _out4 = _kipy(kipy, _KG4 / "geomir.py",
-                                        str(pcb_path), net,
-                                        str(pcb_path), timeout=600)
-                    _plan_after = _last_json(_out4)
+                    # 0.1 缓存优先(本步 obj_after = 下步 obj_before,
+                    # 同 sha 天然命中 —— 窗内每步省一次 600s 重规划)
+                    _sha2 = _board_sha16(pcb_path)
+                    _plan_after = _plan_cache_get(pcb_path.parent,
+                                                  net, _sha2)
+                    if not _plan_after:
+                        _rc4, _out4 = _kipy(kipy, _KG4 / "geomir.py",
+                                            str(pcb_path), net,
+                                            str(pcb_path), timeout=600)
+                        _plan_after = _last_json(_out4)
+                        _plan_cache_put(pcb_path.parent, net, _sha2,
+                                        _plan_after)
                     obj_after = _obj_with_clearance(
                         _gap_obj(_plan_after))
                 except (subprocess.TimeoutExpired, OSError):
                     obj_after = obj_before   # 测不到 = 不计改善
             res = _grind.record_step(net, op, act.get("params", {}),
                                      obj_before, obj_after, outcome,
-                                     cls=c.get("class"))
+                                     cls=c.get("class"),
+                                     episode_id=_ep,
+                                     obj_kind=("opens" if use_fallback
+                                               else "gap"),
+                                     terminal=("stop" if outcome.get(
+                                         "stop") else
+                                         ("closed_pair"
+                                          if outcome.get("delta_opens")
+                                          else "")))
             if _use_bandit:
                 _bandit.update(op, c["class"],
-                               _kbandit.outcome_reward(outcome))
+                               _kbandit.outcome_reward(
+                                   outcome,
+                                   reward_norm=res.get("reward_norm")))
                 _bandit.save()
             history_log.append(outcome)
             if outcome.get("stop"):

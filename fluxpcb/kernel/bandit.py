@@ -30,23 +30,33 @@ R_NEUTRAL = 0.5      # 无过失也无进展
 R_REGRESS = 0.0      # delta<0 或回滚: 劣化
 
 
-def outcome_reward(outcome: dict) -> float:
-    """动作结果 -> 连续奖励(契约: 只认效果)."""
-    if not outcome:
+def outcome_reward(outcome: dict, reward_norm: float | None = None) -> float:
+    """动作结果 -> 连续奖励(契约: 只认效果)。
+    reward_norm: 归一化 Δobjective(阶段0.2 奖励统一) —— 与离散
+    闭合语义 0.7/0.3 混合: 闭合档管"有没有突破", 归一档管"梯度形状"
+    (fallback 开路数与 gap 毫米量纲混杂的历史在此抹平)。"""
+    def _base() -> float:
+        if not outcome:
+            return R_NEUTRAL
+        if outcome.get("strict_rollback") or outcome.get("rolled_back"):
+            return R_REGRESS
+        d_open = float(outcome.get("delta_opens", 0) or 0)
+        d_short = float(outcome.get("delta_shorts", 0) or 0)
+        if d_short > 0:
+            return R_REGRESS
+        if d_open > 0:
+            return R_CLOSED
+        if d_open < 0:
+            return R_REGRESS
+        if float(outcome.get("effect", 0) or 0) > 0:
+            return R_PROGRESS
         return R_NEUTRAL
-    if outcome.get("strict_rollback") or outcome.get("rolled_back"):
-        return R_REGRESS
-    d_open = float(outcome.get("delta_opens", 0) or 0)
-    d_short = float(outcome.get("delta_shorts", 0) or 0)
-    if d_short > 0:
-        return R_REGRESS
-    if d_open > 0:
-        return R_CLOSED
-    if d_open < 0:
-        return R_REGRESS
-    if float(outcome.get("effect", 0) or 0) > 0:
-        return R_PROGRESS
-    return R_NEUTRAL
+
+    r = _base()
+    if reward_norm is not None and r > R_REGRESS:
+        # 劣化/回滚档不被梯度抬起(回归地板优先)
+        r = 0.7 * r + 0.3 * max(0.0, min(1.0, float(reward_norm) * 10.0))
+    return round(r, 4)
 
 
 class ArmBandit:

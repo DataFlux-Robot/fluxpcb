@@ -99,7 +99,8 @@ class GrindState:
     def record_step(self, net: str, op: str, params: dict,
                     obj_before: float, obj_after: float,
                     outcome: dict, pair_idx: int = 0,
-                    cls: str | None = None) -> dict:
+                    cls: str | None = None, episode_id: str = "",
+                    obj_kind: str = "", terminal: str = "") -> dict:
         """一步磨山记账。返回 {improved: bool, d_obj: float}。
         语义: objective 下降=改善(即使开路未闭合 — 闭合是副产品)。"""
         r = self.residual(net, pair_idx)
@@ -114,6 +115,11 @@ class GrindState:
         r["objective"]["trace"].append(
             [round(time.time()), float(obj_after) if obj_after >= 0
              else None])
+        # 0.2/0.3 转移日志(RL 三元组重建面): obj 显式值+归一奖励+
+        # 量纲标签+episode/terminal+真实计费 —— 离线可重建 state
+        _reward_norm = round(
+            d_obj / max(abs(float(obj_before)), 1.0), 4) \
+            if (obj_before >= 0 and obj_after >= 0) else 0.0
         r["ops"].append({
             "op": op, "params": params,
             "d_obj": d_obj, "improved": improved,
@@ -124,6 +130,12 @@ class GrindState:
             "class_at": cls if cls is not None else r.get("class", ""),
             "ts": round(time.time()),
             "effect": outcome.get("effect", 0),
+            "obj_before": obj_before, "obj_after": obj_after,
+            "reward_norm": _reward_norm,
+            "obj_kind": obj_kind,
+            "episode_id": episode_id,
+            "terminal": terminal,
+            "wall_s": outcome.get("wall_s"),
         })
         # 形态重触发(阶段5②): 拓扑/几何类算子成功后形态可能变
         # (换球后'焊盘簇<->孤铜'新形态, K29 教训) — 置重分类标记,
@@ -154,7 +166,8 @@ class GrindState:
             self.data["failed_branches"] = \
                 self.data["failed_branches"][-200:]
         self.save()
-        return {"improved": improved, "d_obj": d_obj}
+        return {"improved": improved, "d_obj": d_obj,
+                "reward_norm": _reward_norm}
 
     def add_erosion(self, net: str, op: str, token: dict,
                     pair_idx: int = 0):
