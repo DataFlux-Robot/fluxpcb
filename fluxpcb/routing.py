@@ -1846,6 +1846,26 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
             "FLUXNT_OP_PARAMS", "{}") or "{}")
     except ValueError:
         _op_params = {}      # 坏参不崩环(响亮降级为无参数)
+    # 阶段1.2 RSI 内环: journal 回归 policy(冷启动先验主导)+探索开关
+    # (探索默认关=保留确定性; 训练环 FLUXNT_RSI_EXPLORE=1 打开)
+    _rsi_policy = None
+    if __import__("os").environ.get("FLUXNT_RSI_ON", "1") != "0":
+        try:
+            from fluxpcb.kernel import policy_rsi as _prsi
+            _split_of = {}
+            _sf = pcb_path.parent / "residual_split.json"
+            if _sf.exists():
+                _split_of = json.loads(_sf.read_text(encoding="utf-8"))
+            _rows = _prsi.collect_journal(_grind.data, _split_of)
+            if len(_rows) >= 5:
+                _rsi_policy = _prsi.JournalPolicy()
+                _rsi_policy.fit([r["features"] for r in _rows],
+                                [float(r.get("reward_norm") or 0)
+                                 for r in _rows])
+        except Exception:
+            _rsi_policy = None    # policy 异常退先验(不挡环)
+    _rsi_explore = __import__("os").environ.get(
+        "FLUXNT_RSI_EXPLORE", "0") != "0"
     # C2 w_clearance 接线(让磨山看见间距): obj = 走廊缺口 +
     # w_c*clearance/5 —— 此前 w_clearance 只写在 variant 字典无人消费
     _w_clear = float(__import__("os").environ.get(
@@ -1888,7 +1908,9 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
             residuals[_kgrind.residual_key(net, 0)] = \
                 _grind.residual(net)
         cands = _kpred.rank_microsteps(residuals, cls_of, _bandit,
-                                       _grind)
+                                       _grind, policy=_rsi_policy,
+                                       plans=plans,
+                                       explore=_rsi_explore)
         for c in cands:
             net, op = c["net"], c["op"]
             plan = plans.get(net) or {}

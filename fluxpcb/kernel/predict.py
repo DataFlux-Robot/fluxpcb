@@ -17,15 +17,24 @@ from . import operators as _ops
 
 
 def predicted_gain(op: str, cls: str, residual: dict,
-                   bandit: _bd.ArmBandit | None = None) -> float:
+                   bandit: _bd.ArmBandit | None = None,
+                   policy=None, plan: dict | None = None,
+                   explore: bool = False) -> float:
     """(残差,算子) 的预期 objective 增益(用于排序, 无量纲 [0,~1])。
 
     v1 合成: 臂后验均值 × 缺口接近度 × 停滞惩罚。
+    v2(阶段1.2): explore 时后验**采样**(Thompson 探索, 替代均值
+    贪心); policy(JournalPolicy)命中时与先验混合 —— journal 回归
+    插槽兑现(predict.v2 docstring 的承诺), 冷启动先验主导。
     """
-    # 臂后验均值(经验值)
+    # 臂后验(经验值; explore=采样)
     if bandit is not None:
         a, b = bandit._posterior(bandit.arm_key(op, cls))
-        arm_mean = a / (a + b)
+        if explore:
+            from .policy_rsi import thompson as _ts
+            arm_mean = _ts(a, b)
+        else:
+            arm_mean = a / (a + b)
     else:
         arm_mean = 0.5
     # 缺口启发: 缺口小 = 接近闭合, 同样一步更可能翻越
@@ -53,16 +62,22 @@ def predicted_gain(op: str, cls: str, residual: dict,
     # 成本折扣: light 算子便宜, 同增益下优先
     cost = (_ops.OPERATORS.get(op) or {}).get("cost", "heavy")
     cost_factor = 1.0 if cost == "light" else 0.85
-    return round(arm_mean * gap_factor * stall_penalty * cost_factor, 4)
+    g = arm_mean * gap_factor * stall_penalty * cost_factor
+    if policy is not None:
+        from . import policy_rsi as _prsi
+        g = policy.score(_prsi.featurize(residual, plan), g)
+    return round(g, 4)
 
 
 def rank_microsteps(residuals: dict, cls_of: dict,
                     bandit: _bd.ArmBandit | None = None,
-                    grind=None) -> list:
+                    grind=None, policy=None, plans: dict | None = None,
+                    explore: bool = False) -> list:
     """所有 (残差, 算子) 候选按预测增益降序。
 
     residuals: {residual_key: grind residual dict};
     cls_of: {net: class}。
+    explore: Thompson 采样 + ε 扰动 top-3(防均值贪心早收敛)。
     """
     out = []
     for rkey, res in residuals.items():
@@ -78,8 +93,23 @@ def rank_microsteps(residuals: dict, cls_of: dict,
             if grind is not None and getattr(grind, "op_blacklisted", None):
                 if grind.op_blacklisted(net, op):
                     continue
-            g = predicted_gain(op, cls, res, bandit)
+            g = predicted_gain(op, cls, res, bandit,
+                               policy=policy,
+                               plan=(plans or {}).get(net),
+                               explore=explore)
             out.append({"net": net, "residual": rkey, "op": op,
                         "class": cls, "gain": g})
     out.sort(key=lambda c: -c["gain"])
+    if explore and len(out) >= 2:
+        # ε 扰动: 以小概率轮换 top-3(探索多样性, 熵保持)
+        try:
+            import random
+            if random.random() < float(__import__("os").environ.get(
+                    "FLUXNT_RSI_EPS", "0.15")):
+                k = min(3, len(out))
+                top = out[:k]
+                random.shuffle(top)
+                out = top + out[k:]
+        except Exception:
+            pass
     return out

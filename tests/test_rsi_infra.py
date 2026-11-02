@@ -75,3 +75,49 @@ class TestTransitionLog:
             assert row["obj_before"] == 10.0 and row["obj_after"] == 9.5
             assert abs(row["reward_norm"] - 0.05) < 1e-6
             assert res["reward_norm"] == row["reward_norm"]
+
+
+class TestPolicyRSI:
+    def test_featurize_dim(self):
+        from fluxpcb.kernel.policy_rsi import featurize, FEAT_DIM
+        res = {"ops": [{"improved": False}], "blacklist": ["a"],
+               "objective": {"trace": [[1, 4.0]]},
+               "morphology": {"cell": ["geometry", "escape"]}}
+        x = featurize(res, {"paths": [1]})
+        assert len(x) == FEAT_DIM
+        assert x[4] == 1.0          # geometry/escape one-hot 槽
+        assert x[-1] == 1.0         # has_paths
+
+    def test_ridge_fit_and_tail_boost(self):
+        from fluxpcb.kernel.policy_rsi import JournalPolicy
+        import random
+        random.seed(7)
+        # y = 0.5*x0 (可学线性) + 上尾样本应获得更高权重
+        xs = [[1.0, 0.0]] * 20 + [[0.0, 1.0]] * 20
+        ys = [0.0] * 20 + [0.4] * 20
+        p = JournalPolicy()
+        rmse = p.fit(xs, ys)
+        assert 0 <= rmse < 0.3
+        assert p.predict_raw([0.0, 1.0]) > p.predict_raw([1.0, 0.0])
+        # 冷启动混合: 样本少时先验主导
+        q = JournalPolicy()
+        assert q.score([0.0, 1.0], 0.5) == 0.5
+
+    def test_thompson_range(self):
+        from fluxpcb.kernel.policy_rsi import thompson
+        for _ in range(50):
+            v = thompson(3.0, 7.0)
+            assert 0.0 <= v <= 1.0
+
+    def test_collect_journal_split(self):
+        from fluxpcb.kernel.policy_rsi import collect_journal
+        gd = {"residuals": {"N#0": {
+            "net": "N", "class_at": "",
+            "morphology": {"cell": ["topology", "connectivity"]},
+            "objective": {"trace": [[1, 5.0]]},
+            "ops": [{"op": "x", "reward_norm": 0.1, "class_at": "c",
+                     "ts": 1, "obj_before": 5.0, "obj_kind": "gap"},
+                    {"op": "y", "ts": 2}]}}}
+        rows = collect_journal(gd, {"N": "test"})
+        assert len(rows) == 1          # 旧格式行无 reward_norm 不入账
+        assert rows[0]["split"] == "test"
