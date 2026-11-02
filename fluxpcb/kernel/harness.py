@@ -86,13 +86,39 @@ def research_context(knowhow: Path, grind_data: dict,
             skills.append("%s: %s" % (name, desc))
     except (OSError, ValueError):
         pass    # ok-silent: 无 skill 库=规划器少索引不失败
+    # 经验卡(OpenRSI: 验证轨迹回流规划器, L3 meta-evolution)
+    cards = experience_cards()
     return {"knowhow": excerpts,
             "failed_branches": fails[-8:],
             "research_battery": battery,
             "literature": [str(x)[:160] for x in (literature or [])][:8],
             "skills": skills,
+            "experience_cards": cards[-12:],
             "note": "语料是证据, 不是预设路线(落点仍由证据推导); "
                     "提案可引用 skill:<name> 消费已验证机制"}
+
+
+def experience_cards(cards_dir: str = "",
+                     max_items: int = 12) -> list:
+    """经验卡读取(z_lab/experience_cards/*.json, 由 z_adopt 写入):
+    每卡 {outcome, hypothesis, mechanism, evidence} —— 采纳与证伪
+    都入册(反例也是经验)。返回压缩行列表。"""
+    import os as _os
+    d = Path(cards_dir or _os.environ.get(
+        "FLUXNT_EXP_CARDS",
+        "E:/DATA/vscode/ZCODE/z_lab/experience_cards"))
+    out = []
+    try:
+        for f in sorted(d.glob("*.json"))[-max_items:]:
+            c = json.loads(f.read_text(encoding="utf-8"))
+            out.append("%s | %s | %s | %s" % (
+                c.get("outcome", "?"),
+                str(c.get("hypothesis", ""))[:80],
+                str(c.get("mechanism", ""))[:60],
+                str(c.get("evidence", ""))[:60]))
+    except (OSError, ValueError):
+        pass    # ok-silent: 无卡=规划器少经验不失败
+    return out
 
 
 _CT_CACHE = {}
