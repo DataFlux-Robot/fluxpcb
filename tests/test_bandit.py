@@ -284,11 +284,13 @@ class TestOperators:
         from fluxpcb.kernel import operators as ops
         assert ops.next_after_fail('nudge_blocker') == 'rip_blocker'
         assert ops.next_after_fail('move_blocker') is None  # 到底
-        # 连续停滞推进链: 0 停滞给 nudge, 4 停滞给 widen
+        # K33 修复(算子注册≠算子入梯): 计划驱动算子(harvest/zone_bridge)
+        # 对 local-congestion/unclassified 可见 —— 漏挂=窗内纯空转
         c0 = ops.candidates_for('local-congestion', 0)
         c4 = ops.candidates_for('local-congestion', 4)
-        assert c0[0] == 'nudge_blocker'
-        assert c4[0] == 'widen_rescue'
+        assert c0[0] == 'harvest' and c0[1] == 'zone_bridge'
+        # 连续停滞推进链仍在: 4 停滞时墙侵蚀链首档升到 widen
+        assert c4[0] == 'harvest' and c4[2] == 'widen_rescue'
 
     def test_class_routing(self):
         from fluxpcb.kernel import operators as ops

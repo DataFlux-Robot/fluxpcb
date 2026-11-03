@@ -144,21 +144,24 @@ def propose_rsi(matrix: dict, journal_rows: list | None = None) -> list:
         if cell.get("trials", 0) < 2:
             continue
         spec = OP_VARIANTS.get(cell["op"]) or {}
+        fam = spec.get("params_grid") or []
+        # 修复规格 = 参数族的**未试档**(换机制部件, 非同参重试):
+        # 取族中非首档(首档即败过的历史档), 无族则给空 edits 保诚实
+        repair_params = fam[1:2] or fam[:1]
         out.append({
             "id": "debug-%s-%s" % (cell["cls"], cell["op"]),
             "kind": "op_repair",
             "rsi_action": "debug",
             "applies_to": cell["cls"],
             "op": cell["op"],
-            "changes": "修复 %s 在 %s 的连败: 换机制部件(%s 之外的"
-                       "参数族/前提条件), 非同参重试"
-                       % (cell["op"], cell["cls"],
-                          (spec.get("params_grid") or ["原参"])[0]),
+            "changes": "修复 %s 在 %s 的连败: 换参数族部件 %s(非同参"
+                       "重试), 沙盒裁决" % (cell["op"], cell["cls"],
+                                          repair_params),
             "expected_impact": "翻案零胜格",
             "cost": "medium",
             "risk": "修复无效(沙盒裁决)",
             "prereg_criteria": _prereg("op_variant", cell["cls"]),
-            "params_grid": [],
+            "params_grid": repair_params,
         })
     # crossover: 跨类赢家部件重组
     winners = {}

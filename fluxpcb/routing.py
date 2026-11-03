@@ -1211,6 +1211,34 @@ def _loop_execute(act: dict, report: dict, kicad_cli: str, kipy: str,
     if name in ("finish", "escalate"):
         return {"summary": f"{name}:{params.get('reason', '')[:40]}",
                 "stop": True}
+    if name == "combo":
+        # 流派四 crossover 序列执行器: 逐段走同一执行器, 效果聚合;
+        # 一段回滚即停(不带伤跑第二段 —— 门禁语义贯穿序列)。
+        # 子步缺 nets 时从外层注入(注册表 steps 是静态模板)
+        _nets = list(params.get("nets") or [])
+        if params.get("net"):
+            _nets = [params["net"]] + _nets
+        outs = []
+        for sub in (params.get("steps") or []):
+            if not isinstance(sub, dict) or "action" not in sub:
+                continue
+            sp = sub.setdefault("params", {})
+            if "nets" not in sp and "net" not in sp and _nets:
+                sp["nets"] = _nets[:4]
+            r = _loop_execute(sub, report, kicad_cli, kipy, pcb_path,
+                              cls_file, net_classes, diff_pairs, log)
+            outs.append(r)
+            if r.get("rolled_back") or r.get("strict_rollback"):
+                break
+        merged = {"summary": " + ".join(
+            (o.get("summary") or "")[:30] for o in outs)[:120],
+            "delta_opens": sum(float(o.get("delta_opens") or 0)
+                               for o in outs),
+            "effect": sum(float(o.get("effect") or 0) for o in outs)}
+        if any(o.get("rolled_back") or o.get("strict_rollback")
+               for o in outs):
+            merged["rolled_back"] = True
+        return merged
     if name == "fanout_repair":
         # ① BGA 扇出重构: 定向清死桩+重建 dog-bone, 单 Txn 原子
         # (route_session 的 dogbone_fanout 不可定向/不可重跑, 闭环

@@ -185,7 +185,9 @@ def candidates_for(cls: str, stalled_ops: int = 0) -> list:
         # 平面碎片的完整梯子: 收割(短跳直连)->缝合->墙侵蚀
         base = ["harvest", "zone_bridge", "stitch"] +             list(UPGRADE_CHAIN)
     else:
-        base = list(UPGRADE_CHAIN)
+        # K33 补录教训(算子注册≠算子入梯): 未分类/局部拥塞也要看得见
+        # 收割与桥接 —— 有验证路时它们是最优解, 漏挂=窗内纯空转
+        base = ["harvest", "zone_bridge"] + list(UPGRADE_CHAIN)
     # 升级链推进: 每 2 次无改善前进一档
     shift = min(stalled_ops // 2, len(UPGRADE_CHAIN) - 1)
     out = []

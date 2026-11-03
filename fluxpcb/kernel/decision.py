@@ -32,6 +32,8 @@ ACTION_CONTRACT = {
     "rerun_fluxrouter": {"iters": int},
     "rerun_freerouting": {},
     "jumper": {"nets": list},
+    # 流派四 crossover: 序列执行(门禁贯穿, 一段回滚即停)
+    "combo": {"steps": list},
     "direct_link": {"net": str, "pts": list},   # M3: decision = a PATH
                                                 # on the geomir map
     # T3 FAT-corridor rescue (reroute_net.py trick as a compound action):
