@@ -41,18 +41,21 @@ JOBS = [
     },
     {
         "name": "clear",
-        "cmd": [KIPY, "-u", str(LAB / "z_clear_fc.py")],
-        "log": LAB / "_clear_fc.log",
+        "cmd": [KIPY, "-u", str(LAB / "z_agent_loop.py")],
+        "log": LAB / "_agent_loop.log",
         "done": lambda: _clear_done(),
     },
 ]
 
 
 def _clear_done():
+    """层1 收工=清零/仅剩GAP/stall/max —— stall 停机是层2的事, 不重启."""
     try:
-        d = json.loads((LAB / "z_clear_fc_report.json").read_text(
+        d = json.loads((LAB / "z_agent_loop_report.json").read_text(
             encoding="utf-8"))
-        return bool(d.get("only_hard_left"))
+        return bool(d.get("only_hard_left")
+                    or d.get("done") in ("cleared", "only_gaps_left",
+                                         "stall", "max_rounds"))
     except (OSError, ValueError):
         return False
 
