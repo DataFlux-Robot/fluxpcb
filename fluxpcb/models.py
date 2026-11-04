@@ -88,11 +88,53 @@ class RunReport:
     started: float = field(default_factory=time.time)
     finished: Optional[float] = None
     stages: list[StageRun] = field(default_factory=list)
+    # 发布语义(复审修复): required_stages = 流水线定义的必需阶段全集;
+    # input_hash = 运行时输入指纹(证据必须对应当前输入);
+    # fab_export = 加工导出结果(成功+校验) —— 三者齐备才可发布
+    required_stages: list = field(default_factory=list)
+    input_hash: str = ""
+    fab_export: dict = field(default_factory=dict)
 
     @property
     def released(self) -> bool:
-        return bool(self.stages) and all(
-            s.status == StageStatus.OK and s.all_gates_pass_or_ok for s in self.stages)
+        # 复现案: 仅跑 requirements 阶段 2 门禁通过即 released=true ——
+        # 旧版只查本次执行过的 stages, 局部通过被误判为发布。
+        # 现: 必需阶段全集齐全且通过 + 加工导出(已跑则必须 ok)。
+        if not self.stages:
+            return False
+        by = {s.stage: s for s in self.stages}
+        if self.required_stages:
+            if any(n not in by for n in self.required_stages):
+                return False
+        if not all(s.status == StageStatus.OK and s.all_gates_pass_or_ok
+                   for s in self.stages):
+            return False
+        if self.fab_export and not self.fab_export.get("ok"):
+            return False
+        return True
+
+    def release_check(self, current_input_hash: str = "") -> dict:
+        """独立发布检查(判定报告, 不只布尔): 必需阶段/实际阶段/
+        证据哈希/导出校验四问齐答 —— 局部运行只能说明局部阶段通过。"""
+        by = {s.stage: s for s in self.stages}
+        missing = [n for n in self.required_stages if n not in by]
+        stale = (bool(self.input_hash) and bool(current_input_hash)
+                 and self.input_hash != current_input_hash)
+        reasons = []
+        if missing:
+            reasons.append("缺必需阶段: %s" % ",".join(missing))
+        if stale:
+            reasons.append("证据哈希与当前输入不符(陈旧运行)")
+        if self.fab_export and not self.fab_export.get("ok"):
+            reasons.append("加工导出未通过: %s"
+                           % (self.fab_export.get("errors") or ["?"]))
+        return {"released": self.released and not stale,
+                "required": list(self.required_stages),
+                "ran": sorted(by),
+                "missing_stages": missing,
+                "input_hash_ok": not stale,
+                "fab_export": self.fab_export,
+                "reasons": reasons}
 
     def to_dict(self) -> dict:
         return {
@@ -100,6 +142,9 @@ class RunReport:
             "started": self.started,
             "finished": self.finished,
             "released": self.released,
+            "required_stages": self.required_stages,
+            "input_hash": self.input_hash,
+            "fab_export": self.fab_export,
             "stages": [s.to_dict() for s in self.stages],
         }
 

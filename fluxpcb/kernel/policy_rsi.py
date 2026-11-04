@@ -24,13 +24,24 @@ MORPH_CELLS = [
     ("geometry", "escape"), ("rule", "drc_rule"), ("rule", "netlist"),
     ("capacity", "corridor"), ("capacity", "current"),
 ]
-FEAT_DIM = 9 + 5     # 形态 one-hot + [stalled, n_ops, blk_frac,
-                     #              gap_norm, has_paths]
+# 复审修复: 特征必须含**动作**(state-only 打分让同残差不同算子同分,
+# 30 样本后回归权重完全盖过动作先验 —— 已复现)。动作面 = 算子 one-hot
+# + 参数标量(常用旋钮归一)。
+_OPS_KNOWN = ("harvest", "zone_bridge", "stitch", "nudge_blocker",
+              "rip_blocker", "widen_rescue", "move_blocker",
+              "swap_pair", "swap_chain3", "single_drift")
+_N_PARAM_SCALARS = 3    # dist / width / 其余旋钮计数(归一)
+GAP_NORM_INDEX = 12     # 状态向量里 gap_norm 的槽位(9 onehot + 3 前缀)
+STATE_DIM = 9 + 5
+FEAT_DIM = STATE_DIM + len(_OPS_KNOWN) + 1 + _N_PARAM_SCALARS
 
 
-def featurize(residual: dict, plan: dict | None = None) -> list:
-    """state -> 定长向量(离线可重建: 全部来自 ops/plan 落盘字段)."""
+def featurize(residual: dict, plan: dict | None = None,
+              op: str | None = None,
+              params: dict | None = None) -> list:
+    """state x action -> 定长向量(离线可重建: 全部来自 ops/plan 落盘)。"""
     plan = plan or {}
+    params = params or {}
     m = (residual or {}).get("morphology") or {}
     cell = tuple(m.get("cell") or ())
     onehot = [1.0 if cell == c else 0.0 for c in MORPH_CELLS]
@@ -44,13 +55,31 @@ def featurize(residual: dict, plan: dict | None = None) -> list:
     trace = ((residual or {}).get("objective") or {}).get("trace") or []
     gap = trace[-1][1] if trace and trace[-1][1] is not None else -1.0
     gap_norm = max(0.0, min(1.0, float(gap) / 20.0)) if gap >= 0 else 0.5
-    return onehot + [
+    state = onehot + [
         min(stalled, 6) / 6.0,
         min(len(ops), 20) / 20.0,
         min(len(bl), 8) / 8.0,
         gap_norm,
         1.0 if (plan.get("paths") or plan.get("islands")) else 0.0,
     ]
+    # 动作面: 算子 one-hot(+unknown 档) + 参数标量
+    try:
+        from . import operators as _ops
+        known = tuple(_ops.OPERATORS.keys()) or _OPS_KNOWN
+    except Exception:
+        known = _OPS_KNOWN
+    op = op or ""
+    op_hot = [1.0 if op == k else 0.0 for k in known]
+    op_hot.append(0.0 if op in known else 1.0)     # unknown 档
+    def _scalar(v):
+        try:
+            return max(0.0, min(1.0, float(v) / 1.0))
+        except (TypeError, ValueError):
+            return 0.0
+    ps = [_scalar(params.get("dist")), _scalar(params.get("width")),
+          min(len([k for k in params if k not in ("dist", "width")]),
+              6) / 6.0]
+    return state + op_hot + ps
 
 
 class JournalPolicy:
@@ -64,9 +93,16 @@ class JournalPolicy:
         self.tail_boost = tail_boost      # OpenRSI 上尾加权
 
     def fit(self, xs: list, ys: list) -> float:
-        """加权 ridge(上尾样本 ×tail_boost)。返回留出均方差(自评)."""
+        """加权 ridge(上尾样本 ×tail_boost)。返回留出均方差(自评).
+        维度护栏: 特征长度不齐的行剔除(新旧格式混存不炸)。"""
         if not xs:
             return -1.0
+        dim = len(xs[0])
+        pairs = [(x, y) for x, y in zip(xs, ys) if len(x) == dim]
+        if not pairs:
+            return -1.0
+        xs = [p[0] for p in pairs]
+        ys = [p[1] for p in pairs]
         n, d = len(xs), len(xs[0]) + 1
         X = [[1.0] + list(x) for x in xs]
         wts = [self.tail_boost if y > 0.05 else 1.0 for y in ys]
@@ -134,15 +170,17 @@ def collect_journal(grind_data: dict, split_of: dict,
         for o in (res.get("ops") or []):
             if "reward_norm" not in o:
                 continue        # 旧格式行无归一奖励, 不入训(诚实)
-            # 特征重建: 用该行时刻的形态(冻结 class_at)+行字段
+            # 特征重建: 用该行时刻的形态(冻结 class_at)+行字段+**动作**
             r_at = dict(res, morphology=res.get("morphology") or {})
-            feats = featurize(r_at, plan)
-            # 用行内 obj_before 盖 gap 维(时点值, 非当前值)
+            feats = featurize(r_at, plan, op=o.get("op"),
+                              params=o.get("params") or {})
+            # 用行内 obj_before 盖 gap 维(时点值, 非当前值)。
+            # 复审修复: 槽位 7 是形态 one-hot —— 旧索引覆盖形态特征
             if o.get("obj_before") is not None and o.get("obj_kind"):
-                gi = 4 + 3     # gap_norm 槽位在 onehot 之后第 4 个
                 v = float(o["obj_before"])
-                feats[gi] = (max(0.0, min(1.0, v / 20.0))
-                             if o.get("obj_kind") == "gap" else 0.5)
+                feats[GAP_NORM_INDEX] = (max(0.0, min(1.0, v / 20.0))
+                                         if o.get("obj_kind") == "gap"
+                                         else 0.5)
             rows.append({
                 "features": feats,
                 "reward_norm": o.get("reward_norm"),

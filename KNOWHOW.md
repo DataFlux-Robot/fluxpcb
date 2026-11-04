@@ -828,3 +828,11 @@ T2=kipilot解析+ByTaymur加载探针+DaCapo7回读；T1=hyuhang822三约束+Cyr
 - **五流派首测记分板**: 一内环 RL 完成(3 轮, 严格重判 **flat** —— 首判 learning-curve-up 是 0>=0 退化通过, 判据已修: 严格上行才计 up); 二外环 evo 在跑; 三课程对抗完成(0.33 基线, 适用格 2/2); 四算子进化通路就绪(K47 接线: 键脱撞/combo 序列执行器/双表映射); 五韧性层**实证 5 次**(每次外力清场后单点重建即恢复)。
 - **假'清光'事故**: query 崩溃返回空名单被误判'旧弹药清光'(opens=-1 警讯) —— 修复: query 失败=未知绝不计清光。反自欺核对表第 N 次立功。
 - 驱动资产(z_lab): z_watchdog(单点守护 4 任务)/z_clear_fc(清线循环)/z_uart8_attack(推线刀)/z_uart8_shrink(收窄刀)/z_uart8_rip(拆墙刀) —— 三把刀的战训归档: 推线拒/收窄半效/拆墙倒流。
+
+
+## K49: 复审四项修复(发布语义/门禁覆盖/策略特征/可复现资产)(2026-11-03)
+- **发布判定**(最严重, 复现案: 仅跑 requirements 2 门禁即 released=true): RunReport 改 required_stages 全集判定 + release_check() 独立报告(必需/实跑/证据哈希/导出四问) + _export_fab 逐命令校验 rc+产出物 —— 局部运行不再冒充发布。4 回归绿。
+- **门禁零项通过**(复现案: 'pass — 0 项阻抗/等长全部达标'): impedance_si 应查/实查/缺口三问口径; 0 项可查=BLOCKED 非达标(确属不适用走 gate_policy.optional); 有需求无数据=BLOCKED; 推荐线宽/验实际走线口径标注。
+- **策略三缺陷**(全部复现): ①特征缺动作->同残差不同算子同分(修: state x action 联合向量); ②collect_journal gap 写索引 7 覆盖形态 one-hot(修: 槽位 12); ③在线拟合未滤 train(修: split 过滤)。flat 曲线判据待重测(旧数据不足以判学习路线)。
+- **可复现资产**: tools/z_lab/ 收编 17 驱动+README; MILESTONES.md 里程碑绑定(板哈希 01a3e96a3befdf0c+报告+命令+工具版本+快照 4 件); README RELEASED 徽章加状态同步注记(与 DELIVERY_STATUS 撤销记录对齐); route_report.json unconnected:66 定性为原始快照非 M1 态。
+- **H743 战术边界**(复审修正入 DESIGN_PROGRESS): SDMMC1_CMD 仅 PD2/D12 一候选球(换球不换 CMD 本身, 先重做 D12 扇出+邻网分配); UART8/USART6=局部重布问题(清通道->布锁目标->重布邻网->整体验收, 走廊保留复合算子); '3闭0伤'不证无损/'no path'不证无解(适用条件入账)。

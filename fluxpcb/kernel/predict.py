@@ -65,7 +65,8 @@ def predicted_gain(op: str, cls: str, residual: dict,
     g = arm_mean * gap_factor * stall_penalty * cost_factor
     if policy is not None:
         from . import policy_rsi as _prsi
-        g = policy.score(_prsi.featurize(residual, plan), g)
+        # 复审修复: 打分含**动作**(state-only 让同残差不同算子同分)
+        g = policy.score(_prsi.featurize(residual, plan, op=op), g)
     return round(g, 4)
 
 

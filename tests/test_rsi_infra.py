@@ -79,14 +79,19 @@ class TestTransitionLog:
 
 class TestPolicyRSI:
     def test_featurize_dim(self):
-        from fluxpcb.kernel.policy_rsi import featurize, FEAT_DIM
+        from fluxpcb.kernel.policy_rsi import featurize, FEAT_DIM, \
+            GAP_NORM_INDEX
         res = {"ops": [{"improved": False}], "blacklist": ["a"],
                "objective": {"trace": [[1, 4.0]]},
                "morphology": {"cell": ["geometry", "escape"]}}
-        x = featurize(res, {"paths": [1]})
+        x = featurize(res, {"paths": [1]}, op="harvest")
         assert len(x) == FEAT_DIM
         assert x[4] == 1.0          # geometry/escape one-hot 槽
-        assert x[-1] == 1.0         # has_paths
+        assert x[13] == 1.0         # has_paths(状态段末)
+        assert x[GAP_NORM_INDEX] == 0.2   # gap 4.0/20 归一(槽位 12)
+        # 动作面存在: 换算子必须换向量(复现案: 同残差不同算子同分)
+        y = featurize(res, {"paths": [1]}, op="stitch")
+        assert y != x
 
     def test_ridge_fit_and_tail_boost(self):
         from fluxpcb.kernel.policy_rsi import JournalPolicy
@@ -102,6 +107,8 @@ class TestPolicyRSI:
         # 冷启动混合: 样本少时先验主导
         q = JournalPolicy()
         assert q.score([0.0, 1.0], 0.5) == 0.5
+        # 维度不齐的行剔除不炸(新旧格式混存)
+        assert p.fit([xs[0], [1.0]], [0.0, 0.9]) >= 0
 
     def test_thompson_range(self):
         from fluxpcb.kernel.policy_rsi import thompson

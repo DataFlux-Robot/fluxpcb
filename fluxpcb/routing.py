@@ -1906,6 +1906,8 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
             if _sf.exists():
                 _split_of = json.loads(_sf.read_text(encoding="utf-8"))
             _rows = _prsi.collect_journal(_grind.data, _split_of)
+            # 复审修复: 只用 train 行拟合(验证/测试行混入=泄漏)
+            _rows = [r for r in _rows if r.get("split") == "train"]
             if len(_rows) >= 5:
                 _rsi_policy = _prsi.JournalPolicy()
                 _rsi_policy.fit([r["features"] for r in _rows],

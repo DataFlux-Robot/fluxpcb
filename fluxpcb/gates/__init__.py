@@ -287,7 +287,11 @@ def drc_zero(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
 @gate("impedance_si")
 def impedance_si(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
     """IPC-2141 closed-form impedance vs targets in stackup.yaml; plus length-match
-    assertions when pcb/netclasses.json provides measured lengths."""
+    assertions when pcb/netclasses.json provides measured lengths.
+    复审修复(零项通过案): 门禁回答三问 —— 应查几项/实查几项/是否当前板
+    实物。0 项可查 ≠ 达标: 有需求无数据=阻塞; 确属不适用走
+    gate_policy.optional(引擎转 SKIPPED 并留理由)。口径: 本门禁计算
+    '推荐线宽'(solve_for_width), 未验实际走线 —— 有实测数据才验实物。"""
     from fluxpcb.tools.ipc2141 import ImpedanceTarget, solve_for_width
     stackup = _read_yaml(project_dir / "stackup.yaml")
     if stackup is None:
@@ -297,6 +301,8 @@ def impedance_si(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult
     er = stackup.get("er", 4.4)
     findings, checked = [], []
     results = []
+    should = []          # 应查项(声明的需求)
+    missing = []         # 有需求无数据(应阻塞)
     for tgt in stackup.get("impedance_targets", []):
         try:
             keys = ("net_class", "style", "z_target", "tolerance_pct", "differential")
@@ -304,6 +310,7 @@ def impedance_si(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult
         except TypeError as e:
             findings.append({"target": tgt, "issue": f"字段错误: {e}"})
             continue
+        should.append(tgt.get("net_class", "?"))
         h = tgt.get("h_mm")
         s = tgt.get("s_mm")
         if not h:
@@ -331,13 +338,37 @@ def impedance_si(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult
                     findings.append({"net_class": cls,
                                      "issue": f"等长偏差 {delta:.3f}mm > {mx}mm"})
                 checked.append(cls + "(等长)")
+                should.append(cls + "(等长)")
+            elif mx and not lens:
+                # 有等长需求无测量数据 —— 阻塞, 不是通过
+                missing.append(cls + "(等长无实测)")
+    scope = "口径=计算推荐线宽(未验实际走线)"
     if findings:
         return GateResult("impedance_si", GateStatus.FAIL,
-                          f"{len(findings)} 项阻抗/等长不达标", findings=findings,
-                          details={"checked": checked, "results": results})
+                          f"应查{len(should)}项 实查{len(checked)}项: "
+                          f"{len(findings)} 项不达标 [{scope}]",
+                          findings=findings,
+                          details={"should": should, "checked": checked,
+                                   "results": results, "scope": scope})
+    if missing or (should and len(checked) < len(should)):
+        gap = missing + [s for s in should if s not in checked]
+        return GateResult("impedance_si", GateStatus.BLOCKED,
+                          f"应查{len(should)}项 实查{len(checked)}项: "
+                          f"有需求无数据 —— {','.join(gap)[:80]}",
+                          details={"should": should, "checked": checked,
+                                   "missing": gap, "scope": scope})
+    if not checked:
+        # 零项可查 ≠ 达标(复现案: 'pass — 0 项全部达标')
+        return GateResult("impedance_si", GateStatus.BLOCKED,
+                          "0 项可查: 阻抗目标未声明且无等长数据 —— "
+                          "板含高速网请补 impedance_targets/实测后重验; "
+                          "确属不适用请标 gate_policy.optional",
+                          details={"should": [], "checked": [],
+                                   "scope": scope})
     return GateResult("impedance_si", GateStatus.PASS,
-                      f"{len(checked)} 项阻抗/等长全部达标",
-                      details={"checked": checked, "results": results})
+                      f"应查{len(should)}项 实查{len(checked)}项全部达标 [{scope}]",
+                      details={"should": should, "checked": checked,
+                               "results": results, "scope": scope})
 
 
 # ------------------------------------------------------------ acceptance sim

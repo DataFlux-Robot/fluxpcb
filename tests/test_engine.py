@@ -96,3 +96,51 @@ def test_reproducibility_same_hashes(tmp_path):
     r2 = run_pipeline(d)
     h2 = [a.sha256 for a in r2.stages[0].artifacts]
     assert h1 == h2  # deterministic offline mode -> identical spec hash
+
+
+class TestReleaseSemantics:
+    """复审复现案: 仅跑 requirements 阶段 2 门禁通过即 released=true。"""
+
+    def _ok_stage(self, name):
+        from fluxpcb.models import StageRun, StageStatus
+        s = StageRun(stage=name, title=name)
+        s.status = StageStatus.OK
+        return s
+
+    def test_partial_run_must_not_release(self):
+        from fluxpcb.models import RunReport
+        rep = RunReport(project="t",
+                        required_stages=["requirements", "design",
+                                         "verify"])
+        rep.stages = [self._ok_stage("requirements")]
+        assert rep.released is False      # 局部通过 ≠ 发布
+        chk = rep.release_check()
+        assert chk["missing_stages"] == ["design", "verify"]
+        assert chk["released"] is False
+
+    def test_full_run_with_export_releases(self):
+        from fluxpcb.models import RunReport
+        rep = RunReport(project="t", required_stages=["a", "b"],
+                        input_hash="h1")
+        rep.stages = [self._ok_stage("a"), self._ok_stage("b")]
+        rep.fab_export = {"ok": True, "files": 12, "errors": []}
+        assert rep.released is True
+        assert rep.release_check("h1")["released"] is True
+
+    def test_bad_export_or_stale_blocks(self):
+        from fluxpcb.models import RunReport
+        rep = RunReport(project="t", required_stages=["a"],
+                        input_hash="h1")
+        rep.stages = [self._ok_stage("a")]
+        rep.fab_export = {"ok": False, "errors": ["rc=1"]}
+        assert rep.released is False
+        rep.fab_export = {"ok": True}
+        chk = rep.release_check("h2")      # 证据哈希陈旧
+        assert chk["released"] is False
+        assert chk["input_hash_ok"] is False
+
+    def test_export_reports_rc(self):
+        import inspect
+        from fluxpcb import engine
+        src = inspect.getsource(engine._export_fab)
+        assert "returncode" in src and '"ok"' in src

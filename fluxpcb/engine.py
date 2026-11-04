@@ -43,7 +43,9 @@ def run_pipeline(project_dir: Path, pipeline_path: Path | None = None,
     stages_cfg = pipeline.get("stages", {})
     optional_gates = set((pipeline.get("gate_policy") or {}).get("optional", []))
 
-    report = RunReport(project=project_dir.name)
+    report = RunReport(project=project_dir.name,
+                       required_stages=_required_stages(stages_cfg),
+                       input_hash=_input_hash(project_dir))
     project_dir.mkdir(parents=True, exist_ok=True)
     emit_event(project_dir, "run_start", project=project_dir.name)
 
@@ -115,24 +117,58 @@ def run_pipeline(project_dir: Path, pipeline_path: Path | None = None,
     out = report.save(project_dir)
     md = project_dir / "reports" / "latest.md"
     md.write_text(report.markdown(), encoding="utf-8")
-    emit_event(project_dir, "run_end", released=report.released,
+    # 发布判定(复审修复): 导出在 run_end 之前, 判定含导出校验;
+    # 局部运行(only_stages)缺必需阶段时 released 恒 False
+    if report.released:
+        report.fab_export = _export_fab(project_dir)
+        out = report.save(project_dir)   # 导出结果入档
+    check = report.release_check(_input_hash(project_dir))
+    emit_event(project_dir, "run_end", released=check["released"],
+               release_check=check,
                report=str(out.relative_to(project_dir)))
     print(f"[flux] report -> {out}")
-    if report.released:
-        _export_fab(project_dir)
     return report
 
 
-def _export_fab(project_dir: Path) -> None:
+def _input_hash(project_dir: Path) -> str:
+    """运行输入指纹: 板+工程+规则+叠层 —— 证据必须对应当前输入。"""
+    import hashlib
+    h = hashlib.sha256()
+    for pat in ("*.kicad_pcb", "*.kicad_pro", "*.kicad_dru",
+                "stackup.yaml", "net_classes.json"):
+        for f in sorted(project_dir.rglob(pat)):
+            try:
+                h.update(f.name.encode())
+                h.update(f.read_bytes())
+            except OSError:
+                pass
+    return h.hexdigest()[:16]
+
+
+def _required_stages(stages_cfg: dict) -> list:
+    """必需阶段全集: 流水线定义中未标 optional 的阶段。"""
+    return [n for n, cfg in stages_cfg.items()
+            if not (cfg or {}).get("optional")]
+
+
+def _export_fab(project_dir: Path) -> dict:
     """RELEASED -> Gerber/drill/positions fab package (K13: this used to
     be a hand-run command outside the pipeline; the one-sentence goal
-    requires the chain to end at manufacturable files)."""
+    requires the chain to end at manufacturable files).
+    复审修复: 逐命令校验返回码 + 产出物存在性 —— 导出失败必须可见,
+    不再静默吞(rc 不查=假发布)。"""
     import shutil
     import subprocess
+    result = {"ok": False, "files": 0, "errors": []}
     cli = shutil.which("kicad-cli")
     if not cli:
-        return
-    for pcb in sorted((project_dir / "pcb").rglob("*.kicad_pcb")):
+        result["errors"].append("kicad-cli 缺席")
+        return result
+    pcbs = sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+    if not pcbs:
+        result["errors"].append("无板文件")
+        return result
+    for pcb in pcbs:
         fab = pcb.parent / "fab"
         fab.mkdir(exist_ok=True)
         for args in (
@@ -144,9 +180,20 @@ def _export_fab(project_dir: Path) -> None:
             ["pcb", "export", "pos", "-o", str(fab / "positions.csv"),
              "--format", "csv", str(pcb)],
         ):
-            subprocess.run([cli, *args], capture_output=True, timeout=900)
-        emit_event(project_dir, "fab_exported", pcb=pcb.name,
-                   files=len(list(fab.glob("*"))))
+            r = subprocess.run([cli, *args], capture_output=True,
+                               timeout=900)
+            if r.returncode != 0:
+                result["errors"].append(
+                    "%s rc=%d: %s" % (args[1:3], r.returncode,
+                                      (r.stderr or b"")[-80:]))
+        n = len([f for f in fab.glob("*") if f.is_file()
+                 and f.stat().st_size > 0])
+        result["files"] += n
+        if n == 0:
+            result["errors"].append("%s: 导出物为空" % pcb.name)
+        emit_event(project_dir, "fab_exported", pcb=pcb.name, files=n)
+    result["ok"] = not result["errors"]
+    return result
 
 
 def verify_only(project_dir: Path, pipeline_path: Path | None = None) -> RunReport:
@@ -161,7 +208,9 @@ def verify_only(project_dir: Path, pipeline_path: Path | None = None) -> RunRepo
     stages_cfg = pipeline.get("stages", {})
     optional_gates = set((pipeline.get("gate_policy") or {}).get("optional", []))
 
-    report = RunReport(project=project_dir.name)
+    report = RunReport(project=project_dir.name,
+                       required_stages=_required_stages(stages_cfg),
+                       input_hash=_input_hash(project_dir))
     report.started = time.time()
     emit_event(project_dir, "verify_start", project=project_dir.name)
 

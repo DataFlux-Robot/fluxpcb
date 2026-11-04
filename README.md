@@ -33,6 +33,8 @@ $ flux run projects/stm32n6-px4
 
 **FluxPCB turns a sentence into a manufacturable PCB and its firmware** — and it refuses to call anything "done" until 16 machine-checkable gates agree. No gate, no glory.
 
+> **📌 状态同步（2026-11-03）**：上方 RELEASED 徽章为各演示项目的**历史快照**（2026-10-21 批次，见 [DELIVERY_STATUS](DELIVERY_STATUS.md) 的撤销与未完成项——含 drc_zero 未绿等待办）。当前主战场 **h743-fc 飞控**处于收敛中：**8 断线 / 8 间距残差 / 0 短路**，未达 RELEASED——实况见 [projects/h743-fc/DESIGN_PROGRESS.md](projects/h743-fc/DESIGN_PROGRESS.md)，里程碑与工件哈希见 [projects/h743-fc/MILESTONES.md](projects/h743-fc/MILESTONES.md)。发布判定已按复审修复：必需阶段全集+证据哈希+导出校验三者齐备才计 RELEASED（局部运行不再冒充发布）。
+
 ---
 
 ## 🧠 AI proposes. Physics disposes.
