@@ -49,15 +49,22 @@ for t in list(b.GetTracks()):
     cls = type(t).__name__
     if cls not in ('PCB_TRACK', 'PCB_VIA'):
         continue
-    p = t.GetPosition() if cls == 'PCB_VIA' else None
-    if cls == 'PCB_TRACK':
-        s, e = t.GetStart(), t.GetEnd()
-        mx, my = (s.x + e.x) / 2 / MM, (s.y + e.y) / 2 / MM
-    else:
-        mx, my = p.x / MM, p.y / MM
     for (wx, wy) in WALLS:
-        if abs(mx - wx) < 0.4 and abs(my - wy) < 0.4:
-            ripped.append([cls, t.GetNetname(), round(mx, 2), round(my, 2)])
+        if cls == 'PCB_TRACK':
+            s, e = t.GetStart(), t.GetEnd()
+            ax, ay, bx, by = s.x / MM, s.y / MM, e.x / MM, e.y / MM
+            dx, dy = bx - ax, by - ay
+            L2 = dx * dx + dy * dy
+            tp = 0.0 if L2 == 0 else max(0.0, min(1.0, ((wx - ax) * dx + (wy - ay) * dy) / L2))
+            qx, qy = ax + tp * dx, ay + tp * dy
+            d = ((qx - wx) ** 2 + (qy - wy) ** 2) ** 0.5
+        else:
+            p = t.GetPosition()
+            qx, qy = p.x / MM, p.y / MM
+            d = ((qx - wx) ** 2 + (qy - wy) ** 2) ** 0.5
+        # 段距离匹配(过境段中点在外也撕得中) —— 旧中点框曾漏 net68 堵
+        if d < 0.35:
+            ripped.append([cls, t.GetNetname(), round(qx, 2), round(qy, 2), round(d, 3)])
             b.Remove(t)
             break
 b.Save(sys.argv[1])

@@ -25,6 +25,13 @@ kicad_cli, kipy = find_kicad()
 OLD_AMMO = ("3V3", "GND")     # val/test split, 与训练窗无冲突
 
 report = {"board": str(BOARD), "trajectory": [], "ts": round(time.time())}
+# 空转防御: 每对失败 ≥2 次即跳过(死对不再吃满 20 迭代 —— 看门狗
+# 曾在同一死对上连环重启 5 轮, 纯烧算力)
+failed_pairs = {}
+
+
+def _pair_key(pairs_set):
+    return tuple(sorted(pairs_set))
 
 
 def _opens():
@@ -50,6 +57,13 @@ for it in range(20):
     # —— 纯收割线零附带损伤(rpc 战训: rip 留碎片, 收割不留)
     live_ammo = [n for n in OLD_AMMO if n in nets] + \
         [n for n in sorted(nets) if n not in OLD_AMMO]
+    # 空转跳过: 已连败 2 次的网不再重试(留待手术/新算子)
+    live_ammo = [n for n in live_ammo if failed_pairs.get(n, 0) < 2]
+    if not live_ammo:
+        report["exhausted"] = sorted(nets)
+        print("[clear] 可行动靶尽(死对跳过), 剩余: %s" % sorted(nets),
+              flush=True)
+        break
     report["trajectory"].append({"iter": it, "opens": o,
                                  "nets": sorted(nets)})
     if not live_ammo:
@@ -67,17 +81,26 @@ for it in range(20):
         # 响亮: 空输出=崩溃, stderr 必须入账(静默吞错教训)
         print("[clear] %s <- 崩溃: %s" % (net, (r.stderr or "")[-120:]),
               flush=True)
+        failed_pairs[net] = failed_pairs.get(net, 0) + 1
     else:
         print("[clear] %s <- %s" % (net, tail[-1]), flush=True)
+        try:
+            _r = json.loads(tail[-1])
+            _ok = ((_r.get("drawn") or 0) > 0) or _r.get("closed")
+        except ValueError:
+            _ok = False
+        if not _ok:
+            failed_pairs[net] = failed_pairs.get(net, 0) + 1
 
 o1, pairs1 = _opens()
 report["opens_end"] = o1
 report["closed_pairs"] = sorted(pairs0 - pairs1)
 report["new_pairs"] = sorted(pairs1 - pairs0)
-# 收工判据(看门狗用): 清零 或 仅剩硬对(无旧弹药/碎片可收)
+# 收工判据(看门狗用): 清零 / 仅剩硬对 / 可行动靶尽(死对跳过)
 _last_nets = {p.split("|")[0] for p in pairs1} if o1 >= 0 else set()
 report["only_hard_left"] = bool(
-    o1 == 0 or _last_nets <= {"SDMMC1_CMD", "USART6_RX", "UART8_RX"})
+    o1 == 0 or _last_nets <= {"SDMMC1_CMD", "USART6_RX", "UART8_RX"}
+    or report.get("exhausted"))
 (LAB / "z_clear_fc_report.json").write_text(
     json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
 print("[clear] 终态 opens=%d(起点 %d), 新增对=%d — 报告落盘"
