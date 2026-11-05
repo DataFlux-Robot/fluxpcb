@@ -1,30 +1,18 @@
 # -*- coding: utf-8 -*-
-"""z_agent_loop — 层1 Agent Loop: 攻坚循环(六步纪律化重复, 无新算法).
+"""z_agent_loop v4 — 层1 并行攻坚循环(K 槽评估, 最优落板).
 
-架构(两层, 保持简单 —— 不做 agentic-RL 训练):
-  层1 本脚本: 探→判→改→验→落→记, 迭代物=板状态(opens 7→0)
-  层2 z_harness_loop.py: 层1 stall 或同类失败>=2 时, 复盘 journal
-     聚类定位工具缺陷 -> 修 harness -> 反例回归 -> 提交(人工/agent)
+v3 -> v4 (加速评估, 串行求和改并行取最大):
+  K 槽并行: 每轮对至多 NETS_PER_ROUND 个网 x 各自算子梯 并行发副本施工,
+           全部预算封顶(OP_TIMEOUT), 谁先算完谁先好 —— 一轮顶 v3 三轮.
+  最优落板: 每轮只落 1 个最优候选(副本互斥铁律: 落板会互相覆盖),
+           其余候选全部入账 journal(败者=学习数据, 不浪费).
+  proven 回放: 评估通过但没排上落板的配方记入 proven 队列, 下轮快路径
+              优先回放(已证配方, 重放即闭合).
+  六步纪律不变: 探判改验落记; 副本先行; certs 前缀断言; GAP 一击登记;
+              stall 停机归层2; 增量落盘.
 
-六步:
-  探   实时 opens 单源 + 名单
-  判   形态分类(实证): 收割结果即分类器 —— why/error 双字段都读
-  改   副本施工, 按**算子梯子**逐个试(GND: zone_bridge>power_stitch>harvest;
-       信号网: harvest>zone_bridge) —— 首个 delta>0 者胜
-  验   副本实测 delta opens 且无新增对
-  落   原子落板: 全文件 hash diff + certs 前缀断言(append-only)
-  记   journal 一行 + **报告增量落盘**(崩溃不丢 gap 状态)
-
-判据: opens 曲线(轮次 vs 开路数), 只认实测.
-停机: opens=0 / 全部 GAP / 连续 3 轮无净收益(stall -> 层2).
-
-缺陷账(层2流程产物, 防回归):
-  D1 consolidate 参数名笔误(首跑崩溃)
-  D2 no-path 报在 why 字段漏读 -> GND 空转复发
-  D3 长对收割 2400s 超时未捕获 -> 循环崩溃(现: 900s 预算+timeout 入账)
-  D4 崩溃丢 gap 状态(报告只在结束写; 现: 每轮增量落盘)
-
-用法: z_agent_loop.py [BOARD_DIR=FC_L13] [MAX_ROUNDS=12]
+判据: opens 曲线 + 逐轮产出(闭合/轮), 只认实测.
+用法: z_agent_loop.py [BOARD_DIR=FC_L13] [MAX_ROUNDS=24]
 """
 import hashlib
 import json
@@ -43,16 +31,17 @@ from fluxpcb.routing import find_kicad          # noqa: E402
 from fluxpcb.kernel import state as kstate      # noqa: E402
 
 BOARD = Path(sys.argv[1]) if len(sys.argv) > 1 else LAB / "z_v/FC_L13"
-MAX_ROUNDS = int(sys.argv[2]) if len(sys.argv) > 2 else 12
-WORK = LAB / "z_v/FC_L13_agentwork"
+MAX_ROUNDS = int(sys.argv[2]) if len(sys.argv) > 2 else 24
+WORKROOT = LAB / "z_v" / "FC_L13_work"
 JOURNAL = LAB / "z_agent_journal.jsonl"
 REPORT = LAB / "z_agent_loop_report.json"
 
-# 课程序: 碎片网优先. GND=平面碎片走桥接/缝合梯; 信号走收割梯
+NETS_PER_ROUND = 2
 FRAG_NETS = ("GND", "NRST", "UART4_TX")
-LADDER_GND = ("zone_bridge", "power_stitch", "harvest")
-LADDER_SIG = ("harvest", "zone_bridge")
-OP_TIMEOUT = 900
+# 算子梯(每网并行铺开): 长对信号给 harvest 更长预算(900s 曾超时, D3 账)
+LADDER_GND = (("zone_bridge", 900), ("power_stitch", 600), ("harvest", 900))
+LADDER_SIG = (("harvest", 1800), ("zone_bridge", 900))
+DETACH = 0x00000008 | 0x00000200      # 清场盔甲(D 账)
 
 kicad_cli, kipy = find_kicad()
 pcb_main = sorted((BOARD / "pcb" / "board").glob("*.kicad_pcb"))[0]
@@ -73,7 +62,7 @@ def sha(p):
 
 
 def land(work_board, main_board):
-    """原子落板: certs 前缀断言 + 全文件 hash diff 拷贝."""
+    """原子落板: certs 前缀断言 + 全文件 hash diff 拷贝(单发, 副本互斥)."""
     mb, wb = main_board / "pcb" / "board", work_board / "pcb" / "board"
     mc, wc = mb / "certs.jsonl", wb / "certs.jsonl"
     if mc.exists() and wc.exists():
@@ -92,49 +81,72 @@ def land(work_board, main_board):
     return n, "ok"
 
 
-def try_op(net, op):
-    """副本上试单个算子 -> (delta, new_pairs, err, out). 每算子全新副本."""
-    if WORK.exists():
-        shutil.rmtree(WORK, ignore_errors=True)
-    shutil.copytree(BOARD, WORK)
-    pcbw = sorted((WORK / "pcb" / "board").glob("*.kicad_pcb"))[0]
-    o0, pairs0 = opens_now(pcbw)
-    if o0 < 0:
-        return -99, [], "measure_fail", ""
+def op_cmd(op, pcbw, workdir, net):
     if op == "harvest":
-        cmd = [KIPY, "-u", str(LAB / "z_harvest.py"),
-               str(WORK / "pcb" / "board"), net]
-    elif op == "zone_bridge":
-        cmd = [KIPY, "-u", str(KGEN / "zone_bridge.py"), str(pcbw), net]
-    elif op == "power_stitch":
-        cmd = [KIPY, "-u", str(KGEN / "power_stitch.py"), str(pcbw), net]
-    else:
-        return -99, [], "unknown_op:%s" % op, ""
+        return [KIPY, "-u", str(LAB / "z_harvest.py"),
+                str(workdir / "pcb" / "board"), net]
+    if op == "zone_bridge":
+        return [KIPY, "-u", str(KGEN / "zone_bridge.py"), str(pcbw), net]
+    if op == "power_stitch":
+        return [KIPY, "-u", str(KGEN / "power_stitch.py"), str(pcbw), net]
+    return None
+
+
+def launch_slots(net_ladder_pairs):
+    """并行铺开所有槽: [(net, op, timeout, workdir, Popen)]; 每槽全新副本."""
+    slots = []
+    for net, ladder in net_ladder_pairs:
+        for op, tmo in ladder:
+            wd = WORKROOT / ("%s__%s" % (net, op))
+            if wd.exists():
+                shutil.rmtree(wd, ignore_errors=True)
+            shutil.copytree(BOARD, wd)
+            pcbw = sorted((wd / "pcb" / "board").glob("*.kicad_pcb"))[0]
+            cmd = op_cmd(op, pcbw, wd, net)
+            if cmd is None:
+                continue
+            o0, pairs0 = opens_now(pcbw)
+            if o0 < 0:
+                continue
+            f = open(wd / "_slot.log", "w", encoding="utf-8")
+            p = subprocess.Popen(cmd, stdout=f, stderr=f,
+                                 creationflags=DETACH)
+            slots.append({"net": net, "op": op, "tmo": tmo, "wd": wd,
+                          "pcb": pcbw, "o0": o0, "pairs0": pairs0,
+                          "proc": p, "logf": f})
+    return slots
+
+
+def harvest_result(slot):
+    """等槽收工 -> 结构化评估 dict(实测为准)."""
+    p = slot["proc"]
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True,
-                           encoding="utf-8", errors="replace",
-                           timeout=OP_TIMEOUT)
+        p.wait(timeout=slot["tmo"])
     except subprocess.TimeoutExpired:
-        return -99, [], "timeout(%ds, 长对需分段收割算子)" % OP_TIMEOUT, ""
-    tail = [l for l in (r.stdout or "").splitlines()
-            if l.strip().startswith("{")]
-    out = tail[-1] if tail else "CRASH:%s" % (r.stderr or "")[-120:]
+        p.kill()
+        p.wait()
+        return {"delta": -99, "new_pairs": [], "err": "timeout(%ds)" % slot["tmo"]}
+    slot["logf"].close()
+    lines = (slot["wd"] / "_slot.log").read_text(
+        encoding="utf-8", errors="replace").splitlines()
+    tail = [l for l in lines if l.strip().startswith("{")]
     try:
         hres = json.loads(tail[-1]) if tail else {}
     except ValueError:
         hres = {}
-    # why/error 双字段(D2 账)
     err = str(hres.get("error") or hres.get("why") or "")
-    o1, pairs1 = opens_now(pcbw)
-    delta = (o0 - o1) if (o0 >= 0 and o1 >= 0) else -99
-    new_pairs = sorted(set(pairs1) - set(pairs0))
-    # 算子报了成功但实测无收益 -> 以实测为准, err 记假成功
+    if not tail:
+        err = "CRASH:%s" % (lines[-1] if lines else "")[-100:]
+    o1, pairs1 = opens_now(slot["pcb"])
+    delta = (slot["o0"] - o1) if (slot["o0"] >= 0 and o1 >= 0) else -99
+    new_pairs = sorted(set(pairs1) - set(slot["pairs0"]))
     if delta <= 0 and not err:
-        err = "no_gain(%s)" % out[:80]
-    return delta, new_pairs, err, out
+        err = "no_gain"
+    return {"delta": delta, "new_pairs": new_pairs, "err": err,
+            "out": (tail[-1] if tail else "")[:200]}
 
 
-report = {"board": str(BOARD), "trajectory": [], "gaps": {},
+report = {"board": str(BOARD), "trajectory": [], "gaps": {}, "proven": [],
           "ts": round(time.time())}
 stall = 0
 
@@ -147,48 +159,86 @@ for rnd in range(MAX_ROUNDS):
         report["done"] = "cleared"
         break
     nets0 = {p.split("|")[0] for p in pairs0}
-    cand = [n for n in FRAG_NETS if n in nets0 and n not in report["gaps"]] \
-        + [n for n in sorted(nets0) if n not in FRAG_NETS
-           and n not in report["gaps"]]
-    if not cand:
+
+    # proven 快路径: 已证配方直接进本轮梯首(重放即闭合)
+    prov = [x for x in report.get("proven", [])
+            if x.get("net") in nets0 and x.get("net") not in report["gaps"]]
+    planned = []
+    for x in prov[:NETS_PER_ROUND]:
+        planned.append((x["net"], ((x["op"], 900),) +
+                        tuple(l for l in (LADDER_GND if x["net"] == "GND"
+                                          else LADDER_SIG)
+                              if l[0] != x["op"])))
+    used = {n for n, _ in planned}
+    cand = [n for n in FRAG_NETS
+            if n in nets0 and n not in report["gaps"] and n not in used] \
+        + [n for n in sorted(nets0)
+           if n not in FRAG_NETS and n not in report["gaps"] and n not in used]
+    for n in cand[:NETS_PER_ROUND - len(planned)]:
+        planned.append((n, LADDER_GND if n == "GND" else LADDER_SIG))
+    if not planned:
         report["done"] = "only_gaps_left"
         break
-    net = cand[0]
-    ladder = LADDER_GND if net == "GND" else LADDER_SIG
 
-    # 改+验: 算子梯子逐个试(每算子全新副本, 首个净收益者胜)
-    best = None
-    ev = []
-    for op in ladder:
-        delta, new_pairs, err, out = try_op(net, op)
-        ev.append((op, delta, err))
+    # 改+验: K 槽并行
+    slots = launch_slots(planned)
+    print("[agent] r%d 并行 %d 槽: %s" % (rnd, len(slots),
+          ", ".join("%s/%s" % (s["net"], s["op"]) for s in slots)),
+          flush=True)
+    results = []
+    for s in slots:
+        res = harvest_result(s)
+        results.append((s, res))
         print("[agent] r%d %s/%s delta=%s err=%s"
-              % (rnd, net, op, delta, (err or out)[:90]), flush=True)
-        if delta > 0 and not new_pairs:
-            best = (op, delta, err, out)
-            break
-        if delta > 0 and new_pairs:
-            ev[-1] = (op, delta, "damage:%d_new" % len(new_pairs))
+              % (rnd, s["net"], s["op"], res["delta"],
+                 (res["err"] or res.get("out", ""))[:80]), flush=True)
+
+    # 落: 全场最优单发(副本互斥), 败者 proven/入账
+    winners = [(s, r) for s, r in results
+               if r["delta"] > 0 and not r["new_pairs"]]
+    winners.sort(key=lambda sr: -sr[1]["delta"])
     verdict = "fail"
-    landed = 0
-    if best:
-        op, delta, _, _ = best
-        landed, lwhy = land(WORK, BOARD)
-        verdict = "closed:%s" % op if landed else "land_rejected:%s" % lwhy
-        stall = 0
+    if winners:
+        s, r = winners[0]
+        landed, lwhy = land(s["wd"], BOARD)
+        if landed:
+            verdict = "closed:%s(+%d)" % (s["op"], r["delta"])
+            stall = 0
+        else:
+            verdict = "land_rejected:%s" % lwhy
+            stall += 1
+        for s2, r2 in winners[1:]:
+            report["proven"].append({"net": s2["net"], "op": s2["op"],
+                                     "delta": r2["delta"]})
     else:
         stall += 1
-        # 全梯失败 -> 结构性 GAP(一击即足), 标签=各算子证据
-        report["gaps"][net] = " | ".join("%s:%s" % (o, e[-60:])
-                                         for o, d, e in ev if e)
 
-    log({"ts": round(time.time()), "round": rnd, "net": net,
-         "ladder": ev, "verdict": verdict, "landed": landed})
+    # 记: 每候选一行(败者=学习数据) + 结构性失败 GAP(一击)
+    for s, r in results:
+        log({"ts": round(time.time()), "round": rnd, "net": s["net"],
+             "op": s["op"], "delta": r["delta"],
+             "new_pairs": r["new_pairs"], "err": r["err"][:200],
+             "landed": bool(winners and s is winners[0][0])})
+        if r["delta"] <= 0 and r["err"] and not r["err"].startswith("timeout"):
+            net = s["net"]
+            if net not in report["gaps"]:
+                e = r["err"]
+                if "stale-plan" in e or "via-vs-track" in e:
+                    report["gaps"][net] = "blocked(需拆死残段泛化): %s" % e[-70:]
+                elif "no path" in e.lower() or "no-path" in e:
+                    report["gaps"][net] = (
+                        "no_path(GND 平面需缝合)" if net == "GND"
+                        else "no_path(需复合算子/板级)") + ": " + e[-60:]
+                else:
+                    report["gaps"][net] = e[-100:]
+        elif r["err"].startswith("timeout"):
+            # 超时=暂时性(预算问题), 不永久 GAP —— 靶2a 分段收割的料
+            pass
+
     report["trajectory"].append(
-        {"round": rnd, "net": net, "opens_before": o0,
-         "verdict": verdict, "evidence": ["%s:%s" % (o, d)
-                                           for o, d, _ in ev]})
-    # 增量落盘(D4 账): 崩溃不丢 gap/轨迹
+        {"round": rnd, "slots": ["%s/%s:%s" % (s["net"], s["op"], r["delta"])
+                                 for s, r in results],
+         "verdict": verdict})
     report["opens_now"] = o0
     report["ts"] = round(time.time())
     REPORT.write_text(json.dumps(report, ensure_ascii=False, indent=1),
@@ -209,5 +259,6 @@ report["only_hard_left"] = bool(
     <= {"SDMMC1_CMD", "USART6_RX", "UART8_RX"})
 REPORT.write_text(json.dumps(report, ensure_ascii=False, indent=1),
                   encoding="utf-8")
-print("[agent] 终态 opens=%d done=%s gaps=%s"
-      % (oF, report["done"], sorted(report["gaps"])), flush=True)
+print("[agent] 终态 opens=%d done=%s gaps=%s proven=%d"
+      % (oF, report["done"], sorted(report["gaps"]),
+         len(report.get("proven", []))), flush=True)
