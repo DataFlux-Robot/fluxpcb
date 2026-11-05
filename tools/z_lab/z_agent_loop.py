@@ -40,7 +40,7 @@ NETS_PER_ROUND = 2
 FRAG_NETS = ("GND", "NRST", "UART4_TX")
 # 算子梯(每网并行铺开): 长对信号给 harvest 更长预算(900s 曾超时, D3 账)
 LADDER_GND = (("zone_bridge", 900), ("power_stitch", 600), ("harvest", 900))
-LADDER_SIG = (("harvest", 1800), ("zone_bridge", 900))
+LADDER_SIG = (("seg_harvest", 900), ("harvest", 1800), ("zone_bridge", 900))
 DETACH = 0x00000008 | 0x00000200      # 清场盔甲(D 账)
 
 kicad_cli, kipy = find_kicad()
@@ -84,6 +84,9 @@ def land(work_board, main_board):
 def op_cmd(op, pcbw, workdir, net):
     if op == "harvest":
         return [KIPY, "-u", str(LAB / "z_harvest.py"),
+                str(workdir / "pcb" / "board"), net]
+    if op == "seg_harvest":
+        return [KIPY, "-u", str(LAB / "z_seg_harvest.py"),
                 str(workdir / "pcb" / "board"), net]
     if op == "zone_bridge":
         return [KIPY, "-u", str(KGEN / "zone_bridge.py"), str(pcbw), net]

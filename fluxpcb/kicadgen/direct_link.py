@@ -65,6 +65,7 @@ except Exception:
 #   ③ 否则端点打附着过孔(via_ok 全层把关, 不过诚实失败)。
 via_pts = []          # [(x, y, why)] 全部待打过孔位置
 attach_log = []       # 端点三态日志(证书消费)
+stubs = []            # offset-attach 引出短线 (x1,y1,x2,y2,layer)
 for idx in (0, -1):
     x, y, li = pts[idx]
     target_layer = layer_id(li)
@@ -100,10 +101,42 @@ for idx in (0, -1):
                            "via_at": [round(near[1], 3),
                                       round(near[2], 3)]})
         continue
-    # ③ 附着过孔
-    via_pts.append((x, y, "endpoint-attach"))
-    attach_log.append({"endpoint": idx, "mode": "attach-via",
-                       "via_ok": False})
+    # ③ 附着过孔 —— 端点正中被邻网堵时走 offset-attach 环形候选
+    #   (实测 3 案 网码 68/2/11 via@endpoint-attach 全被邻网拒,
+    #    一次挪位即过 —— 端点三态升级为端点多态)
+    _pick = None
+    try:
+        import geomir as _g3
+        _sg3, _rg3 = _g3.extract_objects(b, _LIDS)
+        _cands = [(x, y)]
+        for _r in (0.25, 0.4, 0.55, 0.8, 1.1):
+            for _k in range(16):
+                _ang = _k * math.pi / 8
+                _cands.append((x + _r * math.cos(_ang),
+                               y + _r * math.sin(_ang)))
+        for (_cx, _cy) in _cands:
+            _ok3, _bl3 = _g3.via_ok(_cx, _cy, _nc, _sg3, _rg3,
+                                    rules=_rules)
+            if _ok3:
+                _pick = (_cx, _cy)
+                break
+    except Exception:
+        _pick = (x, y)      # 预筛异常退回原位, 交终验证裁决
+    if _pick is None:
+        _pick = (x, y)      # 环上全灭 -> 诚实交终验证拒(不假成功)
+    _ox, _oy = _pick
+    if abs(_ox - x) > 0.01 or abs(_oy - y) > 0.01:
+        pts[idx] = [round(_ox, 3), round(_oy, 3), li]
+        stubs.append((x, y, round(_ox, 3), round(_oy, 3), li))
+        via_pts.append((_ox, _oy, "endpoint-attach-offset"))
+        attach_log.append({"endpoint": idx, "mode": "attach-via-offset",
+                           "via_at": [round(_ox, 3), round(_oy, 3)],
+                           "stub_mm": round(math.hypot(_ox - x,
+                                                       _oy - y), 3)})
+    else:
+        via_pts.append((x, y, "endpoint-attach"))
+        attach_log.append({"endpoint": idx, "mode": "attach-via",
+                           "via_ok": False})
 for (px, py, pli), (qx, qy, qli) in zip(pts, pts[1:]):
     if pli != qli and (px, py) not in [(v[0], v[1]) for v in via_pts]:
         via_pts.append((px, py, "layer-change"))
@@ -125,6 +158,13 @@ try:
             _segs[_p[2]], _rects[_p[2]], rules=_rules)
         if not ok:
             _bad = f"seg@{_p[:2]}->{_q[:2]}: {bl}"
+            break
+    for (_sx, _sy, _ex, _ey, _sli) in stubs:
+        ok, bl = geomir.verify_polyline(
+            [(_sx, _sy), (_ex, _ey)], width, _nc,
+            _segs[_sli], _rects[_sli], rules=_rules)
+        if not ok:
+            _bad = f"stub@{[_sx, _sy]}: {bl}"
             break
     for (vx, vy, why) in via_pts:
         ok, bl = geomir.via_ok(vx, vy, _nc, _segs, _rects, rules=_rules)
@@ -158,6 +198,15 @@ for (x, y, li) in pts:
             b.Add(t)
             items.append(t)
     prev = (x, y, li)
+for (_sx, _sy, _ex, _ey, _sli) in stubs:
+    t = pcbnew.PCB_TRACK(b)
+    t.SetStart(pcbnew.VECTOR2I(int(_sx * MM), int(_sy * MM)))
+    t.SetEnd(pcbnew.VECTOR2I(int(_ex * MM), int(_ey * MM)))
+    t.SetWidth(int(width * MM))
+    t.SetLayer(layer_id(_sli))
+    t.SetNet(net)
+    b.Add(t)
+    items.append(t)
 for (vx, vy, _why) in via_pts:
     v = pcbnew.PCB_VIA(b)
     v.SetPosition(pcbnew.VECTOR2I(int(vx * MM), int(vy * MM)))
