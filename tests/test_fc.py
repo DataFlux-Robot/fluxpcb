@@ -16,12 +16,13 @@ REPO = Path(__file__).resolve().parent.parent
 # ------------------------------------------------------------- P1: gate path
 class TestConnAuditPath:
     def test_gate_finds_conn_audit(self):
-        """The routing_completeness gate must resolve conn_audit.py — the
-        original bug pointed at gates/kicadgen/ (nonexistent)."""
+        """The routing_completeness gate must call conn_audit (via kernel
+        state._conn_audit).  The original bug pointed at a nonexistent
+        path; the fix delegates to the kernel single-truth interface."""
         from fluxpcb.gates import routing_completeness as _gate
         import inspect
         src = inspect.getsource(_gate)
-        assert 'parent.parent / "kicadgen"' in src
+        assert '_conn_audit' in src
         audit = (REPO / "fluxpcb" / "kicadgen" / "conn_audit.py")
         assert audit.exists()
 
