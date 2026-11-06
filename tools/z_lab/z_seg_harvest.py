@@ -201,10 +201,14 @@ for i, (x1, y1, x2, y2) in enumerate(segs):
         break
 
 # ── 4. 终测 ────────────────────────────────────────────────
+# 闭合判据=KiCad 连通计数差(教训: pads 名单有假闭合盲区,
+# UART4_TX 案: 逃逸画错层焊盘浮空, 名单说 closed 连通说没关)
 q2 = kstate.query(kicad_cli, kipy, pcb, 'opens', consolidate=True)
 after = [p for p in ((q2.detail or {}).get('pairs') or [])
          if p.split('|')[0] == net]
+delta_val = (q.value - q2.value) if (q.value >= 0 and q2.value >= 0) else -99
 print(json.dumps({'net': net, 'segs': len(segs), 'done': len(results),
-                  'closed': len(after) == 0,
+                  'closed': (len(after) == 0 and delta_val == len(mine)),
+                  'opens_delta': delta_val, 'expect': len(mine),
                   'pairs_before': len(mine), 'pairs_after': len(after),
                   'results': results}, ensure_ascii=False))

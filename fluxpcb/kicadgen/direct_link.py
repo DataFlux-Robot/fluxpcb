@@ -123,7 +123,75 @@ for idx in (0, -1):
     except Exception:
         _pick = (x, y)      # 预筛异常退回原位, 交终验证裁决
     if _pick is None:
-        _pick = (x, y)      # 环上全灭 -> 诚实交终验证拒(不假成功)
+        # ④ 逃逸附着: 直线 stub 被墙堵死时, geomir 微规划多段逃逸
+        #   折线到环外自由槽(实测: UART4_TX 端点被邻铜焊死在盒子里,
+        #   2.8mm 内直线 stub 全堵, 逃逸折线是钥匙)
+        import subprocess as _sp
+        import sys as _sy
+        import tempfile as _tf
+        _gdir = Path(__file__).resolve().parent
+        # 逃逸必须从焊盘所在层出发(教训: 按路层画=焊盘浮空假闭合)
+        _eli = li
+        if pad_here is not None and not pad_on:
+            try:
+                _pid = int(pad_here.GetLayerSet().CuStack()[0])
+                _eli = _LIDS.index(_pid)
+            except Exception:
+                _eli = li
+        for _r in (1.4, 1.8, 2.2):
+            if _pick is not None:
+                break
+            for _k in range(16):
+                _ang = _k * math.pi / 8
+                _cx = x + _r * math.cos(_ang)
+                _cy = y + _r * math.sin(_ang)
+                try:
+                    _ok4, _ = _g3.via_ok(_cx, _cy, _nc, _sg3, _rg3,
+                                         rules=_rules)
+                except Exception:
+                    _ok4 = False
+                if not _ok4:
+                    continue
+                # geomir 微规划: 端点 -> 槽 (焊盘层逃逸折线)
+                try:
+                    _tmp = Path(_tf.mkdtemp())
+                    _pf = _tmp / 'esc_pairs.txt'
+                    _pf.write_text(
+                        '%s|%.3f|%.3f|%d|%.3f|%.3f|%d'
+                        % (net_name, x, y, _eli, _cx, _cy, _eli))
+                    _pr = _sp.run(
+                        [_sy.executable, str(_gdir / 'geomir.py'),
+                         str(pcb_path), net_name,
+                         str(_tmp / 'plan'), str(_pf)],
+                        capture_output=True, text=True,
+                        encoding='utf-8', errors='replace', timeout=120)
+                    _jl = [l.strip() for l in (_pr.stdout or '').splitlines()
+                           if l.strip().startswith('{')]
+                    _pj = json.loads(_jl[-1]) if _jl else {}
+                    _paths = _pj.get('paths') or []
+                    if not _paths:
+                        continue
+                    _esc = _paths[0].get('pts') or []
+                    if len(_esc) < 2:
+                        continue
+                    # 提交: 折线各段入 stubs(验证/绘制已覆盖), 孔落槽
+                    for (_p1, _p2) in zip(_esc, _esc[1:]):
+                        stubs.append((_p1[0], _p1[1],
+                                      _p2[0], _p2[1], _p1[2]))
+                    pts[idx] = [round(_cx, 3), round(_cy, 3), li]
+                    via_pts.append((_cx, _cy, "endpoint-attach-escape"))
+                    attach_log.append(
+                        {"endpoint": idx, "mode": "attach-via-escape",
+                         "via_at": [round(_cx, 3), round(_cy, 3)],
+                         "esc_segs": len(_esc) - 1})
+                    _pick = 'escape'      # 已处理, 跳过原位回落
+                    break
+                except Exception:
+                    continue
+        if _pick is None:
+            _pick = (x, y)  # ④也灭 -> 诚实交终验证拒(不假成功)
+        if _pick == 'escape':
+            continue
     _ox, _oy = _pick
     if abs(_ox - x) > 0.01 or abs(_oy - y) > 0.01:
         pts[idx] = [round(_ox, 3), round(_oy, 3), li]
