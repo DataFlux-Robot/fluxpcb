@@ -169,11 +169,18 @@ for i, (x1, y1, x2, y2) in enumerate(segs):
     pf = board_dir / ('seg_pairs_%d.tmp.txt' % i)
     pf.write_text('%s|%.3f|%.3f|0|%.3f|%.3f|0' % (net, x1, y1, x2, y2),
                   encoding='utf-8')
-    rg = subprocess.run(
-        [KIPY, str(KG / 'geomir.py'), str(pcb), net,
-         str(board_dir / ('plan_seg_%d' % i)), str(pf)],
-        capture_output=True, text=True, encoding='utf-8',
-        errors='replace', timeout=SEG_TIMEOUT)
+    try:
+        rg = subprocess.run(
+            [KIPY, str(KG / 'geomir.py'), str(pcb), net,
+             str(board_dir / ('plan_seg_%d' % i)), str(pf)],
+            capture_output=True, text=True, encoding='utf-8',
+            errors='replace', timeout=SEG_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        results.append({'seg': i, 'from': [x1, y1], 'to': [x2, y2],
+                        'ok': False,
+                        'why': 'timeout(%ds)' % SEG_TIMEOUT})
+        print(json.dumps(results[-1], ensure_ascii=False), flush=True)
+        break
     plan = last_json(rg.stdout)
     pths = plan.get('paths') or []
     if not pths:
@@ -187,10 +194,17 @@ for i, (x1, y1, x2, y2) in enumerate(segs):
     spec = {'net': net, 'pts': p0['pts'], 'width': p0.get('width', 0.2)}
     sp = board_dir / 'direct_link_spec.json'
     sp.write_text(json.dumps(spec), encoding='utf-8')
-    rd = subprocess.run(
-        [KIPY, str(KG / 'direct_link.py'), str(pcb), str(sp)],
-        capture_output=True, text=True, encoding='utf-8',
-        errors='replace', timeout=SEG_TIMEOUT)
+    try:
+        rd = subprocess.run(
+            [KIPY, str(KG / 'direct_link.py'), str(pcb), str(sp)],
+            capture_output=True, text=True, encoding='utf-8',
+            errors='replace', timeout=SEG_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        results.append({'seg': i, 'from': [x1, y1], 'to': [x2, y2],
+                        'ok': False,
+                        'why': 'draw_timeout(%ds)' % SEG_TIMEOUT})
+        print(json.dumps(results[-1], ensure_ascii=False), flush=True)
+        break
     out = last_json(rd.stdout)
     ok = bool(out.get('drawn')) or bool(out.get('closed'))
     results.append({'seg': i, 'from': [x1, y1], 'to': [x2, y2],

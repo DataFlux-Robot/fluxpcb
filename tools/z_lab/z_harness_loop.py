@@ -20,12 +20,17 @@ TODO = LAB / "z_harness_todo.md"
 
 
 def err_class(err):
+    """失败聚类; 返回 None=不计缺陷信号(如旧版未记 err 的遗留行)."""
     if not err:
-        return "none"
+        return None
+    if "timeout" in err:
+        return "timeout:长对需分段收割算子(靶2a)"
     if "via-vs-track" in err or "stale-plan" in err:
-        return "blocked:拆死残段未泛化(定点算子待升级为按冲突报告自动定位)"
-    if "no-path" in err or "no path" in err.lower():
-        return "no_path:缺走廊保留复合算子(先布锁目标再重布邻网)"
+        return "blocked:拆死残段未泛化(靶1)"
+    if "no path" in err.lower() or "no-path" in err:
+        return "no_path:缺走廊保留复合算子/板级动作(靶2b/靶3)"
+    if "no_gain" in err:
+        return "no_gain:算子假成功或形态不适用(需形态再判)"
     if err.startswith("CRASH"):
         return "crash:驱动崩溃(stderr 在 journal)"
     return "other:%s" % re.sub(r"[\d.]+", "#", err)[:60]
@@ -43,17 +48,28 @@ rep = {}
 if REPORT.exists():
     rep = json.loads(REPORT.read_text(encoding="utf-8"))
 
-# 失败按形态/错误类聚类; gap 登记并入
-fail_rows = [r for r in rows if r.get("verdict") != "closed"]
-cls = Counter(err_class(r.get("error") or "") for r in fail_rows)
+# closed 判定: landed=True 或 verdict 前缀 closed(兼容新旧 schema)
+fail_rows = [r for r in rows
+             if not (r.get("landed") is True
+                     or str(r.get("verdict", "")).startswith("closed"))]
+cls = Counter()
+legacy = 0
+for r in fail_rows:
+    c = err_class(r.get("err") or r.get("error") or "")
+    if c is None:
+        legacy += 1        # 旧版未记 err —— 不算缺陷信号
+        continue
+    cls[c] += 1
 for net, g in (rep.get("gaps") or {}).items():
-    cls[err_class(g)] += 1
+    c = err_class(g) or err_class(str(g))
+    if c:
+        cls[c] += 1
 
 todo = ["# Harness Loop 复盘清单 (由 z_harness_loop 生成)",
         "", "- 层1 终态: opens=%s done=%s"
         % (rep.get("opens_end"), rep.get("done")),
-        "- 尝试 %d, 闭合 %d, 失败 %d"
-        % (len(rows), len(rows) - len(fail_rows), len(fail_rows)),
+        "- 尝试 %d, 闭合 %d, 失败 %d (旧版遗留无 err 行 %d 不计缺陷)"
+        % (len(rows), len(rows) - len(fail_rows), len(fail_rows), legacy),
         "", "## 同类失败聚类 (>=2 次 = 工具缺陷信号)", ""]
 flagged = []
 for k, v in cls.most_common():

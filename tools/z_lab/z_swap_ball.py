@@ -60,6 +60,32 @@ print(json.dumps({"swapped": True, "from": old_ball, "to": new_ball,
 tail = [l for l in (r.stdout or "").splitlines() if l.strip().startswith("{")]
 res = json.loads(tail[-1]) if tail else {"swapped": False,
                                          "why": (r.stderr or "")[-120:]}
+# 对账: 换球后验证板文件实际绑定(教训: override 写了 N5 但板仍绑 T1)
+if res.get("swapped"):
+    r2 = subprocess.run(
+        [KIPY, "-c", r'''
+import pcbnew, sys, json
+b = pcbnew.LoadBoard(sys.argv[1])
+net_name, new_ball = sys.argv[2], sys.argv[3]
+for fp in b.GetFootprints():
+    if not fp.GetReference().startswith("U"):
+        continue
+    for pad in fp.Pads():
+        if pad.GetNumber() == new_ball:
+            ok = pad.GetNetname() == net_name
+            print(json.dumps({"verified": ok,
+                              "ball": new_ball,
+                              "actual_net": pad.GetNetname()}))
+            raise SystemExit(0)
+print(json.dumps({"verified": false, "why": "ball not found"}))
+''', str(pcb), net_name, new_ball],
+        capture_output=True, text=True, encoding="utf-8",
+        errors="replace", timeout=120)
+    vtail = [l for l in (r2.stdout or "").splitlines()
+             if l.strip().startswith("{")]
+    res["board_verified"] = json.loads(vtail[-1]) if vtail else False
+    if not (res.get("board_verified") or {}).get("verified"):
+        res["warning"] = "板文件对账失败: override 已写但板未绑定"
 # 设计一致性: FC_PIN_OVERRIDE.json (fcfull C4 契约)
 if res.get("swapped"):
     ov_path = PROJ / "FC_PIN_OVERRIDE.json"
