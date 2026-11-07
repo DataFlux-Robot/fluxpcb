@@ -1,0 +1,17 @@
+{
+ "iterations": 2,
+ "unconnected": -1,
+ "shorting": 0,
+ "clean": false,
+ "steps": [
+  "netclass: 2critical/3power/1diffpairs",
+  "freerouting: {'raw': \"TOR2< int > *', no destructor found.\\nswig/python detected a memory leak of type 'VECTOR2< int > *', no destructor found.\"}",
+  "session1: 14->14 (stitch 0, ripup 0, 25.3s)",
+  "session2: failed",
+  "final: ratsnest=-1 shorts=0",
+  "scorecard skipped: [Errno 2] No such file or directory: 'projects\\\\esp32s31-dev\\\\pcb\\\\board\\\\.ckpt\\\\.ckpt\\\\.ckpt\\\\1793022791-freerouting.kicad_pcb'"
+ ],
+ "automation_pct": null,
+ "jumpers_placed": 0,
+ "handoff": []
+}
