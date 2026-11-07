@@ -84,12 +84,14 @@ for i in range(len(corridor) - 1):
 print('[detour] 走廊占道段 %d 处: %s'
       % (len(blockers), [(b[2], b[3]) for b in blockers]), flush=True)
 
-# ── 2. 对每个占道段: 拆角+改道 ──────────────────────────
+# ── 2. 对每个占道段: 拆角+改道(去重+防级联+全段覆盖) ──────
 detoured = 0
+detoured_keys = set()   # 防级联: 记录已改道的段坐标
+
 for (p1, p2, bname, at, layer) in blockers:
-    # 找占道网在走廊附近的段(要被替换的段)
     tx, ty = at  # blocker 最近点
-    target_seg = None
+    # 找占道网在走廊附近的**全部**段(不止第一个)
+    target_segs = []
     for t in b.GetTracks():
         if type(t).__name__ != 'PCB_TRACK':
             continue
@@ -98,63 +100,60 @@ for (p1, p2, bname, at, layer) in blockers:
         s, e = t.GetStart(), t.GetEnd()
         sx, sy = s.x/MM, s.y/MM
         ex, ey = e.x/MM, e.y/MM
-        # 段中点距 blocker 点 < 0.5mm
         mx, my = (sx+ex)/2, (sy+ey)/2
-        if math.hypot(mx-tx, my-ty) < 0.5:
-            target_seg = t
-            break
+        # 段中点距 blocker 点 < 0.8mm(扩大范围捕多段)
+        if math.hypot(mx-tx, my-ty) < 0.8:
+            # 防级联: 跳过已改道的段(用坐标键)
+            key = (round(sx,3), round(sy,3), round(ex,3), round(ey,3))
+            rkey = (round(ex,3), round(ey,3), round(sx,3), round(sy,3))
+            if key in detoured_keys or rkey in detoured_keys:
+                continue
+            target_segs.append((t, sx, sy, ex, ey))
 
-    if target_seg is None:
-        print('[detour] %s 占道段未定位, 跳过' % bname, flush=True)
+    if not target_segs:
+        print('[detour] %s 占道段未定位或已改道, 跳过' % bname, flush=True)
         continue
 
     # 拆角: 找段的两个端点, 在**走廊垂直方向**偏移(非占道段方向)
-    s, e = target_seg.GetStart(), target_seg.GetEnd()
-    sx, sy = s.x/MM, s.y/MM
-    ex, ey = e.x/MM, e.y/MM
+    for (target_seg, sx, sy, ex, ey) in target_segs:
+        # 走廊方向(从 p1 到 p2)
+        cdx, cdy = p2[0]-p1[0], p2[1]-p1[1]
+        c_len = math.hypot(cdx, cdy) or 1.0
+        cdx, cdy = cdx/c_len, cdy/c_len
+        ccx, ccy = (p1[0]+p2[0])/2, (p1[1]+p2[1])/2
+        rx, ry = tx-ccx, ty-ccy
+        r_len = math.hypot(rx, ry) or 1.0
+        rx, ry = rx/r_len, ry/r_len
+        perp1 = (-cdy, cdx)
+        perp2 = (cdy, -cdx)
+        if perp1[0]*rx + perp1[1]*ry > perp2[0]*rx + perp2[1]*ry:
+            px, py = perp1
+        else:
+            px, py = perp2
 
-    # 走廊方向(从 p1 到 p2)
-    cdx, cdy = p2[0]-p1[0], p2[1]-p1[1]
-    c_len = math.hypot(cdx, cdy) or 1.0
-    cdx, cdy = cdx/c_len, cdy/c_len
-    # 走廊垂直方向 = (-cdy, cdx) 或 (cdy, -cdx)
-    # 选远离走廊中心的方向
-    ccx, ccy = (p1[0]+p2[0])/2, (p1[1]+p2[1])/2
-    # 占道点到走廊中心的方向(远离方向)
-    rx, ry = tx-ccx, ty-ccy
-    r_len = math.hypot(rx, ry) or 1.0
-    rx, ry = rx/r_len, ry/r_len
-    # 垂直于走廊的两个方向
-    perp1 = (-cdy, cdx)
-    perp2 = (cdy, -cdx)
-    # 选与远离方向同侧的垂直方向
-    if perp1[0]*rx + perp1[1]*ry > perp2[0]*rx + perp2[1]*ry:
-        px, py = perp1
-    else:
-        px, py = perp2
+        OFFSET = 2.0
+        mid_x, mid_y = (sx+ex)/2 + px*OFFSET, (sy+ey)/2 + py*OFFSET
+        new_pts = [(sx, sy), (mid_x, mid_y), (ex, ey)]
 
-    # 绕行偏移 0.8mm(足够宽)
-    OFFSET = 0.8
-    # 新段: 原段两端各偏移 OFFSET, 中间加一个绕行点
-    mid_x, mid_y = (sx+ex)/2 + px*OFFSET, (sy+ey)/2 + py*OFFSET
-    new_pts = [(sx, sy), (mid_x, mid_y), (ex, ey)]
+        # 注册防级联键
+        key = (round(sx,3), round(sy,3), round(ex,3), round(ey,3))
+        detoured_keys.add(key)
 
-    # 替换: 删旧段, 加两段新段
-    b.Remove(target_seg)
-    net = b.FindNet(bname)
-    for j in range(len(new_pts)-1):
-        t = pcbnew.PCB_TRACK(b)
-        t.SetStart(pcbnew.VECTOR2I(int(new_pts[j][0]*MM), int(new_pts[j][1]*MM)))
-        t.SetEnd(pcbnew.VECTOR2I(int(new_pts[j+1][0]*MM), int(new_pts[j+1][1]*MM)))
-        t.SetWidth(target_seg.GetWidth())
-        t.SetLayer(target_seg.GetLayer())
-        t.SetNet(net)
-        b.Add(t)
-    detoured += 1
-    print('[detour] %s 绕行改道: %s->%s->%s'
-          % (bname, (round(sx,3),round(sy,3)),
-             (round(mid_x,3),round(mid_y,3)),
-             (round(ex,3),round(ey,3))), flush=True)
+        b.Remove(target_seg)
+        net = b.FindNet(bname)
+        for j in range(len(new_pts)-1):
+            t = pcbnew.PCB_TRACK(b)
+            t.SetStart(pcbnew.VECTOR2I(int(new_pts[j][0]*MM), int(new_pts[j][1]*MM)))
+            t.SetEnd(pcbnew.VECTOR2I(int(new_pts[j+1][0]*MM), int(new_pts[j+1][1]*MM)))
+            t.SetWidth(target_seg.GetWidth())
+            t.SetLayer(target_seg.GetLayer())
+            t.SetNet(net)
+            b.Add(t)
+        detoured += 1
+        print('[detour] %s 绕行改道: %s->%s->%s'
+              % (bname, (round(sx,3),round(sy,3)),
+                 (round(mid_x,3),round(mid_y,3)),
+                 (round(ex,3),round(ey,3))), flush=True)
 
 b.Save(str(pcb))
 
