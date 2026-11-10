@@ -21,8 +21,8 @@ DEFAULTS = {
         # EVERY cell in the channel (fc: nopath 42/43, routed 0). The
         # veto+retry loop (clear_exact + history penalty) is the residual
         # mechanism; margin stays permissive.
-        "track_margin_mm": 0.15,
-        "clearance_mm": 0.17,
+        "track_margin_mm": 0.22,
+        "clearance_mm": 0.22,
         "via_annulus_mm": 0.25,
         "via_drill_mm": 0.125,        # radius; 0.25mm drill diameter
         "hole_keep_mm": 0.28,
