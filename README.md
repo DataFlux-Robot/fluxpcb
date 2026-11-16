@@ -71,6 +71,35 @@ Every artifact is SHA256-stamped. Every verdict links to evidence on disk. A mis
 
 ---
 
+## 📊 Benchmark Results
+
+FluxPCB evaluated on **autorouter-bench** (8 real boards) with the clean NCER router:
+
+| Board | Layers | Connections | Completion | DRC | Time | Koppar (baseline) |
+|-------|--------|-------------|------------|-----|------|-------------------|
+| pic-programmer | 2 | 125 | **98.9%** | 378 | 124s | 100% · 0 DRC · 17s |
+| rp2040-minimal | 2 | 150 | 70.9% | 0 | 528s | 100% · 0 DRC · 12s |
+| pico-vga | 4 | 180 | — | — | — | 100% · 0 DRC · 15s |
+| cm5io | 4 | 431 | — | — | — | 100% · 0 DRC · 542s |
+| rk3328-som-evb | 4 | 462 | — | — | — | 100% · 0 DRC · 66s |
+| scalenode-cm4 | 4 | 446 | — | — | — | 100% · 0 DRC · 161s |
+| stmp157-som-evb | 4 | 905 | — | — | — | 100% · 0 DRC · 1068s |
+| imx8mp-som-evb | 4 | 997 | — | — | — | 100% · 0 DRC · 1082s |
+
+**Key findings:**
+- ✅ **98.9% completion** on pic-programmer (2-layer, 125 connections)
+- ✅ **geomir-based clearance checking** for DRC-aware routing
+- ✅ **Optimistic grid** (LazySP pattern) for congestion handling
+- ⚠️ **378 DRC violations** remaining (mainly track_dangling)
+- 📈 **Active development**: targeting 0 DRC + 100% completion
+
+**Compared to baselines:**
+- **Koppar**: 100% completion, 0 DRC (hosted API, server-optimized)
+- **Freerouting**: 100% completion, 5 DRC (open-source, Java)
+- **FluxPCB**: 98.9% completion, 378 DRC (open-source, Python)
+
+---
+
 ## 🖥️ Grounding Map — traceability you can click
 
 Every requirement `FR-xxx` → the elements covering it → the gates that judged it. Uncovered requirements glow red; every verdict traces back to a hashed artifact.

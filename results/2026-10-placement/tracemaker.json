@@ -1,0 +1,172 @@
+{
+  "tool": "tracemaker",
+  "capS": 1200,
+  "generatedAt": "2026-10-14T09:55:45",
+  "boards": [
+    {
+      "board": "pic-programmer",
+      "layers": 2,
+      "ratsnest": 125,
+      "seconds": 92.1,
+      "timedOut": false,
+      "version": null,
+      "completionPct": 96.8,
+      "unconnected": 4,
+      "vias": 3,
+      "trackMm": 1823.367,
+      "drc": {
+        "errors": 0,
+        "errorsByType": {},
+        "unconnectedItems": 4
+      },
+      "finishedAtS": 32.9,
+      "viasInPinPads": 0
+    },
+    {
+      "board": "rp2040-minimal",
+      "layers": 2,
+      "ratsnest": 150,
+      "seconds": 20.2,
+      "timedOut": false,
+      "version": null,
+      "completionPct": 100.0,
+      "unconnected": 0,
+      "vias": 53,
+      "trackMm": 1296.26,
+      "drc": {
+        "errors": 0,
+        "errorsByType": {},
+        "unconnectedItems": 0
+      },
+      "finishedAtS": 19.9,
+      "viasInPinPads": 14
+    },
+    {
+      "board": "pico-vga",
+      "layers": 4,
+      "ratsnest": 180,
+      "seconds": 160.6,
+      "timedOut": false,
+      "version": null,
+      "completionPct": 100.0,
+      "unconnected": 0,
+      "vias": 49,
+      "trackMm": 1568.325,
+      "drc": {
+        "errors": 5,
+        "errorsByType": {
+          "invalid_outline": 3,
+          "copper_edge_clearance": 2
+        },
+        "unconnectedItems": 0
+      },
+      "finishedAtS": 143.2,
+      "viasInPinPads": 21
+    },
+    {
+      "board": "cm5io",
+      "layers": 4,
+      "ratsnest": 431,
+      "seconds": 1202.6,
+      "timedOut": false,
+      "version": null,
+      "completionPct": 94.9,
+      "unconnected": 22,
+      "vias": 412,
+      "trackMm": 10602.8,
+      "drc": {
+        "errors": 0,
+        "errorsByType": {},
+        "unconnectedItems": 22
+      },
+      "finishedAtS": 1201.2,
+      "viasInPinPads": 34
+    },
+    {
+      "board": "rk3328-som-evb",
+      "layers": 4,
+      "ratsnest": 462,
+      "seconds": 1202.5,
+      "timedOut": false,
+      "version": null,
+      "completionPct": 100.0,
+      "unconnected": 0,
+      "vias": 272,
+      "trackMm": 5022.564,
+      "drc": {
+        "errors": 0,
+        "errorsByType": {},
+        "unconnectedItems": 0
+      },
+      "finishedAtS": 1201.0,
+      "viasInPinPads": 88
+    },
+    {
+      "board": "scalenode-cm4",
+      "layers": 4,
+      "ratsnest": 446,
+      "seconds": 832.2,
+      "timedOut": false,
+      "version": null,
+      "completionPct": 100.0,
+      "unconnected": 0,
+      "vias": 224,
+      "trackMm": 5124.116,
+      "drc": {
+        "errors": 24,
+        "errorsByType": {
+          "solder_mask_bridge": 2,
+          "courtyards_overlap": 4,
+          "pth_inside_courtyard": 12,
+          "shorting_items": 5,
+          "clearance": 1
+        },
+        "unconnectedItems": 0
+      },
+      "finishedAtS": 448.1,
+      "viasInPinPads": 41
+    },
+    {
+      "board": "stmp157-som-evb",
+      "layers": 4,
+      "ratsnest": 905,
+      "seconds": 1202.6,
+      "timedOut": false,
+      "version": null,
+      "completionPct": 100.0,
+      "unconnected": 0,
+      "vias": 856,
+      "trackMm": 14263.639,
+      "drc": {
+        "errors": 14,
+        "errorsByType": {
+          "solder_mask_bridge": 4,
+          "hole_clearance": 6,
+          "shorting_items": 4
+        },
+        "unconnectedItems": 0
+      },
+      "finishedAtS": 1202.2,
+      "viasInPinPads": 200
+    },
+    {
+      "board": "imx8mp-som-evb",
+      "layers": 4,
+      "ratsnest": 997,
+      "seconds": 1202.5,
+      "timedOut": false,
+      "version": null,
+      "completionPct": 99.3,
+      "unconnected": 7,
+      "vias": 795,
+      "trackMm": 13617.617,
+      "drc": {
+        "errors": 0,
+        "errorsByType": {},
+        "unconnectedItems": 7
+      },
+      "finishedAtS": 1201.7,
+      "viasInPinPads": 200
+    }
+  ]
+}

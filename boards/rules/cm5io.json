@@ -1,0 +1,31 @@
+{
+  "rules": {
+    "min_clearance": 0.1,
+    "min_hole_to_hole": 0.25,
+    "min_via_annular_width": 0.075,
+    "min_via_diameter": 0.4
+  },
+  "net_classes": {
+    "Default": {
+      "clearance": 0.1
+    },
+    "100R": {
+      "clearance": 0.1
+    },
+    "50R": {
+      "clearance": 0.1
+    },
+    "75R": {
+      "clearance": 0.1
+    },
+    "90R": {
+      "clearance": 0.1
+    },
+    "HDMI": {
+      "clearance": 0.1
+    },
+    "POE TAPS": {
+      "clearance": 0.1
+    }
+  }
+}

@@ -1,0 +1,1546 @@
+{
+  "campaign": "2026-10-placement",
+  "metric": "completionPct = 100 * (1 - KiCad unconnected / ratsnest of the unrouted board); drc.netNew = kicad-cli DRC errors over the human reference's own, with the board's benchmark project; seconds = wall clock of the tool.",
+  "capS": 1200,
+  "boards": [
+    {
+      "board": "pic-programmer",
+      "layers": 2,
+      "source": "https://gitlab.com/kicad/code/kicad/-/tree/10.0.4/demos/pic_programmer",
+      "reference": {
+        "drc": {
+          "errors": 4,
+          "errorsByType": {
+            "starved_thermal": 4
+          },
+          "unconnectedItems": 0
+        }
+      },
+      "ratsnest": 125,
+      "koppar": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 6,
+        "viasInPinPads": 0,
+        "trackMm": 1515.903,
+        "seconds": 17,
+        "finishedAtS": 7.9,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": "Koppar",
+        "refused": null,
+        "drc": {
+          "errors": 0,
+          "errorsByType": {},
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "koppar_filled": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 9,
+        "viasInPinPads": 1,
+        "trackMm": 1473.554,
+        "seconds": 16.8,
+        "finishedAtS": 7.3,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": "Koppar",
+        "refused": null,
+        "drc": {
+          "errors": 0,
+          "errorsByType": {},
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "freerouting": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 0,
+        "viasInPinPads": 0,
+        "trackMm": 1948.527,
+        "seconds": 4.8,
+        "finishedAtS": 4.0,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": "2.5.0",
+        "refused": null,
+        "drc": {
+          "errors": 5,
+          "errorsByType": {
+            "track_width": 2,
+            "clearance": 3
+          },
+          "unconnectedItems": 0,
+          "netNew": 5,
+          "netNewByType": {
+            "track_width": 2,
+            "clearance": 3
+          }
+        }
+      },
+      "tscircuit": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 15,
+        "viasInPinPads": 0,
+        "trackMm": 1865.843,
+        "seconds": 12.2,
+        "finishedAtS": 12.2,
+        "timedOut": false,
+        "late": null,
+        "netByNet": false,
+        "version": "0.0.979",
+        "refused": null,
+        "drc": {
+          "errors": 115,
+          "errorsByType": {
+            "track_width": 87,
+            "clearance": 27,
+            "tracks_crossing": 1
+          },
+          "unconnectedItems": 0,
+          "netNew": 115,
+          "netNewByType": {
+            "track_width": 87,
+            "clearance": 27,
+            "tracks_crossing": 1
+          }
+        }
+      },
+      "krt": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 99,
+        "viasInPinPads": 0,
+        "trackMm": 3819.032,
+        "seconds": 43.7,
+        "finishedAtS": 43.7,
+        "timedOut": false,
+        "late": null,
+        "netByNet": false,
+        "version": "0.1.9",
+        "refused": null,
+        "drc": {
+          "errors": 95,
+          "errorsByType": {
+            "shorting_items": 33,
+            "clearance": 58,
+            "hole_clearance": 4
+          },
+          "unconnectedItems": 0,
+          "netNew": 95,
+          "netNewByType": {
+            "shorting_items": 33,
+            "clearance": 58,
+            "hole_clearance": 4
+          }
+        }
+      },
+      "tracemaker": {
+        "completionPct": 96.8,
+        "unconnected": 4,
+        "vias": 3,
+        "viasInPinPads": 0,
+        "trackMm": 1823.367,
+        "seconds": 92.1,
+        "finishedAtS": 32.9,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": null,
+        "refused": null,
+        "drc": {
+          "errors": 0,
+          "errorsByType": {},
+          "unconnectedItems": 4,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "zap": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 28,
+        "viasInPinPads": 0,
+        "trackMm": 1615.268,
+        "seconds": 78.8,
+        "finishedAtS": 78.8,
+        "timedOut": false,
+        "late": false,
+        "netByNet": null,
+        "version": {
+          "service": "2026.10.14.78",
+          "router": "r95cf716.4dfe8832",
+          "router_choice": "stable"
+        },
+        "refused": null,
+        "drc": {
+          "errors": 0,
+          "errorsByType": {},
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      }
+    },
+    {
+      "board": "rp2040-minimal",
+      "layers": 2,
+      "source": "https://www.raspberrypi.com/documentation/microcontrollers/silicon.html#minimal-design-example",
+      "reference": {
+        "drc": {
+          "errors": 1,
+          "errorsByType": {
+            "zones_intersect": 1
+          },
+          "unconnectedItems": 0
+        }
+      },
+      "ratsnest": 150,
+      "koppar": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 82,
+        "viasInPinPads": 0,
+        "trackMm": 1193.076,
+        "seconds": 11.7,
+        "finishedAtS": 6.5,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": "Koppar",
+        "refused": null,
+        "drc": {
+          "errors": 0,
+          "errorsByType": {},
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "koppar_filled": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 84,
+        "viasInPinPads": 35,
+        "trackMm": 1155.654,
+        "seconds": 12.7,
+        "finishedAtS": 7.5,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": "Koppar",
+        "refused": null,
+        "drc": {
+          "errors": 0,
+          "errorsByType": {},
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "freerouting": {
+        "completionPct": 86.0,
+        "unconnected": 21,
+        "vias": 40,
+        "viasInPinPads": 0,
+        "trackMm": 1115.097,
+        "seconds": 60.6,
+        "finishedAtS": 18.2,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": "2.5.0",
+        "refused": null,
+        "drc": {
+          "errors": 4,
+          "errorsByType": {
+            "track_width": 4
+          },
+          "unconnectedItems": 21,
+          "netNew": 4,
+          "netNewByType": {
+            "track_width": 4
+          }
+        }
+      },
+      "tscircuit": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 69,
+        "viasInPinPads": 0,
+        "trackMm": 1396.258,
+        "seconds": 11.0,
+        "finishedAtS": 11.0,
+        "timedOut": false,
+        "late": null,
+        "netByNet": false,
+        "version": "0.0.979",
+        "refused": null,
+        "drc": {
+          "errors": 149,
+          "errorsByType": {
+            "solder_mask_bridge": 8,
+            "track_width": 20,
+            "clearance": 112,
+            "shorting_items": 1,
+            "hole_clearance": 8
+          },
+          "unconnectedItems": 0,
+          "netNew": 149,
+          "netNewByType": {
+            "solder_mask_bridge": 8,
+            "track_width": 20,
+            "clearance": 112,
+            "shorting_items": 1,
+            "hole_clearance": 8
+          }
+        }
+      },
+      "krt": {
+        "completionPct": 26.67,
+        "unconnected": 110,
+        "vias": 12,
+        "viasInPinPads": 0,
+        "trackMm": 597.136,
+        "seconds": 126.8,
+        "finishedAtS": 126.8,
+        "timedOut": false,
+        "late": null,
+        "netByNet": true,
+        "version": "0.1.9",
+        "refused": null,
+        "drc": {
+          "errors": 12,
+          "errorsByType": {
+            "clearance": 6,
+            "hole_clearance": 6
+          },
+          "unconnectedItems": 110,
+          "netNew": 12,
+          "netNewByType": {
+            "clearance": 6,
+            "hole_clearance": 6
+          }
+        }
+      },
+      "tracemaker": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 53,
+        "viasInPinPads": 14,
+        "trackMm": 1296.26,
+        "seconds": 20.2,
+        "finishedAtS": 19.9,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": null,
+        "refused": null,
+        "drc": {
+          "errors": 0,
+          "errorsByType": {},
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "zap": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 52,
+        "viasInPinPads": 0,
+        "trackMm": 1138.937,
+        "seconds": 26.0,
+        "finishedAtS": 26.0,
+        "timedOut": false,
+        "late": false,
+        "netByNet": null,
+        "version": {
+          "service": "2026.10.14.78",
+          "router": "r95cf716.4dfe8832",
+          "router_choice": "stable"
+        },
+        "refused": null,
+        "drc": {
+          "errors": 0,
+          "errorsByType": {},
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      }
+    },
+    {
+      "board": "pico-vga",
+      "layers": 4,
+      "source": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+      "reference": {
+        "drc": {
+          "errors": 18,
+          "errorsByType": {
+            "starved_thermal": 13,
+            "invalid_outline": 3,
+            "copper_edge_clearance": 2
+          },
+          "unconnectedItems": 0
+        }
+      },
+      "ratsnest": 180,
+      "koppar": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 99,
+        "viasInPinPads": 0,
+        "trackMm": 1196.678,
+        "seconds": 14.8,
+        "finishedAtS": 7.9,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": "Koppar",
+        "refused": null,
+        "drc": {
+          "errors": 5,
+          "errorsByType": {
+            "invalid_outline": 3,
+            "copper_edge_clearance": 2
+          },
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "koppar_filled": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 90,
+        "viasInPinPads": 80,
+        "trackMm": 1122.56,
+        "seconds": 12.7,
+        "finishedAtS": 6.1,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": "Koppar",
+        "refused": null,
+        "drc": {
+          "errors": 5,
+          "errorsByType": {
+            "invalid_outline": 3,
+            "copper_edge_clearance": 2
+          },
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "freerouting": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 48,
+        "viasInPinPads": 0,
+        "trackMm": 1661.193,
+        "seconds": 11.0,
+        "finishedAtS": 4.9,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": "2.5.0",
+        "refused": null,
+        "drc": {
+          "errors": 13,
+          "errorsByType": {
+            "track_width": 2,
+            "invalid_outline": 3,
+            "copper_edge_clearance": 8
+          },
+          "unconnectedItems": 0,
+          "netNew": 8,
+          "netNewByType": {
+            "track_width": 2,
+            "copper_edge_clearance": 6
+          }
+        }
+      },
+      "tscircuit": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 69,
+        "viasInPinPads": 0,
+        "trackMm": 1638.252,
+        "seconds": 11.5,
+        "finishedAtS": 11.5,
+        "timedOut": false,
+        "late": null,
+        "netByNet": false,
+        "version": "0.0.979",
+        "refused": null,
+        "drc": {
+          "errors": 132,
+          "errorsByType": {
+            "solder_mask_bridge": 20,
+            "track_width": 29,
+            "invalid_outline": 3,
+            "copper_edge_clearance": 5,
+            "clearance": 63,
+            "tracks_crossing": 1,
+            "shorting_items": 7,
+            "hole_clearance": 4
+          },
+          "unconnectedItems": 0,
+          "netNew": 127,
+          "netNewByType": {
+            "solder_mask_bridge": 20,
+            "track_width": 29,
+            "copper_edge_clearance": 3,
+            "clearance": 63,
+            "tracks_crossing": 1,
+            "shorting_items": 7,
+            "hole_clearance": 4
+          }
+        }
+      },
+      "krt": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 116,
+        "viasInPinPads": 25,
+        "trackMm": 2511.695,
+        "seconds": 41.6,
+        "finishedAtS": 41.6,
+        "timedOut": false,
+        "late": null,
+        "netByNet": false,
+        "version": "0.1.9",
+        "refused": null,
+        "drc": {
+          "errors": 227,
+          "errorsByType": {
+            "solder_mask_bridge": 22,
+            "invalid_outline": 3,
+            "copper_edge_clearance": 10,
+            "clearance": 111,
+            "hole_clearance": 41,
+            "shorting_items": 40
+          },
+          "unconnectedItems": 0,
+          "netNew": 222,
+          "netNewByType": {
+            "solder_mask_bridge": 22,
+            "copper_edge_clearance": 8,
+            "clearance": 111,
+            "hole_clearance": 41,
+            "shorting_items": 40
+          }
+        }
+      },
+      "tracemaker": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 49,
+        "viasInPinPads": 21,
+        "trackMm": 1568.325,
+        "seconds": 160.6,
+        "finishedAtS": 143.2,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": null,
+        "refused": null,
+        "drc": {
+          "errors": 5,
+          "errorsByType": {
+            "invalid_outline": 3,
+            "copper_edge_clearance": 2
+          },
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "zap": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 83,
+        "viasInPinPads": 0,
+        "trackMm": 1055.026,
+        "seconds": 173.4,
+        "finishedAtS": 173.4,
+        "timedOut": false,
+        "late": false,
+        "netByNet": null,
+        "version": {
+          "service": "2026.10.14.78",
+          "router": "r95cf716.4dfe8832",
+          "router_choice": "stable"
+        },
+        "refused": null,
+        "drc": {
+          "errors": 5,
+          "errorsByType": {
+            "invalid_outline": 3,
+            "copper_edge_clearance": 2
+          },
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      }
+    },
+    {
+      "board": "cm5io",
+      "layers": 4,
+      "source": "https://pip.raspberrypi.com/categories/1098-design-files",
+      "reference": {
+        "drc": {
+          "errors": 0,
+          "errorsByType": {},
+          "unconnectedItems": 0
+        }
+      },
+      "ratsnest": 431,
+      "koppar": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 817,
+        "viasInPinPads": 0,
+        "trackMm": 12094.559,
+        "seconds": 542.1,
+        "finishedAtS": 501.9,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": "Koppar",
+        "refused": null,
+        "drc": {
+          "errors": 0,
+          "errorsByType": {},
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "koppar_filled": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 786,
+        "viasInPinPads": 97,
+        "trackMm": 11908.839,
+        "seconds": 322.4,
+        "finishedAtS": 305.5,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": "Koppar",
+        "refused": null,
+        "drc": {
+          "errors": 0,
+          "errorsByType": {},
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "freerouting": {
+        "completionPct": null,
+        "unconnected": null,
+        "vias": null,
+        "viasInPinPads": null,
+        "trackMm": null,
+        "seconds": 1200.2,
+        "finishedAtS": null,
+        "timedOut": true,
+        "late": null,
+        "netByNet": null,
+        "version": "2.5.0",
+        "refused": null,
+        "drc": null
+      },
+      "tscircuit": {
+        "completionPct": null,
+        "unconnected": null,
+        "vias": null,
+        "viasInPinPads": null,
+        "trackMm": null,
+        "seconds": 664.1,
+        "finishedAtS": null,
+        "timedOut": false,
+        "late": null,
+        "netByNet": false,
+        "version": "0.0.979",
+        "refused": null,
+        "drc": null
+      },
+      "krt": {
+        "completionPct": 50.12,
+        "unconnected": 215,
+        "vias": 84,
+        "viasInPinPads": 22,
+        "trackMm": 5052.111,
+        "seconds": 1208.0,
+        "finishedAtS": 1208.0,
+        "timedOut": true,
+        "late": null,
+        "netByNet": true,
+        "version": "0.1.9",
+        "refused": null,
+        "drc": {
+          "errors": 88,
+          "errorsByType": {
+            "hole_to_hole": 8,
+            "hole_clearance": 80
+          },
+          "unconnectedItems": 215,
+          "netNew": 88,
+          "netNewByType": {
+            "hole_to_hole": 8,
+            "hole_clearance": 80
+          }
+        }
+      },
+      "tracemaker": {
+        "completionPct": 94.9,
+        "unconnected": 22,
+        "vias": 412,
+        "viasInPinPads": 34,
+        "trackMm": 10602.8,
+        "seconds": 1202.6,
+        "finishedAtS": 1201.2,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": null,
+        "refused": null,
+        "drc": {
+          "errors": 0,
+          "errorsByType": {},
+          "unconnectedItems": 22,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "zap": {
+        "completionPct": 87.94,
+        "unconnected": 52,
+        "vias": 430,
+        "viasInPinPads": 0,
+        "trackMm": 7360.603,
+        "seconds": 723.4,
+        "finishedAtS": 723.4,
+        "timedOut": false,
+        "late": false,
+        "netByNet": null,
+        "version": {
+          "service": "2026.10.14.78",
+          "router": "r95cf716.4dfe8832",
+          "router_choice": "stable"
+        },
+        "refused": null,
+        "drc": {
+          "errors": 0,
+          "errorsByType": {},
+          "unconnectedItems": 52,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      }
+    },
+    {
+      "board": "rk3328-som-evb",
+      "layers": 4,
+      "source": "https://github.com/OLIMEX/RK3328-SOM-EBV/tree/0b6bb8aefd9b1f46acbfe0997752294316314ef4",
+      "reference": {
+        "drc": {
+          "errors": 231,
+          "errorsByType": {
+            "starved_thermal": 7,
+            "zones_intersect": 224
+          },
+          "unconnectedItems": 0
+        }
+      },
+      "ratsnest": 462,
+      "koppar": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 380,
+        "viasInPinPads": 0,
+        "trackMm": 4920.259,
+        "seconds": 66.4,
+        "finishedAtS": 40.4,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": "Koppar",
+        "refused": null,
+        "drc": {
+          "errors": 0,
+          "errorsByType": {},
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "koppar_filled": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 364,
+        "viasInPinPads": 154,
+        "trackMm": 4844.981,
+        "seconds": 46.2,
+        "finishedAtS": 28.9,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": "Koppar",
+        "refused": null,
+        "drc": {
+          "errors": 0,
+          "errorsByType": {},
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "freerouting": {
+        "completionPct": 96.54,
+        "unconnected": 16,
+        "vias": 245,
+        "viasInPinPads": 0,
+        "trackMm": 5633.345,
+        "seconds": 610.0,
+        "finishedAtS": 195.3,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": "2.5.0",
+        "refused": null,
+        "drc": {
+          "errors": 42,
+          "errorsByType": {
+            "hole_clearance": 42
+          },
+          "unconnectedItems": 16,
+          "netNew": 42,
+          "netNewByType": {
+            "hole_clearance": 42
+          }
+        }
+      },
+      "tscircuit": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 391,
+        "viasInPinPads": 0,
+        "trackMm": 5614.734,
+        "seconds": 163.1,
+        "finishedAtS": 163.1,
+        "timedOut": false,
+        "late": null,
+        "netByNet": false,
+        "version": "0.0.979",
+        "refused": null,
+        "drc": {
+          "errors": 403,
+          "errorsByType": {
+            "solder_mask_bridge": 59,
+            "clearance": 158,
+            "hole_clearance": 131,
+            "shorting_items": 54,
+            "tracks_crossing": 1
+          },
+          "unconnectedItems": 0,
+          "netNew": 403,
+          "netNewByType": {
+            "solder_mask_bridge": 59,
+            "clearance": 158,
+            "hole_clearance": 131,
+            "shorting_items": 54,
+            "tracks_crossing": 1
+          }
+        }
+      },
+      "krt": {
+        "completionPct": 43.94,
+        "unconnected": 259,
+        "vias": 104,
+        "viasInPinPads": 47,
+        "trackMm": 4518.169,
+        "seconds": 971.3,
+        "finishedAtS": 971.3,
+        "timedOut": false,
+        "late": null,
+        "netByNet": true,
+        "version": "0.1.9",
+        "refused": null,
+        "drc": {
+          "errors": 143,
+          "errorsByType": {
+            "solder_mask_bridge": 16,
+            "shorting_items": 31,
+            "hole_clearance": 58,
+            "clearance": 38
+          },
+          "unconnectedItems": 259,
+          "netNew": 143,
+          "netNewByType": {
+            "solder_mask_bridge": 16,
+            "shorting_items": 31,
+            "hole_clearance": 58,
+            "clearance": 38
+          }
+        }
+      },
+      "tracemaker": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 272,
+        "viasInPinPads": 88,
+        "trackMm": 5022.564,
+        "seconds": 1202.5,
+        "finishedAtS": 1201.0,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": null,
+        "refused": null,
+        "drc": {
+          "errors": 0,
+          "errorsByType": {},
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "zap": {
+        "completionPct": 96.75,
+        "unconnected": 15,
+        "vias": 333,
+        "viasInPinPads": 0,
+        "trackMm": 3910.816,
+        "seconds": 724.0,
+        "finishedAtS": 724.0,
+        "timedOut": false,
+        "late": false,
+        "netByNet": null,
+        "version": {
+          "service": "2026.10.14.78",
+          "router": "r95cf716.4dfe8832",
+          "router_choice": "stable"
+        },
+        "refused": null,
+        "drc": {
+          "errors": 0,
+          "errorsByType": {},
+          "unconnectedItems": 15,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      }
+    },
+    {
+      "board": "scalenode-cm4",
+      "layers": 4,
+      "source": "https://github.com/antmicro/scalenode-cm4-baseboard/tree/77f5bf281d13e43154cac9645f7cc22a82e56971",
+      "reference": {
+        "drc": {
+          "errors": 36,
+          "errorsByType": {
+            "solder_mask_bridge": 2,
+            "starved_thermal": 1,
+            "courtyards_overlap": 4,
+            "pth_inside_courtyard": 12,
+            "shorting_items": 16,
+            "clearance": 1
+          },
+          "unconnectedItems": 0
+        }
+      },
+      "ratsnest": 446,
+      "koppar": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 457,
+        "viasInPinPads": 0,
+        "trackMm": 5132.724,
+        "seconds": 160.7,
+        "finishedAtS": 125.6,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": "Koppar",
+        "refused": null,
+        "drc": {
+          "errors": 24,
+          "errorsByType": {
+            "solder_mask_bridge": 2,
+            "courtyards_overlap": 4,
+            "pth_inside_courtyard": 12,
+            "shorting_items": 5,
+            "clearance": 1
+          },
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "koppar_filled": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 506,
+        "viasInPinPads": 133,
+        "trackMm": 5065.799,
+        "seconds": 495.9,
+        "finishedAtS": 447.5,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": "Koppar",
+        "refused": null,
+        "drc": {
+          "errors": 24,
+          "errorsByType": {
+            "solder_mask_bridge": 2,
+            "courtyards_overlap": 4,
+            "pth_inside_courtyard": 12,
+            "shorting_items": 5,
+            "clearance": 1
+          },
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "freerouting": {
+        "completionPct": null,
+        "unconnected": null,
+        "vias": null,
+        "viasInPinPads": null,
+        "trackMm": null,
+        "seconds": 1200.1,
+        "finishedAtS": null,
+        "timedOut": true,
+        "late": null,
+        "netByNet": null,
+        "version": "2.5.0",
+        "refused": null,
+        "drc": null
+      },
+      "tscircuit": {
+        "completionPct": 99.1,
+        "unconnected": 4,
+        "vias": 368,
+        "viasInPinPads": 0,
+        "trackMm": 5911.674,
+        "seconds": 77.1,
+        "finishedAtS": 77.1,
+        "timedOut": false,
+        "late": null,
+        "netByNet": false,
+        "version": "0.0.979",
+        "refused": null,
+        "drc": {
+          "errors": 245,
+          "errorsByType": {
+            "solder_mask_bridge": 11,
+            "copper_edge_clearance": 131,
+            "courtyards_overlap": 4,
+            "pth_inside_courtyard": 12,
+            "clearance": 47,
+            "shorting_items": 11,
+            "hole_clearance": 27,
+            "tracks_crossing": 2
+          },
+          "unconnectedItems": 4,
+          "netNew": 215,
+          "netNewByType": {
+            "solder_mask_bridge": 9,
+            "copper_edge_clearance": 131,
+            "clearance": 46,
+            "hole_clearance": 27,
+            "tracks_crossing": 2
+          }
+        }
+      },
+      "krt": {
+        "completionPct": 54.93,
+        "unconnected": 201,
+        "vias": 102,
+        "viasInPinPads": 33,
+        "trackMm": 3552.293,
+        "seconds": 532.9,
+        "finishedAtS": 532.9,
+        "timedOut": false,
+        "late": null,
+        "netByNet": true,
+        "version": "0.1.9",
+        "refused": null,
+        "drc": {
+          "errors": 191,
+          "errorsByType": {
+            "solder_mask_bridge": 3,
+            "copper_edge_clearance": 7,
+            "courtyards_overlap": 4,
+            "pth_inside_courtyard": 12,
+            "shorting_items": 48,
+            "clearance": 64,
+            "hole_clearance": 53
+          },
+          "unconnectedItems": 201,
+          "netNew": 156,
+          "netNewByType": {
+            "solder_mask_bridge": 1,
+            "copper_edge_clearance": 7,
+            "shorting_items": 32,
+            "clearance": 63,
+            "hole_clearance": 53
+          }
+        }
+      },
+      "tracemaker": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 224,
+        "viasInPinPads": 41,
+        "trackMm": 5124.116,
+        "seconds": 832.2,
+        "finishedAtS": 448.1,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": null,
+        "refused": null,
+        "drc": {
+          "errors": 24,
+          "errorsByType": {
+            "solder_mask_bridge": 2,
+            "courtyards_overlap": 4,
+            "pth_inside_courtyard": 12,
+            "shorting_items": 5,
+            "clearance": 1
+          },
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "zap": {
+        "completionPct": 94.62,
+        "unconnected": 24,
+        "vias": 361,
+        "viasInPinPads": 0,
+        "trackMm": 4123.591,
+        "seconds": 1083.6,
+        "finishedAtS": 1083.6,
+        "timedOut": false,
+        "late": false,
+        "netByNet": null,
+        "version": {
+          "service": "2026.10.14.78",
+          "router": "r95cf716.4dfe8832",
+          "router_choice": "stable"
+        },
+        "refused": null,
+        "drc": {
+          "errors": 24,
+          "errorsByType": {
+            "solder_mask_bridge": 2,
+            "courtyards_overlap": 4,
+            "pth_inside_courtyard": 12,
+            "shorting_items": 5,
+            "clearance": 1
+          },
+          "unconnectedItems": 24,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      }
+    },
+    {
+      "board": "stmp157-som-evb",
+      "layers": 4,
+      "source": "https://github.com/OLIMEX/STMP157-BASE-SOM-EVB/tree/75648b2100a4b125dc0a1575a7d5913c11e080d4",
+      "reference": {
+        "drc": {
+          "errors": 94,
+          "errorsByType": {
+            "solder_mask_bridge": 4,
+            "starved_thermal": 15,
+            "shorting_items": 7,
+            "clearance": 1,
+            "hole_clearance": 6,
+            "zones_intersect": 61
+          },
+          "unconnectedItems": 0
+        }
+      },
+      "ratsnest": 905,
+      "koppar": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 1283,
+        "viasInPinPads": 0,
+        "trackMm": 15775.509,
+        "seconds": 1068.1,
+        "finishedAtS": 994.9,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": "Koppar",
+        "refused": null,
+        "drc": {
+          "errors": 14,
+          "errorsByType": {
+            "solder_mask_bridge": 4,
+            "hole_clearance": 6,
+            "shorting_items": 4
+          },
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "koppar_filled": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 1173,
+        "viasInPinPads": 336,
+        "trackMm": 14489.119,
+        "seconds": 178.8,
+        "finishedAtS": 126.8,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": "Koppar",
+        "refused": null,
+        "drc": {
+          "errors": 14,
+          "errorsByType": {
+            "solder_mask_bridge": 4,
+            "hole_clearance": 6,
+            "shorting_items": 4
+          },
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "freerouting": {
+        "completionPct": null,
+        "unconnected": null,
+        "vias": null,
+        "viasInPinPads": null,
+        "trackMm": null,
+        "seconds": 1200.1,
+        "finishedAtS": null,
+        "timedOut": true,
+        "late": null,
+        "netByNet": null,
+        "version": "2.5.0",
+        "refused": null,
+        "drc": null
+      },
+      "tscircuit": {
+        "completionPct": null,
+        "unconnected": null,
+        "vias": null,
+        "viasInPinPads": null,
+        "trackMm": null,
+        "seconds": 1413.5,
+        "finishedAtS": null,
+        "timedOut": true,
+        "late": null,
+        "netByNet": false,
+        "version": "0.0.979",
+        "refused": null,
+        "drc": null
+      },
+      "krt": {
+        "completionPct": 21.66,
+        "unconnected": 709,
+        "vias": 196,
+        "viasInPinPads": 34,
+        "trackMm": 4696.866,
+        "seconds": 1201.5,
+        "finishedAtS": 1201.5,
+        "timedOut": true,
+        "late": null,
+        "netByNet": true,
+        "version": "0.1.9",
+        "refused": null,
+        "drc": {
+          "errors": 264,
+          "errorsByType": {
+            "solder_mask_bridge": 60,
+            "copper_edge_clearance": 22,
+            "shorting_items": 49,
+            "clearance": 100,
+            "hole_clearance": 33
+          },
+          "unconnectedItems": 499,
+          "netNew": 246,
+          "netNewByType": {
+            "solder_mask_bridge": 56,
+            "copper_edge_clearance": 22,
+            "shorting_items": 42,
+            "clearance": 99,
+            "hole_clearance": 27
+          }
+        }
+      },
+      "tracemaker": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 856,
+        "viasInPinPads": 200,
+        "trackMm": 14263.639,
+        "seconds": 1202.6,
+        "finishedAtS": 1202.2,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": null,
+        "refused": null,
+        "drc": {
+          "errors": 14,
+          "errorsByType": {
+            "solder_mask_bridge": 4,
+            "hole_clearance": 6,
+            "shorting_items": 4
+          },
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "zap": {
+        "completionPct": 95.58,
+        "unconnected": 40,
+        "vias": 870,
+        "viasInPinPads": 0,
+        "trackMm": 11510.915,
+        "seconds": 616.3,
+        "finishedAtS": 616.3,
+        "timedOut": false,
+        "late": false,
+        "netByNet": null,
+        "version": {
+          "service": "2026.10.14.78",
+          "router": "r95cf716.4dfe8832",
+          "router_choice": "stable"
+        },
+        "refused": null,
+        "drc": {
+          "errors": 14,
+          "errorsByType": {
+            "solder_mask_bridge": 4,
+            "hole_clearance": 6,
+            "shorting_items": 4
+          },
+          "unconnectedItems": 40,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      }
+    },
+    {
+      "board": "imx8mp-som-evb",
+      "layers": 4,
+      "source": "https://github.com/OLIMEX/iMX8MP-SOM-EVB/tree/54724b6c9ba75aaab09046f3e3a27aca5d20024d",
+      "reference": {
+        "drc": {
+          "errors": 46,
+          "errorsByType": {
+            "starved_thermal": 18,
+            "clearance": 1,
+            "zones_intersect": 27
+          },
+          "unconnectedItems": 0
+        }
+      },
+      "ratsnest": 997,
+      "koppar": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 1302,
+        "viasInPinPads": 0,
+        "trackMm": 14800.189,
+        "seconds": 1082.1,
+        "finishedAtS": 981.5,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": "Koppar",
+        "refused": null,
+        "drc": {
+          "errors": 1,
+          "errorsByType": {
+            "clearance": 1
+          },
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "koppar_filled": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 1180,
+        "viasInPinPads": 384,
+        "trackMm": 14051.004,
+        "seconds": 306.8,
+        "finishedAtS": 203.8,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": "Koppar",
+        "refused": null,
+        "drc": {
+          "errors": 1,
+          "errorsByType": {
+            "clearance": 1
+          },
+          "unconnectedItems": 0,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "freerouting": {
+        "completionPct": null,
+        "unconnected": null,
+        "vias": null,
+        "viasInPinPads": null,
+        "trackMm": null,
+        "seconds": 1200.2,
+        "finishedAtS": null,
+        "timedOut": true,
+        "late": null,
+        "netByNet": null,
+        "version": "2.5.0",
+        "refused": null,
+        "drc": null
+      },
+      "tscircuit": {
+        "completionPct": 100.0,
+        "unconnected": 0,
+        "vias": 1247,
+        "viasInPinPads": 1,
+        "trackMm": 17276.371,
+        "seconds": 826.1,
+        "finishedAtS": 826.1,
+        "timedOut": false,
+        "late": null,
+        "netByNet": false,
+        "version": "0.0.979",
+        "refused": null,
+        "drc": {
+          "errors": 1053,
+          "errorsByType": {
+            "solder_mask_bridge": 149,
+            "copper_edge_clearance": 3,
+            "clearance": 500,
+            "shorting_items": 199,
+            "hole_clearance": 199,
+            "tracks_crossing": 3
+          },
+          "unconnectedItems": 0,
+          "netNew": 1052,
+          "netNewByType": {
+            "solder_mask_bridge": 149,
+            "copper_edge_clearance": 3,
+            "clearance": 499,
+            "shorting_items": 199,
+            "hole_clearance": 199,
+            "tracks_crossing": 3
+          }
+        }
+      },
+      "krt": {
+        "completionPct": 30.79,
+        "unconnected": 690,
+        "vias": 307,
+        "viasInPinPads": 61,
+        "trackMm": 6603.552,
+        "seconds": 1203.3,
+        "finishedAtS": 1203.3,
+        "timedOut": true,
+        "late": null,
+        "netByNet": true,
+        "version": "0.1.9",
+        "refused": null,
+        "drc": {
+          "errors": 470,
+          "errorsByType": {
+            "solder_mask_bridge": 102,
+            "shorting_items": 91,
+            "clearance": 155,
+            "hole_clearance": 122
+          },
+          "unconnectedItems": 499,
+          "netNew": 469,
+          "netNewByType": {
+            "solder_mask_bridge": 102,
+            "shorting_items": 91,
+            "clearance": 154,
+            "hole_clearance": 122
+          }
+        }
+      },
+      "tracemaker": {
+        "completionPct": 99.3,
+        "unconnected": 7,
+        "vias": 795,
+        "viasInPinPads": 200,
+        "trackMm": 13617.617,
+        "seconds": 1202.5,
+        "finishedAtS": 1201.7,
+        "timedOut": false,
+        "late": null,
+        "netByNet": null,
+        "version": null,
+        "refused": null,
+        "drc": {
+          "errors": 0,
+          "errorsByType": {},
+          "unconnectedItems": 7,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      },
+      "zap": {
+        "completionPct": 96.39,
+        "unconnected": 36,
+        "vias": 821,
+        "viasInPinPads": 0,
+        "trackMm": 11658.724,
+        "seconds": 625.7,
+        "finishedAtS": 625.7,
+        "timedOut": false,
+        "late": false,
+        "netByNet": null,
+        "version": {
+          "service": "2026.10.14.78",
+          "router": "r95cf716.4dfe8832",
+          "router_choice": "stable"
+        },
+        "refused": null,
+        "drc": {
+          "errors": 0,
+          "errorsByType": {},
+          "unconnectedItems": 36,
+          "netNew": 0,
+          "netNewByType": {}
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,222 @@
+{
+  "tool": "tscircuit",
+  "capS": 1200,
+  "generatedAt": "2026-10-14T09:10:13",
+  "boards": [
+    {
+      "board": "pic-programmer",
+      "layers": 2,
+      "ratsnest": 125,
+      "seconds": 12.2,
+      "timedOut": false,
+      "solved": true,
+      "failed": false,
+      "error": null,
+      "netByNet": false,
+      "version": "0.0.979",
+      "completionPct": 100.0,
+      "unconnected": 0,
+      "vias": 15,
+      "trackMm": 1865.843,
+      "drc": {
+        "errors": 115,
+        "errorsByType": {
+          "track_width": 87,
+          "clearance": 27,
+          "tracks_crossing": 1
+        },
+        "unconnectedItems": 0
+      },
+      "finishedAtS": 12.2,
+      "viasInPinPads": 0
+    },
+    {
+      "board": "rp2040-minimal",
+      "layers": 2,
+      "ratsnest": 150,
+      "seconds": 11.0,
+      "timedOut": false,
+      "solved": true,
+      "failed": false,
+      "error": null,
+      "netByNet": false,
+      "version": "0.0.979",
+      "completionPct": 100.0,
+      "unconnected": 0,
+      "vias": 69,
+      "trackMm": 1396.258,
+      "drc": {
+        "errors": 149,
+        "errorsByType": {
+          "solder_mask_bridge": 8,
+          "track_width": 20,
+          "clearance": 112,
+          "shorting_items": 1,
+          "hole_clearance": 8
+        },
+        "unconnectedItems": 0
+      },
+      "finishedAtS": 11.0,
+      "viasInPinPads": 0
+    },
+    {
+      "board": "pico-vga",
+      "layers": 4,
+      "ratsnest": 180,
+      "seconds": 11.5,
+      "timedOut": false,
+      "solved": true,
+      "failed": false,
+      "error": null,
+      "netByNet": false,
+      "version": "0.0.979",
+      "completionPct": 100.0,
+      "unconnected": 0,
+      "vias": 69,
+      "trackMm": 1638.252,
+      "drc": {
+        "errors": 132,
+        "errorsByType": {
+          "solder_mask_bridge": 20,
+          "track_width": 29,
+          "invalid_outline": 3,
+          "copper_edge_clearance": 5,
+          "clearance": 63,
+          "tracks_crossing": 1,
+          "shorting_items": 7,
+          "hole_clearance": 4
+        },
+        "unconnectedItems": 0
+      },
+      "finishedAtS": 11.5,
+      "viasInPinPads": 0
+    },
+    {
+      "board": "cm5io",
+      "layers": 4,
+      "ratsnest": 431,
+      "seconds": 664.1,
+      "timedOut": false,
+      "solved": false,
+      "failed": true,
+      "error": "CrossingViaReductionSolver found a layer transition without a via at route point 33",
+      "netByNet": false,
+      "version": "0.0.979",
+      "completionPct": null,
+      "unconnected": null,
+      "vias": null,
+      "trackMm": null,
+      "drc": null,
+      "finishedAtS": null
+    },
+    {
+      "board": "rk3328-som-evb",
+      "layers": 4,
+      "ratsnest": 462,
+      "seconds": 163.1,
+      "timedOut": false,
+      "solved": true,
+      "failed": false,
+      "error": null,
+      "netByNet": false,
+      "version": "0.0.979",
+      "completionPct": 100.0,
+      "unconnected": 0,
+      "vias": 391,
+      "trackMm": 5614.734,
+      "drc": {
+        "errors": 403,
+        "errorsByType": {
+          "solder_mask_bridge": 59,
+          "clearance": 158,
+          "hole_clearance": 131,
+          "shorting_items": 54,
+          "tracks_crossing": 1
+        },
+        "unconnectedItems": 0
+      },
+      "finishedAtS": 163.1,
+      "viasInPinPads": 0
+    },
+    {
+      "board": "scalenode-cm4",
+      "layers": 4,
+      "ratsnest": 446,
+      "seconds": 77.1,
+      "timedOut": false,
+      "solved": true,
+      "failed": false,
+      "error": null,
+      "netByNet": false,
+      "version": "0.0.979",
+      "completionPct": 99.1,
+      "unconnected": 4,
+      "vias": 368,
+      "trackMm": 5911.674,
+      "drc": {
+        "errors": 245,
+        "errorsByType": {
+          "solder_mask_bridge": 11,
+          "copper_edge_clearance": 131,
+          "courtyards_overlap": 4,
+          "pth_inside_courtyard": 12,
+          "clearance": 47,
+          "shorting_items": 11,
+          "hole_clearance": 27,
+          "tracks_crossing": 2
+        },
+        "unconnectedItems": 4
+      },
+      "finishedAtS": 77.1,
+      "viasInPinPads": 0
+    },
+    {
+      "board": "stmp157-som-evb",
+      "layers": 4,
+      "ratsnest": 905,
+      "seconds": 1413.5,
+      "timedOut": true,
+      "solved": false,
+      "failed": false,
+      "error": null,
+      "netByNet": false,
+      "version": "0.0.979",
+      "completionPct": null,
+      "unconnected": null,
+      "vias": null,
+      "trackMm": null,
+      "drc": null,
+      "finishedAtS": null
+    },
+    {
+      "board": "imx8mp-som-evb",
+      "layers": 4,
+      "ratsnest": 997,
+      "seconds": 826.1,
+      "timedOut": false,
+      "solved": true,
+      "failed": false,
+      "error": null,
+      "netByNet": false,
+      "version": "0.0.979",
+      "completionPct": 100.0,
+      "unconnected": 0,
+      "vias": 1247,
+      "trackMm": 17276.371,
+      "drc": {
+        "errors": 1053,
+        "errorsByType": {
+          "solder_mask_bridge": 149,
+          "copper_edge_clearance": 3,
+          "clearance": 500,
+          "shorting_items": 199,
+          "hole_clearance": 199,
+          "tracks_crossing": 3
+        },
+        "unconnectedItems": 0
+      },
+      "finishedAtS": 826.1,
+      "viasInPinPads": 1
+    }
+  ]
+}

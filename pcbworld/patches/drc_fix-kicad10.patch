@@ -1,0 +1,10 @@
+--- a/tools/datagen/pcbench_prep/drc_fix_v9.py
++++ b/tools/datagen/pcbench_prep/drc_fix_v9.py
+@@ -58,6 +58,7 @@
+     "solder_mask_bridge":  "ignore",
+     "drill_out_of_range":  "ignore",
+     "malformed_courtyard": "ignore",
++    "pth_inside_courtyard": "ignore",  # KiCad 10 check, absent from KiCad 9
+     "courtyards_overlap":  "ignore",   # [B]
+     "annular_width":       "ignore",   # [B]
+     "copper_edge_clearance": "ignore", # [B]

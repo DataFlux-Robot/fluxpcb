@@ -1,0 +1,39 @@
+{
+  "tool": "fluxpcb",
+  "capS": 1200,
+  "generatedAt": "2026-11-16T08:44:27",
+  "boards": [
+    {
+      "board": "pic-programmer",
+      "layers": 2,
+      "ratsnest": 125,
+      "seconds": 458.0,
+      "timedOut": false,
+      "finishedAtS": 1500.1,
+      "completionPct": 72.8,
+      "unconnected": 34,
+      "vias": 32,
+      "trackMm": null,
+      "viasInPinPads": null,
+      "drc": {
+        "errors": 0
+      }
+    },
+    {
+      "board": "rp2040-minimal",
+      "layers": 2,
+      "ratsnest": 150,
+      "seconds": 528.0,
+      "timedOut": false,
+      "finishedAtS": 528.0,
+      "completionPct": 70.9,
+      "unconnected": 48,
+      "vias": 297,
+      "trackMm": null,
+      "viasInPinPads": null,
+      "drc": {
+        "errors": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "note": "Upstream sources, pinned. Every file is checked against its sha256 before use; nothing here is a copy of a board.",
+  "boards": [
+    {
+      "name": "pic-programmer", "layers": 2, "title": "KiCad demo: PIC programmer", "licence": "GPL-3.0-or-later (KiCad demos)",
+      "home": "https://gitlab.com/kicad/code/kicad/-/tree/10.0.4/demos/pic_programmer",
+      "files": {
+        "pcb": { "url": "https://gitlab.com/kicad/code/kicad/-/raw/10.0.4/demos/pic_programmer/pic_programmer.kicad_pcb" },
+        "pro": { "url": "https://gitlab.com/kicad/code/kicad/-/raw/10.0.4/demos/pic_programmer/pic_programmer.kicad_pro" }
+      }
+    },
+    {
+      "name": "rp2040-minimal", "layers": 2, "title": "Raspberry Pi RP2040 minimal design, revision 2", "licence": "Raspberry Pi design files (revision 3 of the same design is MIT)",
+      "home": "https://www.raspberrypi.com/documentation/microcontrollers/silicon.html#minimal-design-example",
+      "archive": { "url": "https://web.archive.org/web/20240521000034id_/https://datasheets.raspberrypi.com/rp2040/Minimal-KiCAD.zip" },
+      "files": {
+        "pcb": { "member": "minimal/RP2040_minimal_r2/RP2040_minimal_r2.kicad_pcb" },
+        "pro": { "member": "minimal/RP2040_minimal_r2/RP2040_minimal_r2.kicad_pro" }
+      }
+    },
+    {
+      "name": "pico-vga", "layers": 4, "title": "Raspberry Pi Pico VGA, SD card and audio demo base", "licence": "Raspberry Pi design files (revision 3 of the same design is MIT)",
+      "home": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+      "archive": { "url": "https://web.archive.org/web/20211203134822id_/https://datasheets.raspberrypi.com/rp2040/VGA-KiCAD.zip" },
+      "files": {
+        "pcb": { "member": "VGA/pico_vga_sd_aud.kicad_pcb" },
+        "pro": { "member": "VGA/pico_vga_sd_aud.pro" }
+      }
+    },
+    {
+      "name": "cm5io", "layers": 4, "title": "Raspberry Pi Compute Module 5 IO board, revision 2", "licence": "Raspberry Pi design files, see the Product Information Portal terms",
+      "home": "https://pip.raspberrypi.com/categories/1098-design-files",
+      "archive": { "url": "https://pip-assets.raspberrypi.com/categories/1098-design-files/documents/RP-008099-DD-1-CM5%20IO%20Board,%20revision%202,%20KiCAD%20files..zip" },
+      "files": {
+        "pcb": { "member": "CM5IO.kicad_pcb" },
+        "pro": { "member": "CM5IO.kicad_pro" }
+      }
+    },
+    {
+      "name": "rk3328-som-evb", "layers": 4, "title": "OLIMEX RK3328-SOM-EVB revision A", "licence": "GPL-3.0 / CERN-OHL-1.2",
+      "home": "https://github.com/OLIMEX/RK3328-SOM-EBV/tree/0b6bb8aefd9b1f46acbfe0997752294316314ef4",
+      "files": {
+        "pcb": { "url": "https://raw.githubusercontent.com/OLIMEX/RK3328-SOM-EBV/0b6bb8aefd9b1f46acbfe0997752294316314ef4/HARDWARE/RK3328-SOM-EVB_Rev-A/RK3328-SOM-EVB_Rev_A.kicad_pcb" },
+        "pro": { "url": "https://raw.githubusercontent.com/OLIMEX/RK3328-SOM-EBV/0b6bb8aefd9b1f46acbfe0997752294316314ef4/HARDWARE/RK3328-SOM-EVB_Rev-A/RK3328-SOM-EVB_Rev_A.pro" }
+      }
+    },
+    {
+      "name": "scalenode-cm4", "layers": 4, "title": "Antmicro Scalenode CM4 baseboard", "licence": "Apache-2.0",
+      "home": "https://github.com/antmicro/scalenode-cm4-baseboard/tree/77f5bf281d13e43154cac9645f7cc22a82e56971",
+      "files": {
+        "pcb": { "url": "https://raw.githubusercontent.com/antmicro/scalenode-cm4-baseboard/77f5bf281d13e43154cac9645f7cc22a82e56971/scalenode-cm4-baseboard.kicad_pcb" },
+        "pro": { "url": "https://raw.githubusercontent.com/antmicro/scalenode-cm4-baseboard/77f5bf281d13e43154cac9645f7cc22a82e56971/scalenode-cm4-baseboard.kicad_pro" }
+      }
+    },
+    {
+      "name": "stmp157-som-evb", "layers": 4, "title": "OLIMEX STMP157-BASE-SOM-EVB revision B", "licence": "GPL-3.0",
+      "home": "https://github.com/OLIMEX/STMP157-BASE-SOM-EVB/tree/75648b2100a4b125dc0a1575a7d5913c11e080d4",
+      "files": {
+        "pcb": { "url": "https://raw.githubusercontent.com/OLIMEX/STMP157-BASE-SOM-EVB/75648b2100a4b125dc0a1575a7d5913c11e080d4/HARDWARE/STMP157-BASE-SOM-EVB-Rev.B/STMP15x-BASE-SOM-EVB_Rev_B.kicad_pcb" },
+        "pro": { "url": "https://raw.githubusercontent.com/OLIMEX/STMP157-BASE-SOM-EVB/75648b2100a4b125dc0a1575a7d5913c11e080d4/HARDWARE/STMP157-BASE-SOM-EVB-Rev.B/STMP15x-BASE-SOM-EVB_Rev_B.pro" }
+      }
+    },
+    {
+      "name": "imx8mp-som-evb", "layers": 4, "title": "OLIMEX iMX8MP-SOM-EVB revision B", "licence": "GPL-3.0",
+      "home": "https://github.com/OLIMEX/iMX8MP-SOM-EVB/tree/54724b6c9ba75aaab09046f3e3a27aca5d20024d",
+      "files": {
+        "pcb": { "url": "https://raw.githubusercontent.com/OLIMEX/iMX8MP-SOM-EVB/54724b6c9ba75aaab09046f3e3a27aca5d20024d/HARDWARE/iMX8MP-SOM-EVB-rev.b/iMX8MPLUS-SOM-EVB_Rev_B.kicad_pcb" },
+        "pro": { "url": "https://raw.githubusercontent.com/OLIMEX/iMX8MP-SOM-EVB/54724b6c9ba75aaab09046f3e3a27aca5d20024d/HARDWARE/iMX8MP-SOM-EVB-rev.b/iMX8MPLUS-SOM-EVB_Rev_B.pro" }
+      }
+    }
+  ]
+}

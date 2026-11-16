@@ -1,0 +1,150 @@
+{
+  "tool": "freerouting",
+  "capS": 1200,
+  "generatedAt": "2026-10-14T09:48:30",
+  "boards": [
+    {
+      "board": "pic-programmer",
+      "layers": 2,
+      "ratsnest": 125,
+      "seconds": 4.8,
+      "timedOut": false,
+      "version": "2.5.0",
+      "completionPct": 100.0,
+      "unconnected": 0,
+      "vias": 0,
+      "trackMm": 1948.527,
+      "drc": {
+        "errors": 5,
+        "errorsByType": {
+          "track_width": 2,
+          "clearance": 3
+        },
+        "unconnectedItems": 0
+      },
+      "finishedAtS": 4.0,
+      "viasInPinPads": 0
+    },
+    {
+      "board": "rp2040-minimal",
+      "layers": 2,
+      "ratsnest": 150,
+      "seconds": 60.6,
+      "timedOut": false,
+      "version": "2.5.0",
+      "completionPct": 86.0,
+      "unconnected": 21,
+      "vias": 40,
+      "trackMm": 1115.097,
+      "drc": {
+        "errors": 4,
+        "errorsByType": {
+          "track_width": 4
+        },
+        "unconnectedItems": 21
+      },
+      "finishedAtS": 18.2,
+      "viasInPinPads": 0
+    },
+    {
+      "board": "pico-vga",
+      "layers": 4,
+      "ratsnest": 180,
+      "seconds": 11.0,
+      "timedOut": false,
+      "version": "2.5.0",
+      "completionPct": 100.0,
+      "unconnected": 0,
+      "vias": 48,
+      "trackMm": 1661.193,
+      "drc": {
+        "errors": 13,
+        "errorsByType": {
+          "track_width": 2,
+          "invalid_outline": 3,
+          "copper_edge_clearance": 8
+        },
+        "unconnectedItems": 0
+      },
+      "finishedAtS": 4.9,
+      "viasInPinPads": 0
+    },
+    {
+      "board": "cm5io",
+      "layers": 4,
+      "ratsnest": 431,
+      "seconds": 1200.2,
+      "timedOut": true,
+      "version": "2.5.0",
+      "completionPct": null,
+      "unconnected": null,
+      "vias": null,
+      "trackMm": null,
+      "drc": null,
+      "finishedAtS": null
+    },
+    {
+      "board": "rk3328-som-evb",
+      "layers": 4,
+      "ratsnest": 462,
+      "seconds": 610.0,
+      "timedOut": false,
+      "version": "2.5.0",
+      "completionPct": 96.54,
+      "unconnected": 16,
+      "vias": 245,
+      "trackMm": 5633.345,
+      "drc": {
+        "errors": 42,
+        "errorsByType": {
+          "hole_clearance": 42
+        },
+        "unconnectedItems": 16
+      },
+      "finishedAtS": 195.3,
+      "viasInPinPads": 0
+    },
+    {
+      "board": "scalenode-cm4",
+      "layers": 4,
+      "ratsnest": 446,
+      "seconds": 1200.1,
+      "timedOut": true,
+      "version": "2.5.0",
+      "completionPct": null,
+      "unconnected": null,
+      "vias": null,
+      "trackMm": null,
+      "drc": null,
+      "finishedAtS": null
+    },
+    {
+      "board": "stmp157-som-evb",
+      "layers": 4,
+      "ratsnest": 905,
+      "seconds": 1200.1,
+      "timedOut": true,
+      "version": "2.5.0",
+      "completionPct": null,
+      "unconnected": null,
+      "vias": null,
+      "trackMm": null,
+      "drc": null,
+      "finishedAtS": null
+    },
+    {
+      "board": "imx8mp-som-evb",
+      "layers": 4,
+      "ratsnest": 997,
+      "seconds": 1200.2,
+      "timedOut": true,
+      "version": "2.5.0",
+      "completionPct": null,
+      "unconnected": null,
+      "vias": null,
+      "trackMm": null,
+      "drc": null,
+      "finishedAtS": null
+    }
+  ]
+}

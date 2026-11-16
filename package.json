@@ -1,0 +1,10 @@
+{
+  "name": "autorouter-bench",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "@tscircuit/capacity-autorouter": "0.0.979",
+    "@tscircuit/krt-wasm": "0.1.9"
+  }
+}

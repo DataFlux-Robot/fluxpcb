@@ -1,0 +1,5500 @@
+{
+  "tool": "zap",
+  "capS": 1200,
+  "generatedAt": "2026-10-19T13:54:51",
+  "boards": [
+    {
+      "board": "pic-programmer",
+      "layers": 2,
+      "ratsnest": 125,
+      "seconds": 78.8,
+      "timedOut": false,
+      "finishedAtS": 78.8,
+      "job": "78b08e9a180143d6b0b54e82ed399b45",
+      "version": {
+        "service": "2026.10.14.78",
+        "router": "r95cf716.4dfe8832",
+        "router_choice": "stable"
+      },
+      "queuedS": 11.6,
+      "late": false,
+      "zapMetrics": {
+        "unconnected": 0,
+        "critical_unconnected": 0,
+        "drc_errors": 0,
+        "wall_time_s": 78.8,
+        "fab": {
+          "check": "fab1 1.6",
+          "rules": {
+            "project": "uploaded",
+            "custom_rules": "none"
+          },
+          "jlc_items_total": 0,
+          "jlc_items_truncated": false,
+          "dangling_total": 0,
+          "isolated_total": 0,
+          "computed": true,
+          "thermal": {
+            "computed": true,
+            "currents": "Estimated from the board's parts. May under-estimate large power stages; confirm high-current nets yourself.",
+            "limit_c": 10.0,
+            "worst_rise_c": 38.06,
+            "sections_over_limit": 4,
+            "rails_checked": 8,
+            "rails_not_checked": 1,
+            "off_chart": false,
+            "nets_over_limit": [
+              "Net-(D10-A)",
+              "VCC"
+            ],
+            "hottest": [
+              {
+                "net": "Net-(D10-A)",
+                "kind": "track",
+                "layer": "bottom_layer",
+                "rise_c": 38.06,
+                "current_a": 1.5,
+                "current_source": "estimated",
+                "at_mm": [
+                  124.7,
+                  59.0
+                ]
+              },
+              {
+                "net": "Net-(D10-A)",
+                "kind": "track",
+                "layer": "bottom_layer",
+                "rise_c": 38.06,
+                "current_a": 1.5,
+                "current_source": "estimated",
+                "at_mm": [
+                  125.125,
+                  60.525
+                ]
+              },
+              {
+                "net": "Net-(D10-A)",
+                "kind": "track",
+                "layer": "top_layer",
+                "rise_c": 38.06,
+                "current_a": 1.5,
+                "current_source": "estimated",
+                "at_mm": [
+                  121.5,
+                  57.15
+                ]
+              },
+              {
+                "net": "VCC",
+                "kind": "pour",
+                "layer": "top_layer",
+                "rise_c": 15.87,
+                "current_a": 1.3858,
+                "current_source": "estimated",
+                "at_mm": [
+                  122.759,
+                  110.275
+                ]
+              },
+              {
+                "net": "VCC",
+                "kind": "via",
+                "layer": "",
+                "rise_c": 8.68,
+                "current_a": 1.5,
+                "current_source": "estimated",
+                "at_mm": [
+                  144.7,
+                  93.65
+                ]
+              },
+              {
+                "net": "VCC",
+                "kind": "pour",
+                "layer": "bottom_layer",
+                "rise_c": 4.6,
+                "current_a": 0.7366,
+                "current_source": "estimated",
+                "at_mm": [
+                  144.586,
+                  96.201
+                ]
+              },
+              {
+                "net": "/VPP{slash}MCLR",
+                "kind": "pour",
+                "layer": "bottom_layer",
+                "rise_c": 0.36,
+                "current_a": 0.2307,
+                "current_source": "estimated",
+                "at_mm": [
+                  209.02,
+                  113.755
+                ]
+              },
+              {
+                "net": "/VPP{slash}MCLR",
+                "kind": "track",
+                "layer": "bottom_layer",
+                "rise_c": 0.33,
+                "current_a": 0.2,
+                "current_source": "estimated",
+                "at_mm": [
+                  209.4,
+                  83.325
+                ]
+              },
+              {
+                "net": "/VPP{slash}MCLR",
+                "kind": "via",
+                "layer": "",
+                "rise_c": 0.01,
+                "current_a": 0.1,
+                "current_source": "estimated",
+                "at_mm": [
+                  195.4,
+                  127.2
+                ]
+              },
+              {
+                "net": "/VPP{slash}MCLR",
+                "kind": "pour",
+                "layer": "top_layer",
+                "rise_c": 0.01,
+                "current_a": 0.0527,
+                "current_source": "estimated",
+                "at_mm": [
+                  183.957,
+                  126.192
+                ]
+              }
+            ]
+          },
+          "shorts": 0,
+          "shorts_already_in_board": 0,
+          "drc_errors": 0,
+          "drc_errors_by_type": {},
+          "jlc_violations": 0,
+          "jlc_violations_by_type": {},
+          "jlc_capabilities": "1-2 layers",
+          "counts_capped": [],
+          "time_s": 10.5,
+          "jlc_items": []
+        },
+        "time_budget": {
+          "minutes": 20,
+          "attempts": 5,
+          "attempts_finished": 5,
+          "rounds": 1,
+          "winner_attempt": 5,
+          "winner_setting": 5,
+          "routing_s": 62.4,
+          "winner": "standard",
+          "stopped": "complete",
+          "summary": "5 attempts in 1 round, 62 s of routing; kept attempt 5 (standard setting 5); stopped because an attempt had no missing connection and no short or clearance error."
+        }
+      },
+      "completionPct": 100.0,
+      "unconnected": 0,
+      "vias": 28,
+      "trackMm": 1615.268,
+      "viasInPinPads": 0,
+      "drc": {
+        "errors": 0,
+        "errorsByType": {},
+        "unconnectedItems": 0
+      }
+    },
+    {
+      "board": "rp2040-minimal",
+      "layers": 2,
+      "ratsnest": 150,
+      "seconds": 26.0,
+      "timedOut": false,
+      "finishedAtS": 26.0,
+      "job": "c1d4ef75dab340608306520f958e64de",
+      "version": {
+        "service": "2026.10.14.78",
+        "router": "r95cf716.4dfe8832",
+        "router_choice": "stable"
+      },
+      "queuedS": 11.6,
+      "late": false,
+      "zapMetrics": {
+        "unconnected": 0,
+        "critical_unconnected": 0,
+        "drc_errors": 0,
+        "wall_time_s": 26.0,
+        "fab": {
+          "check": "fab1 1.6",
+          "rules": {
+            "project": "uploaded",
+            "custom_rules": "none"
+          },
+          "jlc_items_total": 1,
+          "jlc_items_truncated": false,
+          "dangling_total": 0,
+          "isolated_total": 0,
+          "computed": true,
+          "thermal": {
+            "computed": true,
+            "currents": "Estimated from the board's parts. May under-estimate large power stages; confirm high-current nets yourself.",
+            "limit_c": 10.0,
+            "worst_rise_c": 2.03,
+            "sections_over_limit": 0,
+            "rails_checked": 2,
+            "rails_not_checked": 1,
+            "off_chart": false,
+            "nets_over_limit": [],
+            "hottest": [
+              {
+                "net": "VBUS",
+                "kind": "pour",
+                "layer": "F.Cu",
+                "rise_c": 2.03,
+                "current_a": 0.4833,
+                "current_source": "estimated",
+                "at_mm": [
+                  101.759,
+                  75.607
+                ]
+              },
+              {
+                "net": "+3V3",
+                "kind": "pour",
+                "layer": "F.Cu",
+                "rise_c": 0.31,
+                "current_a": 0.3175,
+                "current_source": "estimated",
+                "at_mm": [
+                  102.839,
+                  95.03
+                ]
+              },
+              {
+                "net": "+3V3",
+                "kind": "via",
+                "layer": "",
+                "rise_c": 0.27,
+                "current_a": 0.31,
+                "current_source": "estimated",
+                "at_mm": [
+                  104.45,
+                  94.35
+                ]
+              },
+              {
+                "net": "+3V3",
+                "kind": "via",
+                "layer": "",
+                "rise_c": 0.23,
+                "current_a": 0.31,
+                "current_source": "estimated",
+                "at_mm": [
+                  105.2,
+                  92.25
+                ]
+              },
+              {
+                "net": "+3V3",
+                "kind": "pour",
+                "layer": "B.Cu",
+                "rise_c": 0.22,
+                "current_a": 0.4315,
+                "current_source": "estimated",
+                "at_mm": [
+                  104.939,
+                  92.53
+                ]
+              },
+              {
+                "net": "+3V3",
+                "kind": "via",
+                "layer": "",
+                "rise_c": 0.02,
+                "current_a": 0.14,
+                "current_source": "estimated",
+                "at_mm": [
+                  96.9,
+                  85.9
+                ]
+              },
+              {
+                "net": "+3V3",
+                "kind": "via",
+                "layer": "",
+                "rise_c": 0.01,
+                "current_a": 0.1,
+                "current_source": "estimated",
+                "at_mm": [
+                  82.15,
+                  77.55
+                ]
+              },
+              {
+                "net": "+3V3",
+                "kind": "via",
+                "layer": "",
+                "rise_c": 0.01,
+                "current_a": 0.0979,
+                "current_source": "estimated",
+                "at_mm": [
+                  99.9,
+                  93.55
+                ]
+              }
+            ]
+          },
+          "shorts": 0,
+          "shorts_already_in_board": 0,
+          "drc_errors": 0,
+          "drc_errors_by_type": {},
+          "jlc_violations": 1,
+          "jlc_violations_by_type": {
+            "hole_clearance": 1
+          },
+          "jlc_capabilities": "1-2 layers",
+          "counts_capped": [],
+          "time_s": 2.5,
+          "jlc_items": [
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                100.75,
+                95.25
+              ],
+              "layer": "B.Cu",
+              "net": "+1V1",
+              "refs": [
+                "U3"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2750 mm)"
+            }
+          ]
+        },
+        "time_budget": {
+          "minutes": 20,
+          "attempts": 5,
+          "attempts_finished": 5,
+          "rounds": 1,
+          "winner_attempt": 5,
+          "winner_setting": 5,
+          "routing_s": 20.7,
+          "winner": "standard",
+          "stopped": "complete",
+          "summary": "5 attempts in 1 round, 20 s of routing; kept attempt 5 (standard setting 5); stopped because an attempt had no missing connection and no short or clearance error."
+        }
+      },
+      "completionPct": 100.0,
+      "unconnected": 0,
+      "vias": 52,
+      "trackMm": 1138.937,
+      "viasInPinPads": 0,
+      "drc": {
+        "errors": 0,
+        "errorsByType": {},
+        "unconnectedItems": 0
+      }
+    },
+    {
+      "board": "pico-vga",
+      "layers": 4,
+      "ratsnest": 180,
+      "seconds": 173.4,
+      "timedOut": false,
+      "finishedAtS": 173.4,
+      "job": "f282e311fee74907809aa1134f455505",
+      "version": {
+        "service": "2026.10.14.78",
+        "router": "r95cf716.4dfe8832",
+        "router_choice": "stable"
+      },
+      "queuedS": 11.4,
+      "late": false,
+      "zapMetrics": {
+        "unconnected": 0,
+        "critical_unconnected": 0,
+        "drc_errors": 5,
+        "wall_time_s": 173.4,
+        "fab": {
+          "check": "fab1 1.6",
+          "rules": {
+            "project": "uploaded",
+            "custom_rules": "none"
+          },
+          "jlc_items_total": 0,
+          "jlc_items_truncated": false,
+          "dangling_total": 0,
+          "isolated_total": 0,
+          "computed": true,
+          "thermal": {
+            "computed": true,
+            "currents": "Estimated from the board's parts. May under-estimate large power stages; confirm high-current nets yourself.",
+            "limit_c": 10.0,
+            "worst_rise_c": 0.21,
+            "sections_over_limit": 0,
+            "rails_checked": 5,
+            "rails_not_checked": 1,
+            "off_chart": false,
+            "nets_over_limit": [],
+            "hottest": [
+              {
+                "net": "+5V",
+                "kind": "track",
+                "layer": "F.Cu",
+                "rise_c": 0.21,
+                "current_a": 0.15,
+                "current_source": "estimated",
+                "at_mm": [
+                  160.0,
+                  54.55
+                ]
+              },
+              {
+                "net": "+5V",
+                "kind": "track",
+                "layer": "F.Cu",
+                "rise_c": 0.21,
+                "current_a": 0.15,
+                "current_source": "estimated",
+                "at_mm": [
+                  157.425,
+                  54.7
+                ]
+              },
+              {
+                "net": "+5V",
+                "kind": "track",
+                "layer": "F.Cu",
+                "rise_c": 0.21,
+                "current_a": 0.15,
+                "current_source": "estimated",
+                "at_mm": [
+                  154.825,
+                  54.525
+                ]
+              },
+              {
+                "net": "+5V",
+                "kind": "track",
+                "layer": "F.Cu",
+                "rise_c": 0.05,
+                "current_a": 0.15,
+                "current_source": "estimated",
+                "at_mm": [
+                  153.9,
+                  54.35
+                ]
+              },
+              {
+                "net": "+3.3VA",
+                "kind": "track",
+                "layer": "F.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  152.05,
+                  71.8
+                ]
+              },
+              {
+                "net": "+3.3VA",
+                "kind": "track",
+                "layer": "F.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  150.5,
+                  63.6
+                ]
+              },
+              {
+                "net": "+3.3VA",
+                "kind": "track",
+                "layer": "F.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  150.55,
+                  67.875
+                ]
+              }
+            ]
+          },
+          "shorts": 0,
+          "shorts_already_in_board": 0,
+          "drc_errors": 5,
+          "drc_errors_by_type": {
+            "copper_edge_clearance": 2,
+            "invalid_outline": 3
+          },
+          "jlc_violations": 0,
+          "jlc_violations_by_type": {},
+          "jlc_capabilities": "multilayer",
+          "counts_capped": [],
+          "time_s": 2.0,
+          "jlc_items": []
+        },
+        "time_budget": {
+          "minutes": 20,
+          "attempts": 37,
+          "attempts_finished": 37,
+          "rounds": 11,
+          "winner_attempt": 1,
+          "winner_setting": 1,
+          "routing_s": 169.0,
+          "winner": "standard",
+          "stopped": "settings_used_up",
+          "summary": "37 attempts in 11 rounds, 169 s of routing; kept attempt 1 (standard setting 1); stopped because every setting on the list was tried."
+        }
+      },
+      "completionPct": 100.0,
+      "unconnected": 0,
+      "vias": 83,
+      "trackMm": 1055.026,
+      "viasInPinPads": 0,
+      "drc": {
+        "errors": 5,
+        "errorsByType": {
+          "invalid_outline": 3,
+          "copper_edge_clearance": 2
+        },
+        "unconnectedItems": 0
+      }
+    },
+    {
+      "board": "cm5io",
+      "layers": 4,
+      "ratsnest": 431,
+      "seconds": 723.4,
+      "timedOut": false,
+      "finishedAtS": 723.4,
+      "job": "d2ac8cf282eb42bb976d810b0a96ce07",
+      "version": {
+        "service": "2026.10.14.78",
+        "router": "r95cf716.4dfe8832",
+        "router_choice": "stable"
+      },
+      "queuedS": 12.5,
+      "late": false,
+      "zapMetrics": {
+        "unconnected": 52,
+        "critical_unconnected": 3,
+        "drc_errors": 0,
+        "wall_time_s": 723.4,
+        "fab": {
+          "check": "fab1 1.6",
+          "rules": {
+            "project": "uploaded",
+            "custom_rules": "none"
+          },
+          "jlc_items_total": 24,
+          "jlc_items_truncated": false,
+          "dangling_total": 0,
+          "isolated_total": 0,
+          "computed": true,
+          "thermal": {
+            "computed": true,
+            "currents": "Estimated from the board's parts. May under-estimate large power stages; confirm high-current nets yourself.",
+            "limit_c": 10.0,
+            "worst_rise_c": 10.17,
+            "sections_over_limit": 1,
+            "rails_checked": 11,
+            "rails_not_checked": 2,
+            "off_chart": false,
+            "nets_over_limit": [
+              "/PCIe-M2/M2_3v3"
+            ],
+            "hottest": [
+              {
+                "net": "/PCIe-M2/M2_3v3",
+                "kind": "pour",
+                "layer": "F.Cu",
+                "rise_c": 10.17,
+                "current_a": 1.053,
+                "current_source": "estimated",
+                "at_mm": [
+                  211.573,
+                  146.563
+                ]
+              },
+              {
+                "net": "/+5v",
+                "kind": "via",
+                "layer": "",
+                "rise_c": 5.5,
+                "current_a": 0.848,
+                "current_source": "estimated",
+                "at_mm": [
+                  193.1,
+                  125.6
+                ]
+              },
+              {
+                "net": "/+5v",
+                "kind": "via",
+                "layer": "",
+                "rise_c": 5.5,
+                "current_a": 0.848,
+                "current_source": "estimated",
+                "at_mm": [
+                  196.85,
+                  90.15
+                ]
+              },
+              {
+                "net": "/+5v",
+                "kind": "via",
+                "layer": "",
+                "rise_c": 2.6,
+                "current_a": 0.848,
+                "current_source": "estimated",
+                "at_mm": [
+                  189.9,
+                  130.6
+                ]
+              },
+              {
+                "net": "/+5v",
+                "kind": "via",
+                "layer": "",
+                "rise_c": 2.58,
+                "current_a": 0.6018,
+                "current_source": "estimated",
+                "at_mm": [
+                  184.35,
+                  151.45
+                ]
+              },
+              {
+                "net": "/+5v",
+                "kind": "pour",
+                "layer": "B.Cu",
+                "rise_c": 1.61,
+                "current_a": 0.846,
+                "current_source": "estimated",
+                "at_mm": [
+                  192.908,
+                  125.421
+                ]
+              },
+              {
+                "net": "/+5v",
+                "kind": "pour",
+                "layer": "F.Cu",
+                "rise_c": 1.44,
+                "current_a": 0.8427,
+                "current_source": "estimated",
+                "at_mm": [
+                  184.613,
+                  153.13
+                ]
+              },
+              {
+                "net": "/+5v",
+                "kind": "via",
+                "layer": "",
+                "rise_c": 0.69,
+                "current_a": 0.4747,
+                "current_source": "estimated",
+                "at_mm": [
+                  189.0,
+                  132.5
+                ]
+              },
+              {
+                "net": "/+5v",
+                "kind": "via",
+                "layer": "",
+                "rise_c": 0.66,
+                "current_a": 0.34,
+                "current_source": "estimated",
+                "at_mm": [
+                  125.95,
+                  147.85
+                ]
+              },
+              {
+                "net": "/+3.3v",
+                "kind": "pour",
+                "layer": "F.Cu",
+                "rise_c": 0.57,
+                "current_a": 0.6511,
+                "current_source": "estimated",
+                "at_mm": [
+                  171.724,
+                  87.812
+                ]
+              }
+            ]
+          },
+          "shorts": 0,
+          "shorts_already_in_board": 0,
+          "drc_errors": 1,
+          "drc_errors_by_type": {
+            "courtyards_overlap": 1
+          },
+          "jlc_violations": 24,
+          "jlc_violations_by_type": {
+            "clearance": 6,
+            "hole_clearance": 18
+          },
+          "jlc_capabilities": "multilayer",
+          "counts_capped": [],
+          "time_s": 20.3,
+          "jlc_items": [
+            {
+              "type": "clearance",
+              "at_mm": [
+                207.85,
+                137.9
+              ],
+              "layer": "F.Cu",
+              "net": "/PCIe-M2/FB",
+              "refs": [
+                "U8"
+              ],
+              "description": "Clearance violation (rule 'JLC: SMD pad to pad different nets 0.15' clearance 0.1500 mm; actual 0.1250 mm)"
+            },
+            {
+              "type": "clearance",
+              "at_mm": [
+                208.35,
+                137.9
+              ],
+              "layer": "F.Cu",
+              "net": "unconnected-(U8-PG-Pad2)",
+              "refs": [
+                "U8"
+              ],
+              "description": "Clearance violation (rule 'JLC: SMD pad to pad different nets 0.15' clearance 0.1500 mm; actual 0.1250 mm)"
+            },
+            {
+              "type": "clearance",
+              "at_mm": [
+                208.85,
+                137.9
+              ],
+              "layer": "F.Cu",
+              "net": "/+5v",
+              "refs": [
+                "U8"
+              ],
+              "description": "Clearance violation (rule 'JLC: SMD pad to pad different nets 0.15' clearance 0.1500 mm; actual 0.1250 mm)"
+            },
+            {
+              "type": "clearance",
+              "at_mm": [
+                209.35,
+                136.1
+              ],
+              "layer": "F.Cu",
+              "net": "unconnected-(U8-nc-Pad5)",
+              "refs": [
+                "U8"
+              ],
+              "description": "Clearance violation (rule 'JLC: SMD pad to pad different nets 0.15' clearance 0.1500 mm; actual 0.1250 mm)"
+            },
+            {
+              "type": "clearance",
+              "at_mm": [
+                208.85,
+                136.1
+              ],
+              "layer": "F.Cu",
+              "net": "Net-(U8-LX)",
+              "refs": [
+                "U8"
+              ],
+              "description": "Clearance violation (rule 'JLC: SMD pad to pad different nets 0.15' clearance 0.1500 mm; actual 0.1250 mm)"
+            },
+            {
+              "type": "clearance",
+              "at_mm": [
+                208.35,
+                136.1
+              ],
+              "layer": "F.Cu",
+              "net": "/CM5_HighSpeed/PCIE_PWR_EN",
+              "refs": [
+                "U8"
+              ],
+              "description": "Clearance violation (rule 'JLC: SMD pad to pad different nets 0.15' clearance 0.1500 mm; actual 0.1250 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                183.8,
+                153.845
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [
+                "J11"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1944 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                190.2,
+                153.845
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [
+                "J11"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1944 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                190.2,
+                153.845
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [
+                "J11"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1944 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                183.8,
+                153.845
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [
+                "J11"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1944 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                147.4,
+                152.45
+              ],
+              "layer": "F.Cu",
+              "net": "Net-(Module1A-LED_nACT)",
+              "refs": [
+                "U3"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1975 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                147.5,
+                152.35
+              ],
+              "layer": "F.Cu",
+              "net": "Net-(Module1A-LED_nACT)",
+              "refs": [
+                "U3"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1975 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                148.15,
+                152.15
+              ],
+              "layer": "F.Cu",
+              "net": "Net-(Module1A-LED_nACT)",
+              "refs": [
+                "U3"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1980 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                148.05,
+                152.25
+              ],
+              "layer": "F.Cu",
+              "net": "Net-(Module1A-LED_nACT)",
+              "refs": [
+                "U3"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1980 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                156.95,
+                149.9
+              ],
+              "layer": "In2.Cu",
+              "net": "Net-(U3-LEDG_K)",
+              "refs": [
+                "U3"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1992 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                156.95,
+                149.75
+              ],
+              "layer": "In2.Cu",
+              "net": "Net-(U3-LEDG_K)",
+              "refs": [
+                "U3"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1992 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                174.0,
+                147.95
+              ],
+              "layer": "F.Cu",
+              "net": "/CM5_HighSpeed/USB3-0-RX_N",
+              "refs": [
+                "J12"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2858 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                174.0,
+                147.95
+              ],
+              "layer": "F.Cu",
+              "net": "/CM5_HighSpeed/USB3-0-RX_N",
+              "refs": [
+                "J12"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2858 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                174.0,
+                147.95
+              ],
+              "layer": "F.Cu",
+              "net": "/CM5_HighSpeed/USB3-0-RX_N",
+              "refs": [
+                "J12"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2858 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                174.0,
+                147.95
+              ],
+              "layer": "F.Cu",
+              "net": "/CM5_HighSpeed/USB3-0-RX_N",
+              "refs": [
+                "J12"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2858 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                176.0,
+                147.95
+              ],
+              "layer": "F.Cu",
+              "net": "/CM5_HighSpeed/USB3-0-RX_P",
+              "refs": [
+                "J12"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2864 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                176.0,
+                147.95
+              ],
+              "layer": "F.Cu",
+              "net": "/CM5_HighSpeed/USB3-0-RX_P",
+              "refs": [
+                "J12"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2864 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                176.0,
+                147.95
+              ],
+              "layer": "F.Cu",
+              "net": "/CM5_HighSpeed/USB3-0-RX_P",
+              "refs": [
+                "J12"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2864 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                176.0,
+                147.95
+              ],
+              "layer": "F.Cu",
+              "net": "/CM5_HighSpeed/USB3-0-RX_P",
+              "refs": [
+                "J12"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2864 mm)"
+            }
+          ]
+        },
+        "time_budget": {
+          "minutes": 20,
+          "attempts": 5,
+          "attempts_finished": 2,
+          "rounds": 1,
+          "winner_attempt": 5,
+          "winner_setting": 5,
+          "routing_s": 683.8,
+          "winner": "standard",
+          "stopped": "time",
+          "summary": "5 attempts in 1 round, 683 s of routing; kept attempt 5 (standard setting 5); stopped because the next attempt could not finish within the minutes asked for."
+        }
+      },
+      "completionPct": 87.94,
+      "unconnected": 52,
+      "vias": 430,
+      "trackMm": 7360.603,
+      "viasInPinPads": 0,
+      "drc": {
+        "errors": 0,
+        "errorsByType": {},
+        "unconnectedItems": 52
+      }
+    },
+    {
+      "board": "rk3328-som-evb",
+      "layers": 4,
+      "ratsnest": 462,
+      "seconds": 724.0,
+      "timedOut": false,
+      "finishedAtS": 724.0,
+      "job": "9e2a620305a64e6c98eb360f7c5437a4",
+      "version": {
+        "service": "2026.10.14.78",
+        "router": "r95cf716.4dfe8832",
+        "router_choice": "stable"
+      },
+      "queuedS": 11.7,
+      "late": false,
+      "zapMetrics": {
+        "unconnected": 15,
+        "critical_unconnected": 4,
+        "drc_errors": 0,
+        "wall_time_s": 724.0,
+        "fab": {
+          "check": "fab1 1.6",
+          "rules": {
+            "project": "uploaded",
+            "custom_rules": "none"
+          },
+          "jlc_items_total": 39,
+          "jlc_items_truncated": false,
+          "dangling_total": 0,
+          "isolated_total": 0,
+          "computed": true,
+          "thermal": {
+            "computed": true,
+            "currents": "Estimated from the board's parts. May under-estimate large power stages; confirm high-current nets yourself.",
+            "limit_c": 10.0,
+            "worst_rise_c": 0.01,
+            "sections_over_limit": 0,
+            "rails_checked": 7,
+            "rails_not_checked": 6,
+            "off_chart": false,
+            "nets_over_limit": [],
+            "hottest": [
+              {
+                "net": "+5V",
+                "kind": "track",
+                "layer": "F.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  198.05,
+                  90.6
+                ]
+              },
+              {
+                "net": "+5V",
+                "kind": "track",
+                "layer": "F.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  168.675,
+                  78.125
+                ]
+              },
+              {
+                "net": "+5V",
+                "kind": "track",
+                "layer": "B.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  187.525,
+                  88.675
+                ]
+              },
+              {
+                "net": "+5V",
+                "kind": "track",
+                "layer": "B.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  173.1,
+                  83.7
+                ]
+              },
+              {
+                "net": "+5V",
+                "kind": "via",
+                "layer": "",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  196.95,
+                  88.65
+                ]
+              },
+              {
+                "net": "+5V",
+                "kind": "via",
+                "layer": "",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  168.1,
+                  78.7
+                ]
+              },
+              {
+                "net": "+5V_USBOTG",
+                "kind": "track",
+                "layer": "F.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  110.625,
+                  73.55
+                ]
+              },
+              {
+                "net": "+5V_USBOTG",
+                "kind": "track",
+                "layer": "F.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  109.6,
+                  74.0
+                ]
+              },
+              {
+                "net": "/USB30-VBUSDET",
+                "kind": "track",
+                "layer": "F.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  166.525,
+                  67.575
+                ]
+              },
+              {
+                "net": "/USB30-VBUSDET",
+                "kind": "track",
+                "layer": "F.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  164.725,
+                  66.325
+                ]
+              }
+            ]
+          },
+          "shorts": 0,
+          "shorts_already_in_board": 0,
+          "drc_errors": 0,
+          "drc_errors_by_type": {},
+          "jlc_violations": 39,
+          "jlc_violations_by_type": {
+            "hole_clearance": 39
+          },
+          "jlc_capabilities": "multilayer",
+          "counts_capped": [],
+          "time_s": 3.5,
+          "jlc_items": [
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                113.95,
+                107.6
+              ],
+              "layer": "F.Cu",
+              "net": "Net-(LAN2-PadKY1)",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1090 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                136.5,
+                114.55
+              ],
+              "layer": "B.Cu",
+              "net": "+3V3",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1093 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                159.95,
+                124.25
+              ],
+              "layer": "In2.Cu",
+              "net": "UART1_RX",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1150 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                136.5,
+                113.35
+              ],
+              "layer": "B.Cu",
+              "net": "+3V3",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1164 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                181.2,
+                118.95
+              ],
+              "layer": "B.Cu",
+              "net": "/eMMC_D0",
+              "refs": [],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1169 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                115.5,
+                117.45
+              ],
+              "layer": "F.Cu",
+              "net": "Net-(LAN2-PadKG1)",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1187 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                109.2,
+                115.4
+              ],
+              "layer": "F.Cu",
+              "net": "/FEPHY_LED_LINK_M1",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1210 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                135.95,
+                115.1
+              ],
+              "layer": "B.Cu",
+              "net": "+3V3",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1250 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                135.95,
+                116.85
+              ],
+              "layer": "In2.Cu",
+              "net": "GPIO2_C0",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1250 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                113.9,
+                119.05
+              ],
+              "layer": "F.Cu",
+              "net": "Net-(LAN2-PadKG1)",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1290 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                136.3,
+                115.85
+              ],
+              "layer": "F.Cu",
+              "net": "/FEPHY_TX_N",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1295 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                135.95,
+                115.85
+              ],
+              "layer": "F.Cu",
+              "net": "/FEPHY_TX_N",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1295 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                175.4,
+                115.9
+              ],
+              "layer": "F.Cu",
+              "net": "POWER_ON",
+              "refs": [
+                "GPIO3"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1340 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                158.8,
+                96.1
+              ],
+              "layer": "In2.Cu",
+              "net": "UART1_CTSN",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1350 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                158.8,
+                125.95
+              ],
+              "layer": "In2.Cu",
+              "net": "UART1_TX",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1350 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                159.05,
+                114.15
+              ],
+              "layer": "F.Cu",
+              "net": "AP-RESET#",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1376 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                115.5,
+                106.05
+              ],
+              "layer": "F.Cu",
+              "net": "Net-(LAN2-PadKY1)",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1399 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                158.45,
+                82.9
+              ],
+              "layer": "B.Cu",
+              "net": "CODEC_AOL",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1540 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                147.8,
+                98.05
+              ],
+              "layer": "B.Cu",
+              "net": "CODEC_AOR",
+              "refs": [
+                "GPIO4"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1942 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                127.0,
+                127.635
+              ],
+              "layer": "F.Cu",
+              "net": "GPIO2_B7",
+              "refs": [
+                "EXT1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2778 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                127.0,
+                127.635
+              ],
+              "layer": "F.Cu",
+              "net": "GPIO2_B7",
+              "refs": [
+                "EXT1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2778 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                127.0,
+                127.635
+              ],
+              "layer": "F.Cu",
+              "net": "GPIO2_B7",
+              "refs": [
+                "EXT1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2778 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                127.0,
+                127.635
+              ],
+              "layer": "F.Cu",
+              "net": "GPIO2_B7",
+              "refs": [
+                "EXT1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2778 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                110.49,
+                98.171
+              ],
+              "layer": null,
+              "net": "/VDD33",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2607 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                110.49,
+                98.171
+              ],
+              "layer": null,
+              "net": "/VDD33",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2607 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                110.49,
+                84.709
+              ],
+              "layer": null,
+              "net": "/VDD33",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2607 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                110.49,
+                84.709
+              ],
+              "layer": null,
+              "net": "/VDD33",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2607 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                127.0,
+                127.635
+              ],
+              "layer": "F.Cu",
+              "net": "GPIO2_B7",
+              "refs": [
+                "EXT1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2778 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                127.0,
+                127.635
+              ],
+              "layer": "F.Cu",
+              "net": "GPIO2_B7",
+              "refs": [
+                "EXT1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2778 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                127.0,
+                127.635
+              ],
+              "layer": "F.Cu",
+              "net": "GPIO2_B7",
+              "refs": [
+                "EXT1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2778 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                127.0,
+                127.635
+              ],
+              "layer": "F.Cu",
+              "net": "GPIO2_B7",
+              "refs": [
+                "EXT1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2778 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                119.69,
+                72.921
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2796 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                119.69,
+                72.921
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2796 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                119.69,
+                72.921
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2796 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                119.69,
+                72.921
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2796 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                122.397,
+                115.941
+              ],
+              "layer": "F.Cu",
+              "net": "/FEPHY_RX_N",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2888 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                122.397,
+                115.941
+              ],
+              "layer": "F.Cu",
+              "net": "/FEPHY_RX_N",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2888 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                122.397,
+                115.941
+              ],
+              "layer": "F.Cu",
+              "net": "/FEPHY_RX_N",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2888 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                122.397,
+                115.941
+              ],
+              "layer": "F.Cu",
+              "net": "/FEPHY_RX_N",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2888 mm)"
+            }
+          ]
+        },
+        "time_budget": {
+          "minutes": 20,
+          "attempts": 10,
+          "attempts_finished": 10,
+          "rounds": 2,
+          "winner_attempt": 1,
+          "winner_setting": 1,
+          "routing_s": 715.8,
+          "winner": "standard",
+          "stopped": "time",
+          "summary": "10 attempts in 2 rounds, 715 s of routing; kept attempt 1 (standard setting 1); stopped because the next attempt could not finish within the minutes asked for."
+        }
+      },
+      "completionPct": 96.75,
+      "unconnected": 15,
+      "vias": 333,
+      "trackMm": 3910.816,
+      "viasInPinPads": 0,
+      "drc": {
+        "errors": 0,
+        "errorsByType": {},
+        "unconnectedItems": 15
+      }
+    },
+    {
+      "board": "scalenode-cm4",
+      "layers": 4,
+      "ratsnest": 446,
+      "seconds": 1083.6,
+      "timedOut": false,
+      "finishedAtS": 1083.6,
+      "job": "5c38b1f51edc44419c5410c13020fec1",
+      "version": {
+        "service": "2026.10.14.78",
+        "router": "r95cf716.4dfe8832",
+        "router_choice": "stable"
+      },
+      "queuedS": 13.9,
+      "late": false,
+      "zapMetrics": {
+        "unconnected": 24,
+        "critical_unconnected": 20,
+        "drc_errors": 24,
+        "wall_time_s": 1083.6,
+        "fab": {
+          "check": "fab1 1.6",
+          "rules": {
+            "project": "uploaded",
+            "custom_rules": "none"
+          },
+          "jlc_items_total": 31,
+          "jlc_items_truncated": false,
+          "dangling_total": 0,
+          "isolated_total": 0,
+          "computed": true,
+          "thermal": {
+            "computed": false,
+            "reason": "time limit"
+          },
+          "shorts": 5,
+          "shorts_already_in_board": 5,
+          "drc_errors": 22,
+          "drc_errors_by_type": {
+            "clearance": 1,
+            "courtyards_overlap": 4,
+            "pth_inside_courtyard": 12,
+            "shorting_items": 5
+          },
+          "jlc_violations": 31,
+          "jlc_violations_by_type": {
+            "acute_angle_acid_trap": 1,
+            "connection_width": 1,
+            "copper_edge_clearance": 2,
+            "hole_clearance": 12,
+            "holes_co_located": 6,
+            "silk_over_copper": 7,
+            "solder_mask_bridge": 2
+          },
+          "jlc_capabilities": "multilayer",
+          "counts_capped": [],
+          "time_s": 131.1,
+          "jlc_items": [
+            {
+              "type": "connection_width",
+              "at_mm": [
+                161.379,
+                61.343
+              ],
+              "layer": "F.Cu",
+              "net": "SCL0",
+              "refs": [
+                "J7"
+              ],
+              "description": "Copper connection too narrow (board setup constraints minimum connection width 0.0900 mm; actual 0.0752 mm) (F.Cu)"
+            },
+            {
+              "type": "copper_edge_clearance",
+              "at_mm": [
+                203.6,
+                56.7
+              ],
+              "layer": "Edge.Cuts",
+              "net": "unconnected-(MP2-Pad1)",
+              "refs": [
+                "MP2"
+              ],
+              "description": "Board edge clearance violation (rule 'JLC: copper to routed edge 0.2' clearance 0.2000 mm; actual 0.1590 mm)"
+            },
+            {
+              "type": "copper_edge_clearance",
+              "at_mm": [
+                203.6,
+                56.7
+              ],
+              "layer": "Edge.Cuts",
+              "net": "unconnected-(MP3-Pad1)",
+              "refs": [
+                "MP3"
+              ],
+              "description": "Board edge clearance violation (rule 'JLC: copper to routed edge 0.2' clearance 0.2000 mm; actual 0.1590 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                93.063,
+                63.652
+              ],
+              "layer": "F.Cu",
+              "net": "ETH_LEDG",
+              "refs": [
+                "J6"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2572 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                93.063,
+                63.652
+              ],
+              "layer": "F.Cu",
+              "net": "ETH_LEDG",
+              "refs": [
+                "J6"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2572 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                93.063,
+                63.652
+              ],
+              "layer": "F.Cu",
+              "net": "ETH_LEDG",
+              "refs": [
+                "J6"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2572 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                93.063,
+                63.652
+              ],
+              "layer": "F.Cu",
+              "net": "ETH_LEDG",
+              "refs": [
+                "J6"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2572 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                93.063,
+                63.652
+              ],
+              "layer": "F.Cu",
+              "net": "ETH_LEDG",
+              "refs": [
+                "J6"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2572 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                93.063,
+                63.652
+              ],
+              "layer": "F.Cu",
+              "net": "ETH_LEDG",
+              "refs": [
+                "J6"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2572 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                93.063,
+                63.652
+              ],
+              "layer": "F.Cu",
+              "net": "ETH_LEDG",
+              "refs": [
+                "J6"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2572 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                93.063,
+                63.652
+              ],
+              "layer": "F.Cu",
+              "net": "ETH_LEDG",
+              "refs": [
+                "J6"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2572 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                90.701,
+                64.338
+              ],
+              "layer": "F.Cu",
+              "net": "/PoE/T_ETH_D3_N",
+              "refs": [
+                "J6"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2995 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                90.701,
+                64.338
+              ],
+              "layer": "F.Cu",
+              "net": "/PoE/T_ETH_D3_N",
+              "refs": [
+                "J6"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2995 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                90.701,
+                64.338
+              ],
+              "layer": "F.Cu",
+              "net": "/PoE/T_ETH_D3_N",
+              "refs": [
+                "J6"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2995 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                90.701,
+                64.338
+              ],
+              "layer": "F.Cu",
+              "net": "/PoE/T_ETH_D3_N",
+              "refs": [
+                "J6"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2995 mm)"
+            },
+            {
+              "type": "holes_co_located",
+              "at_mm": [
+                117.09,
+                73.05
+              ],
+              "layer": null,
+              "net": "/PoE/POE_ACTIVE",
+              "refs": [
+                "U4",
+                "U7"
+              ],
+              "description": "Drilled holes co-located"
+            },
+            {
+              "type": "holes_co_located",
+              "at_mm": [
+                117.09,
+                80.668
+              ],
+              "layer": null,
+              "net": "GNDD",
+              "refs": [
+                "U4",
+                "U7"
+              ],
+              "description": "Drilled holes co-located"
+            },
+            {
+              "type": "holes_co_located",
+              "at_mm": [
+                117.09,
+                85.748
+              ],
+              "layer": null,
+              "net": "/PoE/VDD_POE_IN",
+              "refs": [
+                "U4",
+                "U7"
+              ],
+              "description": "Drilled holes co-located"
+            },
+            {
+              "type": "holes_co_located",
+              "at_mm": [
+                137.408,
+                93.368
+              ],
+              "layer": null,
+              "net": "/PoE/VO5V",
+              "refs": [
+                "U4",
+                "U7"
+              ],
+              "description": "Drilled holes co-located"
+            },
+            {
+              "type": "holes_co_located",
+              "at_mm": [
+                137.408,
+                83.209
+              ],
+              "layer": null,
+              "net": "unconnected-(U7-TRIM-Pad5)",
+              "refs": [
+                "U4",
+                "U7"
+              ],
+              "description": "Drilled holes co-located"
+            },
+            {
+              "type": "holes_co_located",
+              "at_mm": [
+                137.408,
+                73.05
+              ],
+              "layer": null,
+              "net": "GND",
+              "refs": [
+                "U4",
+                "U7"
+              ],
+              "description": "Drilled holes co-located"
+            },
+            {
+              "type": "silk_over_copper",
+              "at_mm": [
+                81.835,
+                85.78
+              ],
+              "layer": "F.Silkscreen",
+              "net": "/Interfaces/VBus_Slave",
+              "refs": [
+                "C56",
+                "D3"
+              ],
+              "description": "Silkscreen clipped by solder mask"
+            },
+            {
+              "type": "silk_over_copper",
+              "at_mm": [
+                155.5,
+                61.825
+              ],
+              "layer": "F.Cu",
+              "net": "nEXTRST",
+              "refs": [
+                "J7",
+                "M1"
+              ],
+              "description": "Silkscreen clipped by solder mask"
+            },
+            {
+              "type": "silk_over_copper",
+              "at_mm": [
+                155.599,
+                95.825
+              ],
+              "layer": "F.Cu",
+              "net": "HDMI0_SCL",
+              "refs": [
+                "J8",
+                "M1"
+              ],
+              "description": "Silkscreen clipped by solder mask"
+            },
+            {
+              "type": "silk_over_copper",
+              "at_mm": [
+                91.824,
+                91.506
+              ],
+              "layer": "B.Cu",
+              "net": "/PoE/VDD_POE_IN",
+              "refs": [
+                "C20",
+                "D6"
+              ],
+              "description": "Silkscreen clipped by solder mask"
+            },
+            {
+              "type": "silk_over_copper",
+              "at_mm": [
+                136.45,
+                92.425
+              ],
+              "layer": null,
+              "net": "/PoE/VO5V",
+              "refs": [
+                "C36",
+                "U4"
+              ],
+              "description": "Silkscreen clipped by solder mask"
+            },
+            {
+              "type": "silk_over_copper",
+              "at_mm": [
+                136.45,
+                92.425
+              ],
+              "layer": null,
+              "net": "/PoE/VO5V",
+              "refs": [
+                "C36",
+                "U7"
+              ],
+              "description": "Silkscreen clipped by solder mask"
+            },
+            {
+              "type": "silk_over_copper",
+              "at_mm": [
+                105.85,
+                66.475
+              ],
+              "layer": "B.Cu",
+              "net": "Earth",
+              "refs": [
+                "C50",
+                "R32"
+              ],
+              "description": "Silkscreen clipped by solder mask"
+            },
+            {
+              "type": "solder_mask_bridge",
+              "at_mm": [
+                137.408,
+                83.209
+              ],
+              "layer": null,
+              "net": "unconnected-(U4-TRIM-Pad5)",
+              "refs": [
+                "U4",
+                "U7"
+              ],
+              "description": "Front solder mask aperture bridges items with different nets"
+            },
+            {
+              "type": "solder_mask_bridge",
+              "at_mm": [
+                137.408,
+                83.209
+              ],
+              "layer": null,
+              "net": "unconnected-(U4-TRIM-Pad5)",
+              "refs": [
+                "U4",
+                "U7"
+              ],
+              "description": "Rear solder mask aperture bridges items with different nets"
+            },
+            {
+              "type": "acute_angle_acid_trap",
+              "at_mm": [
+                89.45,
+                91.95
+              ],
+              "layer": "F.Cu",
+              "net": "VSS",
+              "refs": [],
+              "description": "tracks meet at 81.2 degrees (ends)"
+            }
+          ]
+        },
+        "time_budget": {
+          "minutes": 20,
+          "attempts": 5,
+          "attempts_finished": 3,
+          "rounds": 1,
+          "winner_attempt": 2,
+          "winner_setting": 2,
+          "routing_s": 815.5,
+          "winner": "standard",
+          "stopped": "time",
+          "summary": "5 attempts in 1 round, 815 s of routing; kept attempt 2 (standard setting 2); stopped because the next attempt could not finish within the minutes asked for."
+        }
+      },
+      "completionPct": 94.62,
+      "unconnected": 24,
+      "vias": 361,
+      "trackMm": 4123.591,
+      "viasInPinPads": 0,
+      "drc": {
+        "errors": 24,
+        "errorsByType": {
+          "solder_mask_bridge": 2,
+          "courtyards_overlap": 4,
+          "pth_inside_courtyard": 12,
+          "shorting_items": 5,
+          "clearance": 1
+        },
+        "unconnectedItems": 24
+      }
+    },
+    {
+      "board": "stmp157-som-evb",
+      "layers": 4,
+      "ratsnest": 905,
+      "seconds": 616.3,
+      "timedOut": false,
+      "finishedAtS": 616.3,
+      "job": "f468daf1b0874858805202b196172924",
+      "version": {
+        "service": "2026.10.14.78",
+        "router": "r95cf716.4dfe8832",
+        "router_choice": "stable"
+      },
+      "queuedS": 13.0,
+      "late": false,
+      "zapMetrics": {
+        "unconnected": 40,
+        "critical_unconnected": 3,
+        "drc_errors": 14,
+        "wall_time_s": 616.3,
+        "fab": {
+          "check": "fab1 1.6",
+          "rules": {
+            "project": "uploaded",
+            "custom_rules": "none"
+          },
+          "jlc_items_total": 88,
+          "jlc_items_truncated": false,
+          "dangling_total": 0,
+          "isolated_total": 0,
+          "computed": true,
+          "thermal": {
+            "computed": true,
+            "currents": "Estimated from the board's parts. May under-estimate large power stages; confirm high-current nets yourself.",
+            "limit_c": 10.0,
+            "worst_rise_c": 0.01,
+            "sections_over_limit": 0,
+            "rails_checked": 8,
+            "rails_not_checked": 13,
+            "off_chart": false,
+            "nets_over_limit": [],
+            "hottest": [
+              {
+                "net": "+5V_EXT",
+                "kind": "via",
+                "layer": "",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  107.545,
+                  129.65
+                ]
+              },
+              {
+                "net": "+5V_EXT",
+                "kind": "pour",
+                "layer": "F.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.0562,
+                "current_source": "estimated",
+                "at_mm": [
+                  88.621,
+                  127.251
+                ]
+              },
+              {
+                "net": "+5V_EXT",
+                "kind": "pour",
+                "layer": "B.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.0501,
+                "current_source": "estimated",
+                "at_mm": [
+                  93.745,
+                  125.251
+                ]
+              },
+              {
+                "net": "USB_OTG_VBUS",
+                "kind": "pour",
+                "layer": "F.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.0524,
+                "current_source": "estimated",
+                "at_mm": [
+                  114.625,
+                  133.117
+                ]
+              },
+              {
+                "net": "USB_OTG_VBUS",
+                "kind": "pour",
+                "layer": "B.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.056,
+                "current_source": "estimated",
+                "at_mm": [
+                  113.31,
+                  134.006
+                ]
+              }
+            ]
+          },
+          "shorts": 4,
+          "shorts_already_in_board": 4,
+          "drc_errors": 10,
+          "drc_errors_by_type": {
+            "hole_clearance": 6,
+            "shorting_items": 4
+          },
+          "jlc_violations": 88,
+          "jlc_violations_by_type": {
+            "hole_clearance": 84,
+            "solder_mask_bridge": 4
+          },
+          "jlc_capabilities": "multilayer",
+          "counts_capped": [
+            "lib_footprint_issues",
+            "silk_overlap",
+            "text_height"
+          ],
+          "time_s": 17.7,
+          "jlc_items": [
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                98.545,
+                86.95
+              ],
+              "layer": "F.Cu",
+              "net": "PJ7\\LCD_G0",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1063 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                98.545,
+                86.95
+              ],
+              "layer": "F.Cu",
+              "net": "PJ7\\LCD_G0",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1063 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                153.945,
+                77.4
+              ],
+              "layer": "F.Cu",
+              "net": "PE0\\SAI2_MCLK_A",
+              "refs": [
+                "GPIO5"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1067 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                153.945,
+                77.4
+              ],
+              "layer": "F.Cu",
+              "net": "PE0\\SAI2_MCLK_A",
+              "refs": [
+                "GPIO5"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1067 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                176.545,
+                97.65
+              ],
+              "layer": "B.Cu",
+              "net": "+3.3V",
+              "refs": [],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1086 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                132.295,
+                118.05
+              ],
+              "layer": "F.Cu",
+              "net": "PA3",
+              "refs": [
+                "GPIO3"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1086 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                129.295,
+                45.1
+              ],
+              "layer": "B.Cu",
+              "net": "/VDD33",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1087 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                159.895,
+                110.4
+              ],
+              "layer": "F.Cu",
+              "net": "PE9\\NAND-DQ6",
+              "refs": [
+                "GPIO4"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1092 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                167.545,
+                118.05
+              ],
+              "layer": "F.Cu",
+              "net": "PE9\\NAND-DQ6",
+              "refs": [
+                "GPIO4"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1092 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                175.995,
+                102.5
+              ],
+              "layer": "F.Cu",
+              "net": "PD11\\NAND-CLE",
+              "refs": [],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1099 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                175.995,
+                102.4
+              ],
+              "layer": "F.Cu",
+              "net": "PD11\\NAND-CLE",
+              "refs": [],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1099 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                81.545,
+                111.3
+              ],
+              "layer": "F.Cu",
+              "net": "PE14\\SPI4_MOSI",
+              "refs": [
+                "UEXT1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1100 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                171.245,
+                86.8
+              ],
+              "layer": "F.Cu",
+              "net": "PB14\\EMMC_D0",
+              "refs": [],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1150 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                126.295,
+                77.9
+              ],
+              "layer": "In2.Cu",
+              "net": "PC2\\GTXD2",
+              "refs": [
+                "GPIO6"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1150 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                177.145,
+                103.65
+              ],
+              "layer": "F.Cu",
+              "net": "PD11\\NAND-CLE",
+              "refs": [],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1157 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                98.545,
+                86.95
+              ],
+              "layer": "In2.Cu",
+              "net": "PJ7\\LCD_G0",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1157 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                161.102,
+                140.875
+              ],
+              "layer": "In2.Cu",
+              "net": "ADC1_INP1",
+              "refs": [],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1178 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                98.095,
+                109.15
+              ],
+              "layer": "F.Cu",
+              "net": "PG0\\ETH_MDINT",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1181 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                98.095,
+                109.15
+              ],
+              "layer": "F.Cu",
+              "net": "PG0\\ETH_MDINT",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1181 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                131.545,
+                123.75
+              ],
+              "layer": "B.Cu",
+              "net": "PA6\\DCMI_PIXCLK",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1228 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                126.295,
+                78.35
+              ],
+              "layer": "In2.Cu",
+              "net": "PC2\\GTXD2",
+              "refs": [
+                "GPIO6"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1228 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                171.245,
+                87.45
+              ],
+              "layer": "F.Cu",
+              "net": "PB14\\EMMC_D0",
+              "refs": [],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1233 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                192.595,
+                72.05
+              ],
+              "layer": "F.Cu",
+              "net": "PZ6\\USART1_RX\\I2C6_SCL",
+              "refs": [
+                "EXT2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1238 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                126.245,
+                77.85
+              ],
+              "layer": "In2.Cu",
+              "net": "PC2\\GTXD2",
+              "refs": [
+                "GPIO6"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1247 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                126.245,
+                71.25
+              ],
+              "layer": "In2.Cu",
+              "net": "PC2\\GTXD2",
+              "refs": [
+                "GPIO6"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1247 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                103.445,
+                60.45
+              ],
+              "layer": "In2.Cu",
+              "net": "PF3\\HDMI_RSTN",
+              "refs": [
+                "GPIO6"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1250 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                192.595,
+                72.95
+              ],
+              "layer": "F.Cu",
+              "net": "PZ6\\USART1_RX\\I2C6_SCL",
+              "refs": [
+                "EXT2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1250 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                81.895,
+                118.9
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [
+                "UEXT1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1262 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                81.895,
+                118.9
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [
+                "UEXT1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1262 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                163.745,
+                106.95
+              ],
+              "layer": "B.Cu",
+              "net": "PC0",
+              "refs": [
+                "GPIO4"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1298 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                103.845,
+                77.95
+              ],
+              "layer": "B.Cu",
+              "net": "PJ4\\LCD_R5",
+              "refs": [
+                "GPIO6"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1298 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                192.445,
+                52.85
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [
+                "EXT2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1315 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                192.445,
+                52.85
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [
+                "EXT2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1315 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                97.095,
+                113.8
+              ],
+              "layer": "B.Cu",
+              "net": "+5V",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1369 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                177.495,
+                102.1
+              ],
+              "layer": "B.Cu",
+              "net": "PA4\\ADC2_INP18",
+              "refs": [],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1369 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                162.445,
+                106.6
+              ],
+              "layer": "B.Cu",
+              "net": "PA4\\ADC2_INP18",
+              "refs": [
+                "GPIO4"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1369 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                160.795,
+                109.8
+              ],
+              "layer": "F.Cu",
+              "net": "PE8\\NAND-DQ5",
+              "refs": [
+                "GPIO4"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1369 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                81.545,
+                109.65
+              ],
+              "layer": "F.Cu",
+              "net": "PE11\\SPI4_NSS",
+              "refs": [
+                "UEXT1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1400 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                81.895,
+                98.6
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1417 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                81.895,
+                98.6
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1417 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                124.945,
+                118.85
+              ],
+              "layer": "F.Cu",
+              "net": "PA13\\MCO1",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1420 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                124.945,
+                118.85
+              ],
+              "layer": "F.Cu",
+              "net": "PA13\\MCO1",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1420 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                159.495,
+                139.8
+              ],
+              "layer": "F.Cu",
+              "net": "PB7\\DCMI_VSYNC",
+              "refs": [],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1423 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                159.495,
+                139.8
+              ],
+              "layer": "F.Cu",
+              "net": "PB7\\DCMI_VSYNC",
+              "refs": [],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1423 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                171.395,
+                140.9
+              ],
+              "layer": "B.Cu",
+              "net": "PB8\\DCMI_D6",
+              "refs": [],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1428 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                97.195,
+                110.1
+              ],
+              "layer": "B.Cu",
+              "net": "+5V",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1440 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                97.195,
+                109.0
+              ],
+              "layer": "B.Cu",
+              "net": "+5V",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1450 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                192.445,
+                85.9
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [
+                "EXT1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1544 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                192.445,
+                85.9
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [
+                "EXT1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1544 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                81.695,
+                111.9
+              ],
+              "layer": "B.Cu",
+              "net": "+5V_EXT",
+              "refs": [
+                "UEXT1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1550 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                131.295,
+                119.35
+              ],
+              "layer": "B.Cu",
+              "net": "PH8\\DCMI_HSYNC",
+              "refs": [
+                "GPIO3"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1550 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                125.995,
+                79.25
+              ],
+              "layer": "F.Cu",
+              "net": "PF14\\I2C1_SCL",
+              "refs": [
+                "GPIO6"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1723 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                105.045,
+                75.05
+              ],
+              "layer": "B.Cu",
+              "net": "PJ0\\LCD_R1",
+              "refs": [
+                "GPIO6"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1723 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                167.645,
+                101.1
+              ],
+              "layer": "B.Cu",
+              "net": "+5V",
+              "refs": [],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1728 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                130.195,
+                124.1
+              ],
+              "layer": "B.Cu",
+              "net": "PA13\\MCO1",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1793 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                184.695,
+                111.3
+              ],
+              "layer": "In2.Cu",
+              "net": "PC13",
+              "refs": [],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1864 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                124.945,
+                118.8
+              ],
+              "layer": "F.Cu",
+              "net": "PA13\\MCO1",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1921 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                125.095,
+                118.65
+              ],
+              "layer": "F.Cu",
+              "net": "PA13\\MCO1",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1921 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                114.295,
+                59.9
+              ],
+              "layer": "B.Cu",
+              "net": "PB12\\USART3_RX\\CAN2_RX",
+              "refs": [
+                "U6"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2699 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                131.699,
+                41.91
+              ],
+              "layer": null,
+              "net": "/VDD33",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2607 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                131.699,
+                41.91
+              ],
+              "layer": null,
+              "net": "/VDD33",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2607 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                145.161,
+                41.91
+              ],
+              "layer": null,
+              "net": "/VDD33",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2607 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                145.161,
+                41.91
+              ],
+              "layer": null,
+              "net": "/VDD33",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2607 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                174.995,
+                59.75
+              ],
+              "layer": "In2.Cu",
+              "net": "PZ6\\USART1_RX\\I2C6_SCL",
+              "refs": [
+                "U7"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2633 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                117.095,
+                62.7
+              ],
+              "layer": "In2.Cu",
+              "net": "PK5\\LCD_B6",
+              "refs": [
+                "U6"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2699 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                175.695,
+                59.75
+              ],
+              "layer": "In2.Cu",
+              "net": "PZ6\\USART1_RX\\I2C6_SCL",
+              "refs": [
+                "U7"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2840 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                98.545,
+                86.95
+              ],
+              "layer": "F.Cu",
+              "net": "PJ7\\LCD_G0",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1063 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                98.545,
+                86.95
+              ],
+              "layer": "F.Cu",
+              "net": "PJ7\\LCD_G0",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1063 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                153.945,
+                77.4
+              ],
+              "layer": "F.Cu",
+              "net": "PE0\\SAI2_MCLK_A",
+              "refs": [
+                "GPIO5"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1067 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                153.945,
+                77.4
+              ],
+              "layer": "F.Cu",
+              "net": "PE0\\SAI2_MCLK_A",
+              "refs": [
+                "GPIO5"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1067 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                98.095,
+                109.15
+              ],
+              "layer": "F.Cu",
+              "net": "PG0\\ETH_MDINT",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1181 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                98.095,
+                109.15
+              ],
+              "layer": "F.Cu",
+              "net": "PG0\\ETH_MDINT",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1181 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                81.895,
+                118.9
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [
+                "UEXT1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1262 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                81.895,
+                118.9
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [
+                "UEXT1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1262 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                192.445,
+                52.85
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [
+                "EXT2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1315 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                192.445,
+                52.85
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [
+                "EXT2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1315 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                81.895,
+                98.6
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1417 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                81.895,
+                98.6
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1417 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                124.945,
+                118.85
+              ],
+              "layer": "F.Cu",
+              "net": "PA13\\MCO1",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1420 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                124.945,
+                118.85
+              ],
+              "layer": "F.Cu",
+              "net": "PA13\\MCO1",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1420 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                159.495,
+                139.8
+              ],
+              "layer": "F.Cu",
+              "net": "PB7\\DCMI_VSYNC",
+              "refs": [],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1423 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                159.495,
+                139.8
+              ],
+              "layer": "F.Cu",
+              "net": "PB7\\DCMI_VSYNC",
+              "refs": [],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1423 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                192.445,
+                85.9
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [
+                "EXT1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1544 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                192.445,
+                85.9
+              ],
+              "layer": "F.Cu",
+              "net": "GND",
+              "refs": [
+                "EXT1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1544 mm)"
+            },
+            {
+              "type": "solder_mask_bridge",
+              "at_mm": [
+                95.123,
+                60.579
+              ],
+              "layer": "F.Cu",
+              "net": "<no net>",
+              "refs": [],
+              "description": "Front solder mask aperture bridges items with different nets"
+            },
+            {
+              "type": "solder_mask_bridge",
+              "at_mm": [
+                95.123,
+                60.579
+              ],
+              "layer": "F.Cu",
+              "net": "<no net>",
+              "refs": [],
+              "description": "Front solder mask aperture bridges items with different nets"
+            },
+            {
+              "type": "solder_mask_bridge",
+              "at_mm": [
+                102.743,
+                60.579
+              ],
+              "layer": "F.Cu",
+              "net": "<no net>",
+              "refs": [],
+              "description": "Front solder mask aperture bridges items with different nets"
+            },
+            {
+              "type": "solder_mask_bridge",
+              "at_mm": [
+                102.743,
+                60.579
+              ],
+              "layer": "F.Cu",
+              "net": "<no net>",
+              "refs": [],
+              "description": "Front solder mask aperture bridges items with different nets"
+            }
+          ]
+        },
+        "time_budget": {
+          "minutes": 20,
+          "attempts": 5,
+          "attempts_finished": 3,
+          "rounds": 1,
+          "winner_attempt": 5,
+          "winner_setting": 5,
+          "routing_s": 579.3,
+          "winner": "standard",
+          "stopped": "time",
+          "summary": "5 attempts in 1 round, 579 s of routing; kept attempt 5 (standard setting 5); stopped because the next attempt could not finish within the minutes asked for."
+        }
+      },
+      "completionPct": 95.58,
+      "unconnected": 40,
+      "vias": 870,
+      "trackMm": 11510.915,
+      "viasInPinPads": 0,
+      "drc": {
+        "errors": 14,
+        "errorsByType": {
+          "solder_mask_bridge": 4,
+          "hole_clearance": 6,
+          "shorting_items": 4
+        },
+        "unconnectedItems": 40
+      }
+    },
+    {
+      "board": "imx8mp-som-evb",
+      "layers": 4,
+      "ratsnest": 997,
+      "seconds": 625.7,
+      "timedOut": false,
+      "finishedAtS": 625.7,
+      "job": "64f9ebf16fe6447d945d1421e8c920ff",
+      "version": {
+        "service": "2026.10.14.78",
+        "router": "r95cf716.4dfe8832",
+        "router_choice": "stable"
+      },
+      "queuedS": 12.6,
+      "late": false,
+      "zapMetrics": {
+        "unconnected": 36,
+        "critical_unconnected": 3,
+        "drc_errors": 0,
+        "wall_time_s": 625.7,
+        "fab": {
+          "check": "fab1 1.6",
+          "rules": {
+            "project": "uploaded",
+            "custom_rules": "none"
+          },
+          "jlc_items_total": 135,
+          "jlc_items_truncated": false,
+          "dangling_total": 0,
+          "isolated_total": 0,
+          "computed": true,
+          "thermal": {
+            "computed": true,
+            "currents": "Estimated from the board's parts. May under-estimate large power stages; confirm high-current nets yourself.",
+            "limit_c": 10.0,
+            "worst_rise_c": 0.01,
+            "sections_over_limit": 0,
+            "rails_checked": 12,
+            "rails_not_checked": 13,
+            "off_chart": false,
+            "nets_over_limit": [],
+            "hottest": [
+              {
+                "net": "+3.3VA",
+                "kind": "track",
+                "layer": "F.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  174.035,
+                  78.325
+                ]
+              },
+              {
+                "net": "/PCIe_nRST_3V3",
+                "kind": "pour",
+                "layer": "F.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.0534,
+                "current_source": "estimated",
+                "at_mm": [
+                  180.922,
+                  117.047
+                ]
+              },
+              {
+                "net": "/PCIe_nRST_3V3",
+                "kind": "pour",
+                "layer": "B.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.051,
+                "current_source": "estimated",
+                "at_mm": [
+                  183.682,
+                  118.352
+                ]
+              },
+              {
+                "net": "/USB1_HOST_VBUS",
+                "kind": "track",
+                "layer": "F.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  145.11,
+                  117.275
+                ]
+              },
+              {
+                "net": "/USB1_HOST_VBUS",
+                "kind": "track",
+                "layer": "B.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  147.86,
+                  120.1
+                ]
+              },
+              {
+                "net": "/USB1_HOST_VBUS",
+                "kind": "track",
+                "layer": "B.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  147.48,
+                  118.562
+                ]
+              },
+              {
+                "net": "/USB1_HOST_VBUS",
+                "kind": "track",
+                "layer": "B.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  148.085,
+                  121.5
+                ]
+              },
+              {
+                "net": "/USB1_HOST_VBUS",
+                "kind": "via",
+                "layer": "",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  147.1,
+                  118.2
+                ]
+              },
+              {
+                "net": "/USB2_HOST_VBUS",
+                "kind": "track",
+                "layer": "F.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  122.185,
+                  117.175
+                ]
+              },
+              {
+                "net": "/USB2_HOST_VBUS",
+                "kind": "track",
+                "layer": "F.Cu",
+                "rise_c": 0.01,
+                "current_a": 0.05,
+                "current_source": "estimated",
+                "at_mm": [
+                  124.56,
+                  118.525
+                ]
+              }
+            ]
+          },
+          "shorts": 0,
+          "shorts_already_in_board": 0,
+          "drc_errors": 0,
+          "drc_errors_by_type": {},
+          "jlc_violations": 135,
+          "jlc_violations_by_type": {
+            "hole_clearance": 134,
+            "silk_over_copper": 1
+          },
+          "jlc_capabilities": "multilayer",
+          "counts_capped": [
+            "lib_footprint_issues",
+            "text_height"
+          ],
+          "time_s": 28.4,
+          "jlc_items": [
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                178.71,
+                124.625
+              ],
+              "layer": "In2.Cu",
+              "net": "/PCIE_X1_REFCLK100M_P",
+              "refs": [
+                "X1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1062 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                116.21,
+                109.625
+              ],
+              "layer": "F.Cu",
+              "net": "/CLKOUT1",
+              "refs": [
+                "GPIO3"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1074 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                116.21,
+                109.625
+              ],
+              "layer": "F.Cu",
+              "net": "/CLKOUT1",
+              "refs": [
+                "GPIO3"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1074 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                139.61,
+                74.075
+              ],
+              "layer": "In2.Cu",
+              "net": "/SAI1_RXD5\\ENET1_RD1",
+              "refs": [
+                "GPIO5"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1082 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                138.91,
+                73.375
+              ],
+              "layer": "In2.Cu",
+              "net": "/SAI1_RXD5\\ENET1_RD1",
+              "refs": [
+                "GPIO5"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1082 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                156.16,
+                87.425
+              ],
+              "layer": "In2.Cu",
+              "net": "/I2C4_SDA\\PCIe_nWAKE",
+              "refs": [],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1086 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                200.81,
+                126.375
+              ],
+              "layer": "F.Cu",
+              "net": "+3.3VPCIe",
+              "refs": [
+                "X1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1087 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                180.01,
+                123.075
+              ],
+              "layer": "In2.Cu",
+              "net": "/PCIE_X1_REFCLK100M_N",
+              "refs": [
+                "X1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1090 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                156.51,
+                39.125
+              ],
+              "layer": "In2.Cu",
+              "net": "Net-(LAN1-Pad11)",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1097 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                138.66,
+                73.125
+              ],
+              "layer": "F.Cu",
+              "net": "/SAI1_RXD2\\ENET1_MDC",
+              "refs": [
+                "GPIO5"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1100 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                138.71,
+                73.175
+              ],
+              "layer": "F.Cu",
+              "net": "/SAI1_RXD2\\ENET1_MDC",
+              "refs": [
+                "GPIO5"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1100 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                83.11,
+                102.325
+              ],
+              "layer": "In2.Cu",
+              "net": "/UART1_RTS",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1100 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                178.56,
+                123.725
+              ],
+              "layer": "In2.Cu",
+              "net": "/PCIE_X1_REFCLK100M_N",
+              "refs": [
+                "X1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1105 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                88.86,
+                73.225
+              ],
+              "layer": "F.Cu",
+              "net": "+5V",
+              "refs": [
+                "GPIO6"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1121 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                83.11,
+                79.775
+              ],
+              "layer": "B.Cu",
+              "net": "/ECSPI2_MOSI",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1121 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                109.31,
+                73.275
+              ],
+              "layer": "F.Cu",
+              "net": "/SAI3_RXD",
+              "refs": [
+                "GPIO6"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1121 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                72.86,
+                93.975
+              ],
+              "layer": "B.Cu",
+              "net": "VDD_1V8",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1121 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                116.21,
+                109.625
+              ],
+              "layer": "F.Cu",
+              "net": "/CLKOUT1",
+              "refs": [
+                "GPIO3"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1122 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                115.96,
+                109.625
+              ],
+              "layer": "F.Cu",
+              "net": "/CLKOUT1",
+              "refs": [
+                "GPIO3"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1122 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                133.01,
+                39.125
+              ],
+              "layer": "In2.Cu",
+              "net": "Net-(LAN2-Pad11)",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1132 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                138.61,
+                73.125
+              ],
+              "layer": "F.Cu",
+              "net": "/SAI1_RXD2\\ENET1_MDC",
+              "refs": [
+                "GPIO5"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1145 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                138.56,
+                73.075
+              ],
+              "layer": "F.Cu",
+              "net": "/SAI1_RXD2\\ENET1_MDC",
+              "refs": [
+                "GPIO5"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1145 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                129.26,
+                74.225
+              ],
+              "layer": "B.Cu",
+              "net": "/I2C2_SDA_3V3",
+              "refs": [
+                "GPIO6"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1150 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                64.01,
+                74.475
+              ],
+              "layer": "F.Cu",
+              "net": "/UEXT_SCLK",
+              "refs": [
+                "UEXT1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1150 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                143.41,
+                95.925
+              ],
+              "layer": "F.Cu",
+              "net": "/PMIC_ON_REQ",
+              "refs": [
+                "GPIO4"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1153 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                143.36,
+                95.975
+              ],
+              "layer": "F.Cu",
+              "net": "/PMIC_ON_REQ",
+              "refs": [
+                "GPIO4"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1153 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                178.71,
+                124.575
+              ],
+              "layer": "In2.Cu",
+              "net": "/PCIE_X1_REFCLK100M_P",
+              "refs": [
+                "X1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1171 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                167.06,
+                112.925
+              ],
+              "layer": "In2.Cu",
+              "net": "/PCIE_X1_REFCLK100M_P",
+              "refs": [
+                "X1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1171 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                87.91,
+                108.725
+              ],
+              "layer": "F.Cu",
+              "net": "/QSPIA_DQS\\eMMC_RSTn",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1187 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                89.56,
+                108.725
+              ],
+              "layer": "F.Cu",
+              "net": "/QSPIA_DQS\\eMMC_RSTn",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1187 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                180.66,
+                124.725
+              ],
+              "layer": "F.Cu",
+              "net": "/PCIE_X1_REFCLK100M_N",
+              "refs": [
+                "X1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1195 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                180.66,
+                124.725
+              ],
+              "layer": "F.Cu",
+              "net": "/PCIE_X1_REFCLK100M_N",
+              "refs": [
+                "X1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1195 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                155.61,
+                38.225
+              ],
+              "layer": "In2.Cu",
+              "net": "Net-(LAN1-Pad11)",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1200 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                65.86,
+                89.225
+              ],
+              "layer": "B.Cu",
+              "net": "VDD_1V8",
+              "refs": [
+                "EXT1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1210 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                132.11,
+                38.225
+              ],
+              "layer": "In2.Cu",
+              "net": "Net-(LAN2-Pad11)",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1250 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                83.31,
+                102.925
+              ],
+              "layer": "F.Cu",
+              "net": "/CLKIN1",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1263 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                87.41,
+                108.625
+              ],
+              "layer": "F.Cu",
+              "net": "/QSPIA_DQS\\eMMC_RSTn",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1263 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                83.11,
+                103.125
+              ],
+              "layer": "In2.Cu",
+              "net": "/UART1_RTS",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1263 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                146.36,
+                39.175
+              ],
+              "layer": "In2.Cu",
+              "net": "Net-(LAN2-Pad13)",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1274 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                179.21,
+                123.075
+              ],
+              "layer": "In2.Cu",
+              "net": "/PCIE_X1_REFCLK100M_N",
+              "refs": [
+                "X1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1280 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                87.21,
+                109.875
+              ],
+              "layer": "F.Cu",
+              "net": "VDD_3V3",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1281 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                87.21,
+                109.875
+              ],
+              "layer": "F.Cu",
+              "net": "VDD_3V3",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1281 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                169.86,
+                39.175
+              ],
+              "layer": "In2.Cu",
+              "net": "Net-(LAN1-Pad13)",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1309 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                158.46,
+                92.275
+              ],
+              "layer": "B.Cu",
+              "net": "/JTAG_MOD",
+              "refs": [],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1310 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                83.11,
+                102.325
+              ],
+              "layer": "F.Cu",
+              "net": "/UART1_RTS",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1314 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                83.11,
+                102.325
+              ],
+              "layer": "F.Cu",
+              "net": "/UART1_RTS",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1314 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                87.86,
+                108.625
+              ],
+              "layer": "B.Cu",
+              "net": "VDD_1V8",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1334 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                138.26,
+                73.075
+              ],
+              "layer": "F.Cu",
+              "net": "/SAI1_RXD2\\ENET1_MDC",
+              "refs": [
+                "GPIO5"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1350 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                65.86,
+                88.525
+              ],
+              "layer": "B.Cu",
+              "net": "VDD_1V8",
+              "refs": [
+                "EXT1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1360 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                179.41,
+                125.325
+              ],
+              "layer": "F.Cu",
+              "net": "/PCIE_X1_REFCLK100M_P",
+              "refs": [
+                "X1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1384 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                179.41,
+                125.325
+              ],
+              "layer": "F.Cu",
+              "net": "/PCIE_X1_REFCLK100M_P",
+              "refs": [
+                "X1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1384 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                138.01,
+                74.075
+              ],
+              "layer": "F.Cu",
+              "net": "/SAI1_MCLK",
+              "refs": [
+                "GPIO5"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1404 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                131.61,
+                74.075
+              ],
+              "layer": "F.Cu",
+              "net": "/SAI1_MCLK",
+              "refs": [
+                "GPIO5"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1404 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                144.66,
+                95.925
+              ],
+              "layer": "F.Cu",
+              "net": "/PMIC_ON_REQ",
+              "refs": [
+                "GPIO4"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1450 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                87.81,
+                108.625
+              ],
+              "layer": "F.Cu",
+              "net": "/QSPIA_DQS\\eMMC_RSTn",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1450 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                91.76,
+                109.325
+              ],
+              "layer": "In2.Cu",
+              "net": "/SD3_DATA0",
+              "refs": [],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1450 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                147.31,
+                38.225
+              ],
+              "layer": "In2.Cu",
+              "net": "Net-(LAN2-Pad13)",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1450 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                87.51,
+                108.625
+              ],
+              "layer": "B.Cu",
+              "net": "VDD_1V8",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1450 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                180.66,
+                123.725
+              ],
+              "layer": "In2.Cu",
+              "net": "/PCIE_X1_REFCLK100M_N",
+              "refs": [
+                "X1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1490 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                170.81,
+                38.225
+              ],
+              "layer": "In2.Cu",
+              "net": "Net-(LAN1-Pad13)",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1500 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                198.81,
+                124.375
+              ],
+              "layer": "F.Cu",
+              "net": "+3.3VPCIe",
+              "refs": [
+                "X1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1510 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                82.76,
+                103.475
+              ],
+              "layer": "F.Cu",
+              "net": "/CLKIN1",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1550 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                115.76,
+                109.825
+              ],
+              "layer": "F.Cu",
+              "net": "/CLKOUT1",
+              "refs": [
+                "GPIO3"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1550 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                142.36,
+                97.125
+              ],
+              "layer": "F.Cu",
+              "net": "/JTAG_TDO",
+              "refs": [
+                "GPIO4"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1550 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                103.86,
+                79.775
+              ],
+              "layer": "B.Cu",
+              "net": "/ECSPI2_MOSI",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1573 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                138.16,
+                72.975
+              ],
+              "layer": "F.Cu",
+              "net": "/SAI1_RXD2\\ENET1_MDC",
+              "refs": [
+                "GPIO5"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1592 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                115.31,
+                109.825
+              ],
+              "layer": "F.Cu",
+              "net": "/CLKOUT1",
+              "refs": [
+                "GPIO3"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1616 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                70.16,
+                84.225
+              ],
+              "layer": "B.Cu",
+              "net": "VDD_1V8",
+              "refs": [
+                "EXT1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1663 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                113.86,
+                72.825
+              ],
+              "layer": "F.Cu",
+              "net": "VDD_3V3",
+              "refs": [
+                "GPIO5"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1687 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                87.01,
+                74.475
+              ],
+              "layer": "In2.Cu",
+              "net": "/UART4_TXD",
+              "refs": [
+                "GPIO6"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1700 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                156.51,
+                41.425
+              ],
+              "layer": "In2.Cu",
+              "net": "Net-(LAN1-Pad11)",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1726 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                133.01,
+                41.525
+              ],
+              "layer": "In2.Cu",
+              "net": "Net-(LAN2-Pad11)",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1752 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                65.86,
+                89.225
+              ],
+              "layer": "B.Cu",
+              "net": "VDD_1V8",
+              "refs": [
+                "EXT1"
+              ],
+              "description": "Hole clearance violation (board setup constraints hole clearance 0.2000 mm; actual 0.1969 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                138.86,
+                60.675
+              ],
+              "layer": "B.Cu",
+              "net": "/SAI2_RXFS\\ENET_nINT",
+              "refs": [
+                "U4"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2200 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                112.01,
+                62.525
+              ],
+              "layer": "B.Cu",
+              "net": "/SAI3_RXFS",
+              "refs": [
+                "U4"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2300 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                166.46,
+                61.925
+              ],
+              "layer": "B.Cu",
+              "net": "/UART3_RTS",
+              "refs": [
+                "U9"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2400 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                135.255,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[0",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2560 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                135.255,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[0",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2560 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                135.255,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[0",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2560 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                135.255,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[0",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2560 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                158.46,
+                63.825
+              ],
+              "layer": "B.Cu",
+              "net": "/UART3_CTS",
+              "refs": [
+                "U9"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2600 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                170.51,
+                74.575
+              ],
+              "layer": "B.Cu",
+              "net": "/I2C3_SDA",
+              "refs": [
+                "U11"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2680 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                171.71,
+                75.775
+              ],
+              "layer": "B.Cu",
+              "net": "/I2C3_SDA",
+              "refs": [
+                "U11"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2680 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                142.875,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[2",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2696 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                142.875,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[2",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2696 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                142.875,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[2",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2696 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                142.875,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[2",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2696 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                136.525,
+                43.815
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[1",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2750 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                136.525,
+                43.815
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[1",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2750 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                136.525,
+                43.815
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[1",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2750 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                136.525,
+                43.815
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[1",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: PTH hole to track 0.28' clearance 0.2800 mm; actual 0.2750 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                169.26,
+                76.575
+              ],
+              "layer": "In2.Cu",
+              "net": "HPOUT1R",
+              "refs": [
+                "U11"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2550 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                135.255,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[0",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2560 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                135.255,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[0",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2560 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                135.255,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[0",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2560 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                135.255,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[0",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2560 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                156.464,
+                34.925
+              ],
+              "layer": null,
+              "net": "Net-(LAN1-Pad11)",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2607 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                156.464,
+                34.925
+              ],
+              "layer": null,
+              "net": "Net-(LAN1-Pad11)",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2607 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                132.969,
+                34.925
+              ],
+              "layer": null,
+              "net": "Net-(LAN2-Pad11)",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2607 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                132.969,
+                34.925
+              ],
+              "layer": null,
+              "net": "Net-(LAN2-Pad11)",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2607 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                169.926,
+                34.925
+              ],
+              "layer": null,
+              "net": "Net-(LAN1-Pad13)",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2607 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                169.926,
+                34.925
+              ],
+              "layer": null,
+              "net": "Net-(LAN1-Pad13)",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2607 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                146.431,
+                34.925
+              ],
+              "layer": null,
+              "net": "Net-(LAN2-Pad13)",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2607 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                146.431,
+                34.925
+              ],
+              "layer": null,
+              "net": "Net-(LAN2-Pad13)",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2607 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                171.71,
+                75.775
+              ],
+              "layer": "In2.Cu",
+              "net": "HPOUT1L",
+              "refs": [
+                "U11"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2680 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                170.71,
+                74.775
+              ],
+              "layer": "In2.Cu",
+              "net": "HPOUT1L",
+              "refs": [
+                "U11"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2680 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                168.86,
+                76.975
+              ],
+              "layer": "In2.Cu",
+              "net": "HPOUT1R",
+              "refs": [
+                "U11"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2682 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                142.875,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[2",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2696 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                142.875,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[2",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2696 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                142.875,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[2",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2696 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                142.875,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[2",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2696 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                136.525,
+                43.815
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[1",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2750 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                136.525,
+                43.815
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[1",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2750 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                136.525,
+                43.815
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[1",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2750 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                136.525,
+                43.815
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[1",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2750 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                172.01,
+                75.775
+              ],
+              "layer": "In2.Cu",
+              "net": "HPOUT1L",
+              "refs": [
+                "U11"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2809 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                158.75,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI[0",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2844 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                158.75,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI[0",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2844 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                158.75,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI[0",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2844 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                158.75,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI[0",
+              "refs": [
+                "LAN1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2844 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                135.255,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[0",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2893 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                135.255,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[0",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2893 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                135.255,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[0",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2893 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                135.255,
+                46.355
+              ],
+              "layer": "F.Cu",
+              "net": "/MDI1[0",
+              "refs": [
+                "LAN2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner PTH hole to copper 0.3' clearance 0.3000 mm; actual 0.2893 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                116.21,
+                109.625
+              ],
+              "layer": "F.Cu",
+              "net": "/CLKOUT1",
+              "refs": [
+                "GPIO3"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1074 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                116.21,
+                109.625
+              ],
+              "layer": "F.Cu",
+              "net": "/CLKOUT1",
+              "refs": [
+                "GPIO3"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1074 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                180.66,
+                124.725
+              ],
+              "layer": "F.Cu",
+              "net": "/PCIE_X1_REFCLK100M_N",
+              "refs": [
+                "X1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1195 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                180.66,
+                124.725
+              ],
+              "layer": "F.Cu",
+              "net": "/PCIE_X1_REFCLK100M_N",
+              "refs": [
+                "X1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1195 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                87.21,
+                109.875
+              ],
+              "layer": "F.Cu",
+              "net": "VDD_3V3",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1281 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                87.21,
+                109.875
+              ],
+              "layer": "F.Cu",
+              "net": "VDD_3V3",
+              "refs": [
+                "GPIO2"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1281 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                83.11,
+                102.325
+              ],
+              "layer": "F.Cu",
+              "net": "/UART1_RTS",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1314 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                83.11,
+                102.325
+              ],
+              "layer": "F.Cu",
+              "net": "/UART1_RTS",
+              "refs": [
+                "GPIO1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1314 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                179.41,
+                125.325
+              ],
+              "layer": "F.Cu",
+              "net": "/PCIE_X1_REFCLK100M_P",
+              "refs": [
+                "X1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1384 mm)"
+            },
+            {
+              "type": "hole_clearance",
+              "at_mm": [
+                179.41,
+                125.325
+              ],
+              "layer": "F.Cu",
+              "net": "/PCIE_X1_REFCLK100M_P",
+              "refs": [
+                "X1"
+              ],
+              "description": "Hole clearance violation (rule 'JLC: inner via hole to copper 0.2' clearance 0.2000 mm; actual 0.1384 mm)"
+            },
+            {
+              "type": "silk_over_copper",
+              "at_mm": [
+                198.12,
+                111.76
+              ],
+              "layer": "B.Silkscreen",
+              "net": null,
+              "refs": [
+                "EXT2"
+              ],
+              "description": "Silkscreen clipped by solder mask"
+            }
+          ]
+        },
+        "time_budget": {
+          "minutes": 20,
+          "attempts": 5,
+          "attempts_finished": 2,
+          "rounds": 1,
+          "winner_attempt": 5,
+          "winner_setting": 5,
+          "routing_s": 568.6,
+          "winner": "standard",
+          "stopped": "time",
+          "summary": "5 attempts in 1 round, 568 s of routing; kept attempt 5 (standard setting 5); stopped because the next attempt could not finish within the minutes asked for."
+        }
+      },
+      "completionPct": 96.39,
+      "unconnected": 36,
+      "vias": 821,
+      "trackMm": 11658.724,
+      "viasInPinPads": 0,
+      "drc": {
+        "errors": 0,
+        "errorsByType": {},
+        "unconnectedItems": 36
+      }
+    }
+  ]
+}

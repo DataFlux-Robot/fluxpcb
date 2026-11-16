@@ -1,0 +1,232 @@
+{
+  "tool": "krt",
+  "capS": 1200,
+  "generatedAt": "2026-10-14T09:46:03",
+  "boards": [
+    {
+      "board": "pic-programmer",
+      "layers": 2,
+      "ratsnest": 125,
+      "seconds": 43.7,
+      "timedOut": false,
+      "solved": true,
+      "failed": false,
+      "error": null,
+      "netByNet": false,
+      "version": "0.1.9",
+      "completionPct": 100.0,
+      "unconnected": 0,
+      "vias": 99,
+      "trackMm": 3819.032,
+      "drc": {
+        "errors": 95,
+        "errorsByType": {
+          "shorting_items": 33,
+          "clearance": 58,
+          "hole_clearance": 4
+        },
+        "unconnectedItems": 0
+      },
+      "finishedAtS": 43.7,
+      "viasInPinPads": 0
+    },
+    {
+      "board": "rp2040-minimal",
+      "layers": 2,
+      "ratsnest": 150,
+      "seconds": 126.8,
+      "timedOut": false,
+      "solved": true,
+      "failed": false,
+      "error": "whole-board solve: KRT GridRouter exhausted route-plan retries: RoutePlanStrategy { bus_order: CenterOut, ungrouped_order: Original }: KRT GridRouter found no route for connection; routed connection by connection, 36 of 51 skipped",
+      "netByNet": true,
+      "version": "0.1.9",
+      "completionPct": 26.67,
+      "unconnected": 110,
+      "vias": 12,
+      "trackMm": 597.136,
+      "drc": {
+        "errors": 12,
+        "errorsByType": {
+          "clearance": 6,
+          "hole_clearance": 6
+        },
+        "unconnectedItems": 110
+      },
+      "finishedAtS": 126.8,
+      "viasInPinPads": 0
+    },
+    {
+      "board": "pico-vga",
+      "layers": 4,
+      "ratsnest": 180,
+      "seconds": 41.6,
+      "timedOut": false,
+      "solved": true,
+      "failed": false,
+      "error": null,
+      "netByNet": false,
+      "version": "0.1.9",
+      "completionPct": 100.0,
+      "unconnected": 0,
+      "vias": 116,
+      "trackMm": 2511.695,
+      "drc": {
+        "errors": 227,
+        "errorsByType": {
+          "solder_mask_bridge": 22,
+          "invalid_outline": 3,
+          "copper_edge_clearance": 10,
+          "clearance": 111,
+          "hole_clearance": 41,
+          "shorting_items": 40
+        },
+        "unconnectedItems": 0
+      },
+      "finishedAtS": 41.6,
+      "viasInPinPads": 25
+    },
+    {
+      "board": "cm5io",
+      "layers": 4,
+      "ratsnest": 431,
+      "seconds": 1208.0,
+      "timedOut": true,
+      "solved": true,
+      "failed": false,
+      "error": "whole-board solve: KRT GridRouter exhausted route-plan retries: RoutePlanStrategy { bus_order: CenterOut, ungrouped_order: Original }: KRT GridRouter found no route for connection; routed connection by connection, 119 of 160 skipped",
+      "netByNet": true,
+      "version": "0.1.9",
+      "completionPct": 50.12,
+      "unconnected": 215,
+      "vias": 84,
+      "trackMm": 5052.111,
+      "drc": {
+        "errors": 88,
+        "errorsByType": {
+          "hole_to_hole": 8,
+          "hole_clearance": 80
+        },
+        "unconnectedItems": 215
+      },
+      "finishedAtS": 1208.0,
+      "viasInPinPads": 22
+    },
+    {
+      "board": "rk3328-som-evb",
+      "layers": 4,
+      "ratsnest": 462,
+      "seconds": 971.3,
+      "timedOut": false,
+      "solved": true,
+      "failed": false,
+      "error": "whole-board solve: KRT GridRouter exhausted route-plan retries: RoutePlanStrategy { bus_order: CenterOut, ungrouped_order: Original }: KRT GridRouter found no route for connection; routed connection by connection, 114 of 164 skipped",
+      "netByNet": true,
+      "version": "0.1.9",
+      "completionPct": 43.94,
+      "unconnected": 259,
+      "vias": 104,
+      "trackMm": 4518.169,
+      "drc": {
+        "errors": 143,
+        "errorsByType": {
+          "solder_mask_bridge": 16,
+          "shorting_items": 31,
+          "hole_clearance": 58,
+          "clearance": 38
+        },
+        "unconnectedItems": 259
+      },
+      "finishedAtS": 971.3,
+      "viasInPinPads": 47
+    },
+    {
+      "board": "scalenode-cm4",
+      "layers": 4,
+      "ratsnest": 446,
+      "seconds": 532.9,
+      "timedOut": false,
+      "solved": true,
+      "failed": false,
+      "error": "whole-board solve: KRT GridRouter exhausted route-plan retries: RoutePlanStrategy { bus_order: CenterOut, ungrouped_order: Original }: KRT GridRouter found no route for connection; routed connection by connection, 77 of 135 skipped",
+      "netByNet": true,
+      "version": "0.1.9",
+      "completionPct": 54.93,
+      "unconnected": 201,
+      "vias": 102,
+      "trackMm": 3552.293,
+      "drc": {
+        "errors": 191,
+        "errorsByType": {
+          "solder_mask_bridge": 3,
+          "copper_edge_clearance": 7,
+          "courtyards_overlap": 4,
+          "pth_inside_courtyard": 12,
+          "shorting_items": 48,
+          "clearance": 64,
+          "hole_clearance": 53
+        },
+        "unconnectedItems": 201
+      },
+      "finishedAtS": 532.9,
+      "viasInPinPads": 33
+    },
+    {
+      "board": "stmp157-som-evb",
+      "layers": 4,
+      "ratsnest": 905,
+      "seconds": 1201.5,
+      "timedOut": true,
+      "solved": true,
+      "failed": false,
+      "error": "whole-board solve: KRT GridRouter exhausted route-plan retries: RoutePlanStrategy { bus_order: CenterOut, ungrouped_order: Original }: KRT GridRouter found no route for connection; routed connection by connection, 88 of 327 skipped",
+      "netByNet": true,
+      "version": "0.1.9",
+      "completionPct": 21.66,
+      "unconnected": 709,
+      "vias": 196,
+      "trackMm": 4696.866,
+      "drc": {
+        "errors": 264,
+        "errorsByType": {
+          "solder_mask_bridge": 60,
+          "copper_edge_clearance": 22,
+          "shorting_items": 49,
+          "clearance": 100,
+          "hole_clearance": 33
+        },
+        "unconnectedItems": 499
+      },
+      "finishedAtS": 1201.5,
+      "viasInPinPads": 34
+    },
+    {
+      "board": "imx8mp-som-evb",
+      "layers": 4,
+      "ratsnest": 997,
+      "seconds": 1203.3,
+      "timedOut": true,
+      "solved": true,
+      "failed": false,
+      "error": "whole-board solve: KRT GridRouter exhausted route-plan retries: RoutePlanStrategy { bus_order: CenterOut, ungrouped_order: Original }: KRT GridRouter found no route for connection; routed connection by connection, 108 of 360 skipped",
+      "netByNet": true,
+      "version": "0.1.9",
+      "completionPct": 30.79,
+      "unconnected": 690,
+      "vias": 307,
+      "trackMm": 6603.552,
+      "drc": {
+        "errors": 470,
+        "errorsByType": {
+          "solder_mask_bridge": 102,
+          "shorting_items": 91,
+          "clearance": 155,
+          "hole_clearance": 122
+        },
+        "unconnectedItems": 499
+      },
+      "finishedAtS": 1203.3,
+      "viasInPinPads": 61
+    }
+  ]
+}

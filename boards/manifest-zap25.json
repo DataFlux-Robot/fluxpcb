@@ -1,0 +1,436 @@
+{
+  "note": "The 25 public boards Zap! (Mutual Solutions) published its comparison on (zap.mutual.solutions/compare, measured 2026-10-12/13), pinned to the same commits. Fetched from upstream and checked against boards/checksums.json; nothing here is a copy of a board. No benchmark rules file: each board runs under its own project's rules, as in that comparison. Select with BOARD_SET=zap25.",
+  "boards": [
+    {
+      "name": "cm4-lvds-adapter",
+      "layers": 6,
+      "title": "Antmicro CM4 baseboard LVDS adapter",
+      "licence": "Apache-2.0",
+      "author": "Antmicro",
+      "home": "https://github.com/antmicro/cm4-baseboard-lvds-adapter/tree/4af945ed558e58e4b8aea6fe909fc33d78b63f6f",
+      "connections_zap": 377,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/antmicro/cm4-baseboard-lvds-adapter/4af945ed558e58e4b8aea6fe909fc33d78b63f6f/cm4-lvds-adapter.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/antmicro/cm4-baseboard-lvds-adapter/4af945ed558e58e4b8aea6fe909fc33d78b63f6f/cm4-lvds-adapter.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "ecp5-dc-scm",
+      "layers": 8,
+      "title": "Antmicro ECP5 DC-SCM",
+      "licence": "Apache-2.0",
+      "author": "Antmicro",
+      "home": "https://github.com/antmicro/ecp5-dc-scm/tree/0019313fd2e214f618788e5e61636a4a023ee361",
+      "connections_zap": 1843,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/antmicro/ecp5-dc-scm/0019313fd2e214f618788e5e61636a4a023ee361/ecp5-dc-scm.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/antmicro/ecp5-dc-scm/0019313fd2e214f618788e5e61636a4a023ee361/ecp5-dc-scm.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "ftdi-jtag-programmer",
+      "layers": 4,
+      "title": "FTDI JTAG programmer",
+      "licence": "CERN-OHL-P-2.0",
+      "author": "Anthony Bernaert",
+      "home": "https://github.com/anthony-bernaert/ftdi-jtag-programmer/tree/c33005ef528526c137ba8fd1e9cf4e8ceab63a1f",
+      "connections_zap": 264,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/anthony-bernaert/ftdi-jtag-programmer/c33005ef528526c137ba8fd1e9cf4e8ceab63a1f/JTAGProgrammer/JTAGProgrammer.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/anthony-bernaert/ftdi-jtag-programmer/c33005ef528526c137ba8fd1e9cf4e8ceab63a1f/JTAGProgrammer/JTAGProgrammer.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "trellis-core",
+      "layers": 4,
+      "title": "Trellis Core",
+      "licence": "CERN-OHL-P-2.0",
+      "author": "Protolux Electronics SARL-S",
+      "home": "https://github.com/protolux-electronics/trellis_core/tree/db4fe71623c14bcea47d7457d0db4c99d3899124",
+      "connections_zap": 208,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/protolux-electronics/trellis_core/db4fe71623c14bcea47d7457d0db4c99d3899124/src/trellis_core.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/protolux-electronics/trellis_core/db4fe71623c14bcea47d7457d0db4c99d3899124/src/trellis_core.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "bitaxe-ultra",
+      "layers": 4,
+      "title": "Bitaxe Ultra (fork)",
+      "licence": "CERN-OHL-S-2.0",
+      "author": "BastelPichi, fork of skot/bitaxe",
+      "home": "https://github.com/BastelPichi/bitaxe/tree/0c3e71fd54fc0edef4c19c06d2320ef5468adc6a",
+      "connections_zap": 333,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/BastelPichi/bitaxe/0c3e71fd54fc0edef4c19c06d2320ef5468adc6a/bitaxeUltra.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/BastelPichi/bitaxe/0c3e71fd54fc0edef4c19c06d2320ef5468adc6a/bitaxeUltra.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "ender3-loadcell",
+      "layers": 2,
+      "title": "Ender-3 load-cell bed-levelling sensor",
+      "licence": "MIT",
+      "author": "Lakshminarayanan",
+      "home": "https://github.com/jujojujo2003/Ender-3-3DPrinter-Load-Cell-Bed-Leveling-Sensor/tree/eae5c6f3e67d0b7f83a500bfb3d1aef38cb69b0b",
+      "connections_zap": 157,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/jujojujo2003/Ender-3-3DPrinter-Load-Cell-Bed-Leveling-Sensor/eae5c6f3e67d0b7f83a500bfb3d1aef38cb69b0b/PCB/LoadcellSensor.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/jujojujo2003/Ender-3-3DPrinter-Load-Cell-Bed-Leveling-Sensor/eae5c6f3e67d0b7f83a500bfb3d1aef38cb69b0b/PCB/LoadcellSensor.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "rp2040-devboard",
+      "layers": 2,
+      "title": "RP2040 development board",
+      "licence": "MIT",
+      "author": "acon",
+      "home": "https://github.com/acornitum/fucked-up-rp2040-devboard/tree/d94328619f4fcaef2f2d62aa42c62c789a463d56",
+      "connections_zap": 139,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/acornitum/fucked-up-rp2040-devboard/d94328619f4fcaef2f2d62aa42c62c789a463d56/catkeeb_devboard.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/acornitum/fucked-up-rp2040-devboard/d94328619f4fcaef2f2d62aa42c62c789a463d56/catkeeb_devboard.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "discretesim-hwtest",
+      "layers": 2,
+      "title": "discretesim test board",
+      "licence": "MIT",
+      "author": "cnlohr",
+      "home": "https://github.com/cnlohr/discretesim/tree/f7a169ee07b18b6c857d23582474b8ba20185436",
+      "connections_zap": 582,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/cnlohr/discretesim/f7a169ee07b18b6c857d23582474b8ba20185436/hwtest/hwtest.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/cnlohr/discretesim/f7a169ee07b18b6c857d23582474b8ba20185436/hwtest/hwtest.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "water-level-monitor",
+      "layers": 2,
+      "title": "Arduino water-level monitor",
+      "licence": "MIT",
+      "author": "Srushti D",
+      "home": "https://github.com/Srushti-D-Hebbar/arduino-water-level-monitor/tree/7b47f46949e99d8075590de0c5a08a550d646d84",
+      "connections_zap": 52,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/Srushti-D-Hebbar/arduino-water-level-monitor/7b47f46949e99d8075590de0c5a08a550d646d84/hardware/water_level.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/Srushti-D-Hebbar/arduino-water-level-monitor/7b47f46949e99d8075590de0c5a08a550d646d84/hardware/water_level.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "ecp5-bga381-ft2232",
+      "layers": 4,
+      "title": "ECP5 BGA-381 FT2232HQ FIFO board",
+      "licence": "MIT",
+      "author": "gildobjanschi",
+      "home": "https://github.com/gildobjanschi/ECP5_BGA381_FT2232HQ_FIFO_EXT/tree/81403f7487a9eded36c6500b8c8b6c12a6705f81",
+      "connections_zap": 144,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/gildobjanschi/ECP5_BGA381_FT2232HQ_FIFO_EXT/81403f7487a9eded36c6500b8c8b6c12a6705f81/kicad/ECP5.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/gildobjanschi/ECP5_BGA381_FT2232HQ_FIFO_EXT/81403f7487a9eded36c6500b8c8b6c12a6705f81/kicad/ECP5.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "emberone",
+      "layers": 6,
+      "title": "EmberOne",
+      "licence": "CERN-OHL-S-2.0",
+      "author": "256 Foundation",
+      "home": "https://github.com/256foundation/emberone00-pcb/tree/b21b32ca49710b99cb75f86406b0df5190c9beb4",
+      "connections_zap": 1125,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/256foundation/emberone00-pcb/b21b32ca49710b99cb75f86406b0df5190c9beb4/emberone.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/256foundation/emberone00-pcb/b21b32ca49710b99cb75f86406b0df5190c9beb4/emberone.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "argos-demo",
+      "layers": 4,
+      "title": "Argos demo board",
+      "licence": "CERN-OHL-S-2.0",
+      "author": "CNES",
+      "home": "https://github.com/CNES/argos-demo-board/tree/1eccb3f20cb9004c046dba82b72bf85c500efcaa",
+      "connections_zap": 234,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/CNES/argos-demo-board/1eccb3f20cb9004c046dba82b72bf85c500efcaa/ARGOS%20DEMO.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/CNES/argos-demo-board/1eccb3f20cb9004c046dba82b72bf85c500efcaa/ARGOS%20DEMO.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "rp2350-pico2-bb48",
+      "layers": 4,
+      "title": "RP2350-PICO2-BB48",
+      "licence": "MIT",
+      "author": "Olimex Ltd",
+      "home": "https://github.com/OLIMEX/RP2350-PICO2-BB48/tree/74b030363ca03eea5bfa6dac59cbcd9e4277e910",
+      "connections_zap": 269,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/OLIMEX/RP2350-PICO2-BB48/74b030363ca03eea5bfa6dac59cbcd9e4277e910/HARDWARE/RP2350-PICO2-BB48.REV.A/PICO2-BB48_Rev_A.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/OLIMEX/RP2350-PICO2-BB48/74b030363ca03eea5bfa6dac59cbcd9e4277e910/HARDWARE/RP2350-PICO2-BB48.REV.A/PICO2-BB48_Rev_A.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "cvbs-mipi-bridge",
+      "layers": 4,
+      "title": "Antmicro CVBS-to-MIPI bridge",
+      "licence": "Apache-2.0",
+      "author": "Antmicro",
+      "home": "https://github.com/antmicro/cvbs-mipi-bridge/tree/7cbcec2bceaf6e1efd25cce1d73ff4989dfcfe02",
+      "connections_zap": 211,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/antmicro/cvbs-mipi-bridge/7cbcec2bceaf6e1efd25cce1d73ff4989dfcfe02/cvbs-mipi-bridge.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/antmicro/cvbs-mipi-bridge/7cbcec2bceaf6e1efd25cce1d73ff4989dfcfe02/cvbs-mipi-bridge.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "dual-ipex-csi-interposer",
+      "layers": 4,
+      "title": "Antmicro dual IPEX CSI interposer",
+      "licence": "Apache-2.0",
+      "author": "Antmicro",
+      "home": "https://github.com/antmicro/dual-ipex-csi-interposer/tree/6b6bd0af5aafe13c02377d534a23a6373922f350",
+      "connections_zap": 85,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/antmicro/dual-ipex-csi-interposer/6b6bd0af5aafe13c02377d534a23a6373922f350/dual-ipex-csi-interposer.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/antmicro/dual-ipex-csi-interposer/6b6bd0af5aafe13c02377d534a23a6373922f350/dual-ipex-csi-interposer.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "gmsl-serializer",
+      "layers": 4,
+      "title": "Antmicro GMSL serializer",
+      "licence": "Apache-2.0",
+      "author": "Antmicro",
+      "home": "https://github.com/antmicro/gmsl-serializer/tree/58641df7b331050bbb4456cb4cb73e3975ae9de9",
+      "connections_zap": 256,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/antmicro/gmsl-serializer/58641df7b331050bbb4456cb4cb73e3975ae9de9/gmsl-serializer.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/antmicro/gmsl-serializer/58641df7b331050bbb4456cb4cb73e3975ae9de9/gmsl-serializer.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "pmod-i3c-sensor",
+      "layers": 4,
+      "title": "Antmicro PMOD I3C sensor board",
+      "licence": "Apache-2.0",
+      "author": "Antmicro",
+      "home": "https://github.com/antmicro/pmod-i3c-sensor-board/tree/5ee5d34ff918422fe7af59f7ffdc9d4bdabf18a7",
+      "connections_zap": 185,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/antmicro/pmod-i3c-sensor-board/5ee5d34ff918422fe7af59f7ffdc9d4bdabf18a7/pmod-i3c-sensor-board.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/antmicro/pmod-i3c-sensor-board/5ee5d34ff918422fe7af59f7ffdc9d4bdabf18a7/pmod-i3c-sensor-board.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "si-test-board",
+      "layers": 4,
+      "title": "Antmicro signal-integrity test board",
+      "licence": "Apache-2.0",
+      "author": "Antmicro",
+      "home": "https://github.com/antmicro/signal-integrity-test-board/tree/de0b5922c372481bb146cbd1d0a9f3b7e97c124a",
+      "connections_zap": 107,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/antmicro/signal-integrity-test-board/de0b5922c372481bb146cbd1d0a9f3b7e97c124a/si-simulation-test-board.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/antmicro/signal-integrity-test-board/de0b5922c372481bb146cbd1d0a9f3b7e97c124a/si-simulation-test-board.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "stm32h7-hdmi-sodimm",
+      "layers": 6,
+      "title": "Antmicro STM32H7 HDMI SO-DIMM board",
+      "licence": "Apache-2.0",
+      "author": "Antmicro",
+      "home": "https://github.com/antmicro/stm32h7-hdmi-board-sodimm/tree/27e3ac9968983f236155c288ded30beb1a2d24a1",
+      "connections_zap": 567,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/antmicro/stm32h7-hdmi-board-sodimm/27e3ac9968983f236155c288ded30beb1a2d24a1/stm32h7-hdmi-board-sodimm-module.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/antmicro/stm32h7-hdmi-board-sodimm/27e3ac9968983f236155c288ded30beb1a2d24a1/stm32h7-hdmi-board-sodimm-module.kicad_pro"
+        },
+        "dru": {
+          "url": "https://raw.githubusercontent.com/antmicro/stm32h7-hdmi-board-sodimm/27e3ac9968983f236155c288ded30beb1a2d24a1/stm32h7-hdmi-board-sodimm-module.kicad_dru"
+        }
+      }
+    },
+    {
+      "name": "tiliqua-motherboard",
+      "layers": 6,
+      "title": "Tiliqua (apfaudio)",
+      "licence": "CERN-OHL-S-2.0",
+      "author": "Sebastian Holzapfel",
+      "home": "https://github.com/apfaudio/tiliqua-hardware/tree/4ee5878ae821a6b7096f6aed6795dc1349475cb5",
+      "connections_zap": 531,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/apfaudio/tiliqua-hardware/4ee5878ae821a6b7096f6aed6795dc1349475cb5/hardware/tiliqua-motherboard/tiliqua-motherboard.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/apfaudio/tiliqua-hardware/4ee5878ae821a6b7096f6aed6795dc1349475cb5/hardware/tiliqua-motherboard/tiliqua-motherboard.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "buildbotics-controller",
+      "layers": 4,
+      "title": "Buildbotics controller",
+      "licence": "CERN-OHL-S-2.0",
+      "author": "Buildbotics LLC",
+      "home": "https://github.com/buildbotics/bbctrl-pcb-new/tree/1a2f36ddc4797ac05e45405fb5664ff1f7ca7974",
+      "connections_zap": 890,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/buildbotics/bbctrl-pcb-new/1a2f36ddc4797ac05e45405fb5664ff1f7ca7974/BuildboticsController.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/buildbotics/bbctrl-pcb-new/1a2f36ddc4797ac05e45405fb5664ff1f7ca7974/BuildboticsController.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "hackrf-pro",
+      "layers": 6,
+      "title": "HackRF Pro",
+      "licence": "CERN-OHL-P-2.0",
+      "author": "Great Scott Gadgets",
+      "home": "https://github.com/greatscottgadgets/hackrf-pro/tree/359b98f2451395408bc25dae64efa9fc518e93d0",
+      "connections_zap": 1677,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/greatscottgadgets/hackrf-pro/359b98f2451395408bc25dae64efa9fc518e93d0/praline.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/greatscottgadgets/hackrf-pro/359b98f2451395408bc25dae64efa9fc518e93d0/praline.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "seven",
+      "layers": 4,
+      "title": "Seven",
+      "licence": "CERN-OHL-P-2.0",
+      "author": "ID8 Engineering AB",
+      "home": "https://github.com/id8-engineering/seven-hardware/tree/7c69a1482ffd1dddc206294a55602477c55e17d8",
+      "connections_zap": 240,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/id8-engineering/seven-hardware/7c69a1482ffd1dddc206294a55602477c55e17d8/kicad/seven.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/id8-engineering/seven-hardware/7c69a1482ffd1dddc206294a55602477c55e17d8/kicad/seven.kicad_pro"
+        },
+        "dru": {
+          "url": "https://raw.githubusercontent.com/id8-engineering/seven-hardware/7c69a1482ffd1dddc206294a55602477c55e17d8/kicad/seven.kicad_dru"
+        }
+      }
+    },
+    {
+      "name": "kintex-pcie",
+      "layers": 8,
+      "title": "Kintex PCIe board",
+      "licence": "Apache-2.0",
+      "author": "Piotr Binkowski",
+      "home": "https://github.com/piotr-binkowski/kintex-pcie-board/tree/056792c009a8920d4ef11e76ba3284ee58376078",
+      "connections_zap": 706,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/piotr-binkowski/kintex-pcie-board/056792c009a8920d4ef11e76ba3284ee58376078/kintex-pcie.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/piotr-binkowski/kintex-pcie-board/056792c009a8920d4ef11e76ba3284ee58376078/kintex-pcie.kicad_pro"
+        }
+      }
+    },
+    {
+      "name": "xerxes",
+      "layers": 6,
+      "title": "Xerxes",
+      "licence": "Apache-2.0",
+      "author": "Rapid Analysis",
+      "home": "https://github.com/rapidanalysis/xerxes/tree/43abf5730d092358bc6d10e9faa7233818b5412e",
+      "connections_zap": 314,
+      "files": {
+        "pcb": {
+          "url": "https://raw.githubusercontent.com/rapidanalysis/xerxes/43abf5730d092358bc6d10e9faa7233818b5412e/Xerxes/Xerxes.kicad_pcb"
+        },
+        "pro": {
+          "url": "https://raw.githubusercontent.com/rapidanalysis/xerxes/43abf5730d092358bc6d10e9faa7233818b5412e/Xerxes/Xerxes.kicad_pro"
+        }
+      }
+    }
+  ]
+}

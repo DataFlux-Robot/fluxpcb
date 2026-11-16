@@ -1,0 +1,31 @@
+{
+  "rules": {
+    "min_clearance": 0.1,
+    "min_copper_edge_clearance": 0.05,
+    "min_hole_clearance": 0.05,
+    "min_microvia_diameter": 0.2,
+    "min_microvia_drill": 0.1,
+    "min_through_hole_diameter": 0.2,
+    "min_track_width": 0.1,
+    "min_via_annular_width": 0.075,
+    "min_via_diameter": 0.4
+  },
+  "net_classes": {
+    "Default": {
+      "clearance": 0.1,
+      "diff_pair_gap": 0.25,
+      "diff_pair_width": 0.2,
+      "microvia_diameter": 0.3,
+      "microvia_drill": 0.1,
+      "priority": 2147483647,
+      "track_width": 0.2,
+      "via_diameter": 0.6,
+      "via_drill": 0.3
+    }
+  },
+  "net_classes_removed": [
+    "Zdiff=100Ohm",
+    "Zdiff=90Ohm"
+  ],
+  "netclass_patterns": []
+}

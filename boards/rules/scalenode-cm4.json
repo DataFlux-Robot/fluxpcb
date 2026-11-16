@@ -1,0 +1,35 @@
+{
+  "rules": {
+    "min_clearance": 0.1,
+    "min_copper_edge_clearance": 0.05,
+    "min_hole_clearance": 0.25,
+    "min_text_height": 0.8,
+    "min_track_width": 0.1,
+    "min_via_annular_width": 0.075,
+    "min_via_diameter": 0.4
+  },
+  "rule_severities": {
+    "footprint_type_mismatch": "ignore",
+    "hole_to_hole": "warning",
+    "lib_footprint_mismatch": "warning",
+    "npth_inside_courtyard": "error",
+    "padstack": "warning",
+    "pth_inside_courtyard": "error",
+    "silk_over_copper": "warning",
+    "silk_overlap": "warning",
+    "solder_mask_bridge": "error"
+  },
+  "net_classes": {
+    "Default": {
+      "clearance": 0.1,
+      "track_width": 0.2,
+      "via_diameter": 0.6,
+      "via_drill": 0.3
+    }
+  },
+  "net_classes_removed": [
+    "Diff_100",
+    "Diff_90",
+    "SE_50"
+  ]
+}

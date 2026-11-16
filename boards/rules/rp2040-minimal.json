@@ -1,0 +1,16 @@
+{
+  "rules": {
+    "min_clearance": 0.127,
+    "min_through_hole_diameter": 0.2,
+    "min_via_annular_width": 0.075,
+    "min_via_diameter": 0.4
+  },
+  "net_classes": {
+    "Default": {
+      "clearance": 0.127
+    },
+    "USB_DIFF_90": {
+      "clearance": 0.127
+    }
+  }
+}
