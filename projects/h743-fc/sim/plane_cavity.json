@@ -1,0 +1,54 @@
+{
+ "status": "ok",
+ "plane_mm": [
+  50.0,
+  50.0
+ ],
+ "er": 4.4,
+ "h_mm": 0.2,
+ "modes": [
+  {
+   "m": 0,
+   "n": 1,
+   "freq_mhz": 1429.2
+  },
+  {
+   "m": 1,
+   "n": 0,
+   "freq_mhz": 1429.2
+  },
+  {
+   "m": 1,
+   "n": 1,
+   "freq_mhz": 2021.2
+  },
+  {
+   "m": 0,
+   "n": 2,
+   "freq_mhz": 2858.4
+  },
+  {
+   "m": 2,
+   "n": 0,
+   "freq_mhz": 2858.4
+  },
+  {
+   "m": 1,
+   "n": 2,
+   "freq_mhz": 3195.8
+  },
+  {
+   "m": 2,
+   "n": 1,
+   "freq_mhz": 3195.8
+  },
+  {
+   "m": 2,
+   "n": 2,
+   "freq_mhz": 4042.4
+  }
+ ],
+ "first_resonance_mhz": 1429.2,
+ "band_limit_mhz": 200.0,
+ "damped_by_decaps": false
+}

@@ -1,0 +1,25 @@
+{
+ "status": "ok",
+ "pass": true,
+ "tbs": {
+  "rc_filter": {
+   "status": "ok",
+   "fc_measured_hz": 167.88,
+   "fc_analytic_hz": 159.15,
+   "err_pct": 5.48,
+   "pass": true
+  },
+  "divider_en_low": {
+   "status": "ok",
+   "v_en_v": 0.02,
+   "limit_mv": 100.0,
+   "pass": true
+  },
+  "led_current": {
+   "status": "ok",
+   "i_led_ma": 0.321,
+   "limit_ma": 20.0,
+   "pass": true
+  }
+ }
+}

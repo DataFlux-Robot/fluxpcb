@@ -1,0 +1,65 @@
+{
+ "board": {
+  "design_settings": {
+   "rules": {
+    "min_clearance": 0.15,
+    "min_hole_to_hole": 0.2,
+    "min_through_hole_diameter": 0.3,
+    "min_track_width": 0.15,
+    "min_via_diameter": 0.6,
+    "min_via_annular_width": 0.1,
+    "solder_mask_to_copper_clearance": 0.0,
+    "min_copper_edge_clearance": 0.3,
+    "min_silk_clearance": 0.0,
+    "min_text_height": 0.8,
+    "min_text_thickness": 0.08,
+    "allow_blind_buried_vias": false,
+    "allow_microvias": false,
+    "max_error": 0.01
+   },
+   "rule_severities": {
+    "courtyards_overlap": "ignore",
+    "lib_footprint_issues": "ignore"
+   },
+   "layer_presets": [],
+   "viewports": []
+  }
+ },
+ "boards": [],
+ "cvpcb": {
+  "equivalence_files": []
+ },
+ "erc": {
+  "erc_exclusions": [],
+  "meta": {
+   "version": 0
+  },
+  "rule_severities": {
+   "isolated_pin_label": "ignore"
+  }
+ },
+ "libraries": {
+  "pinned_footprint_libs": [],
+  "pinned_symbol_libs": [
+   "flux"
+  ]
+ },
+ "meta": {
+  "filename": "stm32n6-px4.kicad_pro",
+  "version": 2
+ },
+ "net_settings": {
+  "classes": []
+ },
+ "schematic": {
+  "legacy_lib_dir": "",
+  "legacy_lib_list": []
+ },
+ "sheets": [
+  [
+   "stm32n6-px4.kicad_sch",
+   ""
+  ]
+ ],
+ "text_variables": {}
+}

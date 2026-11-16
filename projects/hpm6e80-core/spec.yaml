@@ -1,0 +1,261 @@
+project: hpm6e80-core
+requirements:
+- id: FR-001
+  text: 核心板65×30mm树莓派Zero尺寸
+  priority: must
+  covered_by:
+  - constraints
+- id: FR-002
+  text: HPM6E80IVM1主控+16MB QSPI NOR
+  priority: must
+  covered_by:
+  - bom
+- id: FR-003
+  text: EtherCAT双口菊花链(IN/OUT)经ESC+JL1111 PHY
+  priority: must
+  covered_by:
+  - ethercat_p0
+  - ethercat_p1
+- id: FR-004
+  text: TSN千兆口经RGMII+RTL8211E PHY
+  priority: must
+  covered_by:
+  - tsn_gige
+- id: FR-005
+  text: ESP32-S31-WROOM-3U同板集成
+  priority: must
+  covered_by:
+  - wifi_module
+- id: FR-006
+  text: HPM主/ESP从SPI 40MHz带DMA与握手GPIO
+  priority: must
+  covered_by:
+  - spi_host
+- id: FR-007
+  text: USB-C 5V输入多路buck(3V3/1V8/1V1)
+  priority: must
+  covered_by:
+  - power
+- id: FR-008
+  text: SWD调试+UART0控制台(PA00/PA01)
+  priority: must
+  covered_by:
+  - debug_swd
+  - uart_console
+- id: FR-009
+  text: MDI差分对100Ω阻抗控制
+  priority: must
+  covered_by:
+  - mdi_p0
+  - mdi_p1
+  - mdi_tsn
+- id: FR-010
+  text: 全门禁阻塞:ERC/DRC零错+IR-drop≤3%+热≤85℃+EMC预合规
+  priority: must
+  covered_by:
+  - gates
+power:
+  input: USB-C 5V
+  total_w: 3.1
+  rails:
+  - name: 3V3
+    v: 3.3
+    current_a: 1.2
+    max_drop_pct: 3.0
+    cu_mm: 0.035
+    sinks:
+    - x: 16
+      y: 15
+      weight: 1.0
+    - x: 40
+      y: 10
+      weight: 0.8
+    - x: 52
+      y: 20
+      weight: 0.6
+  - name: 1V8
+    v: 1.8
+    current_a: 0.4
+    max_drop_pct: 3.0
+    cu_mm: 0.035
+    sinks:
+    - x: 18
+      y: 15
+      weight: 1.0
+  - name: 1V1
+    v: 1.1
+    current_a: 0.8
+    max_drop_pct: 3.0
+    cu_mm: 0.035
+    sinks:
+    - x: 17
+      y: 15
+      weight: 1.0
+interfaces:
+- name: main_mcu
+  type: mcu
+  power_w: 1.6
+  connections:
+  - HPM_3V3
+  - HPM_1V8
+  - HPM_1V1
+  - HPM_GND
+  - HPM_XTAL
+  - HPM_NRST
+  mcu:
+    family: hpm6e80
+    pins:
+      swdio: PA00_SWJ_DIO
+      swclk: PA01_SWJ_CLK
+      nor_clk: QSPI0_CLK
+      nor_io3: QSPI0_IO3
+- name: ethercat_p0
+  type: eth-100m-mii
+  power_w: 0.15
+  high_speed: true
+  connections:
+  - ECAT_P0_MDC
+  - ECAT_P0_MDIO
+  - ECAT_P0_RSTN
+  - ECAT_P0_CLK
+  impedance_ohm: 50
+  style: microstrip
+  h_mm: 0.21
+  tolerance_pct: 15
+- name: ethercat_p1
+  type: eth-100m-mii
+  power_w: 0.15
+  high_speed: true
+  connections:
+  - ECAT_P1_MDC
+  - ECAT_P1_MDIO
+  - ECAT_P1_RSTN
+  - ECAT_P1_CLK
+  impedance_ohm: 50
+  style: microstrip
+  h_mm: 0.21
+  tolerance_pct: 15
+- name: mdi_p0
+  type: mdi-diff-pair
+  high_speed: true
+  connections:
+  - MDI_P0_TXP
+  - MDI_P0_TXN
+  - MDI_P0_RXP
+  - MDI_P0_RXN
+  impedance_ohm: 100
+  differential: true
+  style: microstrip
+  h_mm: 0.21
+  s_mm: 0.2
+  tolerance_pct: 10
+- name: mdi_p1
+  type: mdi-diff-pair
+  high_speed: true
+  connections:
+  - MDI_P1_TXP
+  - MDI_P1_TXN
+  - MDI_P1_RXP
+  - MDI_P1_RXN
+  impedance_ohm: 100
+  differential: true
+  style: microstrip
+  h_mm: 0.21
+  s_mm: 0.2
+  tolerance_pct: 10
+- name: mdi_tsn
+  type: mdi-diff-pair
+  high_speed: true
+  connections:
+  - MDI_TSN_TXP
+  - MDI_TSN_TXN
+  - MDI_TSN_RXP
+  - MDI_TSN_RXN
+  - MDI_TSN_BIP
+  - MDI_TSN_BIN
+  impedance_ohm: 100
+  differential: true
+  style: microstrip
+  h_mm: 0.21
+  s_mm: 0.2
+  tolerance_pct: 10
+- name: tsn_gige
+  type: eth-1g-rgmii
+  power_w: 0.3
+  high_speed: true
+  connections:
+  - RGMII_TXC
+  - RGMII_TX_CTL
+  - RGMII_TXD0
+  - RGMII_TXD1
+  - RGMII_TXD2
+  - RGMII_TXD3
+  - RGMII_RXC
+  - RGMII_RX_CTL
+  - RGMII_RXD0
+  - RGMII_RXD1
+  - RGMII_RXD2
+  - RGMII_RXD3
+  - PHY_RSTN
+  - PHY_INTN
+  impedance_ohm: 50
+  style: microstrip
+  h_mm: 0.21
+  tolerance_pct: 15
+- name: spi_host
+  type: spi-master
+  high_speed: true
+  connections:
+  - SPI_MOSI
+  - SPI_MISO
+  - SPI_SCK
+  - SPI_CS
+  - SPI_READY
+  - SPI_INT
+  impedance_ohm: 50
+  style: microstrip
+  h_mm: 0.21
+  tolerance_pct: 20
+- name: wifi_module
+  type: wifi-module
+  power_w: 0.9
+  connections:
+  - ESP_3V3
+  - ESP_EN
+  - ESP_BOOT
+  - ESP_GND
+  - IPEX_ANT
+  mcu:
+    family: esp32s31
+    pins:
+      spi_mosi: GPIO11
+      spi_miso: GPIO13
+      spi_sck: GPIO12
+      spi_cs: GPIO10
+      spi_ready: GPIO9
+      spi_int: GPIO14
+- name: debug_swd
+  type: debug
+  connections:
+  - SWDIO
+  - SWCLK
+  - SWO
+  - DBG_3V3
+  - DBG_GND
+- name: uart_console
+  type: uart
+  connections:
+  - UART0_TX
+  - UART0_RX
+- name: power_input
+  type: power
+  connections:
+  - VBUS_5V
+  - PGND
+constraints:
+  size_mm:
+  - 65
+  - 30
+  layers: 6
+  er: 4.4
+  board_sep: JLC 6-layer, IPC class II

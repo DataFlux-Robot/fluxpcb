@@ -1,0 +1,3 @@
+#!/bin/sh
+# FluxPCB fmu-stm32n6 board defaults
+param set-default SYS_BL_VERSION 0

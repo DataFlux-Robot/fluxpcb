@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FluxPCB · Grounding Map</title>
+<style>
+:root{
+  --bg:#0b0f14; --panel:#11161d; --panel2:#161d26; --line:#212b36;
+  --txt:#c9d1d9; --dim:#8b98a5; --faint:#5a6673;
+  --ok:#3fb950; --bad:#f85149; --warn:#d29922; --run:#58a6ff; --skip:#6e7681;
+  --accent:#2f81f7; --violet:#bc8cff; --teal:#39d2c0;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);
+  font:14px/1.55 -apple-system,"Segoe UI","Microsoft YaHei",Roboto,sans-serif;padding:0 0 40px}
+.mono{font-family:ui-monospace,Consolas,"Cascadia Mono",monospace}
+a{color:var(--accent);text-decoration:none}
+header{display:flex;align-items:center;gap:14px;padding:14px 22px;
+  border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(11,15,20,.92);
+  backdrop-filter:blur(6px);z-index:10;flex-wrap:wrap}
+.logo{font-size:17px;font-weight:700;letter-spacing:.5px}
+.logo b{color:var(--accent)}
+.logo .sub{color:var(--faint);font-weight:400;font-size:12px;margin-left:8px}
+select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);
+  border-radius:6px;padding:5px 10px;font-size:13px}
+.badge{font-size:12px;font-weight:600;border-radius:999px;padding:3px 12px;border:1px solid}
+.badge.ok{color:var(--ok);border-color:rgba(63,185,80,.4);background:rgba(63,185,80,.08)}
+.badge.bad{color:var(--bad);border-color:rgba(248,81,73,.4);background:rgba(248,81,73,.08)}
+.badge.none{color:var(--faint);border-color:var(--line)}
+.live-dot{width:9px;height:9px;border-radius:50%;background:var(--skip);display:inline-block}
+.live-dot.on{background:var(--run);animation:pulse 1.2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(88,166,255,.5)}70%{box-shadow:0 0 0 8px rgba(88,166,255,0)}100%{box-shadow:0 0 0 0 rgba(88,166,255,0)}}
+.spacer{flex:1}
+.stat{color:var(--dim);font-size:12.5px}
+.stat b{color:var(--txt)}
+
+/* ---- pipeline rail ---- */
+.rail-wrap{padding:22px 22px 6px;overflow-x:auto}
+.rail{display:flex;align-items:stretch;gap:0;min-width:860px}
+.stage-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  padding:12px 14px 10px;width:158px;cursor:pointer;position:relative;
+  transition:border-color .15s, transform .15s;flex:0 0 auto}
+.stage-card:hover{transform:translateY(-2px)}
+.stage-card.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.stage-card.running{border-color:var(--run)}
+.stage-card.ok:hover{border-color:rgba(63,185,80,.55)}
+.stage-card.fail{border-color:rgba(248,81,73,.5)}
+.stage-num{font-size:10.5px;color:var(--faint);letter-spacing:1px}
+.stage-title{font-weight:600;font-size:14px;margin:2px 0 3px}
+.stage-status{font-size:11.5px}
+.st-ok{color:var(--ok)} .st-fail{color:var(--bad)} .st-block{color:var(--warn)}
+.st-pend{color:var(--faint)} .st-run{color:var(--run)}
+.gate-dots{display:flex;gap:5px;margin:8px 0 6px}
+.gdot{width:11px;height:11px;border-radius:3px;background:var(--skip)}
+.gdot.pass{background:var(--ok)} .gdot.fail{background:var(--bad)}
+.gdot.blocked{background:var(--warn)}
+.stage-meta{font-size:11px;color:var(--faint)}
+.rail-arrow{display:flex;align-items:center;color:var(--faint);padding:0 7px;font-size:17px}
+
+/* ---- main grid ---- */
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;padding:16px 22px}
+@media(max-width:1100px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.panel h2{font-size:13px;letter-spacing:.8px;color:var(--dim);font-weight:600;
+  text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.panel h2 .cn{color:var(--txt)}
+
+/* gates */
+.gate{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:10px;background:var(--panel2)}
+.gate-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.gmark{font-size:13px;width:18px}
+.gname{font-family:ui-monospace,Consolas,monospace;font-weight:600;font-size:13px}
+.gsum{color:var(--dim);font-size:12.5px;flex:1;min-width:200px}
+.gstate{font-size:11px;padding:1px 8px;border-radius:999px;border:1px solid}
+.gstate.pass{color:var(--ok);border-color:rgba(63,185,80,.4)}
+.gstate.fail{color:var(--bad);border-color:rgba(248,81,73,.4)}
+.gstate.blocked{color:var(--warn);border-color:rgba(210,153,34,.4)}
+.gstate.skipped{color:var(--skip);border-color:var(--line)}
+.findings{margin-top:6px;font-size:12px;color:var(--bad)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin-top:8px;font-size:12px}
+.kv .k{color:var(--faint);font-family:ui-monospace,Consolas,monospace}
+
+/* physics metric bars (验收仿真) */
+.metrics{display:grid;gap:10px;margin-top:10px}
+.metric{border:1px solid var(--line);border-radius:8px;padding:9px 12px;background:var(--panel2)}
+.metric .row{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px}
+.metric .val{font-family:ui-monospace,Consolas,monospace;font-weight:600}
+.bar{height:6px;border-radius:4px;background:#0d1117;overflow:hidden;position:relative}
+.bar i{display:block;height:100%;border-radius:4px}
+.bar i.ok{background:linear-gradient(90deg,#1f6f3f,var(--ok))}
+.bar i.bad{background:linear-gradient(90deg,#8a2f2a,var(--bad))}
+.metric .lim{font-size:11px;color:var(--faint);margin-top:4px}
+
+/* grounding map */
+.req{border-left:3px solid var(--line);padding:8px 12px;margin-bottom:10px;background:var(--panel2);border-radius:0 8px 8px 0}
+.req.full{border-left-color:var(--ok)}
+.req.part{border-left-color:var(--warn)}
+.req .rid{font-family:ui-monospace,Consolas,monospace;color:var(--accent);font-weight:700;font-size:12px}
+.req .prio{font-size:10.5px;color:var(--faint);border:1px solid var(--line);border-radius:4px;padding:0 5px;margin-left:6px}
+.req .rtext{font-size:12.5px;margin:3px 0 6px}
+.evrow{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--dim);flex-wrap:wrap}
+.evrow + .evrow{margin-top:3px}
+.evrow .el{font-family:ui-monospace,Consolas,monospace;background:#0d1117;border:1px solid var(--line);
+  border-radius:4px;padding:0 6px}
+.evrow .arrow{color:var(--faint)}
+.evrow .gm{font-family:ui-monospace,Consolas,monospace}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.dot.pass{background:var(--ok)} .dot.fail{background:var(--bad)}
+.dot.blocked{background:var(--warn)} .dot.unverified{background:var(--skip)}
+.dot.design{background:var(--violet)}
+
+/* render strip */
+.renders{display:flex;gap:10px;overflow-x:auto;margin-top:6px}
+.renders img{height:150px;border-radius:8px;border:1px solid var(--line)}
+
+/* log */
+.logwrap{margin:0 22px;background:#0d1117;border:1px solid var(--line);border-radius:10px;
+  font-family:ui-monospace,Consolas,monospace;font-size:12px}
+.logwrap .hd{padding:8px 14px;border-bottom:1px solid var(--line);color:var(--dim);font-size:11.5px;
+  letter-spacing:.8px}
+#log{height:190px;overflow-y:auto;padding:10px 14px;line-height:1.7}
+#log .t{color:var(--faint);margin-right:8px}
+#log .ev-run_start{color:var(--accent);font-weight:600}
+#log .ev-run_end{font-weight:600}
+#log .ev-stage_start{color:var(--run)}
+#log .ev-stage_end{color:var(--teal)}
+#log .ev-gate{color:var(--dim)}
+#log .g-pass{color:var(--ok)} #log .g-fail{color:var(--bad)} #log .g-blocked{color:var(--warn)}
+.empty{color:var(--faint);font-size:12.5px;padding:20px 0;text-align:center}
+.stage-notes{margin-top:10px;font-size:12px;color:var(--warn)}
+.art-list{margin-top:12px;max-height:180px;overflow-y:auto}
+.art{display:flex;justify-content:space-between;gap:10px;font-size:11.5px;
+  font-family:ui-monospace,Consolas,monospace;color:var(--dim);padding:2px 0}
+.art .h{color:var(--faint)}
+.ghint{margin-left:auto;font-size:11px;color:var(--faint)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⚡Flux<b>PCB</b><span class="sub">Grounding Map</span></div>
+  <select id="projSel" title="切换项目"></select>
+  <span><span class="live-dot" id="liveDot"></span> <span id="liveTxt" style="font-size:12px;color:var(--dim)">空闲</span></span>
+  <div class="spacer"></div>
+  <div class="stat" id="gateStat">—</div>
+  <div class="stat" id="timeStat"></div>
+  <span class="badge none" id="relBadge">NO REPORT</span>
+</header>
+
+<div class="rail-wrap"><div class="rail" id="rail"></div></div>
+
+<div class="grid">
+  <div class="panel" id="detailPanel">
+    <h2><span id="detailTitle">环节详情</span> <span class="cn" id="detailSub"></span>
+      <span class="ghint">点击上方环节卡片切换</span></h2>
+    <div id="detail"><div class="empty">选择一个环节查看门禁证据</div></div>
+    <div id="artBox"></div>
+  </div>
+
+  <div>
+    <div class="panel" style="margin-bottom:16px">
+      <h2>Grounding Map <span class="cn">需求 ↔ 证据</span></h2>
+      <div id="grounding"><div class="empty">加载中…</div></div>
+    </div>
+    <div class="panel" id="renderPanel" style="display:none">
+      <h2>PCB 渲染 <span class="cn" id="renderSub"></span></h2>
+      <div class="renders" id="renders"></div>
+    </div>
+  </div>
+</div>
+
+<div class="logwrap">
+  <div class="hd">LIVE LOG · 实时事件 <span style="float:right" id="evCount"></span></div>
+  <div id="log"></div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const S = { project:null, projects:[], report:null, cursor:0, selStage:null, renders:[] };
+
+const fmtT = t => t ? new Date(t*1000).toLocaleTimeString("zh-CN",{hour12:false}) : "";
+const fmtDur = s => s==null ? "—" : s<60 ? s.toFixed(1)+"s" : Math.floor(s/60)+"m"+Math.round(s%60)+"s";
+const ICON = {pass:"✅",fail:"⛔",blocked:"⏸️",skipped:"⏭️"};
+const CN   = {pass:"通过",fail:"失败",blocked:"受阻",skipped:"跳过",design:"设计元素"};
+
+async function jget(url){ const r = await fetch(url); if(!r.ok) return null; return r.json(); }
+
+/* ---------- polling ---------- */
+async function pollProjects(){
+  const d = await jget("/api/projects");
+  if(!d) return;
+  S.projects = d.projects || [];
+  const sel = $("projSel");
+  if(!S.project){
+    // default: most recently finished project
+    const recent = [...S.projects].sort((a,b)=>(b.finished||0)-(a.finished||0))[0];
+    S.project = (recent && recent.name) || (S.projects[0] && S.projects[0].name);
+  }
+  const cur = S.project;
+  sel.innerHTML = S.projects.map(p =>
+    `<option value="${p.name}" ${p.name===cur?"selected":""}>${p.name}${p.released?" 🟢":p.has_report?" 🔴":""}</option>`).join("")
+    || "<option>（projects/ 下无项目）</option>";
+}
+async function pollReport(){
+  if(!S.project) return;
+  const rep = await jget(`/api/report?p=${encodeURIComponent(S.project)}`);
+  const changed = JSON.stringify(rep) !== JSON.stringify(S.report);
+  S.report = rep;
+  if(changed){ renderAll(); loadGrounding(); loadRenders(); }
+}
+async function pollEvents(){
+  if(!S.project) return;
+  const d = await jget(`/api/events?p=${encodeURIComponent(S.project)}&after=${S.cursor}`);
+  if(!d) return;
+  S.cursor = d.cursor;
+  (d.events||[]).forEach(appendLog);
+}
+
+/* ---------- header ---------- */
+function renderHeader(){
+  const p = S.projects.find(x=>x.name===S.project);
+  const running = p && p.live;
+  $("liveDot").className = "live-dot" + (running?" on":"");
+  $("liveTxt").textContent = running ? "运行中" : "空闲";
+  if(S.report && S.report.stages){
+    const gates = S.report.stages.flatMap(s=>s.gates);
+    const np = gates.filter(g=>g.status==="pass").length;
+    $("gateStat").innerHTML = `门禁 <b>${np}/${gates.length}</b> 通过`;
+    const b = $("relBadge");
+    if(S.report.released){ b.className="badge ok"; b.textContent="🟢 RELEASED"; }
+    else { b.className="badge bad"; b.textContent="🔴 NOT RELEASED"; }
+    const dur = S.report.finished && S.report.started ? S.report.finished-S.report.started : null;
+    $("timeStat").textContent = dur!=null ? `耗时 ${fmtDur(dur)} · ${fmtT(S.report.finished)}` : "";
+  } else {
+    $("gateStat").textContent="—"; $("timeStat").textContent="";
+    const b=$("relBadge"); b.className="badge none"; b.textContent="NO REPORT";
+  }
+}
+
+/* ---------- rail ---------- */
+const ORDER = ["requirements","component_selection","schematic","pcb_layout","acceptance_sim","firmware"];
+function renderRail(){
+  const rail = $("rail"); rail.innerHTML = "";
+  const liveStage = liveStageName();
+  ORDER.forEach((name,i)=>{
+    if(i>0){ const a=document.createElement("div"); a.className="rail-arrow"; a.textContent="➜"; rail.appendChild(a); }
+    const s = S.report && S.report.stages.find(x=>x.stage===name);
+    const el = document.createElement("div");
+    const status = !s ? "pend" : (liveStage===name ? "run" : s.status==="ok"?"ok":s.status);
+    el.className = `stage-card ${status==="ok"?"ok":status==="failed"?"fail":status==="run"?"running":""}` +
+      (S.selStage===name?" sel":"");
+    const dots = s ? s.gates.map(g=>`<span class="gdot ${g.status}" title="${g.name}: ${CN[g.status]||g.status} ${g.summary}"></span>`).join("") : "";
+    const stTxt = !s ? '<span class="st-pend">未运行</span>'
+      : status==="run" ? '<span class="st-run">⟳ 运行中</span>'
+      : status==="ok" ? '<span class="st-ok">✓ 完成</span>'
+      : status==="failed" ? '<span class="st-fail">✗ 失败</span>' : '<span class="st-block">⏸ 受阻</span>';
+    const meta = s ? `${s.iterations}轮 · ${fmtDur(s.duration_s)} · ${s.artifacts.length}产物` : "";
+    el.innerHTML = `<div class="stage-num">STAGE ${i+1}</div>
+      <div class="stage-title">${s?s.title:name}</div>${stTxt}
+      <div class="gate-dots">${dots}</div><div class="stage-meta">${meta}</div>`;
+    el.onclick = ()=>{ S.selStage = name; renderRail(); renderDetail(); };
+    rail.appendChild(el);
+  });
+}
+function liveStageName(){
+  // last stage_start without matching stage_end in log order — derive from events kept in log buffer
+  return null; // (live flag shown in header; per-card running state via events could be added)
+}
+
+/* ---------- detail ---------- */
+function renderDetail(){
+  const name = S.selStage || (S.report && S.report.stages.length ? S.report.stages[0].stage : null);
+  const box = $("detail");
+  if(!name || !S.report){ box.innerHTML='<div class="empty">无报告 — 先运行 flux run</div>'; return; }
+  const s = S.report.stages.find(x=>x.stage===name);
+  if(!s){ box.innerHTML='<div class="empty">该环节未运行</div>'; return; }
+  $("detailTitle").textContent = name;
+  $("detailSub").textContent = `· ${s.title}`;
+  const PHYS = new Set(["irdrop","thermal","emc_precompliance","impedance_si"]);
+  box.innerHTML = s.gates.map(g=>{
+    let body = "";
+    if(PHYS.has(g.name)) body = physicsBody(g);
+    else if(g.details && Object.keys(g.details).length){
+      const kv = Object.entries(g.details).slice(0,10).map(([k,v])=>
+        `<span class="k">${esc(k)}</span><span>${esc(typeof v==="object"?JSON.stringify(v):v)}</span>`).join("");
+      body = `<div class="kv">${kv}</div>`;
+    }
+    const f = (g.findings||[]).slice(0,6).map(x=>`<div>• ${esc(x.issue||x||"")}</div>`).join("");
+    return `<div class="gate"><div class="gate-head">
+      <span class="gmark">${ICON[g.status]||"·"}</span>
+      <span class="gname">${esc(g.name)}</span>
+      <span class="gstate ${g.status}">${CN[g.status]||g.status}</span>
+      <span class="gsum">${esc(g.summary)}</span></div>
+      ${body}${f?`<div class="findings">${f}</div>`:""}</div>`;
+  }).join("") || '<div class="empty">该环节无门禁</div>';
+  const notes = s.notes.filter(n=>!n.startsWith("verify-only")).slice(0,4)
+    .map(n=>`<div>· ${esc(n)}</div>`).join("");
+  $("artBox").innerHTML = (s.notes.length?`<div class="stage-notes">${notes}</div>`:"") +
+    (s.artifacts.length?`<div class="art-list">${s.artifacts.slice(0,40).map(a=>
+      `<div class="art"><span>${esc(a.path)}</span><span class="h">${a.sha256.slice(0,10)}… · ${a.bytes}B</span></div>`).join("")}</div>`:"");
+}
+
+/* physics gates: value/limit bars */
+function physicsBody(g){
+  const d = g.details||{};
+  const bars = [];
+  const push = (label,val,lim,unit,fmt=v=>v)=>{
+    if(val==null||lim==null) return;
+    const pct = Math.min(100, 100*Math.abs(val)/Math.abs(lim));
+    bars.push(`<div class="metric"><div class="row"><span>${esc(label)}</span>
+      <span class="val" style="color:${pct<70?"var(--ok)":pct<100?"var(--warn)":"var(--bad)"}">${fmt(val)} ${unit}</span></div>
+      <div class="bar"><i class="${pct<100?"ok":"bad"}" style="width:${Math.max(3,pct)}%"></i></div>
+      <div class="lim">限值 ${fmt(lim)} ${unit} · 余量 ${(100-pct).toFixed(1)}%</div></div>`);
+  };
+  if(g.name==="thermal"){
+    push("最高结温 Tj(max)", d.t_max_c, d.tj_limit_c, "℃", v=>v.toFixed(1));
+    if(d.t_amb!=null) bars.push(`<div class="lim" style="margin-top:-6px">环境温度 ${d.t_amb}℃ · 热点栅格 [${(d.hotspot||[]).join(",")}]</div>`);
+  } else if(g.name==="irdrop"){
+    for(const [rail,v] of Object.entries(d)){
+      if(v && typeof v==="object" && v.drop_pct!=null) push(`电源轨 ${rail} IR-drop`, v.drop_pct, v.limit_pct, "%", x=>x.toFixed(3));
+    }
+  } else if(g.name==="emc_precompliance"){
+    for(const [rail,v] of Object.entries(d)){
+      if(v && typeof v==="object" && v.z_target_ohm!=null){
+        const zs = Object.entries(v.z_network_ohm||{}).map(([f,z])=>`${f}:${z.toFixed(4)}Ω`).join("  ");
+        bars.push(`<div class="metric"><div class="row"><span>PDN目标阻抗 ${rail}</span>
+          <span class="val" style="color:var(--ok)">Ztarget ${v.z_target_ohm}Ω</span></div>
+          <div class="lim">去耦电容 ${v.n_decaps}× · 频点阻抗 ${zs}</div></div>`);
+      }
+    }
+  } else if(g.name==="impedance_si"){
+    for(const r of (d.results||[])){
+      push(`${r.net_class} 阻抗`, r.computed_z, r.z_target, "Ω", v=>v.toFixed(1));
+    }
+  }
+  return bars.length?`<div class="metrics">${bars.join("")}</div>`:"";
+}
+
+/* ---------- grounding ---------- */
+async function loadGrounding(){
+  const g = await jget(`/api/grounding?p=${encodeURIComponent(S.project)}`);
+  const box = $("grounding");
+  if(!g || !g.requirements || !g.requirements.length){
+    box.innerHTML = '<div class="empty">spec.yaml 中无需求条目</div>'; return;
+  }
+  box.innerHTML = g.requirements.map(r=>{
+    const st = r.evidence.length===0 ? "part" :
+      r.evidence.every(e=>e.status==="pass") ? "full" : "part";
+    const evs = r.evidence.map(e=>`<div class="evrow">
+      <span class="el">${esc(r.id)}</span><span class="arrow">→</span>
+      <span class="el">${esc(e.element)}</span><span class="arrow">→</span>
+      <span class="dot ${e.status}"></span><span class="gm">${esc(e.gate)}</span>
+      <span>${e.status==="pass"?"":esc(CN[e.status]||e.status)}</span></div>`).join("")
+      || '<div class="evrow"><span class="dot unverified"></span> 无覆盖证据</div>';
+    return `<div class="req ${st}"><span class="rid">${esc(r.id)}</span>
+      ${r.priority?`<span class="prio">${esc(r.priority)}</span>`:""}
+      <div class="rtext">${esc(r.text)}</div>${evs}</div>`;
+  }).join("");
+}
+
+/* ---------- renders ---------- */
+async function loadRenders(){
+  const d = await jget(`/api/render?p=${encodeURIComponent(S.project)}`);
+  S.renders = (d && d.renders) || [];
+  const panel = $("renderPanel"), box = $("renders");
+  if(!S.renders.length){ panel.style.display="none"; return; }
+  panel.style.display="";
+  $("renderSub").textContent = "· gallery";
+  box.innerHTML = S.renders.map(f=>
+    `<img src="/render?p=${encodeURIComponent(S.project)}&f=${encodeURIComponent(f)}" loading="lazy" title="${esc(f)}">`).join("");
+}
+
+/* ---------- log ---------- */
+function appendLog(e){
+  const log = $("log");
+  const line = document.createElement("div");
+  let cls = `ev-${e.ev}`, txt = "";
+  if(e.ev==="run_start") txt = `▶ RUN START · ${e.project}`;
+  else if(e.ev==="verify_start") txt = `▶ VERIFY · ${e.project} (仅复检门禁)`;
+  else if(e.ev==="run_end") txt = (e.released?"🟢 RUN END · RELEASED":"🔴 RUN END · NOT RELEASED");
+  else if(e.ev==="stage_start") txt = `⟳ ${e.stage} 第${e.iter}轮迭代…`;
+  else if(e.ev==="stage_end") txt = `■ ${e.stage} ${e.status} · ${e.duration_s}s · ${e.artifacts}产物`;
+  else if(e.ev==="gate") { txt = `${ICON[e.status]||"·"} ${e.stage}/${e.gate} — ${e.summary}`; cls += ` g-${e.status}`; }
+  else txt = JSON.stringify(e);
+  line.className = cls;
+  line.innerHTML = `<span class="t">${fmtT(e.t)}</span>${esc(txt)}`;
+  log.appendChild(line);
+  while(log.children.length>400) log.removeChild(log.firstChild);
+  log.scrollTop = log.scrollHeight;
+  $("evCount").textContent = `${S.cursor} events`;
+}
+
+function esc(s){ return String(s??"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function renderAll(){ renderHeader(); renderRail(); renderDetail(); }
+
+/* ---------- boot ---------- */
+$("projSel").onchange = ()=>{ S.project = $("projSel").value; S.cursor=0; $("log").innerHTML="";
+  S.report=null; renderAll(); pollReport().then(()=>{loadGrounding();loadRenders();}); };
+(async()=>{
+  const wanted = new URLSearchParams(location.search).get("p");
+  if(wanted) S.project = wanted;
+  await pollProjects();
+  if(wanted && S.projects.some(x=>x.name===wanted)) $("projSel").value = wanted;
+  await pollReport(); await pollEvents();
+  renderAll(); loadGrounding(); loadRenders();
+  setInterval(pollProjects, 4000);
+  setInterval(pollReport, 2500);
+  setInterval(pollEvents, 1200);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+ "iterations": 0,
+ "unconnected": 0,
+ "shorting": 0,
+ "clean": true,
+ "steps": [
+  "initial DRC clean — routing skipped"
+ ]
+}

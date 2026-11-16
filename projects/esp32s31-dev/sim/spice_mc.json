@@ -1,0 +1,75 @@
+{
+ "n_runs": 20,
+ "n_ok": 20,
+ "v_min_v": 3.2079,
+ "v_target_v": 3.3,
+ "drop_pct": 2.791,
+ "ripple_v_max": 0.0511,
+ "drop_limit_pct": 5.0,
+ "rails": [
+  "3V3"
+ ],
+ "pass": true,
+ "runs": [
+  {
+   "run": 0,
+   "v_min": 3.2098,
+   "v_final": 3.2556,
+   "ripple_v": 0.0473
+  },
+  {
+   "run": 1,
+   "v_min": 3.2079,
+   "v_final": 3.2556,
+   "ripple_v": 0.0511
+  },
+  {
+   "run": 2,
+   "v_min": 3.2101,
+   "v_final": 3.2556,
+   "ripple_v": 0.0466
+  },
+  {
+   "run": 3,
+   "v_min": 3.2111,
+   "v_final": 3.2556,
+   "ripple_v": 0.0446
+  },
+  {
+   "run": 4,
+   "v_min": 3.2099,
+   "v_final": 3.2556,
+   "ripple_v": 0.047
+  },
+  {
+   "run": 5,
+   "v_min": 3.2081,
+   "v_final": 3.2556,
+   "ripple_v": 0.0505
+  },
+  {
+   "run": 6,
+   "v_min": 3.2087,
+   "v_final": 3.2556,
+   "ripple_v": 0.0494
+  },
+  {
+   "run": 7,
+   "v_min": 3.2112,
+   "v_final": 3.2556,
+   "ripple_v": 0.0444
+  },
+  {
+   "run": 8,
+   "v_min": 3.208,
+   "v_final": 3.2556,
+   "ripple_v": 0.0508
+  },
+  {
+   "run": 9,
+   "v_min": 3.2105,
+   "v_final": 3.2556,
+   "ripple_v": 0.0458
+  }
+ ]
+}

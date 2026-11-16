@@ -1,0 +1,7 @@
+# FluxNeurotransmitter generated netlist (seed)
+(net "SPI_CS")
+(net "SPI_MISO")
+(net "SPI_MOSI")
+(net "SPI_SCK")
+(comp (ref U1) (value HPM6E80))
+(comp (ref U2) (value ESP32-S31))

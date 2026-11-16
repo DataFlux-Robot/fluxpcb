@@ -1,0 +1,81 @@
+{
+ "parts": {
+  "U1": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "U2": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "U3": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "U4": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "U5": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "U6": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "U7": {
+   "status": "snapshot"
+  },
+  "U8": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "L1": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "FB1": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "Y1": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "Y2": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "J1": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "J2": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "J4": {
+   "status": "snapshot"
+  },
+  "J5": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "J6": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "D1": {
+   "status": "manual-verify",
+   "note": "C497919来自鸿利品牌页对照表,下单前在商品页确认颜色参数"
+  },
+  "R1": {
+   "status": "snapshot"
+  }
+ },
+ "online": 0,
+ "snapshot": 3,
+ "manual_verify": 16,
+ "network": false
+}

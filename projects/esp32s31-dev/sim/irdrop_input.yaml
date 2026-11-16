@@ -1,0 +1,12 @@
+board_w_mm: 65
+board_h_mm: 30
+rails:
+- cu_mm: 0.035
+  current_a: 0.5
+  max_drop_pct: 3.0
+  name: 3V3
+  sinks:
+  - weight: 1.0
+    x: 32
+    y: 15
+  v: 3.3

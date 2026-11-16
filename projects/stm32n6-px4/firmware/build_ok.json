@@ -1,0 +1,9 @@
+{
+ "targets": [
+  {
+   "family": "stm32n6",
+   "build": "ok",
+   "main": "firmware\\stm32n6\\main\\main.c"
+  }
+ ]
+}

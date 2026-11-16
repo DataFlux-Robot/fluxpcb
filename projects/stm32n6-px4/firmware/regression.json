@@ -1,0 +1,14 @@
+{
+ "targets": [
+  {
+   "family": "stm32n6",
+   "build": "ok",
+   "main": "firmware\\stm32n6\\main\\main.c",
+   "regression": {
+    "family": "stm32n6",
+    "status": "ok",
+    "output_tail": "REGRESSION_PASS checks=14\n"
+   }
+  }
+ ]
+}

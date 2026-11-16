@@ -1,0 +1,32 @@
+<CSXCAD GeometryParameter="1" CoordSystem="0">
+ <Structure>
+  <Properties Type="Metal"><Name>ground</Name><Priority>10</Priority><Attributes><xStart>0</xStart><xEnd>52</xEnd><yStart>0</yEnd><yEnd>30</yEnd><zStart>0</zStart><zEnd>0</zEnd></Attributes></Properties>
+  <Properties Type="Metal"><Name>power</Name><Priority>10</Priority><Attributes><xStart>0</xStart><xEnd>52</xEnd><yStart>0</yEnd><yEnd>30</yEnd><zStart>1.6</zStart><zEnd>1.6</zEnd></Attributes></Properties>
+  <Properties Type="Metal"><Name>p1</Name><Priority>5</Priority>
+   <Attributes><xStart>2</xStart><xEnd>2.4</xEnd><yStart>2</yStart><yEnd>2</yEnd>
+   <zStart>0</zStart><zEnd>1.6</zEnd></Attributes></Properties>
+  <Properties Type="Metal"><Name>p2</Name><Priority>5</Priority>
+   <Attributes><xStart>49.6</xStart><xEnd>50</xEnd><yStart>28</yStart><yEnd>28</yEnd>
+   <zStart>0</zStart><zEnd>1.6</zEnd></Attributes></Properties>
+ </Structure>
+ <Excitation>
+  <Properties Type="Excitation"><Name>exc1</Name><Priority>1</Priority>
+   <Attributes><xStart>2</xStart><xEnd>2.4</xEnd><yStart>2</yStart><yEnd>2</yEnd>
+   <zStart>0</zStart><zEnd>1.6</zEnd><Weight>1</Weight></Attributes></Properties>
+ </Excitation>
+ <ProbeList>
+  <Properties Type="Probe"><Name>pr1</Name><Priority>0</Priority>
+   <Attributes><xStart>2.2</xStart><yStart>2</yStart><zStart>0.8</zStart></Attributes></Properties>
+  <Properties Type="Probe"><Name>pr2</Name><Priority>0</Priority>
+   <Attributes><xStart>49.8</xStart><yStart>28</yStart><zStart>0.8</zStart></Attributes></Properties>
+ </ProbeList>
+ <Boundary>
+  <PxMin>0</PxMin><PxMax>0</PxMax><PyMin>0</PyMin><PyMax>0</PyMax>
+  <PzMin>0</PzMin><PzMax>0</PzMax>
+ </Boundary>
+ <FDTD>
+  <MaxTime>40e-9</MaxTime>
+  <GaussExcite>4000000000.0</GaussExcite>
+  <FreqMax>8000000000.0</FreqMax>
+ </FDTD>
+</CSXCAD>

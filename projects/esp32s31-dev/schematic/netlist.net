@@ -1,0 +1,6 @@
+# FluxNeurotransmitter generated netlist (seed)
+(net "3V3")
+(net "GND")
+(net "USB_DM")
+(net "USB_DP")
+(comp (ref U1) (value seed))

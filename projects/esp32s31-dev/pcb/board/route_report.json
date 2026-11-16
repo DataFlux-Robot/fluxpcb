@@ -1,0 +1,26 @@
+{
+ "unconnected": 1,
+ "shorting": 0,
+ "score": {
+  "score": 84.5,
+  "segments": 203,
+  "vias": 0,
+  "unconnected": 1,
+  "shorting": 0,
+  "net_class_counts": {
+   "critical": 2,
+   "normal": 17,
+   "power": 3
+  },
+  "findings": [
+   {
+    "issue": "未连接 1 对",
+    "fix": "提高优先级重布/建议手工补焊清单已留route_report"
+   }
+  ]
+ },
+ "structured_feedback": [],
+ "fragmented_nets": {
+  "3V3": 2
+ }
+}

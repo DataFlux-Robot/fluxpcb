@@ -1,0 +1,74 @@
+[
+ {
+  "mpn": "HPM6E80IVM1",
+  "lcsc": "PENDING-VERIFY",
+  "footprint": "BGA-Lxxxx",
+  "datasheet": "https://www.hpmicro.com/",
+  "value": "HPM6E80",
+  "ref": "U1"
+ },
+ {
+  "mpn": "MX25L12833F",
+  "lcsc": "PENDING-VERIFY",
+  "footprint": "SOP-8-208mil",
+  "datasheet": "https://www.mxic.com.tw/",
+  "value": "16MB",
+  "ref": "U2"
+ },
+ {
+  "mpn": "JL1111",
+  "lcsc": "PENDING-VERIFY",
+  "footprint": "QFN-24",
+  "datasheet": "JL1111 MII PHY (EVK同款)",
+  "value": "100M-MII",
+  "ref": "U3"
+ },
+ {
+  "mpn": "JL1111",
+  "lcsc": "PENDING-VERIFY",
+  "footprint": "QFN-24",
+  "datasheet": "JL1111 MII PHY (EVK同款)",
+  "value": "100M-MII",
+  "ref": "U4"
+ },
+ {
+  "mpn": "RTL8211E-VB-CG",
+  "lcsc": "PENDING-VERIFY",
+  "footprint": "QFN-48",
+  "datasheet": "https://www.realtek.com/",
+  "value": "1G-RGMII",
+  "ref": "U5"
+ },
+ {
+  "mpn": "ESP32-S31-WROOM-3U",
+  "lcsc": "PENDING-VERIFY",
+  "footprint": "MOD-WROOM-IPEX",
+  "datasheet": "https://www.espressif.com/",
+  "value": "ESP32-S31",
+  "ref": "U6"
+ },
+ {
+  "mpn": "PENDING-SELECTION",
+  "lcsc": "PENDING-VERIFY",
+  "footprint": "B2B-XXpin",
+  "datasheet": "高速板对板连接器(8对差分+电源+GPIO)",
+  "value": "B2B",
+  "ref": "U7"
+ },
+ {
+  "mpn": "PENDING-SELECTION",
+  "lcsc": "PENDING-VERIFY",
+  "footprint": "SOT-23-6",
+  "datasheet": "3A同步buck 5V->3.3V",
+  "value": "5V->3.3V/3A",
+  "ref": "U8"
+ },
+ {
+  "mpn": "PENDING-SELECTION",
+  "lcsc": "PENDING-VERIFY",
+  "footprint": "QFN-10",
+  "datasheet": "双路buck 1.8V+1.1V",
+  "value": "1.8V+1.1V",
+  "ref": "U9"
+ }
+]

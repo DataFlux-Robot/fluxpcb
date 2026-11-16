@@ -1,0 +1,66 @@
+layers: 6
+er: 4.4
+layer_order:
+- L1_signal
+- L2_GND
+- L3_PWR
+- L4_PWR
+- L5_GND
+- L6_signal
+impedance_targets:
+- net_class: ethercat_p0
+  style: microstrip
+  z_target: 50.0
+  tolerance_pct: 15
+  differential: false
+  h_mm: 0.21
+  s_mm: 0.15
+  er: 4.4
+- net_class: ethercat_p1
+  style: microstrip
+  z_target: 50.0
+  tolerance_pct: 15
+  differential: false
+  h_mm: 0.21
+  s_mm: 0.15
+  er: 4.4
+- net_class: mdi_p0
+  style: microstrip
+  z_target: 100.0
+  tolerance_pct: 10
+  differential: true
+  h_mm: 0.21
+  s_mm: 0.2
+  er: 4.4
+- net_class: mdi_p1
+  style: microstrip
+  z_target: 100.0
+  tolerance_pct: 10
+  differential: true
+  h_mm: 0.21
+  s_mm: 0.2
+  er: 4.4
+- net_class: mdi_tsn
+  style: microstrip
+  z_target: 100.0
+  tolerance_pct: 10
+  differential: true
+  h_mm: 0.21
+  s_mm: 0.2
+  er: 4.4
+- net_class: tsn_gige
+  style: microstrip
+  z_target: 50.0
+  tolerance_pct: 15
+  differential: false
+  h_mm: 0.21
+  s_mm: 0.15
+  er: 4.4
+- net_class: spi_host
+  style: microstrip
+  z_target: 50.0
+  tolerance_pct: 20
+  differential: false
+  h_mm: 0.21
+  s_mm: 0.15
+  er: 4.4

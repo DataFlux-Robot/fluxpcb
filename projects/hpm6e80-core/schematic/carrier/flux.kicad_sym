@@ -1,0 +1,1109 @@
+(kicad_symbol_lib
+	(version 20250610)
+	(generator "flux_neurotransmitter")
+	(generator_version "10.0")
+	(symbol
+		"RJ45_MAGJACK_100M"
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"J"
+			(at 0 10.16 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Value"
+			"RJ45_MAGJACK_100M"
+			(at 0 7.62 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Footprint"
+			""
+			(at 0 5.08 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Datasheet"
+			""
+			(at 0 2.54 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Description"
+			"FluxNeurotransmitter module symbol"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(symbol
+			"RJ45_MAGJACK_100M_0_1"
+			(rectangle
+				(start -7.62 10.16)
+				(end 7.62 -10.16)
+				(stroke (width 0.254) (type default))
+				(fill (type background))
+			)
+		)
+		(symbol
+			"RJ45_MAGJACK_100M_1_1"
+			(pin
+				passive
+				line
+				(at -10.16 12.7 0.0)
+				(length 2.54)
+				(name "TD+" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 10.16 0.0)
+				(length 2.54)
+				(name "TD-" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 7.619999999999999 0.0)
+				(length 2.54)
+				(name "RD+" (effects (font (size 1.27 1.27))))
+				(number "3" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 5.079999999999999 0.0)
+				(length 2.54)
+				(name "RD-" (effects (font (size 1.27 1.27))))
+				(number "6" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 2.539999999999999 0.0)
+				(length 2.54)
+				(name "CT_A" (effects (font (size 1.27 1.27))))
+				(number "4" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 0.0 0.0)
+				(length 2.54)
+				(name "CT_A2" (effects (font (size 1.27 1.27))))
+				(number "5" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -2.540000000000001 0.0)
+				(length 2.54)
+				(name "CT_B" (effects (font (size 1.27 1.27))))
+				(number "7" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -5.080000000000002 0.0)
+				(length 2.54)
+				(name "CT_B2" (effects (font (size 1.27 1.27))))
+				(number "8" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -7.620000000000001 0.0)
+				(length 2.54)
+				(name "LED_A_K" (effects (font (size 1.27 1.27))))
+				(number "9" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -10.16 0.0)
+				(length 2.54)
+				(name "LED_B_K" (effects (font (size 1.27 1.27))))
+				(number "10" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				power_in
+				line
+				(at -10.16 -12.7 0.0)
+				(length 2.54)
+				(name "SHIELD" (effects (font (size 1.27 1.27))))
+				(number "11" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
+	(symbol
+		"RJ45_MAGJACK_GBE"
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"J"
+			(at 0 10.16 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Value"
+			"RJ45_MAGJACK_GBE"
+			(at 0 7.62 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Footprint"
+			""
+			(at 0 5.08 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Datasheet"
+			""
+			(at 0 2.54 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Description"
+			"FluxNeurotransmitter module symbol"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(symbol
+			"RJ45_MAGJACK_GBE_0_1"
+			(rectangle
+				(start -7.62 10.16)
+				(end 7.62 -10.16)
+				(stroke (width 0.254) (type default))
+				(fill (type background))
+			)
+		)
+		(symbol
+			"RJ45_MAGJACK_GBE_1_1"
+			(pin
+				passive
+				line
+				(at -10.16 17.78 0.0)
+				(length 2.54)
+				(name "TX1+" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 15.240000000000002 0.0)
+				(length 2.54)
+				(name "TX1-" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 12.700000000000001 0.0)
+				(length 2.54)
+				(name "TX2+" (effects (font (size 1.27 1.27))))
+				(number "3" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 10.16 0.0)
+				(length 2.54)
+				(name "TX2-" (effects (font (size 1.27 1.27))))
+				(number "6" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 7.620000000000001 0.0)
+				(length 2.54)
+				(name "TX3+" (effects (font (size 1.27 1.27))))
+				(number "4" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 5.080000000000002 0.0)
+				(length 2.54)
+				(name "TX3-" (effects (font (size 1.27 1.27))))
+				(number "5" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 2.540000000000001 0.0)
+				(length 2.54)
+				(name "TX4+" (effects (font (size 1.27 1.27))))
+				(number "7" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 0.0 0.0)
+				(length 2.54)
+				(name "TX4-" (effects (font (size 1.27 1.27))))
+				(number "8" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -2.539999999999999 0.0)
+				(length 2.54)
+				(name "TCT1" (effects (font (size 1.27 1.27))))
+				(number "12" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -5.079999999999998 0.0)
+				(length 2.54)
+				(name "TCT2" (effects (font (size 1.27 1.27))))
+				(number "13" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -7.619999999999997 0.0)
+				(length 2.54)
+				(name "TCT3" (effects (font (size 1.27 1.27))))
+				(number "14" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -10.16 0.0)
+				(length 2.54)
+				(name "TCT4" (effects (font (size 1.27 1.27))))
+				(number "15" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -12.7 0.0)
+				(length 2.54)
+				(name "LED_A_K" (effects (font (size 1.27 1.27))))
+				(number "9" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -15.240000000000002 0.0)
+				(length 2.54)
+				(name "LED_B_K" (effects (font (size 1.27 1.27))))
+				(number "10" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				power_in
+				line
+				(at -10.16 -17.78 0.0)
+				(length 2.54)
+				(name "SHIELD" (effects (font (size 1.27 1.27))))
+				(number "16" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
+	(symbol
+		"USB_C_RECEPTACLE_16P"
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"J"
+			(at 0 10.16 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Value"
+			"USB_C_RECEPTACLE_16P"
+			(at 0 7.62 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Footprint"
+			""
+			(at 0 5.08 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Datasheet"
+			""
+			(at 0 2.54 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Description"
+			"FluxNeurotransmitter module symbol"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(symbol
+			"USB_C_RECEPTACLE_16P_0_1"
+			(rectangle
+				(start -7.62 10.16)
+				(end 7.62 -10.16)
+				(stroke (width 0.254) (type default))
+				(fill (type background))
+			)
+		)
+		(symbol
+			"USB_C_RECEPTACLE_16P_1_1"
+			(pin
+				power_in
+				line
+				(at -10.16 12.7 0.0)
+				(length 2.54)
+				(name "VBUS1" (effects (font (size 1.27 1.27))))
+				(number "A4" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				power_in
+				line
+				(at -10.16 10.16 0.0)
+				(length 2.54)
+				(name "VBUS2" (effects (font (size 1.27 1.27))))
+				(number "A9" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				power_in
+				line
+				(at -10.16 7.619999999999999 0.0)
+				(length 2.54)
+				(name "VBUS3" (effects (font (size 1.27 1.27))))
+				(number "B4" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				power_in
+				line
+				(at -10.16 5.079999999999999 0.0)
+				(length 2.54)
+				(name "VBUS4" (effects (font (size 1.27 1.27))))
+				(number "B9" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				power_in
+				line
+				(at -10.16 2.539999999999999 0.0)
+				(length 2.54)
+				(name "GND1" (effects (font (size 1.27 1.27))))
+				(number "A1" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				power_in
+				line
+				(at -10.16 0.0 0.0)
+				(length 2.54)
+				(name "GND2" (effects (font (size 1.27 1.27))))
+				(number "A12" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				power_in
+				line
+				(at -10.16 -2.540000000000001 0.0)
+				(length 2.54)
+				(name "GND3" (effects (font (size 1.27 1.27))))
+				(number "B1" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				power_in
+				line
+				(at -10.16 -5.080000000000002 0.0)
+				(length 2.54)
+				(name "GND4" (effects (font (size 1.27 1.27))))
+				(number "B12" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -7.620000000000001 0.0)
+				(length 2.54)
+				(name "CC1" (effects (font (size 1.27 1.27))))
+				(number "A5" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -10.16 0.0)
+				(length 2.54)
+				(name "CC2" (effects (font (size 1.27 1.27))))
+				(number "B5" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				power_in
+				line
+				(at -10.16 -12.7 0.0)
+				(length 2.54)
+				(name "SHIELD" (effects (font (size 1.27 1.27))))
+				(number "S1" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
+	(symbol
+		"UFL_ANTENNA"
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"ANT"
+			(at 0 10.16 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Value"
+			"UFL_ANTENNA"
+			(at 0 7.62 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Footprint"
+			""
+			(at 0 5.08 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Datasheet"
+			""
+			(at 0 2.54 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Description"
+			"FluxNeurotransmitter module symbol"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(symbol
+			"UFL_ANTENNA_0_1"
+			(rectangle
+				(start -7.62 10.16)
+				(end 7.62 -10.16)
+				(stroke (width 0.254) (type default))
+				(fill (type background))
+			)
+		)
+		(symbol
+			"UFL_ANTENNA_1_1"
+			(pin
+				passive
+				line
+				(at -10.16 2.54 0.0)
+				(length 2.54)
+				(name "ANT" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				power_in
+				line
+				(at -10.16 0.0 0.0)
+				(length 2.54)
+				(name "GND" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				power_in
+				line
+				(at -10.16 -2.54 0.0)
+				(length 2.54)
+				(name "GND2" (effects (font (size 1.27 1.27))))
+				(number "3" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
+	(symbol
+		"B2B_2X20_0P5MM"
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"P"
+			(at 0 10.16 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Value"
+			"B2B_2X20_0P5MM"
+			(at 0 7.62 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Footprint"
+			""
+			(at 0 5.08 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Datasheet"
+			""
+			(at 0 2.54 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Description"
+			"FluxNeurotransmitter module symbol"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(symbol
+			"B2B_2X20_0P5MM_0_1"
+			(rectangle
+				(start -7.62 10.16)
+				(end 7.62 -10.16)
+				(stroke (width 0.254) (type default))
+				(fill (type background))
+			)
+		)
+		(symbol
+			"B2B_2X20_0P5MM_1_1"
+			(pin
+				passive
+				line
+				(at -10.16 49.53 0.0)
+				(length 2.54)
+				(name "MDI_P0_TX+" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 46.99 0.0)
+				(length 2.54)
+				(name "MDI_P0_TX-" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 44.45 0.0)
+				(length 2.54)
+				(name "MDI_P0_RX+" (effects (font (size 1.27 1.27))))
+				(number "3" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 41.910000000000004 0.0)
+				(length 2.54)
+				(name "MDI_P0_RX-" (effects (font (size 1.27 1.27))))
+				(number "4" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 39.370000000000005 0.0)
+				(length 2.54)
+				(name "MDI_P1_TX+" (effects (font (size 1.27 1.27))))
+				(number "5" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 36.83 0.0)
+				(length 2.54)
+				(name "MDI_P1_TX-" (effects (font (size 1.27 1.27))))
+				(number "6" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 34.29 0.0)
+				(length 2.54)
+				(name "MDI_P1_RX+" (effects (font (size 1.27 1.27))))
+				(number "7" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 31.75 0.0)
+				(length 2.54)
+				(name "MDI_P1_RX-" (effects (font (size 1.27 1.27))))
+				(number "8" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 29.21 0.0)
+				(length 2.54)
+				(name "MDI_T_TX1+" (effects (font (size 1.27 1.27))))
+				(number "9" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 26.67 0.0)
+				(length 2.54)
+				(name "MDI_T_TX1-" (effects (font (size 1.27 1.27))))
+				(number "10" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 24.130000000000003 0.0)
+				(length 2.54)
+				(name "MDI_T_TX2+" (effects (font (size 1.27 1.27))))
+				(number "11" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 21.59 0.0)
+				(length 2.54)
+				(name "MDI_T_TX2-" (effects (font (size 1.27 1.27))))
+				(number "12" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 19.05 0.0)
+				(length 2.54)
+				(name "MDI_T_RX1+" (effects (font (size 1.27 1.27))))
+				(number "13" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 16.509999999999998 0.0)
+				(length 2.54)
+				(name "MDI_T_RX1-" (effects (font (size 1.27 1.27))))
+				(number "14" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 13.969999999999999 0.0)
+				(length 2.54)
+				(name "MDI_T_RX2+" (effects (font (size 1.27 1.27))))
+				(number "15" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 11.43 0.0)
+				(length 2.54)
+				(name "MDI_T_RX2-" (effects (font (size 1.27 1.27))))
+				(number "16" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				power_in
+				line
+				(at -10.16 8.89 0.0)
+				(length 2.54)
+				(name "VBUS_5V" (effects (font (size 1.27 1.27))))
+				(number "17" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				power_in
+				line
+				(at -10.16 6.350000000000001 0.0)
+				(length 2.54)
+				(name "C3V3" (effects (font (size 1.27 1.27))))
+				(number "18" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				power_in
+				line
+				(at -10.16 3.8100000000000023 0.0)
+				(length 2.54)
+				(name "GND1" (effects (font (size 1.27 1.27))))
+				(number "19" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				power_in
+				line
+				(at -10.16 1.2700000000000031 0.0)
+				(length 2.54)
+				(name "GND2" (effects (font (size 1.27 1.27))))
+				(number "20" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				power_in
+				line
+				(at -10.16 -1.269999999999996 0.0)
+				(length 2.54)
+				(name "GND3" (effects (font (size 1.27 1.27))))
+				(number "21" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				power_in
+				line
+				(at -10.16 -3.8100000000000023 0.0)
+				(length 2.54)
+				(name "GND4" (effects (font (size 1.27 1.27))))
+				(number "22" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				power_in
+				line
+				(at -10.16 -6.350000000000001 0.0)
+				(length 2.54)
+				(name "GND5" (effects (font (size 1.27 1.27))))
+				(number "23" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				power_in
+				line
+				(at -10.16 -8.89 0.0)
+				(length 2.54)
+				(name "GND6" (effects (font (size 1.27 1.27))))
+				(number "24" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -11.43 0.0)
+				(length 2.54)
+				(name "SPI_MOSI_C" (effects (font (size 1.27 1.27))))
+				(number "25" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -13.969999999999999 0.0)
+				(length 2.54)
+				(name "SPI_MISO_C" (effects (font (size 1.27 1.27))))
+				(number "26" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -16.510000000000005 0.0)
+				(length 2.54)
+				(name "SPI_SCK_C" (effects (font (size 1.27 1.27))))
+				(number "27" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -19.049999999999997 0.0)
+				(length 2.54)
+				(name "SPI_CS_C" (effects (font (size 1.27 1.27))))
+				(number "28" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -21.590000000000003 0.0)
+				(length 2.54)
+				(name "UART_TX_C" (effects (font (size 1.27 1.27))))
+				(number "29" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -24.129999999999995 0.0)
+				(length 2.54)
+				(name "UART_RX_C" (effects (font (size 1.27 1.27))))
+				(number "30" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -26.67 0.0)
+				(length 2.54)
+				(name "SWDIO_C" (effects (font (size 1.27 1.27))))
+				(number "31" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -29.209999999999994 0.0)
+				(length 2.54)
+				(name "SWCLK_C" (effects (font (size 1.27 1.27))))
+				(number "32" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -31.75 0.0)
+				(length 2.54)
+				(name "GPIO1_C" (effects (font (size 1.27 1.27))))
+				(number "33" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -34.290000000000006 0.0)
+				(length 2.54)
+				(name "GPIO2_C" (effects (font (size 1.27 1.27))))
+				(number "34" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -36.83 0.0)
+				(length 2.54)
+				(name "ESP_EN_C" (effects (font (size 1.27 1.27))))
+				(number "35" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -39.370000000000005 0.0)
+				(length 2.54)
+				(name "ESP_BOOT_C" (effects (font (size 1.27 1.27))))
+				(number "36" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -41.91 0.0)
+				(length 2.54)
+				(name "RSTN_C" (effects (font (size 1.27 1.27))))
+				(number "37" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -44.45 0.0)
+				(length 2.54)
+				(name "SPARE1" (effects (font (size 1.27 1.27))))
+				(number "38" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -46.989999999999995 0.0)
+				(length 2.54)
+				(name "SPARE2" (effects (font (size 1.27 1.27))))
+				(number "39" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -49.53 0.0)
+				(length 2.54)
+				(name "CHASSIS" (effects (font (size 1.27 1.27))))
+				(number "40" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
+	(symbol
+		"R_0603"
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"R"
+			(at 0 10.16 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Value"
+			"R_0603"
+			(at 0 7.62 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Footprint"
+			""
+			(at 0 5.08 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Datasheet"
+			""
+			(at 0 2.54 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Description"
+			"FluxNeurotransmitter module symbol"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(symbol
+			"R_0603_0_1"
+			(rectangle
+				(start -7.62 10.16)
+				(end 7.62 -10.16)
+				(stroke (width 0.254) (type default))
+				(fill (type background))
+			)
+		)
+		(symbol
+			"R_0603_1_1"
+			(pin
+				passive
+				line
+				(at -10.16 1.27 0.0)
+				(length 2.54)
+				(name "A" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -1.27 0.0)
+				(length 2.54)
+				(name "B" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
+	(symbol
+		"C_0603"
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"C"
+			(at 0 10.16 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Value"
+			"C_0603"
+			(at 0 7.62 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Footprint"
+			""
+			(at 0 5.08 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Datasheet"
+			""
+			(at 0 2.54 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Description"
+			"FluxNeurotransmitter module symbol"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(symbol
+			"C_0603_0_1"
+			(rectangle
+				(start -7.62 10.16)
+				(end 7.62 -10.16)
+				(stroke (width 0.254) (type default))
+				(fill (type background))
+			)
+		)
+		(symbol
+			"C_0603_1_1"
+			(pin
+				passive
+				line
+				(at -10.16 1.27 0.0)
+				(length 2.54)
+				(name "A" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+			(pin
+				passive
+				line
+				(at -10.16 -1.27 0.0)
+				(length 2.54)
+				(name "B" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
+	(symbol
+		"PWR_FLAG"
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"#FLG"
+			(at 0 10.16 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Value"
+			"PWR_FLAG"
+			(at 0 7.62 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Footprint"
+			""
+			(at 0 5.08 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Datasheet"
+			""
+			(at 0 2.54 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property
+			"Description"
+			"FluxNeurotransmitter module symbol"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(symbol
+			"PWR_FLAG_0_1"
+			(rectangle
+				(start -7.62 10.16)
+				(end 7.62 -10.16)
+				(stroke (width 0.254) (type default))
+				(fill (type background))
+			)
+		)
+		(symbol
+			"PWR_FLAG_1_1"
+			(pin
+				power_out
+				line
+				(at 0.0 0.0 0.0)
+				(length 2.54)
+				(name "PWR_FLAG" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
+)

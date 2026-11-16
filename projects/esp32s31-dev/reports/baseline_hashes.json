@@ -1,0 +1,9 @@
+{
+ "projects\\esp32s31-dev\\pcb\\board\\esp32s31-dev.kicad_pcb": "f34e9ff8f3abacdf",
+ "projects\\esp32s31-dev\\schematic\\board\\erc.rpt": "114e2c34ebcdb950",
+ "projects\\esp32s31-dev\\schematic\\board\\esp32s31-dev.kicad_prl": "85274a5d774f2ed9",
+ "projects\\esp32s31-dev\\schematic\\board\\esp32s31-dev.kicad_pro": "884f13bbd42dd4f7",
+ "projects\\esp32s31-dev\\schematic\\board\\esp32s31-dev.kicad_sch": "46cfb42423cf9b50",
+ "projects\\esp32s31-dev\\schematic\\board\\flux.kicad_sym": "58403d4b7fe7499f",
+ "projects\\esp32s31-dev\\schematic\\board\\sym-lib-table": "44dbc7b9555befe3"
+}

@@ -1,0 +1,46 @@
+name: _example
+requirements:
+  - id: FR-001
+    text: 核心功能可运行
+    priority: must
+    covered_by: [bom, schematic]
+power:
+  input: USB-C 5V
+  total_w: 2.0
+  rails:
+    - 3V3
+    - 1V8
+interfaces:
+  - name: spi_host
+    type: spi
+    high_speed: true
+    connections: [SPI_MOSI, SPI_MISO, SPI_SCK, SPI_CS]
+    impedance_ohm: 50
+    style: microstrip
+    h_mm: 0.2
+  - name: wifi_module
+    type: wifi
+    mcu:
+      family: esp32s31
+      pins:
+        spi_mosi: "GPIO11"
+        spi_miso: "GPIO13"
+        spi_sck: "GPIO12"
+        spi_cs: "GPIO10"
+constraints:
+  size_mm: [65, 30]
+  layers: 6
+  er: 4.4
+bom_seed:
+  mcu:
+    mpn: HPM6E80IVM1
+    lcsc: C000000
+    footprint: BGA
+    datasheet: reference/hpm6e80_ds.pdf
+    value: HPM6E80
+  wifi:
+    mpn: ESP32-S31-WROOM-3U
+    lcsc: C000000
+    footprint: MOD_WROOM
+    datasheet: reference/esp32s31_wroom3u.pdf
+    value: ESP32-S31

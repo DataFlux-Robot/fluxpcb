@@ -1,0 +1,129 @@
+{
+ "parts": {
+  "U1": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "U2": {
+   "status": "manual-verify",
+   "note": "BMI088与BMI055同LGA-16家族封装;下单前核实"
+  },
+  "U3": {
+   "status": "manual-verify",
+   "note": "ICM-45686与ICM-42688-P同14-LGA引脚兼容;下单前核实"
+  },
+  "U4": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "U5": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "U6": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "U7": {
+   "status": "snapshot"
+  },
+  "U8": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "U9": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "CV1": {
+   "status": "manual-verify",
+   "note": "H7 VCAP电容;下单前核实C号"
+  },
+  "CV2": {
+   "status": "manual-verify",
+   "note": "H7 VCAP电容;下单前核实C号"
+  },
+  "FB1": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "Y1": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "Y2": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "J1": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "J2": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "J3": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "J4": {
+   "status": "snapshot"
+  },
+  "J5": {
+   "status": "snapshot"
+  },
+  "J6": {
+   "status": "snapshot"
+  },
+  "J7": {
+   "status": "snapshot"
+  },
+  "J8": {
+   "status": "snapshot"
+  },
+  "J12": {
+   "status": "snapshot"
+  },
+  "J13": {
+   "status": "snapshot"
+  },
+  "J14": {
+   "status": "snapshot"
+  },
+  "J9": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "J10": {
+   "status": "snapshot"
+  },
+  "J11": {
+   "status": "manual-verify",
+   "note": "3x08 2.54mm排针(Pixhawk三排PWM),生成封装"
+  },
+  "J15": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "J16": {
+   "status": "manual-verify",
+   "note": "PX4系列器件C号下单前核实"
+  },
+  "J17": {
+   "status": "manual-verify",
+   "note": "microSD推推座;下单前核实"
+  },
+  "D1": {
+   "status": "manual-verify",
+   "note": "C497919来自鸿利品牌页对照表,下单前在商品页确认颜色参数"
+  },
+  "R1": {
+   "status": "snapshot"
+  }
+ },
+ "online": 0,
+ "snapshot": 11,
+ "manual_verify": 22,
+ "network": false
+}

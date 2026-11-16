@@ -1,0 +1,18 @@
+[
+ {
+  "mpn": "HPM6E80IVM1",
+  "lcsc": "C000000",
+  "footprint": "BGA",
+  "datasheet": "reference/hpm6e80_ds.pdf",
+  "value": "HPM6E80",
+  "ref": "U1"
+ },
+ {
+  "mpn": "ESP32-S31-WROOM-3U",
+  "lcsc": "C000000",
+  "footprint": "MOD_WROOM",
+  "datasheet": "reference/esp32s31_wroom3u.pdf",
+  "value": "ESP32-S31",
+  "ref": "U2"
+ }
+]

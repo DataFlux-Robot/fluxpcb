@@ -1,0 +1,14 @@
+{
+ "targets": [
+  {
+   "family": "hpm6e80",
+   "build": "ok",
+   "main": "firmware\\hpm6e80\\main.c"
+  },
+  {
+   "family": "esp32s31",
+   "build": "ok",
+   "main": "firmware\\esp32s31\\main.c"
+  }
+ ]
+}

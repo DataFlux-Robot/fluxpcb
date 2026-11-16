@@ -1,0 +1,16 @@
+{
+ "status": "ok",
+ "nets": [
+  {
+   "name": "usb",
+   "h_mm": 0.2,
+   "within_1h_pct": 50.0,
+   "within_3h_pct": 79.5,
+   "within_10h_pct": 93.7
+  }
+ ],
+ "worst_concentration_pct": 79.5,
+ "threshold_pct": 70.0,
+ "pass": true,
+ "note": "解析筛(无平缝几何参与); 开槽影响的场级确认见 em_field_analysis"
+}

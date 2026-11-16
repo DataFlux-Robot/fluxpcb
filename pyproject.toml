@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fluxpcb"
+version = "0.1.0"
+description = "FluxPCB: fully-automated AI circuit design pipeline (requirements -> BOM -> schematic -> PCB -> simulation gates -> firmware)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "FluxPCB contributors" }]
+dependencies = ["pyyaml>=6.0", "numpy>=1.24"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+flux = "fluxpcb.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["fluxpcb*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.setuptools.package-data]
+fluxpcb = ["dashboard/static/*.html"]

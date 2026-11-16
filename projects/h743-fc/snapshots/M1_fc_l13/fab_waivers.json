@@ -1,0 +1,1113 @@
+{
+ "waivers": [
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1425,
+   "shortfall_mm": 0.0075,
+   "nets": [
+    "SPI2_NSS",
+    "OSC32_OUT"
+   ],
+   "pos_mm": [
+    28.1211,
+    15.057
+   ],
+   "uuids": [
+    "0b94205b-28d0-43f2-bb4b-ca367503a9d2",
+    "a27adbe2-4af3-4467-becc-13d00d71f02f"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1425 mm)",
+   "verdict": "waived-fab-margin",
+   "evidence": "actual 0.1425mm >= fab_min 0.1mm, shortfall 0.0075mm <= 0.008mm"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1464,
+   "shortfall_mm": 0.0036,
+   "nets": [
+    "I2C1_SDA",
+    "PWM_CH2"
+   ],
+   "pos_mm": [
+    13.4211,
+    30.7044
+   ],
+   "uuids": [
+    "d63f715d-9dd4-4f34-ba7d-56aeba5340b2",
+    "d644e6b4-1a2b-487a-9922-468331d031b9"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1464 mm)",
+   "verdict": "waived-fab-margin",
+   "evidence": "actual 0.1464mm >= fab_min 0.1mm, shortfall 0.0036mm <= 0.008mm"
+  }
+ ],
+ "genuine": [
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1217,
+   "shortfall_mm": 0.0283,
+   "nets": [
+    "OSC_IN",
+    "SDMMC1_D2"
+   ],
+   "pos_mm": [
+    20.554,
+    12.5727
+   ],
+   "uuids": [
+    "1966f2c2-8ada-4621-ae7d-687ea9a7a402",
+    "2330e539-7255-45bd-ad76-abaed58b52e8"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1217 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0283mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1106,
+   "shortfall_mm": 0.0394,
+   "nets": [
+    "SDMMC1_D2",
+    "SDMMC1_D3"
+   ],
+   "pos_mm": [
+    8.41,
+    8.9176
+   ],
+   "uuids": [
+    "5eacc355-1362-477b-837a-de58b0b538b3",
+    "f9821154-7b1f-4254-98b5-189d792a8a62"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1106 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0394mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1261,
+   "shortfall_mm": 0.0239,
+   "nets": [
+    "UART4_RX",
+    "ADC1_INP10"
+   ],
+   "pos_mm": [
+    23.65,
+    24.6985
+   ],
+   "uuids": [
+    "4bfb94e3-b088-488e-b403-d817fc2efee5",
+    "7ffbafcc-fe6b-49eb-8bca-4f4fac2a0862"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1261 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0239mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.02,
+   "shortfall_mm": 0.13,
+   "nets": [
+    "UART7_TX",
+    "PWM_CH4"
+   ],
+   "pos_mm": [
+    27.12,
+    30.48
+   ],
+   "uuids": [
+    "0f289d49-23dc-405c-aed5-2e21ba50832b",
+    "be3e0a91-95b7-4f3e-92f1-376b04d41f3d"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.0200 mm)",
+   "verdict": "genuine-violation",
+   "reason": "actual < fab_min — 不可加工"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1407,
+   "shortfall_mm": 0.0093,
+   "nets": [
+    "PWM_CH1",
+    "PWM_CH2"
+   ],
+   "pos_mm": [
+    20.8482,
+    22.8267
+   ],
+   "uuids": [
+    "21c4d914-ac16-48af-89c5-ab8d3136c4df",
+    "2f59234c-963b-44f9-853a-9154832d0f56"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1407 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0093mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1129,
+   "shortfall_mm": 0.0371,
+   "nets": [
+    "<no net>",
+    "PWM_CH1"
+   ],
+   "pos_mm": [
+    21.2,
+    23.2
+   ],
+   "uuids": [
+    "87c8aa34-0f9f-4f09-96a6-88ef45ee9202",
+    "e6c1aaee-6f6e-4273-b713-4b8158c8aee0"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1129 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0371mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1315,
+   "shortfall_mm": 0.0185,
+   "nets": [
+    "PWM_CH2",
+    "PWM_CH1"
+   ],
+   "pos_mm": [
+    21.9457,
+    21.0483
+   ],
+   "uuids": [
+    "a7604da1-a37b-498d-8b7f-d3f366b4bb3b",
+    "e6c1aaee-6f6e-4273-b713-4b8158c8aee0"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1315 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0185mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.0626,
+   "shortfall_mm": 0.0874,
+   "nets": [
+    "SDMMC1_D0",
+    "USART1_TX"
+   ],
+   "pos_mm": [
+    14.3736,
+    10.8324
+   ],
+   "uuids": [
+    "79a177ef-506f-401d-82f1-b793efd75b17",
+    "7f786fb4-f965-4e46-8131-2933b3f56e96"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.0626 mm)",
+   "verdict": "genuine-violation",
+   "reason": "actual < fab_min — 不可加工"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1217,
+   "shortfall_mm": 0.0283,
+   "nets": [
+    "USART1_RX",
+    "OSC32_OUT"
+   ],
+   "pos_mm": [
+    26.4428,
+    16.575599
+   ],
+   "uuids": [
+    "8844bc12-4860-45c0-b1e2-2519efc1fa93",
+    "e6c5a640-842d-4773-af77-899cbd20cc5b"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1217 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0283mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1217,
+   "shortfall_mm": 0.0283,
+   "nets": [
+    "SPI1_NSS",
+    "SDMMC1_CK"
+   ],
+   "pos_mm": [
+    19.1696,
+    15.3787
+   ],
+   "uuids": [
+    "03dfcbfa-60fd-4376-aff7-52cb96033a2b",
+    "18b13c50-c13f-4c7e-8ef7-871267dad607"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1217 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0283mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.136,
+   "shortfall_mm": 0.014,
+   "nets": [
+    "I2C1_SCL",
+    "SDMMC1_CK"
+   ],
+   "pos_mm": [
+    13.7881,
+    12.4643
+   ],
+   "uuids": [
+    "b94fdc52-6ea2-44d2-80ad-c5f285ba00a7",
+    "f853c355-b072-449c-ac7f-89ddbb9180da"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1360 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.014mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1217,
+   "shortfall_mm": 0.0283,
+   "nets": [
+    "PWM_CH3",
+    "SPI1_MOSI"
+   ],
+   "pos_mm": [
+    16.2734,
+    22.1161
+   ],
+   "uuids": [
+    "86f1921d-a04a-447f-9c75-e4b9dc83119e",
+    "bc1731f8-c095-4d50-ac02-66def007a2c9"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1217 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0283mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.131,
+   "shortfall_mm": 0.019,
+   "nets": [
+    "USART1_TX",
+    "SDMMC1_CK"
+   ],
+   "pos_mm": [
+    14.4953,
+    13.0936
+   ],
+   "uuids": [
+    "9bf6dc0a-6a0e-4d91-ad68-131a834e5181",
+    "f853c355-b072-449c-ac7f-89ddbb9180da"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1310 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.019mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1241,
+   "shortfall_mm": 0.0259,
+   "nets": [
+    "FDCAN2_RX",
+    "PWM_CH3"
+   ],
+   "pos_mm": [
+    16.7475,
+    21.2227
+   ],
+   "uuids": [
+    "4dd6290f-a55b-4e90-879c-54038ed73720",
+    "86f1921d-a04a-447f-9c75-e4b9dc83119e"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1241 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0259mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1408,
+   "shortfall_mm": 0.0092,
+   "nets": [
+    "UART4_TX",
+    "UART4_RX"
+   ],
+   "pos_mm": [
+    27.3628,
+    46.27
+   ],
+   "uuids": [
+    "01b3f396-1fe5-4d9b-9738-d90df750d466",
+    "c8fdbe51-6609-411b-82b0-e6af133fc3d9"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1408 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0092mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1251,
+   "shortfall_mm": 0.0249,
+   "nets": [
+    "SDMMC1_D3",
+    "SDMMC1_CK"
+   ],
+   "pos_mm": [
+    9.3387,
+    8.5615
+   ],
+   "uuids": [
+    "180ec995-7724-44a6-bbc9-49dc98762381",
+    "c02f3de3-29f9-4085-964e-ecba95af6df2"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1251 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0249mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1251,
+   "shortfall_mm": 0.0249,
+   "nets": [
+    "SDMMC1_D3",
+    "SDMMC1_CK"
+   ],
+   "pos_mm": [
+    9.3387,
+    8.5615
+   ],
+   "uuids": [
+    "180ec995-7724-44a6-bbc9-49dc98762381",
+    "c02f3de3-29f9-4085-964e-ecba95af6df2"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1251 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0249mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1251,
+   "shortfall_mm": 0.0249,
+   "nets": [
+    "SDMMC1_D3",
+    "SDMMC1_CK"
+   ],
+   "pos_mm": [
+    9.3387,
+    8.5615
+   ],
+   "uuids": [
+    "180ec995-7724-44a6-bbc9-49dc98762381",
+    "c02f3de3-29f9-4085-964e-ecba95af6df2"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1251 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0249mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1394,
+   "shortfall_mm": 0.0106,
+   "nets": [
+    "FDCAN2_TX",
+    "SPI1_SCK"
+   ],
+   "pos_mm": [
+    18.9261,
+    20.8268
+   ],
+   "uuids": [
+    "1f356fe5-c691-48c3-bfd4-0b8b951836d9",
+    "44936b17-775a-43d2-9f8e-10cdcebb518d"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1394 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0106mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1251,
+   "shortfall_mm": 0.0249,
+   "nets": [
+    "SDMMC1_D3",
+    "SDMMC1_CK"
+   ],
+   "pos_mm": [
+    9.3387,
+    8.5615
+   ],
+   "uuids": [
+    "180ec995-7724-44a6-bbc9-49dc98762381",
+    "c02f3de3-29f9-4085-964e-ecba95af6df2"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1251 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0249mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1251,
+   "shortfall_mm": 0.0249,
+   "nets": [
+    "SDMMC1_D3",
+    "SDMMC1_CK"
+   ],
+   "pos_mm": [
+    9.3387,
+    8.5615
+   ],
+   "uuids": [
+    "180ec995-7724-44a6-bbc9-49dc98762381",
+    "c02f3de3-29f9-4085-964e-ecba95af6df2"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1251 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0249mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1247,
+   "shortfall_mm": 0.0253,
+   "nets": [
+    "SPI1_SCK",
+    "PWM_CH3"
+   ],
+   "pos_mm": [
+    18.1216,
+    20.9392
+   ],
+   "uuids": [
+    "44936b17-775a-43d2-9f8e-10cdcebb518d",
+    "56687f1f-d644-458c-9848-74f3e0c46b4a"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1247 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0253mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1152,
+   "shortfall_mm": 0.0348,
+   "nets": [
+    "SDMMC1_D3",
+    "SDMMC1_D2"
+   ],
+   "pos_mm": [
+    9.3387,
+    8.5615
+   ],
+   "uuids": [
+    "180ec995-7724-44a6-bbc9-49dc98762381",
+    "d44c2a95-0c8c-47b1-bbb3-09f01e6595f2"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1152 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0348mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.08,
+   "shortfall_mm": 0.07,
+   "nets": [
+    "USART6_TX",
+    "3V3"
+   ],
+   "pos_mm": [
+    30.4,
+    22.0
+   ],
+   "uuids": [
+    "1dbda22e-d7f5-4366-aa73-117ac527f5b0",
+    "b24768dd-b34f-4d3a-8466-c0aa6b57eb43"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.0800 mm)",
+   "verdict": "genuine-violation",
+   "reason": "actual < fab_min — 不可加工"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1243,
+   "shortfall_mm": 0.0257,
+   "nets": [
+    "SPI2_NSS",
+    "SPI2_SCK"
+   ],
+   "pos_mm": [
+    31.6,
+    17.6
+   ],
+   "uuids": [
+    "d122303e-8a4d-42f7-b05d-49a793b253b6",
+    "fb25b76f-c649-4e98-8173-cdd1038fd261"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1243 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0257mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1484,
+   "shortfall_mm": 0.0016,
+   "nets": [
+    "<no net>",
+    "SPI2_SCK"
+   ],
+   "pos_mm": [
+    30.0,
+    19.2
+   ],
+   "uuids": [
+    "bc83ac8a-d5b4-47c2-8965-d8b7e97d8925",
+    "dc0dde97-76a4-4b2b-941d-ff078b6d4c9c"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1484 mm)",
+   "verdict": "unnamed-net",
+   "reason": "unnamed net pair: rule cannot match"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1217,
+   "shortfall_mm": 0.0283,
+   "nets": [
+    "SPI2_NSS",
+    "I2C1_SDA"
+   ],
+   "pos_mm": [
+    17.5598,
+    15.1067
+   ],
+   "uuids": [
+    "84ddd438-11c2-44c5-814f-3950c51a6642",
+    "f5a7095b-e623-4729-b56c-14ef768def90"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1217 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0283mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1218,
+   "shortfall_mm": 0.0282,
+   "nets": [
+    "I2C1_SCL",
+    "I2C1_SDA"
+   ],
+   "pos_mm": [
+    18.3804,
+    16.6622
+   ],
+   "uuids": [
+    "147d28e0-5cef-4983-86b1-921e8a1166bb",
+    "f5a7095b-e623-4729-b56c-14ef768def90"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1218 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0282mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1219,
+   "shortfall_mm": 0.0281,
+   "nets": [
+    "SPI2_SCK",
+    "ADC1_INP10"
+   ],
+   "pos_mm": [
+    26.988,
+    25.4821
+   ],
+   "uuids": [
+    "313f7169-bb6d-4ddd-b2a7-8507d9471251",
+    "8547362f-7813-42cc-a800-b79a07157cac"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1219 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0281mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1357,
+   "shortfall_mm": 0.0143,
+   "nets": [
+    "USART1_RX",
+    "I2C1_SDA"
+   ],
+   "pos_mm": [
+    10.8769,
+    14.3631
+   ],
+   "uuids": [
+    "2b97cecf-7095-4384-af0e-070be0d3f2cb",
+    "f5a7095b-e623-4729-b56c-14ef768def90"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1357 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0143mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1021,
+   "shortfall_mm": 0.0479,
+   "nets": [
+    "PWM_CH8",
+    "FDCAN2_RX"
+   ],
+   "pos_mm": [
+    24.8727,
+    31.9243
+   ],
+   "uuids": [
+    "cbce0263-ae0d-48aa-ba0e-b8074030a8d2",
+    "ce038d8f-e089-4f64-b506-e4d25a1902f4"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1021 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0479mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1334,
+   "shortfall_mm": 0.0166,
+   "nets": [
+    "I2C1_SCL",
+    "SDMMC1_D1"
+   ],
+   "pos_mm": [
+    20.6055,
+    10.1101
+   ],
+   "uuids": [
+    "246b19f0-ece6-446b-986c-3ca9ac05b776",
+    "de066e6c-1915-44e2-b929-cd831d3e94dc"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1334 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0166mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1206,
+   "shortfall_mm": 0.0294,
+   "nets": [
+    "FDCAN2_RX",
+    "PWM_CH8"
+   ],
+   "pos_mm": [
+    24.6285,
+    31.4537
+   ],
+   "uuids": [
+    "2e668d70-23d8-498b-ad83-999f7d1381d4",
+    "cbce0263-ae0d-48aa-ba0e-b8074030a8d2"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1206 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0294mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.121,
+   "shortfall_mm": 0.029,
+   "nets": [
+    "SPI1_MISO",
+    "FDCAN2_RX"
+   ],
+   "pos_mm": [
+    22.8,
+    17.04
+   ],
+   "uuids": [
+    "530a1720-4ce7-4f5b-820e-48bb1d860a3c",
+    "5ced4dbc-f231-42dd-8a07-1d37754940aa"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1210 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.029mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1017,
+   "shortfall_mm": 0.0483,
+   "nets": [
+    "FDCAN2_RX",
+    "FDCAN2_TX"
+   ],
+   "pos_mm": [
+    23.037,
+    33.6758
+   ],
+   "uuids": [
+    "15e9156b-fe14-46da-839d-0c76033b1bc3",
+    "d5596ce0-9c95-4953-87a8-00f3890d428b"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1017 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0483mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.113,
+   "shortfall_mm": 0.037,
+   "nets": [
+    "FDCAN2_TX",
+    "IMU1_CS2"
+   ],
+   "pos_mm": [
+    18.9261,
+    19.6917
+   ],
+   "uuids": [
+    "ab150625-8c32-483d-8d5d-0a98bd8f21f7",
+    "cd0e1b45-e0fa-42db-b52b-6185b86ea667"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1130 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.037mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1159,
+   "shortfall_mm": 0.0341,
+   "nets": [
+    "FDCAN2_RX",
+    "FDCAN2_TX"
+   ],
+   "pos_mm": [
+    19.6566,
+    19.2258
+   ],
+   "uuids": [
+    "6116a970-1261-45b0-b69d-5a7bf406370d",
+    "ab150625-8c32-483d-8d5d-0a98bd8f21f7"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1159 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0341mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1016,
+   "shortfall_mm": 0.0484,
+   "nets": [
+    "PWM_CH7",
+    "FDCAN2_TX"
+   ],
+   "pos_mm": [
+    32.9764,
+    30.0933
+   ],
+   "uuids": [
+    "76a3b7fc-5c35-4bab-9de8-4e45923f56ab",
+    "d5596ce0-9c95-4953-87a8-00f3890d428b"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1016 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0484mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1017,
+   "shortfall_mm": 0.0483,
+   "nets": [
+    "PWM_CH3",
+    "FDCAN2_TX"
+   ],
+   "pos_mm": [
+    21.8566,
+    20.1434
+   ],
+   "uuids": [
+    "6f75ff14-b7fa-4986-93d7-be8127a4d04e",
+    "ab150625-8c32-483d-8d5d-0a98bd8f21f7"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1017 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0483mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.102,
+   "shortfall_mm": 0.048,
+   "nets": [
+    "UART8_TX",
+    "UART5_TX"
+   ],
+   "pos_mm": [
+    30.0048,
+    31.7933
+   ],
+   "uuids": [
+    "8b5f8b2a-e37f-49f4-9856-9b7cf2c33276",
+    "f55cb675-5501-46a8-8e02-2a294589f911"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1020 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.048mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1,
+   "shortfall_mm": 0.05,
+   "nets": [
+    "VCAP",
+    "PWM_CH4"
+   ],
+   "pos_mm": [
+    27.6,
+    30.4
+   ],
+   "uuids": [
+    "9f0db91d-f6fd-4c6a-8727-2eb1cef5a0ff",
+    "be3e0a91-95b7-4f3e-92f1-376b04d41f3d"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1000 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.05mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1216,
+   "shortfall_mm": 0.0284,
+   "nets": [
+    "CAN1_H",
+    "FDCAN1_RX"
+   ],
+   "pos_mm": [
+    35.622,
+    37.5492
+   ],
+   "uuids": [
+    "1d44a716-b048-406a-a837-ae0886954aea",
+    "cfea9865-00e5-49ab-8856-c713ac98d426"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1216 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0284mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1093,
+   "shortfall_mm": 0.0407,
+   "nets": [
+    "FDCAN1_TX",
+    "<no net>"
+   ],
+   "pos_mm": [
+    31.9601,
+    25.2399
+   ],
+   "uuids": [
+    "6f7ecff5-86dc-4dc7-a413-6574132f3770",
+    "d1027040-59ea-4ee9-9604-2e6794267d44"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1093 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0407mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1031,
+   "shortfall_mm": 0.0469,
+   "nets": [
+    "FDCAN1_TX",
+    "UART7_RX"
+   ],
+   "pos_mm": [
+    29.6058,
+    39.5313
+   ],
+   "uuids": [
+    "18d542ec-47a4-4052-bc27-33f786f7df64",
+    "750bfeec-3315-46c2-8e38-ce6ffb658e8c"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1031 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0469mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1308,
+   "shortfall_mm": 0.0192,
+   "nets": [
+    "UART7_RX",
+    "USART3_TX"
+   ],
+   "pos_mm": [
+    25.6,
+    30.0
+   ],
+   "uuids": [
+    "3a92fe8e-11d3-431f-ba39-c5bec70e77bd",
+    "fc07ec03-68b5-4ac7-a9a3-c2e9e3972cd3"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1308 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0192mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.02,
+   "shortfall_mm": 0.13,
+   "nets": [
+    "UART7_RX",
+    "USART3_TX"
+   ],
+   "pos_mm": [
+    25.6,
+    30.0
+   ],
+   "uuids": [
+    "3a92fe8e-11d3-431f-ba39-c5bec70e77bd",
+    "f9ccc8b8-76c5-4e20-8a59-169194aa4133"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.0200 mm)",
+   "verdict": "genuine-violation",
+   "reason": "actual < fab_min — 不可加工"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1018,
+   "shortfall_mm": 0.0482,
+   "nets": [
+    "ADC1_INP11",
+    "FDCAN1_TX"
+   ],
+   "pos_mm": [
+    31.0498,
+    24.9686
+   ],
+   "uuids": [
+    "0326d956-a7b2-46d7-b104-98ab4861b899",
+    "6f7ecff5-86dc-4dc7-a413-6574132f3770"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1018 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0482mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1,
+   "shortfall_mm": 0.05,
+   "nets": [
+    "UART7_RX",
+    "USART3_TX"
+   ],
+   "pos_mm": [
+    25.6,
+    30.0
+   ],
+   "uuids": [
+    "3a92fe8e-11d3-431f-ba39-c5bec70e77bd",
+    "c439f096-2980-4c02-998b-fdf84232faa5"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1000 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.05mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.0298,
+   "shortfall_mm": 0.1202,
+   "nets": [
+    "UART7_RX",
+    "USART3_TX"
+   ],
+   "pos_mm": [
+    25.6,
+    30.0
+   ],
+   "uuids": [
+    "3a92fe8e-11d3-431f-ba39-c5bec70e77bd",
+    "8cfb06ae-dc44-41fc-bb3b-7425fb94c542"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.0298 mm)",
+   "verdict": "genuine-violation",
+   "reason": "actual < fab_min — 不可加工"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.0298,
+   "shortfall_mm": 0.1202,
+   "nets": [
+    "UART7_RX",
+    "USART3_TX"
+   ],
+   "pos_mm": [
+    25.6,
+    30.0
+   ],
+   "uuids": [
+    "3a92fe8e-11d3-431f-ba39-c5bec70e77bd",
+    "8b5ef1a6-c367-4da7-a1bb-ff853075a1b2"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.0298 mm)",
+   "verdict": "genuine-violation",
+   "reason": "actual < fab_min — 不可加工"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.096,
+   "shortfall_mm": 0.054,
+   "nets": [
+    "UART7_RX",
+    "USART3_TX"
+   ],
+   "pos_mm": [
+    25.6,
+    30.0
+   ],
+   "uuids": [
+    "3a92fe8e-11d3-431f-ba39-c5bec70e77bd",
+    "58c5fac2-cabb-4bb5-9cd9-e6294d21581f"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.0960 mm)",
+   "verdict": "genuine-violation",
+   "reason": "actual < fab_min — 不可加工"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.125,
+   "shortfall_mm": 0.025,
+   "nets": [
+    "I2C2_SCL",
+    "NRST"
+   ],
+   "pos_mm": [
+    20.4,
+    24.08
+   ],
+   "uuids": [
+    "6b3d8bbe-bbd5-45dd-9624-cd84f3497419",
+    "76ce7ad8-13e8-4fef-8185-05d34b0c6333"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1250 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.025mm > 0.008mm — 需布局修复或政策决定"
+  },
+  {
+   "required_mm": 0.15,
+   "actual_mm": 0.1058,
+   "shortfall_mm": 0.0442,
+   "nets": [
+    "SPI2_MOSI",
+    "3V3"
+   ],
+   "pos_mm": [
+    19.44,
+    26.8
+   ],
+   "uuids": [
+    "1d8f5d70-7188-4841-a59c-1eb2adbc9b70",
+    "acf7befc-9f25-452e-a67f-37d3f9d07791"
+   ],
+   "desc": "间距违规 ( 间距 0.1500 mm; 实际 0.1058 mm)",
+   "verdict": "bend-too-big",
+   "reason": "shortfall 0.0442mm > 0.008mm — 需布局修复或政策决定"
+  }
+ ],
+ "probe": {
+  "probe": "PROBE_FAILED",
+  "still_waived": 2,
+  "total_clearance_after": 82
+ },
+ "fab_min_mm": 0.1,
+ "tol_mm": 0.008
+}

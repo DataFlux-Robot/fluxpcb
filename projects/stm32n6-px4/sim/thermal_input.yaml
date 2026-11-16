@@ -1,0 +1,4 @@
+total_power_w: 2.0
+t_amb: 25.0
+tj_limit_c: 85.0
+sources: []
