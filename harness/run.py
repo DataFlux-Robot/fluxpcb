@@ -56,8 +56,11 @@ def default_class(name):
 def run(cmd, timeout_s, log_path, cwd=None):
     t0 = time.time()
     timed_out = False
+    import os
+    env = os.environ.copy()
+    env["PYTHONUNBUFFERED"] = "1"
     try:
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s, cwd=cwd)
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s, cwd=cwd, env=env)
         log, rc = (p.stdout or "") + (p.stderr or ""), p.returncode
     except subprocess.TimeoutExpired as e:
         timed_out, rc = True, None
@@ -261,6 +264,31 @@ def zap(name, out, unrouted, dsn):
 
 TOOLS = {"freerouting": freerouting, "tscircuit": srj_tool("tscircuit"), "krt": srj_tool("krt"), "tracemaker": tracemaker, "koppar": koppar,
          "koppar_filled": lambda *a: koppar(*a, vias_in_pads="allow"), "zap": zap}
+
+
+def fluxpcb(name, out, unrouted, dsn):
+    """fluxpcb NCER: congestion-cost-guided rerouting (Koppar-style)."""
+    routed = os.path.join(out, "routed.kicad_pcb")
+    kicad_py = os.environ.get("KICAD_PYTHON", "python3")
+    r = run([kicad_py, os.path.join(ROOT, "tools", "fluxpcb_ncer.py"),
+             unrouted, routed, "--timeout", str(CAP_S)],
+            CAP_S + 300, os.path.join(out, "fluxpcb.log"))
+    extra = {}
+    if os.path.exists(routed):
+        try:
+            with open(os.path.join(out, "fluxpcb.log")) as f:
+                for line in f:
+                    if line.strip().startswith("{"):
+                        extra = json.loads(line.strip())
+                        break
+        except Exception:
+            pass
+    # Always return routed path if it exists (even on timeout)
+    # The harness will measure completion from the routed board
+    return (routed if os.path.exists(routed) else None), r, extra
+
+
+TOOLS["fluxpcb"] = fluxpcb
 
 
 def save(tool, rows):
