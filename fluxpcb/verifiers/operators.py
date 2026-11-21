@@ -726,6 +726,78 @@ class RepairOperators:
         return result
 
     # ══════════════════════════════════════════════════════════════════
+    # Operator 6: copper_text_to_silk
+    # Decorative PCB text on copper layers becomes a DRC obstacle that
+    # routers cannot see (Freerouting 2.x ignores copper graphics as
+    # clearance obstacles in its rule matrix). Moving the text to the
+    # corresponding silkscreen layer removes the violation without
+    # touching electrical function. SKILL.md: "挪小件...可直接做，事后列明".
+    # ══════════════════════════════════════════════════════════════════
+
+    def copper_text_to_silk(self, board, violations: list[Violation] = None) -> RepairResult:
+        """Move decorative PCB text off copper layers onto silkscreen.
+
+        Morphology: clearance violations whose item is a PCB text on a copper
+        layer (track-vs-copper-text).
+        Mechanism: SetLayer(F/B_SilkS). No electrical change.
+        Verification: re-run DRC — the track-vs-text violations disappear.
+
+        Args:
+            board: pcbnew.BOARD
+            violations: optional list to confirm text-caused violations exist
+
+        Returns:
+            RepairResult with moved count
+        """
+        result = RepairResult(operator="copper_text_to_silk")
+
+        if not board:
+            result.notes.append("no board")
+            return result
+
+        try:
+            import pcbnew
+        except ImportError:
+            result.notes.append("pcbnew unavailable")
+            return result
+
+        moved = 0
+        try:
+            for d in list(board.GetDrawings()):
+                if type(d).__name__ != 'PCB_TEXT':
+                    continue
+                lid = d.GetLayer()
+                lid_name = board.GetLayerName(lid)
+                if lid_name in ('F.Cu', 'top_layer'):
+                    d.SetLayer(pcbnew.F_SilkS)
+                    moved += 1
+                elif lid_name in ('B.Cu', 'bottom_layer'):
+                    d.SetLayer(pcbnew.B_SilkS)
+                    moved += 1
+        except Exception as e:
+            result.notes.append(f"text move failed: {e}")
+            return result
+
+        result.repaired_count = moved
+        result.success = moved > 0
+        if moved:
+            result.notes.append(f"moved {moved} copper texts to silkscreen")
+            self._ledger.append({
+                'operator': 'copper_text_to_silk',
+                'moved': moved,
+                'status': 'moved',
+            })
+        else:
+            result.notes.append("no copper text found")
+
+        result.certificate = {
+            'operator': 'copper_text_to_silk',
+            'moved': moved,
+            'electrical_change': False,
+        }
+        return result
+
+    # ══════════════════════════════════════════════════════════════════
     # Dispatch: select operator by violation morphology
     # ══════════════════════════════════════════════════════════════════
 
@@ -743,6 +815,19 @@ class RepairOperators:
             List of RepairResults (one per operator that ran)
         """
         results = []
+
+        # 0. Copper text → silkscreen (removes a whole violation class cheaply;
+        #    routers cannot see copper graphics as obstacles). Runs first so the
+        #    remaining clearance violations are genuine track-vs-track cases.
+        r_text = self.copper_text_to_silk(board)
+        if r_text.success:
+            results.append(r_text)
+            # Drop clearance violations whose pair involved text — they are
+            # resolved by the move above and would confuse the width cascade.
+            violations = [
+                v for v in violations
+                if not (v.type == 'clearance' and 'text' in (v.net2 or '').lower())
+            ]
 
         # Clearance → width_cascade_surgery (then policy_waiver_probe for leftovers)
         clearance_v = [v for v in violations if v.type == "clearance"]

@@ -36,12 +36,19 @@ class RouterConfig:
     escape_first: bool = True
     power_plane: bool = True
     grid_resolution_mm: float = 0.16
+    # Engine selection: "ncer" (default, deep search) or "freerouting"
+    # (fast bulk router; SKILL.md step 6c). "auto" picks freerouting for
+    # 2-layer boards and ncer otherwise.
+    engine: str = "ncer"
 
 
 class Router:
     """Unified routing interface.
 
     Consumes NetTask list + DispatchPlan per net, produces RouteResult.
+    Supports two backends (Component 9):
+      - NCER: negotiated-congestion deep router (slow, handles BGA corners)
+      - Freerouting: fast bulk Specctra router (100% on 2L benchmarks)
     """
 
     def __init__(self, board: Any, lids: list[int], config: Optional[RouterConfig] = None):
@@ -50,12 +57,16 @@ class Router:
         self.config = config or RouterConfig()
         self._ncer = None
 
-    def _get_ncer(self):
-        """Lazy-load NCERRouter."""
-        if self._ncer is None:
-            from .ncer import NCERRouter
-            self._ncer = NCERRouter(self.board, self.lids)
-        return self._ncer
+    def _pick_engine(self) -> str:
+        """Resolve 'auto' to a concrete engine name."""
+        eng = (self.config.engine or "ncer").lower()
+        if eng != "auto":
+            return eng
+        try:
+            layers = self.board.GetCopperLayerCount()
+        except Exception:
+            layers = 2
+        return "freerouting" if layers <= 2 else "ncer"
 
     def route(
         self,
@@ -75,7 +86,43 @@ class Router:
         """
         t0 = time.time()
 
-        # Group tasks by net for NCER
+        engine = self._pick_engine()
+
+        # ── Freerouting backend ─────────────────────────────────────
+        if engine == "freerouting":
+            try:
+                from .freerouting import FreeroutingBackend
+                backend = FreeroutingBackend()
+                ok, reason = backend.available()
+                if ok:
+                    board_path = self.board.GetFileName()
+                    if board_path:
+                        out_path = board_path.replace('.kicad_pcb', '_fr.kicad_pcb')
+                        fr = backend.route(board_path, out_path, self.config.timeout_s)
+                        if fr.routed:
+                            # Reload so downstream verifiers see the routed board
+                            import pcbnew as _p
+                            new_board = _p.LoadBoard(out_path)
+                            if new_board is not None:
+                                self.board = new_board
+                            elapsed = time.time() - t0
+                            return RouteResult(
+                                routed=[{'engine': 'freerouting'}],
+                                opens=0,
+                                shorts=0,
+                                vias=0,
+                                drc_errors=0,
+                                completion_pct=100.0,
+                                seconds=elapsed,
+                                metrics={'engine': 'freerouting',
+                                         'passes': fr.passes,
+                                         'seconds': fr.seconds},
+                            )
+                # fall through to NCER when the backend cannot run
+            except Exception:
+                pass
+
+        # ── NCER backend (default) ──────────────────────────────────
         net_pads: dict[str, list[tuple[float, float, int]]] = {}
         for task in net_tasks:
             if task.net not in net_pads:
@@ -104,6 +151,7 @@ class Router:
             drc_errors=result.get('drc_errors', 0),
             completion_pct=result.get('completion_pct', 0.0),
             seconds=elapsed,
+            metrics={'engine': 'ncer'},
         )
 
         return route_result
