@@ -239,8 +239,11 @@ class GridModel:
             [pcbnew.F_Cu, pcbnew.B_Cu]
         self.nl = len(self.layer_ids)
         self.edge = self._board_edge()
-        self.nx = int((self.edge[2] - self.edge[0]) / GRID) + 2
-        self.ny = int((self.edge[3] - self.edge[1]) / GRID) + 2
+        # Absolute extents: gx = int(x/GRID) is used everywhere, so the
+        # lattice must span [0, edge_max] not [0, edge_w] — otherwise
+        # objects past edge[0]+edge_w silently clamp into the last columns
+        self.nx = int(self.edge[2] / GRID) + 2
+        self.ny = int(self.edge[3] / GRID) + 2
         ncell = self.nx * self.ny
         self.occ = [bytearray(ncell) for _ in range(self.nl)]
         self.via_block = [bytearray(ncell) for _ in range(self.nl)]
@@ -249,7 +252,7 @@ class GridModel:
         self.own_via_cells = {}
         self.segs = tuple([] for _ in range(self.nl))  # (netcode,a,b,half_w)
         self.rects = tuple([] for _ in range(self.nl))  # (netcode, rect)
-        self.routed = {}                # cell -> netcode (router-placed)
+        self.routed = {}                # cell -> set(nets) (router-placed)
         self.zone_stats = {"zones": 0, "cells": 0, "bbox_fallback": 0}
         self._raster_fixed()
         self._raster_zones()
@@ -391,6 +394,31 @@ class GridModel:
             except AttributeError:
                 continue
 
+        # Rasterize copper text as obstacles (track-to-text clearance)
+        for dr in self.board.GetDrawings():
+            try:
+                if not hasattr(dr, 'GetText'):
+                    continue
+                text = dr.GetText()
+                if not text:
+                    continue
+                bbox = dr.GetBoundingBox()
+                cx = (bbox.GetX() + bbox.GetWidth()/2) / MM
+                cy = (bbox.GetY() + bbox.GetHeight()/2) / MM
+                hw = bbox.GetWidth() / MM / 2
+                hh = bbox.GetHeight() / MM / 2
+                for li, lid in enumerate(self.layer_ids):
+                    try:
+                        if not dr.IsOnLayer(lid):
+                            continue
+                    except Exception:
+                        continue
+                    # Mark text area as obstacle with clearance margin
+                    self._mark(li, cx-hw, cy, cx+hw, cy,
+                               max(hw, hh) + CLEAR_MM + 0.1)
+            except (AttributeError, TypeError):
+                continue
+
     # ------------------------------------------------- zone rasterization
     def _raster_zones(self):
         """KEEPOUT zones into occ (hard obstacles) — Z4 audit.
@@ -474,11 +502,18 @@ class GridModel:
     # ------------------------------------------------- router occupancy
     def route_occupy(self, path_cells, nc):
         for c in path_cells:
-            self.routed[c] = nc
+            self.routed.setdefault(c, set()).add(nc)
 
-    def route_release(self, path_cells):
+    def route_release(self, path_cells, nc=None):
         for c in path_cells:
-            self.routed.pop(c, None)
+            if nc is not None:
+                s = self.routed.get(c)
+                if s and nc in s:
+                    s.discard(nc)
+                    if not s:
+                        self.routed.pop(c, None)
+            else:
+                self.routed.pop(c, None)
 
     def overuse_cells(self):
         """Cells claimed by more than one net -> list of (cell, [nets]).
@@ -486,10 +521,7 @@ class GridModel:
         A net 'claims' a cell if any of its paths contains it (multi-cell
         ownership per net is normal — the same net's two segments sharing
         a cell is NOT overuse)."""
-        claims = {}
-        for cell, nc in self.routed.items():
-            claims.setdefault(cell, set()).add(nc)
-        return [(c, ns) for c, ns in claims.items() if len(ns) > 1]
+        return [(c, ns) for c, ns in self.routed.items() if len(ns) > 1]
 
     # ------------------------------------------------- exact checks
     def clear_exact(self, x1, y1, x2, y2, lid, nc, w_self):
