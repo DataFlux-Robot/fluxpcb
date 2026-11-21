@@ -66,7 +66,34 @@ class SubagentTeam:
                 action = specialist.propose({'net': task.net})
                 task._specialist_action = action  # Attach for downstream use
 
+            # Step 5: Select repair operator by signal class (skill package)
+            task._repair_operator = self.select_repair_operator(task)
+
         return classification, ordered_tasks
+
+    def select_repair_operator(self, task: NetTask) -> str:
+        """Select the right repair operator for a task based on its class.
+
+        This maps the skill package's morphology recognizers to signal classes:
+          - CRITICAL (BGA escape / deadlock)  → topology_swap
+          - POWER (plane fragment)             → plane_bridge
+          - DIFFERENTIAL / CLOCK (spacing)     → width_cascade_surgery
+          - NORMAL (floating endpoint)         → endpoint_attach
+
+        Args:
+            task: NetTask to select an operator for
+
+        Returns:
+            Operator name
+        """
+        if task.cls == SignalClass.CRITICAL:
+            return 'topology_swap'
+        elif task.cls == SignalClass.POWER:
+            return 'plane_bridge'
+        elif task.cls in (SignalClass.DIFFERENTIAL, SignalClass.CLOCK):
+            return 'width_cascade_surgery'
+        else:
+            return 'endpoint_attach'
 
     def _build_tasks(
         self,
@@ -97,3 +124,7 @@ class SubagentTeam:
     def get_specialist_action(self, task: NetTask) -> Optional[Action]:
         """Get specialist action for a task."""
         return getattr(task, '_specialist_action', None)
+
+    def get_repair_operator(self, task: NetTask) -> str:
+        """Get the repair operator assigned to a task."""
+        return getattr(task, '_repair_operator', 'endpoint_attach')

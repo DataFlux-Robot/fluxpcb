@@ -2,19 +2,19 @@
 # -*- coding: utf-8 -*-
 """pipeline — Complete 12-component routing pipeline.
 
-Connects all 12 components into a working routing pipeline:
-  1. MetaDevLoop (diagnose→evolve→select)
-  2. MetaMetaLoop (harness self-improvement)
-  3. DevRouteLoop (route→verify→repair)
-  4. PCBDesignAgent (stackup/placement/routing)
-  5. CommRuntime (state binding)
-  6. SubagentTeam (classification + ordering)
-  7. DispatchRuntime (LLM+rules)
-  8. FeedbackRuntime (feedback + repair)
-  9. Router (NCER + fallbacks)
-  10. VerifierSuite (PI/SI/Thermal/SPICE/EMC)
-  11. ManufacturingInspector (DFM + fab)
-  12. GroundingMap (visualization)
+All 12 components connected:
+  1. MetaDevLoop (diagnose→evolve→select)          — after routing
+  2. MetaMetaLoop (harness self-improvement)       — after routing
+  3. DevRouteLoop (route→verify→repair)            — CORE LOOP
+  4. PCBDesignAgent (stackup/placement/routing)    — before routing
+  5. CommRuntime (state binding)                   — spine
+  6. SubagentTeam (classification + ordering)      — inside DevRouteLoop
+  7. DispatchRuntime (LLM+rules)                   — inside DevRouteLoop
+  8. FeedbackRuntime (feedback + repair)           — inside DevRouteLoop
+  9. Router (NCER + fallbacks)                     — inside DevRouteLoop
+  10. VerifierSuite (PI/SI/Thermal/SPICE/EMC)      — inside DevRouteLoop
+  11. ManufacturingInspector (DFM + fab)           — after routing
+  12. GroundingMap (visualization)                 — final output
 
 Usage:
     from fluxpcb.pipeline import RoutePipeline
@@ -56,6 +56,12 @@ class RoutePipeline:
         self.verifiers = None
         self.feedback = None
         self.design_agent = None
+        self.dev_loop = None
+        self.meta_loop = None
+        self.meta_meta = None
+        self.mfg_inspector = None
+        self.grounding = None
+        self._active_components = set()
         self._initialize_components()
 
     def _initialize_components(self):
@@ -63,20 +69,24 @@ class RoutePipeline:
         # Component 5: Communication runtime
         from .runtime.comm import CommRuntime
         self.comm = CommRuntime()
+        self._active_components.add(5)
 
         # Component 6: Subagents
         from .subagents.team import SubagentTeam
         self.subagents = SubagentTeam()
+        self._active_components.add(6)
 
         # Component 7: Dispatch runtime
         from .dispatch.dispatcher import DispatchRuntime
         self.dispatch = DispatchRuntime(comm=self.comm)
+        self._active_components.add(7)
 
         # Component 8: Feedback runtime
         from .feedback.feedback_runtime import FeedbackRuntime
         self.feedback = FeedbackRuntime(comm=self.comm)
+        self._active_components.add(8)
 
-        # Component 10: Verifiers
+        # Component 10: Verifiers (with repair operators)
         from .verifiers.suite import VerifierSuite
         from .verifiers.power_integrity import PowerIntegrityVerifier
         from .verifiers.signal_integrity import SignalIntegrityVerifier
@@ -90,9 +100,38 @@ class RoutePipeline:
             SpiceVerifier(),
             EMCVerifier(),
         ], comm=self.comm)
+        self._active_components.add(10)
+
+    def get_component_status(self) -> dict:
+        """Get the status of all 12 components.
+
+        Returns:
+            dict mapping component number to status
+        """
+        from .meta.devloop import MetaDevLoop
+        from .meta.meta_loop import MetaMetaLoop
+        from .devloop.route_loop import DevRouteLoop
+        from .design_agent.pcb_design_agent import PCBDesignAgent
+        from .mfg.inspector import ManufacturingInspector
+        from .viz.grounding_map import GroundingMap
+
+        return {
+            1: 'connected' if self.meta_loop is not None else 'available',
+            2: 'connected' if self.meta_meta is not None else 'available',
+            3: 'connected' if self.dev_loop is not None else 'available',
+            4: 'connected' if self.design_agent is not None else 'available',
+            5: 'connected' if self.comm is not None else 'missing',
+            6: 'connected' if self.subagents is not None else 'missing',
+            7: 'connected' if self.dispatch is not None else 'missing',
+            8: 'connected' if self.feedback is not None else 'missing',
+            9: 'connected' if self.router is not None else 'available',
+            10: 'connected' if self.verifiers is not None else 'missing',
+            11: 'connected' if self.mfg_inspector is not None else 'available',
+            12: 'connected' if self.grounding is not None else 'available',
+        }
 
     def route(self, board_path: str, timeout_s: int = 300) -> dict:
-        """Route a board using the complete pipeline.
+        """Route a board using the complete 12-component pipeline.
 
         Args:
             board_path: Path to .kicad_pcb file
@@ -137,59 +176,121 @@ class RoutePipeline:
             board_path=board_path,
         )
 
-        # Component 4: Design agent
+        # Component 4: Design agent (stackup/placement/routing plan)
         from .design_agent.pcb_design_agent import PCBDesignAgent
-        self.design_agent = PCBDesignAgent({}, board_state)
+        self.design_agent = PCBDesignAgent(self.config.get('spec', {}), board_state)
         design_plan = self.design_agent.plan()
+        self._active_components.add(4)
 
-        # Component 6: Subagents (classify + order)
-        classification, tasks = self.subagents.dispatch(board_state, self.comm)
-
-        # Component 7: Dispatch (per-net params)
-        dispatch_plans = {}
-        for task in tasks:
-            plan = self.dispatch.dispatch(task)
-            dispatch_plans[task.net] = plan
-
-        # Component 9: Route (NCER)
+        # Component 9: Router (unified wrapper with route(tasks, plans, guide) interface)
+        import sys as _sys
+        _sys.path.insert(0, 'E:/DATA/vscode/ZCODE/flux-neurotransmitter/fluxpcb/kicadgen')
+        _sys.path.insert(0, 'E:/DATA/vscode/ZCODE/autorouter-bench/tools')
         import routegrid as rg
         lids = rg.signal_layer_ids(b)
 
-        # Import NCER router
-        sys.path.insert(0, 'E:/DATA/vscode/ZCODE/autorouter-bench/tools')
-        from fluxpcb_ncer import NCERRouter
+        from .router.unified import Router, RouterConfig
+        self.router = Router(b, lids, RouterConfig(timeout_s=timeout_s))
+        self._active_components.add(9)
 
-        router = NCERRouter(b, lids)
+        # Component 3: DevRouteLoop (CORE: route→verify→repair)
+        from .devloop.route_loop import DevRouteLoop
+        self.dev_loop = DevRouteLoop(
+            board_state=board_state,
+            design_plan=design_plan,
+            comm=self.comm,
+            subagents=self.subagents,
+            dispatch=self.dispatch,
+            router=self.router,
+            verifiers=self.verifiers,
+            feedback=self.feedback,
+        )
+        self._active_components.add(3)
 
-        # Apply dispatch plans to router
-        for net, plan in dispatch_plans.items():
-            if plan.track_width > 0:
-                router.track_w = plan.track_width
-            break  # Use first plan as default
+        # Run the dev loop (route→verify→repair until convergence)
+        dev_result = self.dev_loop.run(max_iter=5)
 
-        # Run routing
-        result = router.run(net_pads, timeout_s)
+        # Extract routing results
+        if dev_result.route_result:
+            result_dict = {
+                'routed_pairs': len(dev_result.route_result.routed),
+                'opens': dev_result.route_result.opens,
+                'vias': dev_result.route_result.vias,
+                'completion_pct': dev_result.route_result.completion_pct,
+            }
+        else:
+            # Fallback: run NCER directly if dev loop produced nothing
+            from .router.ncer import NCERRouter as _NCER
+            _ncer = _NCER(b, lids)
+            result_dict = _ncer.run(net_pads, timeout_s)
 
         # Calculate completion
-        routed_pairs = result.get('routed_pairs', 0)
+        routed_pairs = result_dict.get('routed_pairs', len(dev_result.route_result.routed) if dev_result.route_result else 0)
         total_expected = sum(max(0, len(pads)-1) for pads in net_pads.values() if len(pads) >= 2)
         completion_pct = 100.0 * routed_pairs / total_expected if total_expected > 0 else 0.0
 
-        # Component 8: Feedback
+        # Component 8: Feedback (already used in dev loop, summarize)
         feedback_event = self.feedback.observe(
             action={'pipeline': 'route'},
             result={'opens': total_expected - routed_pairs, 'shorts': 0, 'drc_errors': 0},
         )
 
-        # Component 10: Verify
-        verification = self.verifiers.run_all(board_state, design_plan)
+        # Component 10: Verify (already used in dev loop, get final report)
+        verification = dev_result.verification or self.verifiers.run_all(board_state, design_plan)
 
-        # Save board
+        # Component 11: ManufacturingInspector (DFM + fab)
+        from .mfg.inspector import ManufacturingInspector
+        from .mfg.gerber import GerberExporter
+        self.mfg_inspector = ManufacturingInspector()
+        self._active_components.add(11)
+
+        # Save board first (inspector needs the file)
         output_path = board_path.replace('.kicad_pcb', '_routed.kicad_pcb')
         try:
             b.Save(output_path)
+            board_state.board_path = output_path
         except Exception:
             pass
+
+        mfg_report = self.mfg_inspector.inspect(board_state, design_plan)
+
+        # Component 1: MetaDevLoop (diagnose→evolve→select)
+        from .meta.devloop import MetaDevLoop
+        from .meta.strategy_store import StrategyStore
+        try:
+            self.meta_loop = MetaDevLoop(
+                store=StrategyStore(),
+            )
+            meta_result = self.meta_loop.run(budget_s=min(300, int(timeout_s * 0.1)))
+            self._active_components.add(1)
+        except Exception as e:
+            meta_result = {'error': str(e)}
+
+        # Component 2: MetaMetaLoop (harness self-improvement)
+        from .meta.meta_loop import MetaMetaLoop
+        try:
+            self.meta_meta = MetaMetaLoop()
+            trajectories = [dev_result.trajectory] if dev_result.trajectory else []
+            harness_diff = self.meta_meta.improve(trajectories)
+            self._active_components.add(2)
+        except Exception as e:
+            harness_diff = {'error': str(e)}
+
+        # Component 12: GroundingMap (visualization)
+        from .viz.grounding_map import GroundingMap
+        try:
+            self.grounding = GroundingMap()
+            grounding_data = self.grounding.build(
+                route_result=dev_result.route_result,
+                verification=verification,
+                mfg=mfg_report,
+                trajectory=dev_result.trajectory,
+            )
+            grounding_path = self.grounding.render(grounding_data)
+            self._active_components.add(12)
+        except Exception as e:
+            grounding_data = {'error': str(e)}
+            grounding_path = None
 
         elapsed = time.time() - t0
 
@@ -198,11 +299,17 @@ class RoutePipeline:
             'unconnected': total_expected - routed_pairs,
             'total_pairs': total_expected,
             'routed_pairs': routed_pairs,
-            'vias': result.get('vias', 0),
+            'vias': result_dict.get('vias', 0),
             'seconds': elapsed,
             'timedOut': elapsed > timeout_s,
             'fingerprint': fingerprint.to_dict(),
             'verification_passed': verification.passed,
+            'manufacturing_passed': mfg_report.passed,
+            'components_active': sorted(self._active_components),
+            'components_status': self.get_component_status(),
+            'dev_loop_iterations': dev_result.iterations,
+            'dev_loop_converged': dev_result.converged,
+            'grounding_map': grounding_path,
         }
 
 
