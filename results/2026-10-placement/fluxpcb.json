@@ -1,23 +1,22 @@
 {
   "tool": "fluxpcb",
-  "capS": 1200,
-  "generatedAt": "2026-11-16T08:44:27",
+  "capS": 600,
+  "generatedAt": "2026-11-21T10:48:05",
   "boards": [
     {
       "board": "pic-programmer",
       "layers": 2,
       "ratsnest": 125,
-      "seconds": 458.0,
-      "timedOut": false,
-      "finishedAtS": 1500.1,
-      "completionPct": 72.8,
-      "unconnected": 34,
-      "vias": 32,
+      "seconds": 900.1,
+      "timedOut": true,
+      "finishedAtS": 900.1,
+      "completionPct": 70.4,
+      "unconnected": 37,
+      "vias": 44,
       "trackMm": null,
       "viasInPinPads": null,
-      "drc": {
-        "errors": 0
-      }
+      "drc": null,
+      "notes": "Timed out at 900s cap; progress file reached 70.4% (37 unconnected). DRC under board rules: 69 violations, only 2 track_dangling router-caused (63 lib_footprint + 4 silk pre-existing)."
     },
     {
       "board": "rp2040-minimal",
