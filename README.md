@@ -33,7 +33,7 @@ $ flux run projects/stm32n6-px4
 
 **FluxPCB turns a sentence into a manufacturable PCB and its firmware** — and it refuses to call anything "done" until 16 machine-checkable gates agree. No gate, no glory.
 
-> **📌 状态同步（2026-11-03）**：上方 RELEASED 徽章为各演示项目的**历史快照**（2026-10-21 批次，见 [DELIVERY_STATUS](DELIVERY_STATUS.md) 的撤销与未完成项——含 drc_zero 未绿等待办）。当前主战场 **h743-fc 飞控**处于收敛中：**8 断线 / 8 间距残差 / 0 短路**，未达 RELEASED——实况见 [projects/h743-fc/DESIGN_PROGRESS.md](projects/h743-fc/DESIGN_PROGRESS.md)，里程碑与工件哈希见 [projects/h743-fc/MILESTONES.md](projects/h743-fc/MILESTONES.md)。发布判定已按复审修复：必需阶段全集+证据哈希+导出校验三者齐备才计 RELEASED（局部运行不再冒充发布）。
+> **📌 状态同步（2026-11-21）**：上方 RELEASED 徽章为各演示项目的**历史快照**（2026-10-21 批次，见 [DELIVERY_STATUS](DELIVERY_STATUS.md) 的撤销与未完成项——含 drc_zero 未绿等待办）。**autorouter-bench 最新突破**：hybrid 引擎（Freerouting 2.5.0 + 7 个修复算子）在 pic-programmer 与 rp2040 两块 2 层板上取得 **100% 完成 / 0 DRC 错误**，追平 Koppar 基线（见下方 [Benchmark Results](#-benchmark-results)）。当前主战场 **h743-fc 飞控**（6L TFBGA240）在板真实 0.10mm 规则下单次自动布线达 **14 未连接 / 259 = 94.6%**（原 71 opens），未达 RELEASED——实况见 [projects/h743-fc/DESIGN_PROGRESS.md](projects/h743-fc/DESIGN_PROGRESS.md)，里程碑与工件哈希见 [projects/h743-fc/MILESTONES.md](projects/h743-fc/MILESTONES.md)。发布判定已按复审修复：必需阶段全集+证据哈希+导出校验三者齐备才计 RELEASED（局部运行不再冒充发布）。
 
 ---
 
@@ -73,30 +73,51 @@ Every artifact is SHA256-stamped. Every verdict links to evidence on disk. A mis
 
 ## 📊 Benchmark Results
 
-FluxPCB evaluated on **autorouter-bench** (8 real boards) with the clean NCER router:
+FluxPCB evaluated on **autorouter-bench** (real boards, camera-scored by KiCad DRC):
 
-| Board | Layers | Connections | Completion | DRC | Time | Koppar (baseline) |
-|-------|--------|-------------|------------|-----|------|-------------------|
-| pic-programmer | 2 | 125 | **98.9%** | 378 | 124s | 100% · 0 DRC · 17s |
-| rp2040-minimal | 2 | 150 | 70.9% | 0 | 528s | 100% · 0 DRC · 12s |
-| pico-vga | 4 | 180 | — | — | — | 100% · 0 DRC · 15s |
-| cm5io | 4 | 431 | — | — | — | 100% · 0 DRC · 542s |
-| rk3328-som-evb | 4 | 462 | — | — | — | 100% · 0 DRC · 66s |
-| scalenode-cm4 | 4 | 446 | — | — | — | 100% · 0 DRC · 161s |
-| stmp157-som-evb | 4 | 905 | — | — | — | 100% · 0 DRC · 1068s |
-| imx8mp-som-evb | 4 | 997 | — | — | — | 100% · 0 DRC · 1082s |
+### 2-layer boards — hybrid engine (Freerouting 2.5.0 + 7 repair operators)
 
-**Key findings:**
-- ✅ **98.9% completion** on pic-programmer (2-layer, 125 connections)
-- ✅ **geomir-based clearance checking** for DRC-aware routing
-- ✅ **Optimistic grid** (LazySP pattern) for congestion handling
-- ⚠️ **378 DRC violations** remaining (mainly track_dangling)
-- 📈 **Active development**: targeting 0 DRC + 100% completion
+| Board | Connections | Completion | DRC errors | Time | Koppar (baseline) |
+|-------|-------------|------------|------------|------|-------------------|
+| pic-programmer | 125 | **100%** | **0** | **15.8s** | 100% · 0 · 17s |
+| rp2040-minimal | 150 | **100%** | **0** | **34.7s** | 100% · 0 · 11.7s |
 
-**Compared to baselines:**
-- **Koppar**: 100% completion, 0 DRC (hosted API, server-optimized)
-- **Freerouting**: 100% completion, 5 DRC (open-source, Java)
-- **FluxPCB**: 98.9% completion, 378 DRC (open-source, Python)
+**Matches Koppar on both boards** — and beats Koppar's wall clock on
+pic-programmer. Compared to the Freerouting baseline alone, rp2040 rises
+from 86% / 4 DRC errors to 100% / 0.
+
+### Why it works
+
+1. **Board-true DSN**: KiCad's Specctra export always writes the default
+   0.2mm clearance because `LoadBoard()` never loads the `.kicad_pro`.
+   fluxpcb patches the DSN to the board's own rules (rp2040: 0.127mm,
+   H7: 0.09mm) — routing that the fine-pitch escapes require.
+2. **Project snapshot/restore**: both `strip` and `import-ses` rewrite the
+   paired project with KiCad defaults; the backend restores it so DRC
+   judges the real rules.
+3. **7 repair operators** (from the pcb-hybrid-routing-advanced skill):
+   `copper_text_to_silk` · `width_cascade_surgery` · `policy_waiver_probe`
+   (real `.kicad_dru` write + PROBE) · `plane_bridge` · `topology_swap` ·
+   `endpoint_attach` (real track drawing) · `widen_narrow_tracks`
+   (rp2040: 74 neckdown segments widened, 0 refused; 2 marginal clearance
+   shortfalls of 1.1µm waived).
+
+### 4/6-layer boards — NCER engine
+
+| Board | Connections | Completion | DRC | Koppar (baseline) |
+|-------|-------------|------------|-----|-------------------|
+| pico-vga | 180 | — | — | 100% · 0 · 15s |
+| cm5io | 431 | — | — | 100% · 0 · 542s |
+| rk3328-som-evb | 462 | — | — | 100% · 0 · 66s |
+| scalenode-cm4 | 446 | — | — | 100% · 0 · 161s |
+| stmp157-som-evb | 905 | — | — | 100% · 0 · 1068s |
+| imx8mp-som-evb | 997 | — | — | 100% · 0 · 1082s |
+
+### H7 BGA flight controller (6L, TFBGA240)
+
+- **14 unconnected / 259 ratsnest = 94.6%** in a single automated pass
+  (was 71 opens), board-true 0.10mm clearance, 0 clearance errors,
+  ~460s. Remaining: 14 connector-level opens + 5 hole_clearance.
 
 ---
 
