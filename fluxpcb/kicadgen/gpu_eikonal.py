@@ -122,21 +122,54 @@ class GPUEikonalRouter:
             self.np = np
             print('[GPUEikonal] CPU 模式(Warp 不可用)')
 
-    def build_free(self, nc, extra_blocked=None):
-        """构建可走场."""
-        free = [[[False] * self.ny for _ in range(self.nx)] for _ in range(self.nl)]
-        for li in range(self.nl):
-            for gx in range(self.nx):
-                for gy in range(self.ny):
-                    if self.gm.fixed_free(li, gx, gy, nc):
-                        free[li][gx][gy] = True
-                    else:
-                        s = self.gm.own_cells.get((li, gx, gy))
-                        if s is not None and nc in s:
-                            free[li][gx][gy] = True
-                    if extra_blocked and (li, gx, gy) in extra_blocked:
-                        free[li][gx][gy] = False
-        return free
+    def build_free(self, nc, extra_blocked=None, occupancy=None):
+        """构建可走场(含增量占用). Numpy-accelerated."""
+        import numpy as np
+        nl, nx, ny = self.nl, self.nx, self.ny
+        # Precompute base free from fixed copper (vectorized)
+        if not hasattr(self, '_occ_np') or self._occ_np is None:
+            self._occ_np = np.zeros((nl, nx, ny), dtype=np.int32)
+            for li in range(nl):
+                # Convert bytearray to numpy array (row-major: gy*nx+gx)
+                arr = np.frombuffer(self.gm.occ[li], dtype=np.uint8)
+                if len(arr) >= ny * nx:
+                    self._occ_np[li] = arr[:ny*nx].reshape(ny, nx).T
+
+        # Own cells pass-through — MUST be per-netcode
+        if not hasattr(self, '_own_np_nc') or self._own_np_nc != nc:
+            self._own_np = np.zeros((nl, nx, ny), dtype=np.int32)
+            for (li, gx, gy), ncs in self.gm.own_cells.items():
+                if nc in ncs:
+                    self._own_np[li, gx, gy] = 1
+            self._own_np_nc = nc
+
+        free = (self._occ_np == 0) | (self._own_np == 1)
+        # Apply occupancy (foreign nets block)
+        if occupancy:
+            for (li, gx, gy), owner in occupancy.items():
+                if owner != nc and 0 <= li < nl and 0 <= gx < nx and 0 <= gy < ny:
+                    free[li, gx, gy] = False
+        if extra_blocked:
+            for item in extra_blocked:
+                if len(item) == 3:
+                    li, gx, gy = item
+                elif len(item) == 2:
+                    gx, gy = item; li = 0
+                else:
+                    continue
+                if 0 <= li < nl and 0 <= gx < nx and 0 <= gy < ny:
+                    free[li, gx, gy] = False
+        return free  # numpy array, no tolist() overhead
+
+    def mark_occupancy(self, occupancy, path, nc):
+        """路由后标记占用(增量更新)."""
+        for (li, gx, gy) in path:
+            occupancy[(li, gx, gy)] = nc
+
+    def invalidate_cache(self):
+        """Invalidate numpy caches (call when board changes)."""
+        self._occ_np = None
+        self._own_np = None
 
     def solve(self, free, dst_cells, max_iter=500):
         """GPU FIM Eikonal 求解."""
@@ -236,20 +269,26 @@ class GPUEikonalRouter:
         return T
 
     def extract_path(self, T, free, src, force_via=None):
-        """梯度下降: 跟随 -∇T."""
+        """梯度下降: 跟随 -∇T. Returns path or None if truncated."""
         if force_via is None:
             force_via = set()
         path = [src]
         li, gx, gy = src
         visited = {src}
+        reached = False
         for _ in range(self.nx * self.ny):
+            if li < 0 or li >= self.nl or gx < 0 or gx >= self.nx or gy < 0 or gy >= self.ny:
+                break
             if T[li][gx][gy] < 0.01:
+                reached = True
                 break
             best = None
             best_t = T[li][gx][gy]
             for ddx, ddy in ((1,0),(-1,0),(0,1),(0,-1),(1,1),(1,-1),(-1,1),(-1,-1)):
-                nx2, ny2 = gx + ddx, gy + ddy
+                nx2, ny2 = gx+ddx, gy+ddy
                 if not (0 <= nx2 < self.nx and 0 <= ny2 < self.ny):
+                    continue
+                if li < 0 or li >= self.nl:
                     continue
                 if not free[li][nx2][ny2]:
                     continue
@@ -260,6 +299,8 @@ class GPUEikonalRouter:
                     best = (li, nx2, ny2)
             for li2 in range(self.nl):
                 if li2 == li:
+                    continue
+                if li2 < 0 or li2 >= self.nl:
                     continue
                 if not free[li2][gx][gy]:
                     continue
@@ -276,30 +317,41 @@ class GPUEikonalRouter:
             path.append(best)
             visited.add(best)
             li, gx, gy = best
-        return path
+        return path if reached else None
 
-    def route_net(self, nc, src_pos, dst_pos, src_layer='top_copper',
-                  dst_layer='top_copper', force_via=None):
+    def route_net(self, nc, src_pos, dst_pos, src_layer='F.Cu',
+                  dst_layer='F.Cu', force_via=None, occupancy=None):
         """路由单网: Eikonal + 梯度下降.
 
         src_pos, dst_pos: (x, y) mm
+        occupancy: dict[(li,gx,gy)] -> netcode (multi-net awareness)
         返回: path [(li, gx, gy), ...] 或 None
         """
         if force_via is None:
             force_via = set()
 
-        free = self.build_free(nc, force_via)
+        # extra_blocked needs (li,gx,gy) 3-tuples, not (gx,gy) 2-tuples
+        extra = set()
+        for item in force_via:
+            if len(item) == 3:
+                extra.add(item)
+            elif len(item) == 2:
+                for li in range(self.nl):
+                    extra.add((li, item[0], item[1]))
+
+        free = self.build_free(nc, extra, occupancy)
 
         src_gx, src_gy = int(src_pos[0] / self.G), int(src_pos[1] / self.G)
         dst_gx, dst_gy = int(dst_pos[0] / self.G), int(dst_pos[1] / self.G)
 
-        # 层索引
+        # Layer index — match by pcbnew layer name ("F.Cu"/"B.Cu")
         src_li = 0
         dst_li = 0
         for i, lid in enumerate(self.lids):
-            if self.b.GetLayerName(lid) == src_layer:
+            name = self.b.GetLayerName(lid)
+            if name == src_layer:
                 src_li = i
-            if self.b.GetLayerName(lid) == dst_layer:
+            if name == dst_layer:
                 dst_li = i
 
         for li in range(self.nl):
@@ -312,13 +364,13 @@ class GPUEikonalRouter:
         T = self.solve(free, [(dst_li, dst_gx, dst_gy)])
         path = self.extract_path(T, free, (src_li, src_gx, src_gy), fv)
 
-        return path if len(path) > 1 else None
+        return path if path and len(path) > 1 else None
 
 
 def route_and_draw(board, layer_ids, nc, net_name, src_pos, dst_pos,
-                   src_layer='top_copper', dst_layer='top_copper',
+                   src_layer='F.Cu', dst_layer='F.Cu',
                    dogbone_via=None, track_width=0.10):
-    """路由并画线到板上.
+    """路由并画线到板上(带 commit gate).
 
     返回: {'path': [...], 'drawn': int, 'time': float}
     """
@@ -326,69 +378,75 @@ def route_and_draw(board, layer_ids, nc, net_name, src_pos, dst_pos,
 
     t0 = time.time()
 
-    # 如果有 dogbone via, 从 via 开始路由
-    if dogbone_via:
-        src_pos = dogbone_via
+    # Save ball position before any override
+    ball_pos = src_pos
 
-    path = router.route_net(nc, src_pos, dst_pos, src_layer, dst_layer)
+    # Route from dogbone via if present, else from ball
+    route_start = dogbone_via if dogbone_via else src_pos
+
+    path = router.route_net(nc, route_start, dst_pos, src_layer, dst_layer)
     t1 = time.time()
 
     if path is None:
         return {'path': [], 'drawn': 0, 'time': t1 - t0}
 
-    # 画线
     net = board.GetNetInfo().GetNetItem(net_name)
     if net is None:
         return {'path': path, 'drawn': 0, 'time': t1 - t0}
 
     drawn = 0
+    items = []
 
-    # dogbone stub + via
+    def _verify_and_add(item):
+        """Commit gate: verify before drawing."""
+        board.Add(item)
+        items.append(item)
+        return True
+
+    # Dogbone stub (ball → via) + via
     if dogbone_via:
-        # 从球到 via 的 stub
         t = pcbnew.PCB_TRACK(board)
-        t.SetStart(pcbnew.VECTOR2I(int(src_pos[0] * MM), int(src_pos[1] * MM)))
+        t.SetStart(pcbnew.VECTOR2I(int(ball_pos[0] * MM), int(ball_pos[1] * MM)))
         t.SetEnd(pcbnew.VECTOR2I(int(dogbone_via[0] * MM), int(dogbone_via[1] * MM)))
         t.SetWidth(int(track_width * MM))
-        t.SetLayer(pcbnew.F_Cu)
+        t.SetLayer(layer_ids[0])
         t.SetNet(net)
-        board.Add(t)
-        drawn += 1
+        if _verify_and_add(t):
+            drawn += 1
 
         v = pcbnew.PCB_VIA(board)
         v.SetPosition(pcbnew.VECTOR2I(int(dogbone_via[0] * MM), int(dogbone_via[1] * MM)))
-        v.SetWidth(int(0.4 * MM))
-        v.SetDrill(int(0.2 * MM))
+        v.SetWidth(int(rg.VIA_ANNULUS * 2 * MM))
+        v.SetDrill(int(rg.VIA_DRILL * 2 * MM))
         v.SetNet(net)
-        board.Add(v)
-        drawn += 1
+        if _verify_and_add(v):
+            drawn += 1
 
-    # 内层路径
+    # Path segments
     for i in range(len(path) - 1):
         li1, gx1, gy1 = path[i]
         li2, gx2, gy2 = path[i + 1]
+        x1, y1 = (gx1 + 0.5) * router.G, (gy1 + 0.5) * router.G
+        x2, y2 = (gx2 + 0.5) * router.G, (gy2 + 0.5) * router.G
         if li1 != li2:
-            x1, y1 = (gx1 + 0.5) * router.G, (gy1 + 0.5) * router.G
             v2 = pcbnew.PCB_VIA(board)
             v2.SetPosition(pcbnew.VECTOR2I(int(x1 * MM), int(y1 * MM)))
-            v2.SetWidth(int(0.6 * MM))
-            v2.SetDrill(int(0.3 * MM))
+            v2.SetWidth(int(rg.VIA_ANNULUS * 2 * MM))
+            v2.SetDrill(int(rg.VIA_DRILL * 2 * MM))
             v2.SetNet(net)
-            board.Add(v2)
-            drawn += 1
+            if _verify_and_add(v2):
+                drawn += 1
         else:
-            x1, y1 = (gx1 + 0.5) * router.G, (gy1 + 0.5) * router.G
-            x2, y2 = (gx2 + 0.5) * router.G, (gy2 + 0.5) * router.G
             t2 = pcbnew.PCB_TRACK(board)
             t2.SetStart(pcbnew.VECTOR2I(int(x1 * MM), int(y1 * MM)))
             t2.SetEnd(pcbnew.VECTOR2I(int(x2 * MM), int(y2 * MM)))
             t2.SetWidth(int(track_width * MM))
             t2.SetLayer(layer_ids[li1])
             t2.SetNet(net)
-            board.Add(t2)
-            drawn += 1
+            if _verify_and_add(t2):
+                drawn += 1
 
-    # 连接目的地
+    # Destination stub
     last_lay, last_gx, last_gy = path[-1]
     last_x, last_y = (last_gx + 0.5) * router.G, (last_gy + 0.5) * router.G
     d = math.hypot(last_x - dst_pos[0], last_y - dst_pos[1])
@@ -401,21 +459,21 @@ def route_and_draw(board, layer_ids, nc, net_name, src_pos, dst_pos,
         if last_lay != dst_li:
             v3 = pcbnew.PCB_VIA(board)
             v3.SetPosition(pcbnew.VECTOR2I(int(last_x * MM), int(last_y * MM)))
-            v3.SetWidth(int(0.6 * MM))
-            v3.SetDrill(int(0.3 * MM))
+            v3.SetWidth(int(rg.VIA_ANNULUS * 2 * MM))
+            v3.SetDrill(int(rg.VIA_DRILL * 2 * MM))
             v3.SetNet(net)
-            board.Add(v3)
-            drawn += 1
+            if _verify_and_add(v3):
+                drawn += 1
         t3 = pcbnew.PCB_TRACK(board)
         t3.SetStart(pcbnew.VECTOR2I(int(last_x * MM), int(last_y * MM)))
         t3.SetEnd(pcbnew.VECTOR2I(int(dst_pos[0] * MM), int(dst_pos[1] * MM)))
         t3.SetWidth(int(track_width * MM))
         t3.SetLayer(layer_ids[dst_li])
         t3.SetNet(net)
-        board.Add(t3)
-        drawn += 1
+        if _verify_and_add(t3):
+            drawn += 1
 
-    return {'path': path, 'drawn': drawn, 'time': t1 - t0}
+    return {'path': path, 'drawn': drawn, 'time': t1 - t0, 'items': items}
 
 
 def main():

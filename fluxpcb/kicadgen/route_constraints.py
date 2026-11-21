@@ -14,21 +14,15 @@ from pathlib import Path
 DEFAULTS = {
     "grid": {
         "resolution_mm": 0.16,
-        "pad_margin_mm": 0.30,
-        # Z3: worst-case constructive bound is CLEAR+w/2+w/2+diag-slack
-        # ~= w+0.29, BUT BGA escape channels (0.8mm pitch parallel tracks)
-        # leave exactly 0.4mm half-spacing — a constructive margin blocks
-        # EVERY cell in the channel (fc: nopath 42/43, routed 0). The
-        # veto+retry loop (clear_exact + history penalty) is the residual
-        # mechanism; margin stays permissive.
-        "track_margin_mm": 0.22,
-        "clearance_mm": 0.22,
-        "via_annulus_mm": 0.25,
-        "via_drill_mm": 0.125,        # radius; 0.25mm drill diameter
+        "pad_margin_mm": 0.15,
+        "track_margin_mm": 0.15,
+        "clearance_mm": 0.127,
+        "via_annulus_mm": 0.225,
+        "via_drill_mm": 0.10,
         "hole_keep_mm": 0.28,
         "edge_keep_mm": 0.55,
     },
-    "track_widths": {"critical_mm": 0.15, "normal_mm": 0.2, "power_mm": 0.4},
+    "track_widths": {"critical_mm": 0.127, "normal_mm": 0.127, "power_mm": 0.4},
     "class_weights": {"critical": 0.8, "normal": 1.0, "power": 1.3},
     "layer_prefs": {
         "critical": {"F": 0.85, "B": 1.15},
@@ -36,7 +30,7 @@ DEFAULTS = {
         "long_signal": {"F": 1.15, "B": 0.85},
         "default": {"F": 1.0, "B": 1.0},
     },
-    "via": {"cost": 8.0, "min_diameter_mm": 0.5, "min_drill_mm": 0.25,
+    "via": {"cost": 8.0, "min_diameter_mm": 0.45, "min_drill_mm": 0.20,
             "hole_to_hole_mm": 0.25},
     "negotiation": {
         # VTR/VPR schedule (Z2): iter1 ignores congestion (pure shortest

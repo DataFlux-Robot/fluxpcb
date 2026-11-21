@@ -58,12 +58,16 @@ def run_board(board_path: str, output_path: str, timeout_s: int = 1200,
         if not ok:
             return {'error': f'freerouting unavailable: {reason}',
                     'completionPct': 0.0, 'seconds': time.time() - t0}
-        fr = backend.route(board_path, output_path, timeout_s=timeout_s)
+        # FLUXPCB_USE_BOARD_RULES=1 routes at the board's own design rules
+        # (the DSN export otherwise falls back to KiCad's default 0.2mm).
+        use_board_rules = os.environ.get('FLUXPCB_USE_BOARD_RULES', '0') == '1'
+        fr = backend.route(board_path, output_path, timeout_s=timeout_s,
+                           use_board_rules=use_board_rules)
         if not fr.routed:
             return {'error': f'refresh routing failed: {fr.error}',
                     'completionPct': 0.0, 'seconds': fr.seconds}
         route_seconds = fr.seconds
-        engine_label = f'freerouting(passes={fr.passes})'
+        engine_label = f'freerouting(passes={fr.passes},board_rules={use_board_rules})'
     else:
         # NCER backend (direct, same as before)
         import pcbnew
@@ -114,11 +118,27 @@ def run_board(board_path: str, output_path: str, timeout_s: int = 1200,
             filler.Fill(b.Zones())
             b.Save(output_path)
 
-        # 2b. repair operators (copper text, waivers, endpoints)
+        # 2b. repair operators (copper text, waivers, endpoints, widen)
+        #     Loop: widening can expose marginal clearance shortfalls that a
+        #     follow-up waiver pass clears, so iterate while improving.
         from fluxpcb.repair_drc import run_drc, repair_with_operators
         drc_json = output_path + '.drc_before.json'
-        run_drc(output_path, drc_json)
-        repair_summary = repair_with_operators(output_path, drc_json)
+        prev_errs = None
+        for _round in range(3):
+            run_drc(output_path, drc_json)
+            try:
+                with open(drc_json) as _f:
+                    _d = json.load(_f)
+                n_errs = len([v for v in _d.get('violations', [])
+                              if v.get('severity') == 'error'])
+            except Exception:
+                n_errs = 0
+            if prev_errs is not None and n_errs >= prev_errs:
+                break  # no further improvement
+            prev_errs = n_errs
+            if n_errs == 0:
+                break
+            repair_summary = repair_with_operators(output_path, drc_json)
 
         # 2c. refill again + final measurement
         b = pcbnew.LoadBoard(output_path)

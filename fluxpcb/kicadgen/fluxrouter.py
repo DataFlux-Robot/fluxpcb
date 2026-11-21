@@ -229,7 +229,7 @@ if __import__("os").environ.get("FLUXNT_GATE", "1") != "0":
 
 h_hist = [__import__("numpy").zeros((NY, NX), dtype="float32")
           for _ in range(NL)]
-cell_owner = {}
+cell_owner = {}  # (li,gx,gy) -> set(nets) — multimap for overuse detection
 PFAC = float(NEG["pfac_initial"])
 
 FAST = None
@@ -254,8 +254,8 @@ def build_fast():
         viaany = bytearray(x | y for x, y in zip(viaany,
                                                  gm.via_block[li]))
     owner = [0] * (NL * NN)
-    for (li, gx, gy), nc in cell_owner.items():
-        owner[li * NN + gy * NX + gx] = nc
+    for (li, gx, gy), ncs in cell_owner.items():
+        owner[li * NN + gy * NX + gx] = next(iter(ncs)) if ncs else 0
     FAST = {"cost": cost, "occ": occ, "own": own, "owner": owner,
             "viaany": viaany}
 
@@ -263,14 +263,20 @@ def build_fast():
 def claim_cells(cells, nc):
     for (li, gx, gy) in cells:
         FAST["owner"][li * NN + gy * NX + gx] = nc
-        cell_owner[(li, gx, gy)] = nc
+        cell_owner.setdefault((li, gx, gy), set()).add(nc)
 
 
 def release_cells(cells, nc):
     for (li, gx, gy) in cells:
-        if cell_owner.get((li, gx, gy)) == nc:
-            FAST["owner"][li * NN + gy * NX + gx] = 0
-            cell_owner.pop((li, gx, gy), None)
+        s = cell_owner.get((li, gx, gy))
+        if s and nc in s:
+            s.discard(nc)
+            if not s:
+                cell_owner.pop((li, gx, gy), None)
+                FAST["owner"][li * NN + gy * NX + gx] = 0
+            else:
+                # keep a remaining member as the "owner" for cost pricing
+                FAST["owner"][li * NN + gy * NX + gx] = next(iter(s))
 
 
 # ---------------------------------------------------------------- A*
@@ -374,7 +380,7 @@ def astar_negotiate(a, b, nc, cls_weight, net_name=""):
                 if occ_l[im] and im not in own_set:
                     continue
             ow = owner_l[i2]
-            c = cost_l[i2] * (PFM if ow and ow != nc else 1.0)
+            c = (1.0 + cost_l[i2]) * (PFM if ow and ow != nc else 1.0)
             dm = DIR_MULT.get((lay, dx != 0, dy != 0), 1.0)
             if abs(dx) == 1 and abs(dy) == 1:
                 iax = base + gy2 * NX + gx
@@ -553,8 +559,8 @@ def write_congestion_svg(path, failed_nets):
                 if pad.GetNetCode() != net.GetNetCode():
                     continue
                 q = pad.GetPosition()
-                gx = (q.x / mm - gm.edge[0]) / rg.GRID * scale + padpx / 2
-                gy = (q.y / mm - gm.edge[1]) / rg.GRID * scale + padpx / 2
+                gx = (q.x / mm) / rg.GRID * scale + padpx / 2
+                gy = (q.y / mm) / rg.GRID * scale + padpx / 2
                 parts.append(f'<circle cx="{gx:.1f}" cy="{gy:.1f}" '
                              f'r="2.5" fill="none" stroke="#0a0" '
                              f'stroke-width="1.2"/>')
@@ -670,10 +676,7 @@ def main():
                 info["cells"] = all_cells
 
         # overuse + conflict marking for next iteration's partial rip-up
-        claims = {}
-        for c, nc in cell_owner.items():
-            claims.setdefault(c, set()).add(nc)
-        over = [(c, ns) for c, ns in claims.items() if len(ns) > 1]
+        over = [(c, ns) for c, ns in cell_owner.items() if len(ns) > 1]
         overuse = len(over)
         conflicted_nets = set()
         for c, ns in over:

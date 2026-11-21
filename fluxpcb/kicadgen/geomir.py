@@ -878,11 +878,12 @@ def pt_pad_dist(x, y, rect):
 
 def _seg_rect_dist(a, b, rect):
     """segment-to-axis-aligned-rect outline distance (0 if crossing).
-    rect = (cx, cy, w, h, rot); rot ignored in the proxy (the DRC
-    terminal authority handles rotated pads — this is a fast oracle)."""
-    cx, cy, w, h = rect[0], rect[1], rect[2], rect[3]
-    x0, x1 = cx - w / 2, cx + w / 2
-    y0, y1 = cy - h / 2, cy + h / 2
+    rect = (cx, cy, hw, hh, rot) — hw/hh are HALF-extents from pad_rect.
+    rot ignored in the proxy (the DRC terminal authority handles rotated
+    pads — this is a fast oracle)."""
+    cx, cy, hw, hh = rect[0], rect[1], rect[2], rect[3]
+    x0, x1 = cx - hw, cx + hw
+    y0, y1 = cy - hh, cy + hh
     corners = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
     from routegrid import seg_seg_dist as _ssd
     return min(_ssd(a, b, corners[k], corners[(k + 1) % 4])
@@ -891,23 +892,24 @@ def _seg_rect_dist(a, b, rect):
 
 def _rect_rect_overlap(r1, r2):
     """axis-aligned pad-pad overlap (rot ignored — the proxy's honest
-    approximation; rotated cases fall to the DRC authority)."""
+    approximation; rotated cases fall to the DRC authority).
+    w/h are HALF-extents: two pads overlap when center distance < sum
+    of half-extents in both axes."""
     x1, y1, w1, h1 = r1[0], r1[1], r1[2], r1[3]
     x2, y2, w2, h2 = r2[0], r2[1], r2[2], r2[3]
-    return (abs(x1 - x2) < (w1 + w2) / 2
-            and abs(y1 - y2) < (h1 + h2) / 2)
+    return (abs(x1 - x2) < w1 + w2
+            and abs(y1 - y2) < h1 + h2)
 
 
 def count_overlaps_geom(segs, rects):
     """Pure-geometry cross-net overlap counter (the stream ③ oracle).
-    THRESHOLD contract: overlap means copper edges INTERPENETRATE —
-    centerline distance < half-width sum. The first version compared
-    against FULL width sums and counted legal near-pairs as shorts
-    (a false-positive factory).
-    COVERAGE contract: seg-seg + seg-rect + rect-rect. The FC_L4
-    escape (jumper placed a pad ONTO a foreign pad, committed at
-    delta 0/0) was a pad-pad short the v1 coverage never counted —
-    any copper class the oracle cannot see is a gate blind spot."""
+    THRESHOLD contract: overlap means copper edges INTERPENETRATE.
+    extract_objects stores HALF-widths (w/2 from track_w) and
+    HALF-extents (hw/hh from pad_rect), so:
+      seg-seg:   dist < w1 + w2       (sum of half-widths)
+      seg-rect:  dist < w1            (half-width vs rect outline)
+      rect-rect: |dx| < hw1 + hw2     (sum of half-extents)
+    COVERAGE contract: seg-seg + seg-rect + rect-rect."""
     from routegrid import seg_seg_dist
     n = 0
     for li in range(len(segs)):
@@ -919,7 +921,7 @@ def count_overlaps_geom(segs, rects):
                 net2, a2, b2, w2 = s_list[j]
                 if net1 == net2 or not net1 or not net2:
                     continue
-                if seg_seg_dist(a1, b1, a2, b2) < (w1 + w2) / 2:
+                if seg_seg_dist(a1, b1, a2, b2) < w1 + w2:
                     n += 1
                     if n > 500:
                         return n
@@ -927,7 +929,7 @@ def count_overlaps_geom(segs, rects):
             for (net2, rect) in r_list:
                 if net1 == net2 or not net1 or not net2:
                     continue
-                if _seg_rect_dist(a1, b1, rect) < w1 / 2:
+                if _seg_rect_dist(a1, b1, rect) < w1:
                     n += 1
                     if n > 500:
                         return n

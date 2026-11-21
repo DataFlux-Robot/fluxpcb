@@ -1,28 +1,37 @@
 {
-  "version": "2026-10-25",
-  "description": "Machine-readable routing constraints distilled from K1-K15 knowhow. fluxrouter/routegrid read these at startup instead of hardcoding.",
+  "version": "2026-11-11",
+  "description": "Single source of truth for all routing constraints. Consumers: routegrid, fluxrouter, geomir, bga_escape_solver, exact_region_router.",
   "grid": {
     "resolution_mm": 0.16,
-    "pad_margin_mm": 0.30,
+    "pad_margin_mm": 0.15,
     "track_margin_mm": 0.15,
-    "clearance_mm": 0.17,
-    "via_annulus_mm": 0.25,
-    "via_drill_mm": 0.125,
+    "clearance_mm": 0.15,
+    "via_annulus_mm": 0.225,
+    "via_drill_mm": 0.10,
     "hole_keep_mm": 0.28,
     "edge_keep_mm": 0.55
+  },
+  "bga_rules": {
+    "description": "Ball-field region rules (0.8mm pitch TFBGA). Probe-verified: 58/58+82/82, 0 violations.",
+    "track_w_mm": 0.10,
+    "clearance_mm": 0.10,
+    "via_pad_mm": 0.45,
+    "via_drill_mm": 0.20,
+    "hole_to_hole_mm": 0.25,
+    "power_stub_w_mm": 0.15
   },
   "bga": {
     "pitch_mm": 0.8,
     "ball_pad_mm": 0.3,
     "pad_type": "NSMD",
     "fanout": "dogbone",
-    "dogbone_via_size_mm": [0.4, 0.2],
+    "dogbone_via_size_mm": [0.45, 0.20],
     "dogbone_center_offset_mm": 0.4,
     "power_ball_strategy": "via-in-pad"
   },
   "track_widths": {
-    "critical_mm": 0.15,
-    "normal_mm": 0.2,
+    "critical_mm": 0.127,
+    "normal_mm": 0.127,
     "power_mm": 0.4
   },
   "class_weights": {
@@ -38,8 +47,8 @@
   },
   "via": {
     "cost": 8.0,
-    "min_diameter_mm": 0.5,
-    "min_drill_mm": 0.25,
+    "min_diameter_mm": 0.45,
+    "min_drill_mm": 0.20,
     "hole_to_hole_mm": 0.25
   },
   "negotiation": {
@@ -56,5 +65,12 @@
     "power_layers": {"In2.Cu": "3V3", "In3.Cu": "5V"},
     "ground_pour_layers": ["F.Cu", "B.Cu", "In1.Cu", "In4.Cu"],
     "preferred_direction": {"In1.Cu": "horizontal", "In4.Cu": "vertical"}
+  },
+  "jlc_limits": {
+    "description": "JLC 3-tier rules. limit=hard, recommended=reliable, cost_trigger=extra charge.",
+    "clearance": {"limit": 0.09, "recommended": 0.127, "cost_trigger": 0.09},
+    "track_width": {"limit": 0.127, "recommended": 0.254, "cost_trigger": 0.09},
+    "via_drill": {"limit": 0.2, "recommended": 0.3, "cost_trigger": 0.15},
+    "via_diameter": {"limit": 0.4, "recommended": 0.6, "cost_trigger": 0.3}
   }
 }
