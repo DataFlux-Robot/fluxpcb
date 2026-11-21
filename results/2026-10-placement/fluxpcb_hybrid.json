@@ -59,7 +59,8 @@
           "hole_clearance": 1
         },
         "unconnectedItems": 39
-      }
+      },
+      "notes": "Strict mode (board 0.2mm clearance): 74.0% completion, 1 error, 423s. Relaxed mode (0.1mm DSN, JLC-manufacturable): 100% completion (0 unconnected), 158 errors all clearance 0.1-0.2mm. Root cause: QFN-56 0.4mm pitch escape needs 0.3mm channels; at 0.2mm clearance fanout escapes only 77.7%, at 0.1mm it escapes 95.4%."
     }
   ]
 }
