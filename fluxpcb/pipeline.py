@@ -190,7 +190,8 @@ class RoutePipeline:
         lids = rg.signal_layer_ids(b)
 
         from .router.unified import Router, RouterConfig
-        self.router = Router(b, lids, RouterConfig(timeout_s=timeout_s))
+        engine = self.config.get('engine', 'auto')
+        self.router = Router(b, lids, RouterConfig(timeout_s=timeout_s, engine=engine))
         self._active_components.add(9)
 
         # Component 3: DevRouteLoop (CORE: route→verify→repair)
@@ -235,8 +236,14 @@ class RoutePipeline:
             result={'opens': total_expected - routed_pairs, 'shorts': 0, 'drc_errors': 0},
         )
 
-        # Component 10: Verify (already used in dev loop, get final report)
-        verification = dev_result.verification or self.verifiers.run_all(board_state, design_plan)
+        # Component 10: Verify + repair (skill-package operators)
+        # run_and_repair = verify → classify morphology → dispatch the right
+        # operator (copper_text_to_silk / width_cascade / policy_waiver /
+        # plane_bridge / topology_swap / endpoint_attach)
+        if dev_result.verification and dev_result.converged:
+            verification = dev_result.verification
+        else:
+            verification = self.verifiers.run_and_repair(board_state, design_plan)
 
         # Component 11: ManufacturingInspector (DFM + fab)
         from .mfg.inspector import ManufacturingInspector
