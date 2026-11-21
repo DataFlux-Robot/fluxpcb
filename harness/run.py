@@ -291,6 +291,36 @@ def fluxpcb(name, out, unrouted, dsn):
 TOOLS["fluxpcb"] = fluxpcb
 
 
+def fluxpcb_hybrid(name, out, unrouted, dsn):
+    """fluxpcb hybrid: Freerouting backend + skill-package repair operators.
+
+    Routes with the Freerouting backend (fast bulk), then applies the
+    pcb-hybrid-routing-advanced repair operators (copper text → silk,
+    width cascade, policy waivers, endpoint attach) and re-verifies.
+    """
+    routed = os.path.join(out, "routed.kicad_pcb")
+    kicad_py = os.environ.get("KICAD_PYTHON", "python3")
+    runner = os.path.join(
+        os.path.dirname(ROOT), "flux-neurotransmitter", "fluxpcb", "bench_runner.py")
+    r = run([kicad_py, runner, unrouted, routed,
+             "--timeout", str(CAP_S), "--engine", "freerouting"],
+            CAP_S + 300, os.path.join(out, "fluxpcb_hybrid.log"))
+    extra = {}
+    try:
+        with open(os.path.join(out, "fluxpcb_hybrid.log")) as f:
+            for line in f:
+                s = line.strip()
+                if s.startswith("{"):
+                    extra = json.loads(s)
+                    break
+    except Exception:
+        pass
+    return (routed if os.path.exists(routed) else None), r, extra
+
+
+TOOLS["fluxpcb_hybrid"] = fluxpcb_hybrid
+
+
 def save(tool, rows):
     dest = os.path.join(ROOT, "results", CAMPAIGN, f"{tool}.json")
     os.makedirs(os.path.dirname(dest), exist_ok=True)

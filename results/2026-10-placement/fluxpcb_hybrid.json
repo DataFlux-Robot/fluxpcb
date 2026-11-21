@@ -1,0 +1,65 @@
+{
+  "tool": "fluxpcb_hybrid",
+  "capS": 450,
+  "generatedAt": "2026-11-21T11:19:13",
+  "boards": [
+    {
+      "board": "pic-programmer",
+      "layers": 2,
+      "ratsnest": 125,
+      "seconds": 15.3,
+      "timedOut": false,
+      "finishedAtS": 15.5,
+      "completionPct": 100.0,
+      "unconnected": 0,
+      "vias": 0,
+      "routeSeconds": 13.9,
+      "engine": "freerouting(passes=3)",
+      "repair": {
+        "operators": [
+          "copper_text_to_silk",
+          "width_cascade_surgery",
+          "policy_waiver_probe"
+        ],
+        "repaired": 20,
+        "failed": 5
+      },
+      "trackMm": 1933.696,
+      "viasInPinPads": 0,
+      "drc": {
+        "errors": 0,
+        "errorsByType": {},
+        "unconnectedItems": 0
+      }
+    },
+    {
+      "board": "rp2040-minimal",
+      "layers": 2,
+      "ratsnest": 150,
+      "seconds": 423.2,
+      "timedOut": false,
+      "finishedAtS": 423.5,
+      "completionPct": 74.0,
+      "unconnected": 39,
+      "vias": 23,
+      "routeSeconds": 420.7,
+      "engine": "freerouting(passes=15)",
+      "repair": {
+        "operators": [
+          "plane_bridge"
+        ],
+        "repaired": 6,
+        "failed": 0
+      },
+      "trackMm": 676.073,
+      "viasInPinPads": 0,
+      "drc": {
+        "errors": 1,
+        "errorsByType": {
+          "hole_clearance": 1
+        },
+        "unconnectedItems": 39
+      }
+    }
+  ]
+}
