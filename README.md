@@ -15,6 +15,57 @@
 
 ---
 
+## 📊 Benchmark Results
+
+FluxPCB evaluated on **autorouter-bench** (real boards, camera-scored by KiCad DRC):
+
+### 2-layer boards — hybrid engine (Freerouting 2.5.0 + 7 repair operators)
+
+| Board | Connections | Completion | DRC errors | Time | Koppar (baseline) |
+|-------|-------------|------------|------------|------|-------------------|
+| pic-programmer | 125 | **100%** | **0** | **15.8s** | 100% · 0 · 17s |
+| rp2040-minimal | 150 | **100%** | **0** | **34.7s** | 100% · 0 · 11.7s |
+
+**Matches Koppar on both boards** — and beats Koppar's wall clock on
+pic-programmer. Compared to the Freerouting baseline alone, rp2040 rises
+from 86% / 4 DRC errors to 100% / 0.
+
+### Why it works
+
+1. **Board-true DSN**: KiCad's Specctra export always writes the default
+   0.2mm clearance because `LoadBoard()` never loads the `.kicad_pro`.
+   fluxpcb patches the DSN to the board's own rules (rp2040: 0.127mm,
+   H7: 0.09mm) — routing that the fine-pitch escapes require.
+2. **Project snapshot/restore**: both `strip` and `import-ses` rewrite the
+   paired project with KiCad defaults; the backend restores it so DRC
+   judges the real rules.
+3. **7 repair operators** (from the pcb-hybrid-routing-advanced skill):
+   `copper_text_to_silk` · `width_cascade_surgery` · `policy_waiver_probe`
+   (real `.kicad_dru` write + PROBE) · `plane_bridge` · `topology_swap` ·
+   `endpoint_attach` (real track drawing) · `widen_narrow_tracks`
+   (rp2040: 74 neckdown segments widened, 0 refused; 2 marginal clearance
+   shortfalls of 1.1µm waived).
+
+### 4/6-layer boards — NCER engine
+
+| Board | Connections | Completion | DRC | Koppar (baseline) |
+|-------|-------------|------------|-----|-------------------|
+| pico-vga | 180 | — | — | 100% · 0 · 15s |
+| cm5io | 431 | — | — | 100% · 0 · 542s |
+| rk3328-som-evb | 462 | — | — | 100% · 0 · 66s |
+| scalenode-cm4 | 446 | — | — | 100% · 0 · 161s |
+| stmp157-som-evb | 905 | — | — | 100% · 0 · 1068s |
+| imx8mp-som-evb | 997 | — | — | 100% · 0 · 1082s |
+
+### H7 BGA flight controller (6L, TFBGA240)
+
+- **14 unconnected / 259 ratsnest = 94.6%** in a single automated pass
+  (was 71 opens), board-true 0.10mm clearance, 0 clearance errors,
+  ~460s. Remaining: 14 connector-level opens + 5 hole_clearance.
+
+---
+
+
 ## ⚡ One prompt. One command. One fab-ready board.
 
 ```console
@@ -68,56 +119,6 @@ Every artifact is SHA256-stamped. Every verdict links to evidence on disk. A mis
 | 🟩 PCB | `placement_quality` `drc_zero` `impedance_si` | overlap/decap/connector rules · real `kicad-cli` DRC · IPC-2141 + length match |
 | 🧪 Acceptance sim | `irdrop` `thermal` `emc_precompliance` `spice_functional` | FDM field solvers · PDN target impedance · ngspice Monte-Carlo (20 runs, ±20% cap/ESR) |
 | 💾 Firmware | `firmware_build` `firmware_spi_loopback` `firmware_regression` | real `idf.py build` when present · the **same** `fw_logic.c` compiled & executed on host |
-
----
-
-## 📊 Benchmark Results
-
-FluxPCB evaluated on **autorouter-bench** (real boards, camera-scored by KiCad DRC):
-
-### 2-layer boards — hybrid engine (Freerouting 2.5.0 + 7 repair operators)
-
-| Board | Connections | Completion | DRC errors | Time | Koppar (baseline) |
-|-------|-------------|------------|------------|------|-------------------|
-| pic-programmer | 125 | **100%** | **0** | **15.8s** | 100% · 0 · 17s |
-| rp2040-minimal | 150 | **100%** | **0** | **34.7s** | 100% · 0 · 11.7s |
-
-**Matches Koppar on both boards** — and beats Koppar's wall clock on
-pic-programmer. Compared to the Freerouting baseline alone, rp2040 rises
-from 86% / 4 DRC errors to 100% / 0.
-
-### Why it works
-
-1. **Board-true DSN**: KiCad's Specctra export always writes the default
-   0.2mm clearance because `LoadBoard()` never loads the `.kicad_pro`.
-   fluxpcb patches the DSN to the board's own rules (rp2040: 0.127mm,
-   H7: 0.09mm) — routing that the fine-pitch escapes require.
-2. **Project snapshot/restore**: both `strip` and `import-ses` rewrite the
-   paired project with KiCad defaults; the backend restores it so DRC
-   judges the real rules.
-3. **7 repair operators** (from the pcb-hybrid-routing-advanced skill):
-   `copper_text_to_silk` · `width_cascade_surgery` · `policy_waiver_probe`
-   (real `.kicad_dru` write + PROBE) · `plane_bridge` · `topology_swap` ·
-   `endpoint_attach` (real track drawing) · `widen_narrow_tracks`
-   (rp2040: 74 neckdown segments widened, 0 refused; 2 marginal clearance
-   shortfalls of 1.1µm waived).
-
-### 4/6-layer boards — NCER engine
-
-| Board | Connections | Completion | DRC | Koppar (baseline) |
-|-------|-------------|------------|-----|-------------------|
-| pico-vga | 180 | — | — | 100% · 0 · 15s |
-| cm5io | 431 | — | — | 100% · 0 · 542s |
-| rk3328-som-evb | 462 | — | — | 100% · 0 · 66s |
-| scalenode-cm4 | 446 | — | — | 100% · 0 · 161s |
-| stmp157-som-evb | 905 | — | — | 100% · 0 · 1068s |
-| imx8mp-som-evb | 997 | — | — | 100% · 0 · 1082s |
-
-### H7 BGA flight controller (6L, TFBGA240)
-
-- **14 unconnected / 259 ratsnest = 94.6%** in a single automated pass
-  (was 71 opens), board-true 0.10mm clearance, 0 clearance errors,
-  ~460s. Remaining: 14 connector-level opens + 5 hole_clearance.
 
 ---
 
