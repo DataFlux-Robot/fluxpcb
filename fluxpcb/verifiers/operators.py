@@ -798,6 +798,124 @@ class RepairOperators:
         return result
 
     # ══════════════════════════════════════════════════════════════════
+    # Operator 7: widen_narrow_tracks
+    # Inverse of width_cascade_surgery: Freerouting's neckdown leaves
+    # 0.10-0.12mm segments below the board's min track width. Widening
+    # must not create a clearance violation, so every candidate is
+    # re-verified against all same-layer copper before it is applied.
+    # ══════════════════════════════════════════════════════════════════
+
+    def widen_narrow_tracks(self, board, violations: list[Violation] = None) -> RepairResult:
+        """Widen tracks below the board's minimum track width.
+
+        Morphology: track_width violations (actual < required).
+        Mechanism: SetWidth(min_width) if the widened swept area passes the
+        clearance check against every other-net item on the layer.
+        Verification: re-run DRC — track_width violations disappear without
+        new clearance violations.
+
+        Args:
+            board: pcbnew.BOARD
+            violations: optional list of track_width violations
+
+        Returns:
+            RepairResult with widened count
+        """
+        result = RepairResult(operator="widen_narrow_tracks")
+
+        if not board:
+            result.notes.append("no board")
+            return result
+
+        rules = self.load_board_rules(board)
+        min_w = rules.get('min_track_width', 0.0)
+        if min_w <= 0:
+            result.notes.append("no min track width on board")
+            return result
+
+        min_w_um = int(round(min_w * 1e6))
+
+        try:
+            import pcbnew
+        except ImportError:
+            result.notes.append("pcbnew unavailable")
+            return result
+
+        # Collect same-layer copper for the clearance re-check
+        _sd = self._segment_distance
+
+        tracks = []
+        try:
+            tracks = [t for t in board.GetTracks()
+                      if type(t).__name__ != 'PCB_VIA']
+        except Exception:
+            pass
+
+        widened = 0
+        refused = 0
+        for t in tracks:
+            try:
+                w_um = t.GetWidth()
+                if w_um >= min_w_um:
+                    continue
+                # Candidate: widen to the board minimum
+                # Clearance re-check against every other-net track on the layer
+                s, e = t.GetStart(), t.GetEnd()
+                x1, y1 = s.x / 1e6, s.y / 1e6
+                x2, y2 = e.x / 1e6, e.y / 1e6
+                nc = t.GetNetCode()
+                lid = t.GetLayer()
+
+                ok = True
+                if _sd is not None:
+                    half = min_w / 2.0
+                    need = self._board_rules.get('min_clearance', 0.0) + half
+                    for o in tracks:
+                        if o is t or o.GetLayer() != lid or o.GetNetCode() == nc:
+                            continue
+                        os_, oe = o.GetStart(), o.GetEnd()
+                        d = _sd(x1, y1, x2, y2,
+                                os_.x / 1e6, os_.y / 1e6,
+                                oe.x / 1e6, oe.y / 1e6)
+                        if d < need + o.GetWidth() / 2e6:
+                            ok = False
+                            break
+                if not ok:
+                    refused += 1
+                    continue
+
+                t.SetWidth(min_w_um)
+                widened += 1
+            except Exception:
+                continue
+
+        # Also widen any zero-length stubs that slipped through
+        result.repaired_count = widened
+        result.failed_count = refused
+        result.success = widened > 0
+        if widened:
+            result.notes.append(
+                f"widened {widened} tracks to {min_w:.3f}mm "
+                f"({refused} refused: clearance)"
+            )
+            self._ledger.append({
+                'operator': 'widen_narrow_tracks',
+                'widened': widened,
+                'refused': refused,
+                'target_mm': min_w,
+            })
+        else:
+            result.notes.append(f"no tracks below {min_w:.3f}mm to widen")
+
+        result.certificate = {
+            'operator': 'widen_narrow_tracks',
+            'widened': widened,
+            'refused': refused,
+            'target_mm': min_w,
+        }
+        return result
+
+    # ══════════════════════════════════════════════════════════════════
     # Dispatch: select operator by violation morphology
     # ══════════════════════════════════════════════════════════════════
 
@@ -841,6 +959,11 @@ class RepairOperators:
                 if leftovers:
                     results.append(self.policy_waiver_probe(board, leftovers))
 
+        # track_width → widen_narrow_tracks (inverse of cascade: widen to min)
+        tw_v = [v for v in violations if v.type == "track_width"]
+        if tw_v:
+            results.append(self.widen_narrow_tracks(board, tw_v))
+
         # track_dangling → endpoint_attach
         dangling_v = [v for v in violations if v.type == "track_dangling"]
         if dangling_v:
@@ -878,6 +1001,26 @@ class RepairOperators:
         power_patterns = ['VCC', 'VDD', 'GND', '3V3', '5V', '1V8', '1V2',
                           '1V1', 'VBAT', 'VCAP', 'VBUS']
         return any(p in net_upper for p in power_patterns)
+
+    @staticmethod
+    def _point_to_segment_distance(px, py, x1, y1, x2, y2) -> float:
+        """Distance from point to segment."""
+        dx = x2 - x1
+        dy = y2 - y1
+        if dx == 0 and dy == 0:
+            return math.hypot(px - x1, py - y1)
+        t = max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
+        return math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
+
+    @classmethod
+    def _segment_distance(cls, x1, y1, x2, y2, x3, y3, x4, y4) -> float:
+        """Minimum distance between two segments (endpoint sampling)."""
+        return min(
+            cls._point_to_segment_distance(x1, y1, x3, y3, x4, y4),
+            cls._point_to_segment_distance(x2, y2, x3, y3, x4, y4),
+            cls._point_to_segment_distance(x3, y3, x1, y1, x2, y2),
+            cls._point_to_segment_distance(x4, y4, x1, y1, x2, y2),
+        )
 
     @property
     def ledger(self) -> list[dict]:

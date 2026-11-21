@@ -48,6 +48,9 @@ JAVA_CANDIDATES = [
 
 JAR_CANDIDATES = [
     os.environ.get('FLUXPCB_FREEROUTING_JAR', ''),
+    # 2.5.0 first: it converges much better than 2.4.1 on fine-pitch
+    # (rp2040: 21 unrouted/0 violations vs 39 unrouted/19 violations)
+    r'E:/DATA/vscode/ZCODE/flux-neurotransmitter/tools_bin/freerouting-2.5.0.jar',
     r'E:/DATA/vscode/ZCODE/flux-neurotransmitter/tools_bin/freerouting.jar',
     # autorouter-bench default (ZCODE/autorouter-bench/tools/)
     os.path.join(os.path.dirname(__file__), '..', '..', '..',
@@ -135,8 +138,59 @@ class FreeroutingBackend:
         except json.JSONDecodeError:
             return {'raw': r.stdout}
 
+    def _patch_dsn_from_project(self, board_path: str, dsn_path: str):
+        """Rewrite the DSN clearance/width with the board's own rules.
+
+        KiCad's Specctra export writes the DEFAULT 0.2mm clearance because
+        pcbnew.LoadBoard() does not load the .kicad_pro. Boards designed for
+        fine-pitch parts carry stricter/finer rules (H7: 0.09mm clearance,
+        0.15mm tracks), and routing at 0.2mm removes the escape channels.
+
+        Reads Default netclass clearance/track_width from the paired
+        .kicad_pro and replaces the DSN's rule values (DSN units = microns).
+        """
+        import json
+        import re
+
+        pro_path = os.path.splitext(board_path)[0] + '.kicad_pro'
+        if not os.path.exists(pro_path):
+            return
+        try:
+            with open(pro_path, encoding='utf-8') as f:
+                pro = json.load(f)
+        except Exception:
+            return
+
+        clearance_mm = None
+        width_mm = None
+        for cls in pro.get('net_settings', {}).get('classes', []):
+            if cls.get('name') == 'Default':
+                clearance_mm = cls.get('clearance')
+                width_mm = cls.get('track_width')
+                break
+        if clearance_mm is None:
+            return
+
+        clearance_um = int(round(float(clearance_mm) * 1000))
+        width_um = int(round(float(width_mm) * 1000)) if width_mm else None
+
+        try:
+            with open(dsn_path, encoding='utf-8', errors='replace') as f:
+                text = f.read()
+
+            # Patch the generic clearance rules (leave the smd_smd sub-rule)
+            text = re.sub(r'\(clearance 200\)', f'(clearance {clearance_um})', text)
+            if width_um:
+                text = re.sub(r'\(width 200\)', f'(width {width_um})', text)
+
+            with open(dsn_path, 'w', encoding='utf-8') as f:
+                f.write(text)
+        except Exception:
+            pass
+
     def route(self, board_path: str, out_path: str,
-              timeout_s: int = 300, keep_copper_protected: bool = True) -> FreeroutingResult:
+              timeout_s: int = 300, keep_copper_protected: bool = True,
+              use_board_rules: bool = False) -> FreeroutingResult:
         """Route a board with Freerouting.
 
         Args:
@@ -144,6 +198,13 @@ class FreeroutingBackend:
             out_path: Output .kicad_pcb (routed)
             timeout_s: Freerouting wall-clock cap
             keep_copper_protected: keep existing copper as protect (default)
+            use_board_rules: patch the DSN with the board's own clearance and
+                track width from the paired .kicad_pro. KiCad's Specctra
+                export always writes the default 0.2mm because LoadBoard()
+                does not load the project — for boards designed with finer
+                rules (H7 BGA: 0.09mm) that is 2.2x stricter than intended.
+                Default False = benchmark-comparable (historical baselines
+                used the unpatched DSN).
 
         Returns:
             FreeroutingResult
@@ -161,16 +222,35 @@ class FreeroutingBackend:
 
         # 1. Export DSN (Specctra) via 'strip' (idempotent on already-unrouted
         #    boards; writes <work_dir>/board.dsn + <work_dir>/unrouted.kicad_pcb)
+        #    NOTE: pcbnew Save rewrites the paired .kicad_pro with KiCad
+        #    defaults, so snapshot the project first and restore it after.
         try:
+            src_pro = os.path.splitext(board_path)[0] + '.kicad_pro'
+            pro_snapshot = None
+            if os.path.exists(src_pro):
+                with open(src_pro, 'rb') as f:
+                    pro_snapshot = f.read()
+
             info = self._kicad('strip', board_path, work_dir, timeout=120)
             dsn_path = os.path.join(work_dir, 'board.dsn')
             unrouted_path = os.path.join(work_dir, 'unrouted.kicad_pcb')
             if not os.path.exists(dsn_path):
                 result.error = f'DSN not produced by strip (got {info})'
                 return result
+
+            # Restore the source project beside the stripped board
+            if pro_snapshot is not None:
+                dst_pro = os.path.splitext(unrouted_path)[0] + '.kicad_pro'
+                with open(dst_pro, 'wb') as f:
+                    f.write(pro_snapshot)
+
             # Use the freshly stripped board as the import base (matches DSN)
             if os.path.exists(unrouted_path):
                 board_path = unrouted_path
+
+            # Optionally align the DSN with the board's own design rules
+            if use_board_rules:
+                self._patch_dsn_from_project(board_path, dsn_path)
         except Exception as e:
             result.error = f'DSN export failed: {e}'
             return result
@@ -218,8 +298,23 @@ class FreeroutingBackend:
             return result
 
         # 3. Import SES back into KiCad
+        #    IMPORTANT: pcbnew rewrites the paired .kicad_pro during save with
+        #    KiCad default rules, which silently changes what DRC judges.
+        #    Snapshot the source project and restore it after the import.
         try:
+            src_pro = os.path.splitext(board_path)[0] + '.kicad_pro'
+            pro_snapshot = None
+            if os.path.exists(src_pro):
+                with open(src_pro, 'rb') as f:
+                    pro_snapshot = f.read()
+
             self._kicad('import-ses', board_path, ses_path, out_path, timeout=180)
+
+            # Restore the project beside the routed board
+            if pro_snapshot is not None:
+                out_pro = os.path.splitext(out_path)[0] + '.kicad_pro'
+                with open(out_pro, 'wb') as f:
+                    f.write(pro_snapshot)
         except Exception as e:
             result.error = f'SES import failed: {e}'
             result.seconds = round(time.time() - t0, 1)
