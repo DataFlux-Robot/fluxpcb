@@ -19,6 +19,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 from collections import Counter
 from dataclasses import dataclass, field
@@ -50,6 +51,28 @@ def canonical_violation(v: dict) -> str:
     if not parts:
         parts = [(v.get('description') or '')[:80] + '@' + _norm_pos(v.get('pos', {}))]
     return vtype + '|' + ';'.join(sorted(parts))
+
+
+def unconnected_ids(us) -> frozenset:
+    """Per net, as many identities as the net has missing connections.
+
+    The DRC names the two items of a ratsnest edge, and which two it
+    names depends on the spanning tree it picked: on 0496 two runs on the
+    same bytes gave the same 12 opens with one of them between a
+    different track and the same pad.  A net's count does not move.  The
+    identity set is what tells a plateau from progress, so it must be
+    the count.
+    """
+    by_net = Counter()
+    for u in us or []:
+        names = set()
+        for i in u.get('items') or []:
+            m = re.search(r'\[([^\]]+)\]', i.get('description') or '')
+            if m:
+                names.add(m.group(1))
+        by_net['/'.join(sorted(names)) or '?'] += 1
+    return frozenset(f'unconnected|{net}#{k}'
+                     for net, n in by_net.items() for k in range(n))
 
 
 # Manufacturing severity, used only to order two feasible states.  A short
@@ -124,7 +147,7 @@ def claims_from_drc(drc: dict, rule_congruent: bool = True) -> Claims:
         n_unconnected=len(us),
         error_types=frozenset(v.get('type', '?') for v in vs),
         error_ids=frozenset(canonical_violation(v) for v in vs),
-        unconnected_ids=frozenset(canonical_violation(u) for u in us),
+        unconnected_ids=unconnected_ids(us),
         rule_congruent=rule_congruent,
         type_counts=tuple(sorted(Counter(v.get('type', '?') for v in vs).items())),
     )

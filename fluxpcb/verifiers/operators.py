@@ -2711,11 +2711,15 @@ class RepairOperators:
         return result
 
     def dispatch_repair(self, board, violations: list[Violation],
-                        allowed=None, classes=None) -> list[RepairResult]:
+                        allowed=None, classes=None, only=None) -> list[RepairResult]:
         """Auto-select and run the right operator for each violation class.
 
         This is the "morphology recognizer" from the skill's 5-tuple: match
         the residual class to its operator.
+
+        `only` runs one registry entry (its name) and nothing else: a
+        loop that judges every operator on its own calls this once per
+        entry (repair_drc.repair_stepwise).
 
         Args:
             board: pcbnew.BOARD
@@ -2746,7 +2750,9 @@ class RepairOperators:
         # 0. Copper text → silkscreen (removes a whole violation class cheaply;
         #    routers cannot see copper graphics as obstacles). Runs first so the
         #    remaining clearance violations are genuine track-vs-track cases.
-        if ok(TEXT_TO_SILK) and wanted('clearance'):
+        if only is not None and only != TEXT_TO_SILK:
+            pass                         # one entry only, and not this one
+        elif ok(TEXT_TO_SILK) and wanted('clearance'):
             r_text = self.copper_text_to_silk(board)
             if r_text.success:
                 results.append(r_text)
@@ -2761,6 +2767,8 @@ class RepairOperators:
         # Order and ownership live in the capability registry; a stub is
         # skipped with a reason instead of being dispatched as if it worked.
         for spec in default_registry().ordered():
+            if only is not None and spec.name != only:
+                continue
             if not spec.available:
                 self._ledger.append({'operator': spec.name,
                                      'skipped': spec.reason})

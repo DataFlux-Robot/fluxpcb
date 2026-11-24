@@ -414,11 +414,13 @@ def no_assert_dialogs():
 
 
 def repair_with_operators(board_path: str, drc_json: str,
-                          allowed_ops=None, classes=None, params=None) -> dict:
+                          allowed_ops=None, classes=None, params=None,
+                          only=None) -> dict:
     """Apply skill-package repair operators to DRC violations.
 
     `allowed_ops` is the policy: operators outside it are never selected.
     `classes` restricts the pass to given violation types (None = all).
+    `only` runs that one registry entry and nothing else.
 
     Returns a summary of what was repaired, including the operator ledger.
     """
@@ -446,7 +448,7 @@ def repair_with_operators(board_path: str, drc_json: str,
     board = pcbnew.LoadBoard(board_path)
 
     results = ops.dispatch_repair(board, violations, allowed=allowed_ops,
-                                  classes=classes)
+                                  classes=classes, only=only)
 
     # Save repaired board (project bytes preserved: DRC must keep judging
     # against the board's own rules)
@@ -458,6 +460,108 @@ def repair_with_operators(board_path: str, drc_json: str,
         'failed': sum(r.failed_count for r in results),
         'ledger': ops.ledger,
     }
+
+
+def _digest(path):
+    import hashlib
+
+    with open(path, 'rb') as fh:
+        return hashlib.sha256(fh.read()).hexdigest()
+
+
+def repair_stepwise(board_path: str, drc_json: str, evaluate,
+                    allowed_ops=None, classes=None, params=None,
+                    kind: str = 'repair', rule_congruent: bool = True) -> dict:
+    """One repair round as a chain of small transactions, one per operator.
+
+    A round used to be one transaction: every operator's copper went in
+    together and the gate judged the sum.  One operator that brought in a
+    violation class the board did not have threw away every other
+    operator's repair with it (0496: 67 repaired, rolled back for
+    'tracks_crossing'; 0599: 45, the same way).  Here each operator is
+    judged on its own against the board as the previous ones left it:
+    the ones that pass keep their copper, the one that fails gets its
+    own copper back where it was and is on record by name.
+
+    `evaluate(board_path) -> Claims` is the caller's (it refills zones
+    and runs the DRC into `drc_json`).  Returns what repair_with_operators
+    returns — operators run, repaired, failed, the ledger — plus
+    `steps`: one entry per operator with its decision.  When no operator
+    had anything to do the result is `{'no_op': True}`.
+    """
+    from fluxpcb.verifiers.operator_spec import TEXT_TO_SILK, default_registry
+    from fluxpcb.verifiers.txn import claims_from_drc, transactional_repair
+
+    def report():
+        with open(drc_json, encoding='utf-8') as f:
+            return json.load(f)
+
+    def ok(name):
+        return allowed_ops is None or name in allowed_ops
+
+    def wanted(vtype):
+        return classes is None or vtype in classes
+
+    def has(classes_):
+        d = report()
+        if d.get('ok') is False:
+            return False
+        return any(v.get('severity') == 'error' and not v.get('excluded')
+                   and v.get('type') in classes_ for v in d.get('violations') or [])
+
+    if not os.path.exists(drc_json):
+        evaluate(board_path)              # no report yet: make one
+    entries = []
+    if ok(TEXT_TO_SILK) and wanted('clearance') and has({'clearance'}):
+        entries.append((TEXT_TO_SILK, (TEXT_TO_SILK,), {'clearance'}))
+    for spec in default_registry().ordered():
+        if (spec.available and any(wanted(c) for c in spec.classes)
+                and all(ok(n) for n in spec.emitted()) and has(set(spec.classes))):
+            entries.append((spec.name, spec.emitted(), set(spec.classes)))
+
+    out = {'operators_run': [], 'repaired': 0, 'failed': 0, 'ledger': [], 'steps': []}
+    first = report()
+    claims = claims_from_drc(first, rule_congruent=rule_congruent)
+    for (name, emitted, classes_) in entries:
+        def one(path, _emitted=emitted, _name=name):
+            was = _digest(path)
+            stats = repair_with_operators(path, drc_json, allowed_ops=_emitted,
+                                          classes=classes, params=params,
+                                          only=_name)
+            # an operator that changed no byte is not judged: there is
+            # nothing on the board to roll back, and a DRC costs more
+            # than the answer is worth
+            if _digest(path) == was:
+                stats['no_op'] = True
+            return stats
+
+        step = transactional_repair(board_path, one, evaluate, max_rounds=1,
+                                    initial=claims, kind=f'{kind}:{name}')
+        acted = [e for e in step.log if isinstance(e, dict)]
+        stats = (acted[0].get('action') or {}) if acted else {}
+        entry = {'operator': name, 'stage': kind}
+        if step.committed:
+            entry['decision'] = 'commit'
+        elif step.rolled_back:
+            entry['decision'] = 'rollback'
+        elif step.errors:
+            entry['decision'] = 'action_error'
+        else:
+            continue                      # nothing was left for it to do
+        entry.update(why=(acted[0].get('why') if acted else None),
+                     before=(acted[0].get('before') if acted else {}),
+                     after=(acted[0].get('after') if acted else {}),
+                     repaired=stats.get('repaired'), failed=stats.get('failed'))
+        out['steps'].append(entry)
+        out['operators_run'].extend(stats.get('operators_run') or [])
+        out['repaired'] += stats.get('repaired') or 0
+        out['failed'] += stats.get('failed') or 0
+        out['ledger'].extend(stats.get('ledger') or [])
+        if step.committed:
+            claims = claims_from_drc(report(), rule_congruent=rule_congruent)
+    if not out['steps']:
+        return {'no_op': True, 'operators_run': [], 'steps': []}
+    return out
 
 
 def main():

@@ -400,7 +400,9 @@ def draw_first(board, rec, cands, width, nc, layers, rt, via):
         made = draw(board, c, width, nc, layers, segs, rects, rt, via)
         if made is not None:
             rec['created'].extend(made)
-            rec['plan'] = {k: c[k] for k in ('mode', 'length_mm', 'vias')}
+            # the points go on record: a page can then draw what was
+            # drawn, and the certificate says where the vias went
+            rec['plan'] = {k: c[k] for k in ('mode', 'length_mm', 'vias', 'pts')}
             return made
     return None
 
@@ -688,6 +690,7 @@ def run(ops, board, violations):
                 vr.update(a=[round(a_[0], 3), round(a_[1], 3)],
                           b=[round(b_[0], 3), round(b_[1], 3)],
                           lifted_n=len(members), plan=sub.get('plan'))
+                gone.update(sub['gone'])
                 return True
             fresh = unmake(board, sub)
             old = run_
