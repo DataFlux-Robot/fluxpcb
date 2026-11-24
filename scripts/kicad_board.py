@@ -100,7 +100,17 @@ def without_copper_zones(text):
     return "".join(out)
 
 
-def strip(src, out_dir):
+def strip(src, out_dir, net_filter=None):
+    """Placement-only board + DSN.  ``net_filter`` keeps some copper.
+
+    None                -> every track and via is removed (the default).
+    "keep=A|B"          -> tracks of nets A and B stay, LOCKED.
+    "rip=A|B"           -> tracks of nets A and B are removed, the rest stays, LOCKED.
+
+    Locked matters: KiCad's DSN export writes a locked track as
+    ``(type fix)`` and the router leaves it in place, so a pre-routed
+    escape (keep) or a partial rip-up (rip) survives to the routed board.
+    """
     os.makedirs(out_dir, exist_ok=True)
     # placement only: tracks, vias and copper zones go; keepout rule areas are rules and stay.
     # Zones leave at the text level: removing a ZONE through pcbnew breaks its later lookups.
@@ -117,20 +127,65 @@ def strip(src, out_dir):
     if os.path.exists(pro_src):
         shutil.copy(pro_src, os.path.join(out_dir, "placed.kicad_pro"))
     b = pcbnew.LoadBoard(placed)
+    mode, names = None, set()
+    if net_filter:
+        mode, _, raw = net_filter.partition("=")
+        names = {n for n in raw.split("|") if n}
+        if mode not in ("keep", "rip"):
+            raise ValueError(f"bad net filter {net_filter!r}")
+    kept = 0
     for t in list(b.GetTracks()):
-        b.Remove(t)
+        name = t.GetNetname()
+        if mode == "keep":
+            drop = name not in names
+        elif mode == "rip":
+            drop = name in names
+        else:
+            drop = True
+        if drop:
+            b.Remove(t)
+        else:
+            t.SetLocked(True)
+            kept += 1
     unrouted = os.path.join(out_dir, "unrouted.kicad_pcb")
     dsn = os.path.join(out_dir, "board.dsn")
     pcbnew.SaveBoard(unrouted, b)
     ok = pcbnew.ExportSpecctraDSN(b, dsn)
-    return {"ok": bool(ok) and os.path.exists(dsn), "unrouted": unrouted, "dsn": dsn}
+    return {"ok": bool(ok) and os.path.exists(dsn), "unrouted": unrouted, "dsn": dsn,
+            "kept_locked": kept, "net_filter": net_filter}
+
+
+def _track_key(t):
+    """Identity of a track for duplicate detection (either end order)."""
+    try:
+        if t.Type() == pcbnew.PCB_VIA_T:
+            q = t.GetPosition()
+            return ("via", t.GetNetname(), round(q.x), round(q.y), round(t.GetWidth(pcbnew.F_Cu)))
+        a, c = t.GetStart(), t.GetEnd()
+        ends = tuple(sorted([(round(a.x), round(a.y)), (round(c.x), round(c.y))]))
+        return ("seg", t.GetNetname(), t.GetLayer(), ends, round(t.GetWidth()))
+    except Exception:
+        return None
 
 
 def import_ses(unrouted, ses, routed):
     b = pcbnew.LoadBoard(unrouted)
     ok = pcbnew.ImportSpecctraSES(b, ses)
+    # Locked copper that was already on the board comes back once more
+    # inside the SES.  An exact duplicate is never intended: drop later
+    # copies and keep the (locked) original.
+    seen, dupes = set(), 0
+    for t in list(b.GetTracks()):
+        k = _track_key(t)
+        if k is None:
+            continue
+        if k in seen:
+            b.Remove(t)
+            dupes += 1
+        else:
+            seen.add(k)
     pcbnew.SaveBoard(routed, b)
-    return {"ok": bool(ok), "routed": routed}
+    return {"ok": bool(ok), "routed": routed, "dupes_removed": dupes}
 
 
 

@@ -63,112 +63,199 @@ def _rule_register():
 
 def route_and_repair(paired_pcb, out_pcb, pro_src, timeout_s,
                      ledger_dir=None, board_family='', hook=None,
-                     enable_planning=True, policy=None):
-    """Route the paired board (the backend strips it internally) and repair.
+                     enable_planning=True, policy=None, arm=None,
+                     code_fp=None):
+    """Route the paired board (the backend strips it internally) and repair,
+    exactly as ``arm`` prescribes.
 
-    Repairs run as transactions: a batch commits only when the post-state's
-    hard-claim vector improves and introduces no new violation type; otherwise
-    the board is restored byte-for-byte.  Zone fill happens inside the
-    evaluation, so a verdict always refers to the state it measured.
+    An arm fixes the plan mode (component 4), the loop mode (component 3),
+    the router settings and which repair operators may be selected.  Every
+    stage is transactional, and every round -- committed, rolled back or
+    denied -- is recorded with its operator ledger in ``cert['repair']``,
+    so a meta loop can attribute an outcome to the operator behind it.
     """
     from fluxpcb.router.freerouting import FreeroutingBackend
-    from fluxpcb.repair_drc import (reroute_residues_isolated, run_drc,
-                                    repair_with_operators,
+    from fluxpcb.repair_drc import (RIP_TYPES, MorphPicker,
+                                    reroute_residues_isolated,
+                                    repair_with_operators, run_drc,
                                     save_preserving_project)
     from fluxpcb.contract import Executor, RuleModel, ScopeBuilder
+    from fluxpcb.design_agent.planner import build_plan
+    from fluxpcb.design_agent.preroute import pre_route, survivors
+    from fluxpcb.harness import HarnessHook
+    from fluxpcb.meta.arm import Arm, default_arm
+    from fluxpcb.meta.codefp import (cell_fingerprint, code_fingerprint,
+                                     loaded_project_files)
     from fluxpcb.verifiers.binding import (bind_report, check_binding,
                                            project_identity, sha256_file)
     from fluxpcb.verifiers.live import record_board
     from fluxpcb.verifiers.residue import classify_drc
-    from fluxpcb.harness import load_hook
     from fluxpcb.verifiers.txn import claims_from_drc, transactional_repair
     import pcbnew
 
-    if policy is not None:
-        # The policy owns the harness (operator set + budget) and the
-        # planning switch; an explicit hook still wins for A/B tests.
-        enable_planning = bool(policy.enabled_planning)
-        if hook is None:
-            from fluxpcb.harness import HarnessHook
-            hook = HarnessHook(policy.harness_policy())
+    t_wall = time.time()
+    if arm is None:
+        arm = (Arm.from_policy(policy, timeout_s=timeout_s)
+               if policy is not None else
+               default_arm('default', timeout_s=timeout_s,
+                           enable_planning=enable_planning))
+    bad = arm.validate()
+    if bad:
+        raise ValueError('invalid arm: ' + '; '.join(bad))
     if hook is None:
-        hook = load_hook()
+        hook = HarnessHook(arm.harness_policy())
+    timeout_s = int(arm.router_timeout_s)
+    backend = FreeroutingBackend(threads=arm.router_threads,
+                                 max_passes=arm.router_passes)
+    # The isolated reroute subprocess builds its own backend; the arm's
+    # router settings reach it through the environment.
+    os.environ['FLUXPCB_ROUTER_THREADS'] = str(arm.router_threads)
+    os.environ['FLUXPCB_ROUTER_PASSES'] = str(arm.router_passes)
+    # Which code every cell runs: the entry, its module-level imports and
+    # the helper scripts.  Taken here, in this interpreter, so that the
+    # per-cell fingerprint below is computed against the right files even
+    # when the caller passed a fingerprint of its own.
+    code_fp = code_fingerprint(
+        [os.path.join(HERE, 'run_bench.py'), backend.kicad_helper])
+    child_loaded = []       # project code loaded by isolated reroute interpreters
 
-    # C4: build the typed plan BEFORE routing.  The capacity claim is a
-    # hard gate: a proven-infeasible stackup is not sent to the router
-    # (H7: 0 traces/channel; every search converges to the same residue).
-    plan = None
-    plan_error = None
-    if enable_planning:
+    def done(cert):
+        """Finish a certificate: its wall time, and WHICH CODE this cell ran.
+
+        `static_fp` is the code every cell runs.  `loaded` is what this
+        cell's interpreters actually imported on top of it — most of the
+        package is imported inside functions, so only a measurement sees
+        it — and `code_fp` hashes the two together.  A cell is compared
+        on its own files: editing a module that only some cells load
+        stales exactly those cells.
+        """
+        cert['wall_seconds'] = round(time.time() - t_wall, 1)
+        cert['static_fp'] = code_fp
         try:
-            from fluxpcb.design_agent.planner import build_plan
-            plan = build_plan(paired_pcb)
+            loaded = sorted(set(loaded_project_files()) | set(child_loaded))
+            cert['loaded'] = loaded
+            cert['code_fp'] = cell_fingerprint(loaded)
+        except Exception as e:               # evidence, not a result
+            cert['code_fp_error'] = f'{type(e).__name__}: {e}'
+        return cert
+
+    # What is known about the board BEFORE routing: the only input a
+    # per-board selector may use.
+    try:
+        from fluxpcb.design_agent.features import features_of
+        features = features_of(paired_pcb)
+    except Exception as e:
+        features = {'error': f'{type(e).__name__}: {e}'}
+    base = {'board': os.path.basename(out_pcb), 'arm': arm.as_dict(),
+            'arm_digest': arm.digest(), 'policy_digest': arm.digest(),
+            'code_fp': code_fp, 'stages': arm.stages(),
+            'features': features}
+
+    # ---- component 4: the plan ---------------------------------------
+    plan, plan_error = None, None
+    if arm.plan != 'direct':
+        try:
+            plan = build_plan(
+                paired_pcb,
+                pre_pair_mm=(arm.params.preroute_pair_mm
+                             if arm.plan == 'preroute' else None))
         except Exception as e:      # planning is evidence, not a crash
             plan_error = f'{type(e).__name__}: {e}'
-
-    backend = FreeroutingBackend()
+    plan_cert = {
+        'plan_digest': plan.digest() if plan is not None else None,
+        'plan_claims': plan.claims if plan is not None else None,
+        'capacity': plan.capacity.as_dict() if plan is not None else None,
+        'plan_error': plan_error,
+    }
     if plan is not None and plan.capacity.verdict == 'infeasible':
-        cert = {
-            'board': os.path.basename(out_pcb),
-            'route': {'routed': False, 'seconds': 0.0, 'passes': 0,
-                      'error': 'capacity_infeasible'},
-            'plan_digest': plan.digest(),
-            'plan_claims': plan.claims,
-            'plan_error': plan_error,
-            'capacity': plan.capacity.as_dict(),
-            'plan_consumed': {'capacity_gate': True, 'pre_route': False},
-            'policy_digest': (policy.digest() if policy is not None
-                              else None),
-            'board_worst': 'fail',
-            'readiness': 'infeasible',
-        }
+        # The capacity claim is a hard gate: a proven-infeasible stackup is
+        # not sent to the router (H7: 0 traces/channel; every search
+        # converges to the same residue).
+        cert = done(dict(base, **plan_cert,
+                         route={'routed': False, 'seconds': 0.0, 'passes': 0,
+                                'error': 'capacity_infeasible'},
+                         plan_consumed={'capacity_gate': True,
+                                        'pre_route': False},
+                         repair=[], board_worst='fail',
+                         readiness='infeasible'))
         return {'routed': False, 'error': 'capacity_infeasible',
                 'seconds': 0.0, 'cert': cert}
 
-    route_input = paired_pcb
-    pre = None
-    if plan is not None and plan.pre_routed_nets:
-        # Plan consumption: escape nets are drawn first as fixed copper,
-        # so the global router only has to fill the remaining nets.
+    # ---- pre-route (plan mode 'preroute') -----------------------------
+    # Order matters: strip EVERYTHING first, then pre-route on the
+    # placement-only board.  The benchmark input is the routed guide board;
+    # keeping a net's copper on that board would keep the reference answer.
+    route_input, pre, pre_full, keep_nets = paired_pcb, None, None, None
+    if (plan is not None and arm.plan == 'preroute'
+            and plan.pre_routed_nets):
         try:
-            from fluxpcb.design_agent.preroute import pre_route
-            pre_src = os.path.splitext(paired_pcb)[0] + '.pre.kicad_pcb'
-            shutil.copy(paired_pcb, pre_src)
-            src_pro = os.path.splitext(paired_pcb)[0] + '.kicad_pro'
-            if os.path.exists(src_pro):
-                shutil.copy(src_pro,
-                            os.path.splitext(pre_src)[0] + '.kicad_pro')
-            pre = pre_route(pre_src, plan)
-            route_input = pre_src
+            strip_dir = os.path.join(
+                os.path.dirname(os.path.abspath(paired_pcb)), 'preroute')
+            backend._kicad('strip', paired_pcb, strip_dir, timeout=120)
+            pre_src = os.path.join(strip_dir, 'pre.kicad_pcb')
+            shutil.copy(os.path.join(strip_dir, 'unrouted.kicad_pcb'), pre_src)
+            shutil.copy(pro_src, os.path.join(strip_dir, 'pre.kicad_pro'))
+            pre_full = pre_route(
+                pre_src, plan,
+                max_nets=arm.params.preroute_max_nets,
+                max_edges=arm.params.preroute_max_edges,
+                strict_pad_clearance=arm.params.pad_clearance_strict)
+            pre = {k: v for k, v in pre_full.items()
+                   if k not in ('drawn', 'drawn_vias', 'detail')}
+            pre['drawn_count'] = (len(pre_full.get('drawn') or [])
+                                  + len(pre_full.get('drawn_vias') or []))
+            if pre.get('edges_routed'):
+                # Certificate before emission: copper that is not clean on
+                # its own board must not be handed to the router as fixed.
+                pre_drc = run_drc(pre_src, pre_src + '.drc.json')
+                pre['drc'] = 'failed' if pre_drc.get('ok') is False else None
+                try:
+                    with open(pre_src + '.drc.json', encoding='utf-8') as f:
+                        pre_err = [v for v in json.load(f).get('violations') or []
+                                   if v.get('severity') == 'error'
+                                   and not v.get('excluded')]
+                except (OSError, ValueError):
+                    pre_err = [{'type': 'unreadable'}]
+                pre['drc_errors'] = len(pre_err)
+                pre['drc_types'] = sorted({v.get('type') for v in pre_err})
+                if not pre_err:
+                    route_input = pre_src
+                    keep_nets = sorted(set(
+                        plan.pre_routed_nets[:arm.params.preroute_max_nets]))
+                else:
+                    # Fall back to routing without the pre-route; recorded,
+                    # never silent.
+                    pre['rejected'] = True
         except Exception as e:
-            pre = {'error': f'{type(e).__name__}: {e}'}
+            pre, pre_full = {'error': f'{type(e).__name__}: {e}'}, None
 
-    fr = backend.route(route_input, out_pcb, timeout_s=timeout_s, use_board_rules=True)
-    cert = {
-        'board': os.path.basename(out_pcb),
-        'route': {'routed': fr.routed, 'seconds': fr.seconds,
-                  'passes': fr.passes, 'error': fr.error},
-        'rule_audit_pre': fr.rule_audit,
-        'rule_patch': fr.patch,
-        'rule_congruent': fr.rule_congruence,
-        'plan_digest': plan.digest() if plan is not None else None,
-        'plan_claims': plan.claims if plan is not None else None,
-        'capacity': (plan.capacity.as_dict() if plan is not None else None),
-        'plan_error': plan_error,
-        'plan_consumed': {
+    fr = backend.route(route_input, out_pcb, timeout_s=timeout_s,
+                       use_board_rules=True, keep_nets=keep_nets)
+    cert = done(dict(
+        base, **plan_cert,
+        route={'routed': fr.routed, 'seconds': fr.seconds,
+               'passes': fr.passes, 'error': fr.error,
+               'timed_out': fr.timed_out, 'threads': arm.router_threads,
+               'max_passes': arm.router_passes, 'timeout_s': timeout_s},
+        rule_audit_pre=fr.rule_audit, rule_patch=fr.patch,
+        rule_congruent=fr.rule_congruence,
+        plan_consumed={
             'capacity_gate': plan is not None,
-            'pre_route': bool(pre and pre.get('edges_routed')),
+            'pre_route': bool(keep_nets),
+            'kept_locked': fr.kept_locked if keep_nets else 0,
             'escape_regions': (len(plan.escape_regions)
                                if plan is not None else 0),
             'pre_routed_nets': (len(plan.pre_routed_nets)
                                 if plan is not None else 0),
         },
-        'pre_route': pre,
-        'policy_digest': (policy.digest() if policy is not None else None),
-    }
+        pre_route=pre))
     if not fr.routed:
+        cert.update(repair=[], board_worst='fail', readiness='router_failed')
         return {'routed': False, 'error': fr.error, 'seconds': fr.seconds,
                 'cert': cert}
+    if keep_nets and pre_full:
+        # Certificate that the pre-routed copper reached the routed board.
+        cert['pre_route_survivors'] = survivors(out_pcb, pre_full)
 
     # ensure the correct project sits beside the routed board
     out_pro = os.path.splitext(out_pcb)[0] + '.kicad_pro'
@@ -195,40 +282,95 @@ def route_and_repair(paired_pcb, out_pcb, pro_src, timeout_s,
         holder['drc_json'] = drc_json
         return claims_from_drc(d, rule_congruent=fr.rule_congruence)
 
+    picker = MorphPicker()
+    allowed = arm.allowed()
+
     def action(path):
         if not holder['drc_json']:
             return {}
-        return repair_with_operators(path, holder['drc_json'])
+        classes = None
+        if arm.loop == 'morph':
+            # One violation morphology per transaction round.
+            pick = picker.pick(holder['drc_json'])
+            if pick is None:
+                return {'no_op': True, 'operators_run': []}
+            classes = [pick]
+        return repair_with_operators(path, holder['drc_json'],
+                                     allowed_ops=allowed, classes=classes,
+                                     params=arm.params)
+
+    def stage(name, rep, **extra):
+        return dict({'stage': name, 'committed': rep.committed,
+                     'rolled_back': rep.rolled_back, 'denied': rep.denied,
+                     'log': rep.log}, **extra)
 
     before = evaluate(out_pcb)
-    rep = transactional_repair(out_pcb, action, evaluate, max_rounds=3,
-                               initial=before, hook=hook)
-    after = evaluate(out_pcb)
-
-    # P4: if width/clearance residues remain, try a transactional net-level
-    # re-route.  A worse result is rolled back by the same gate.
-    reroute_rep = None
-    if after.total > 0 and holder['drc_json'] and not (
-            after.error_types - {'track_width', 'clearance'}):
-        def reroute_action(path):
-            return reroute_residues_isolated(path, holder['drc_json'],
-                                             timeout_s=timeout_s)
-        reroute_rep = transactional_repair(
-            out_pcb, reroute_action, evaluate, max_rounds=1,
-            initial=after, hook=hook)
+    after = before
+    repair_log, main_rep = [], None
+    if arm.loop != 'route_only':
+        if arm.loop == 'ripup':
+            # Rip the nets that carry hard residues and let the router redo
+            # only them; everything else stays as locked copper.
+            def rip_action(path):
+                if not holder['drc_json']:
+                    return {'no_op': True, 'operators_run': []}
+                out = reroute_residues_isolated(
+                    path, holder['drc_json'], timeout_s=timeout_s,
+                    types=RIP_TYPES, rip=True, max_nets=arm.rip_nets_max)
+                child_loaded.extend(out.get('loaded') or [])
+                if not out.get('operators_run') and not out.get('error'):
+                    return dict(out, no_op=True)
+                return out
+            rip_rep = transactional_repair(
+                out_pcb, rip_action, evaluate, max_rounds=1, initial=before,
+                hook=hook, kind='ripup')
+            after = evaluate(out_pcb)
+            repair_log.append(stage('ripup', rip_rep, mode='partial-rip',
+                                    max_nets=arm.rip_nets_max))
+        rep = transactional_repair(
+            out_pcb, action, evaluate, max_rounds=arm.rounds(),
+            initial=after, hook=hook, kind='repair',
+            stop_on_rollback=(arm.loop != 'morph'))
         after = evaluate(out_pcb)
-    if reroute_rep is not None:
-        cert['reroute'] = reroute_rep.as_dict()
+        main_rep = rep
+        repair_log.append(stage('repair', rep, mode=arm.loop,
+                                rounds=arm.rounds()))
+        if arm.loop == 'batch':
+            # Width/clearance residues left after repair: one more
+            # transactional re-route, judged by the same gate.
+            if (after.error_types & {'track_width', 'clearance'}
+                    and holder['drc_json']
+                    and not (after.error_types - {'track_width', 'clearance'})):
+                def reroute_action(path):
+                    out = reroute_residues_isolated(
+                        path, holder['drc_json'], timeout_s=timeout_s)
+                    child_loaded.extend(out.get('loaded') or [])
+                    if not out.get('operators_run') and not out.get('error'):
+                        return dict(out, no_op=True)
+                    return out
+                reroute_rep = transactional_repair(
+                    out_pcb, reroute_action, evaluate, max_rounds=1,
+                    initial=after, hook=hook, kind='reroute')
+                after = evaluate(out_pcb)
+                repair_log.append(stage('reroute', reroute_rep, mode='full'))
 
     with open(holder['drc_json'], encoding='utf-8') as f:
         final_drc = json.load(f)
-    cert['claims_before'] = before.as_dict()
+
     cert['claims_after'] = after.as_dict()
-    cert['txn'] = rep.as_dict()
+    cert['txn'] = main_rep.as_dict() if main_rep is not None else {
+        'committed': 0, 'rolled_back': 0, 'denied': 0, 'log': [], 'final': {}}
+    cert['repair'] = repair_log
+    # Every failed attempt, with its quantitative "why not", aggregated
+    # from the stage logs: the input the error-model induction reads.
+    cert['failures'] = _collect_failures(cert)
     cert['residue'] = classify_drc(final_drc)
     shutil.copy(pro_src, out_pro)
 
     # ---- scope + live ledger (P1) ------------------------------------
+    live = {}
+    board_worst = ('pass' if after.total == 0 and after.rule_congruent
+                   else 'fail')
     try:
         reg = _rule_register()
         dsn_path = os.path.join(os.path.dirname(os.path.abspath(paired_pcb)),
@@ -263,7 +405,8 @@ def route_and_repair(paired_pcb, out_pcb, pro_src, timeout_s,
                        'unconnected_zero'),
             assumptions=tuple(assumptions), board_family=board_family,
             register=reg, model=model,
-            extra={'rule_patch_verified': bool(patch.get('verified'))})
+            extra={'rule_patch_verified': bool(patch.get('verified')),
+                   'arm_digest': arm.digest(), 'code_fp': code_fp})
         cert['scope'] = scope.as_dict(include_ids=True)
         cert['rule_register'] = reg.report(model)
         cert['assumptions'] = assumptions
@@ -281,14 +424,38 @@ def route_and_repair(paired_pcb, out_pcb, pro_src, timeout_s,
                 claims=after, register=reg, model=model,
                 assumptions=assumptions)
             cert['ledger'] = live
-        if hook is not None:
-            cert['harness'] = hook.as_dict()
-            cert['board_worst'] = live.get('board_worst')
-            cert['readiness'] = live.get('worst')
+            board_worst = live.get('board_worst', board_worst)
     except Exception as e:
         cert['scope_error'] = str(e)
-    return {'routed': True, 'seconds': fr.seconds, 'passes': fr.passes,
+    cert['harness'] = hook.as_dict()
+    cert['board_worst'] = board_worst
+    cert['readiness'] = (live.get('worst') if live else
+                         ('pass' if board_worst == 'pass' else 'fail'))
+    cert = done(cert)
+    return {'routed': True, 'seconds': fr.seconds,
+            'wall_seconds': cert['wall_seconds'], 'passes': fr.passes,
             'cert': cert}
+
+
+def _collect_failures(cert):
+    out = []
+    seen = set()
+    for stage in cert.get('repair') or []:
+        for e in stage.get('log') or []:
+            if not isinstance(e, dict):
+                continue
+            act = e.get('action') or {}
+            for entry in act.get('ledger') or []:
+                if not isinstance(entry, dict) or not entry.get('outcome'):
+                    continue
+                key = entry.get('cert_id') or json.dumps(
+                    entry, sort_keys=True, default=str)
+                if key in seen:
+                    continue
+                seen.add(key)
+                out.append(dict(entry, stage=stage.get('stage'),
+                                decision=e.get('decision')))
+    return out
 
 
 def main():
@@ -307,11 +474,24 @@ def main():
                     help='round-scoped rows file (default: HERE/run_rows.json)')
     ap.add_argument('--policy', default='',
                     help='PolicyArtifact JSON: harness ops/budget + planning')
+    ap.add_argument('--arm', default='',
+                    help='Arm JSON: plan mode, loop mode, router settings, '
+                         'operator set and typed operator parameters')
     args = ap.parse_args()
     policy = None
+    arm = None
+    if args.arm:
+        from fluxpcb.meta.arm import Arm
+        arm = Arm.from_json(args.arm)
     if args.policy:
         from fluxpcb.meta.policy import PolicyArtifact
         policy = PolicyArtifact.from_json(args.policy)
+    from fluxpcb.router.freerouting import FreeroutingBackend
+    from fluxpcb.meta.codefp import code_fingerprint
+    code_fp = code_fingerprint([
+        os.path.join(HERE, 'run_bench.py'),
+        FreeroutingBackend().kicad_helper])
+    print(f'code fingerprint: {code_fp}', flush=True)
     want = set(args.splits.split(','))
 
     boards = json.load(open(args.manifest))
@@ -359,7 +539,8 @@ def main():
                     pass
             info = route_and_repair(paired, out_pcb, pro_src, args.timeout,
                                     ledger_dir=board_run,
-                                    board_family=b['set'], policy=policy)
+                                    board_family=b['set'], policy=policy,
+                                    arm=arm, code_fp=code_fp)
             cert = info.get('cert') or {}
             if cert:
                 tmp_cert = cert_path + '.tmp'
@@ -368,7 +549,11 @@ def main():
                 os.replace(tmp_cert, cert_path)
             rows.append({**b, 'routed': info.get('routed', False),
                          'routeSeconds': info.get('seconds'),
+                         'wallSeconds': info.get('wall_seconds'),
                          'error': info.get('error'),
+                         'arm_digest': cert.get('arm_digest') if cert else None,
+                         'code_fp': cert.get('code_fp') if cert else None,
+                         'board_worst': cert.get('board_worst') if cert else None,
                          'claims_before': (cert.get('claims_before') if cert else None),
                          'claims_after': (cert.get('claims_after') if cert else None),
                          'txn': (cert.get('txn') if cert else None),
