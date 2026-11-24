@@ -19,6 +19,7 @@ closes, and both of those are routed again and still connected).
 
 The small boards are built here with pcbnew, so they are in git.
 """
+import json
 import os
 import sys
 
@@ -276,16 +277,20 @@ def test_0051_the_open_goes_through_the_copper_in_its_way(tmp_path):
     errs2, unconn2 = F.drc(pcb)
     assert not errs2 and not unconn2            # the flip
     (outcome, conflict_set, _why), = _outcomes(ops)
-    assert outcome == 'ok' and sorted(conflict_set) == ['+3V3', 'CE']
+    # the project here asks for no copper-to-edge clearance, so the way
+    # out may run along the board edge: which set it takes is the
+    # search's business, not this test's
+    assert outcome == 'ok'
     rec, = res.certificate['records']
-    assert rec['net'] == 'CSN' and rec['outcome'] == 'conflict_set'
+    assert rec['net'] == 'CSN' and rec['outcome'] in ('clear', 'conflict_set')
+    assert (rec['outcome'] == 'clear') == (not conflict_set)
     # the tracks that moved belong to the connection and to the two nets
     # named in the set, to no other net
     after = _copper(F.load(pcb))
     moved = {r[1] for r in after} ^ {r[1] for r in others}
-    assert moved <= {'+3V3', 'CE', 'CSN'}, moved
+    assert moved <= set(conflict_set) | {'CSN'}, moved
     keep = lambda rows: [r for r in rows  # noqa: E731
-                         if r[1] not in ('+3V3', 'CE', 'CSN')]
+                         if r[1] not in set(conflict_set) | {'CSN'}]
     assert keep(after) == keep(others)
 
 
@@ -415,3 +420,20 @@ def test_an_open_on_a_free_back_layer_takes_two_vias(tmp_path):
     rec, = res.certificate['records']
     assert rec['outcome'] == 'clear' and rec['plan']['vias'] == 2
     assert len([r for r in _copper(F.load(pcb)) if r[0] == 'via']) == 2
+
+
+def test_the_edge_is_a_wall_as_far_as_the_project_says(tmp_path):
+    """KiCad's default asks 0.5 mm of copper from the board edge; a
+    project may ask for less, or for none, and the DRC judges by the
+    project.  0571 asks for none: taken as 0.5, one end of its SD_A was
+    a wall and the track could not be re-planned."""
+    from fluxpcb.verifiers import conflict_reroute as CR
+
+    pcb = _open_scene(str(tmp_path / 'edge.kicad_pcb'), band=False)
+    board = F.load(pcb)
+    assert CR.edge_keepout(board) == 0.5           # no project: the default
+    pro = os.path.splitext(pcb)[0] + '.kicad_pro'
+    for rule, want in (('min_copper_edge_clearance', 0.0), ('min_copper_edge_clearance', 0.3)):
+        with open(pro, 'w', encoding='utf-8') as fh:
+            json.dump({'board': {'design_settings': {'rules': {rule: want}}}}, fh)
+        assert CR.edge_keepout(board) == want

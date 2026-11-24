@@ -261,6 +261,21 @@ def candidates(board, layers, a, b, las, lbs, width, nc, rt, bounds, via,
     from ..kicadgen.microroute import plan_layers, plan_local
 
     segs, rects = geomir.extract_objects(board, layers)
+    out = _candidates(board, layers, a, b, las, lbs, width, nc, rt, bounds,
+                      via, margin, segs, rects)
+    if not out:
+        # nothing within `margin` of the anchors' box: the way round is
+        # further out (0051's open needs 3 mm around a 10 mm connection)
+        out = _candidates(board, layers, a, b, las, lbs, width, nc, rt,
+                          bounds, via, 2 * margin, segs, rects)
+    return out, segs, rects
+
+
+def _candidates(board, layers, a, b, las, lbs, width, nc, rt, bounds, via,
+                margin, segs, rects):
+    from ..kicadgen import geomir
+    from ..kicadgen.microroute import plan_layers, plan_local
+
     out = []
 
     def add(pts, mode):
@@ -306,7 +321,7 @@ def candidates(board, layers, a, b, las, lbs, width, nc, rt, bounds, via,
         add(got['pts'], 'vias:%d' % got['vias'])
     out = [c for c in out if _free(c, nc, segs, rects, rt, via['dia'] / 2.0)]
     out.sort(key=lambda c: (c['length_mm'] + VIA_COST * c['vias'], c['mode']))
-    return out, segs, rects
+    return out
 
 
 def _free(cand, nc, segs, rects, rt, via_r):
@@ -443,26 +458,31 @@ def judge(board):
 
 
 def edge_keepout(board):
-    """Clearance copper must keep from the board outline: the project's
-    own value, and never less than KiCad's default (0.5 mm)."""
-    keep = 0.5
+    """Clearance copper must keep from the board outline: what the
+    project says (0.0 is a value, and the DRC judges by it), else the
+    board's design setting.  KiCad's default of 0.5 mm is not assumed:
+    0571 asks for none, and its SD_A ends 0.56 mm from the edge — taken
+    as a wall, that end could not be reached and the track stayed put."""
+    keep = None
     try:
         import json
 
         pro = os.path.splitext(board.GetFileName())[0] + '.kicad_pro'
         if os.path.exists(pro):
             with open(pro, encoding='utf-8') as fh:
-                rules = ((json.load(fh).get('board') or {})
-                         .get('design_settings') or {}).get('rules') or {}
+                rules = (((json.load(fh).get('board') or {})
+                          .get('design_settings') or {}).get('rules') or {})
             for key in ('copper_edge_clearance', 'min_copper_edge_clearance'):
                 if rules.get(key) is not None:
-                    keep = max(keep, float(rules[key]))
+                    keep = max(0.0, float(rules[key]))
+                    break
     except Exception:
-        pass
-    try:
-        keep = max(keep, board.GetDesignSettings().m_CopperEdgeClearance / 1e6)
-    except Exception:
-        pass
+        keep = None
+    if keep is None:
+        try:
+            keep = max(0.0, board.GetDesignSettings().m_CopperEdgeClearance / 1e6)
+        except Exception:
+            keep = 0.5
     return keep
 
 
@@ -599,33 +619,13 @@ def run(ops, board, violations):
                 cands, segs, rects = candidates(board, layers, a, b, (la,),
                                                 (la,), width, nc, rt, bounds,
                                                 via)
-                # the cheapest set that has not already failed: a set
-                # that could not be routed again is a wall for this search
-                avoid, skipped = [], 0
-                while True:
-                    priced = plan_local(a, b, width, nc, segs[la], rects[la], rt,
-                                        margin=2.0, edge=bounds,
-                                        edge_keep=via['edge'],
-                                        cross={'cost': RIP_PRICE,
-                                               'max': p.conflict_max_set,
-                                               'inside': RIP_PRICE / 2,
-                                               'avoid': avoid})
-                    dead = frozenset((x[0], x[1], x[2]) for x in priced['crossed'])
-                    if priced['why'] != 'crosses' or dead not in state['dead']:
-                        break
-                    avoid.extend(dead)
-                    skipped += 1
-                k = len(priced['crossed'])
-                tried.append({'lift': [ka, kb], 'anchors': [rec['a'], rec['b']],
-                              'candidates': len(cands), 'priced': priced['why'],
-                              'crossed': k, 'sets_skipped': skipped})
-                best = cands[0]['length_mm'] + VIA_COST * cands[0]['vias'] if cands else None
-                set_cost = (_len(priced['pts']) + RIP_PRICE * k
-                            if k and priced['pts'] else None)
-                if (set_cost is not None and (best is None or set_cost < best)
-                        and dead not in state['dead']
-                        and through_set(rec, a, b, (la,), (la,), width, nc,
-                                        la, priced['crossed'])):
+                best = (cands[0]['length_mm'] + VIA_COST * cands[0]['vias']
+                        if cands else None)
+                done, priced, k = through_sets(
+                    rec, a, b, (la,), (la,), width, nc, [la], 2.0, segs, rects,
+                    best, tried, {'lift': [ka, kb], 'anchors': [rec['a'], rec['b']],
+                                  'candidates': len(cands)})
+                if done:
                     rec['outcome'] = 'conflict_set'
                     return rec, 'conflict_set', {'tried': tried}
                 if draw_first(board, rec, cands, width, nc, layers, rt, via):
@@ -740,67 +740,83 @@ def run(ops, board, violations):
                 rec.pop('plan', None)
                 state['dead'].add(key)
 
-    def solve_open(v):
-        """A connection the DRC reports missing, with no free path.  The
-        same two ways out as for a track: alone (any layers its anchors
-        offer), or through the copper that closes it."""
-        pads = [_item(board, u) for u in [str(i.get('uuid') or '')
-                                         for i in (v.items or [])]]
-        pads = [x for x in pads if x is not None]
-        if len(pads) != 2:
-            return None, 'no_path', {'why': 'the open does not name two items'}
-        (pa, pb) = pads
-        try:
-            nc = pa.GetNetCode()
-            net = pa.GetNetname()
-            a, b = _anchor(pa, _mm(pb.GetPosition())), _anchor(pb, _mm(pa.GetPosition()))
-            las, lbs = tuple(_item_layers(pa, layers)), tuple(_item_layers(pb, layers))
-        except Exception as ex:
-            return None, 'no_path', {'error': f'{type(ex).__name__}: {ex}'}
-        width = max(float(rt.get('track_width') or 0.0), floor)
-        rec = record(net)
-        rec.update(a=[round(a[0], 3), round(a[1], 3)],
-                   b=[round(b[0], 3), round(b[1], 3)], lifted_n=0)
-        tried, options = [], []
-        for la in sorted(set(las)):
-            state['tried'] += 1
-            cands, segs, rects = candidates(board, layers, a, b, las, lbs,
-                                            width, nc, rt, bounds, via)
-            avoid, skipped = [], 0
-            while True:
+    def through_sets(rec, a, b, las, lbs, width, nc, start_layers, margin,
+                    segs, rects, best, tried, tag):
+        """Try conflict sets for a connection, cheapest first, and when one
+        cannot be routed again the next one: the set that failed is a
+        wall for the next search.  `best` is what the connection costs
+        alone (None: it has no path alone); a set is not tried when the
+        alone path is the cheaper way.  Returns (done, last search, its
+        set size)."""
+        avoid, sets, priced, k = [], 0, {'why': 'not_tried', 'pts': None}, 0
+        for la in start_layers:
+            while sets < p.conflict_sets:
                 priced = plan_local(a, b, width, nc, segs[la], rects[la], rt,
-                                    margin=3.0, edge=bounds,
+                                    margin=margin, edge=bounds,
                                     edge_keep=via['edge'],
                                     cross={'cost': RIP_PRICE,
                                            'max': p.conflict_max_set,
                                            'inside': RIP_PRICE / 2,
                                            'avoid': avoid})
                 dead = frozenset((x[0], x[1], x[2]) for x in priced['crossed'])
-                if priced['why'] != 'crosses' or dead not in state['dead']:
+                k = len(priced['crossed'])
+                if priced['why'] != 'crosses':
                     break
-                avoid.extend(dead)
-                skipped += 1
-            k = len(priced['crossed'])
-            best = (cands[0]['length_mm'] + VIA_COST * cands[0]['vias']
-                    if cands else None)
-            set_cost = (_len(priced['pts']) + RIP_PRICE * k
-                        if k and priced['pts'] and dead not in state['dead']
-                        else None)
-            tried.append({'start_layer': board.GetLayerName(layers[la]),
-                          'candidates': len(cands), 'priced': priced['why'],
-                          'crossed': k, 'sets_skipped': skipped})
-            options.append((best, 'alone', (cands,)))
-            options.append((set_cost, 'set', (la, priced['crossed'])))
-        options = [o for o in options if o[0] is not None]
-        options.sort(key=lambda o: o[0])
-        for _cost, kind, args in options:
-            if kind == 'alone':
-                if draw_first(board, rec, args[0], width, nc, layers, rt, via):
-                    rec['outcome'] = 'clear'
-                    return rec, 'clear', {'tried': tried}
-            elif through_set(rec, a, b, las, lbs, width, nc, args[0], args[1]):
-                rec['outcome'] = 'conflict_set'
-                return rec, 'conflict_set', {'tried': tried}
+                if dead in state['dead']:
+                    avoid.extend(dead)      # failed for another finding
+                    continue
+                tried.append(dict(tag, start_layer=board.GetLayerName(layers[la]),
+                                  priced=priced['why'], crossed=k, set=sets,
+                                  path_mm=round(_len(priced['pts']), 3)))
+                if best is not None and best <= _len(priced['pts']) + RIP_PRICE * k:
+                    break                   # alone is the cheaper way
+                if through_set(rec, a, b, las, lbs, width, nc, la,
+                               priced['crossed']):
+                    return True, priced, k
+                avoid.extend(dead)          # it failed: the next set
+                sets += 1
+            if priced['why'] != 'crosses':
+                break
+        return False, priced, k
+
+    def solve_open(v):
+        """A connection the DRC reports missing, with no free path.  The
+        same two ways out as for a track: alone (any layers its anchors
+        offer), or through the copper that closes it."""
+        items = [_item(board, u) for u in [str(i.get('uuid') or '')
+                                           for i in (v.items or [])]]
+        items = [x for x in items if x is not None]
+        if len(items) != 2:
+            return None, 'no_path', {'why': 'the open does not name two items'}
+        (pa, pb) = items
+        try:
+            nc = pa.GetNetCode()
+            net = pa.GetNetname()
+            a = _anchor(pa, _mm(pb.GetPosition()))
+            b = _anchor(pb, _mm(pa.GetPosition()))
+            las = tuple(_item_layers(pa, layers))
+            lbs = tuple(_item_layers(pb, layers))
+        except Exception as ex:
+            return None, 'no_path', {'error': f'{type(ex).__name__}: {ex}'}
+        width = max(float(rt.get('track_width') or 0.0), floor)
+        rec = record(net)
+        rec.update(a=[round(a[0], 3), round(a[1], 3)],
+                   b=[round(b[0], 3), round(b[1], 3)], lifted_n=0)
+        state['tried'] += 1
+        tried = []
+        cands, segs, rects = candidates(board, layers, a, b, las, lbs, width,
+                                        nc, rt, bounds, via)
+        best = (cands[0]['length_mm'] + VIA_COST * cands[0]['vias']
+                if cands else None)
+        done, priced, k = through_sets(
+            rec, a, b, las, lbs, width, nc, sorted(set(las)), 3.0, segs,
+            rects, best, tried, {'candidates': len(cands)})
+        if done:
+            rec['outcome'] = 'conflict_set'
+            return rec, 'conflict_set', {'tried': tried}
+        if cands and draw_first(board, rec, cands, width, nc, layers, rt, via):
+            rec['outcome'] = 'clear'
+            return rec, 'clear', {'tried': tried}
         sealed = priced['why'] == 'set_too_large'
         return None, ('sealed' if sealed else 'no_path'), {
             'tried': tried, 'conflict_set': k if sealed else None}

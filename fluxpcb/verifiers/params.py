@@ -62,6 +62,9 @@ SCHEMA = {
     'conflict_max_set': _int(1, 4),
     'conflict_trials': _int(1, 24),
     'conflict_lifts': _int(1, 8),
+    # conflict sets tried per connection: when one cannot be routed again
+    # the next cheapest is priced
+    'conflict_sets': _int(1, 8),
     # the router ran out of time (the bench loop): route once more with
     # other settings and a longer cap
     'router_retry': {'kind': 'bool'},
@@ -156,6 +159,7 @@ class OperatorParams:
     conflict_max_set: int = 2
     conflict_trials: int = 6
     conflict_lifts: int = 4
+    conflict_sets: int = 3
     # router timeout retry: 0344 needs 5 passes and 157-221 s of a loaded
     # machine; 2 threads were the slowest setting measured, 8 the fastest
     router_retry: bool = True
