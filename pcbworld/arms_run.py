@@ -24,6 +24,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -118,14 +119,25 @@ def fresh(path, arm, fp):
         return False
     if c.get('arm_digest') != arm.digest():
         return False
+    if c.get('status') == 'crash':
+        # no measurement happened; a crash is re-run, and the retry is
+        # counted on the cell (prior_crashes) rather than forgotten
+        return False
     if c.get('loaded') is None:
         return c.get('static_fp') == fp
     return c.get('code_fp') == cell_fp_now(c)
 
 
 def atomic_json(path, body):
+    """Write-then-replace, with a temporary name unique to the writer.
+
+    Two workers can write the same file (the per-board manifest when
+    several arms share a board): with one fixed temporary name the
+    second writer's replace found the file already moved, raised, and
+    the cell it was recording vanished from the run.
+    """
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    tmp = path + '.tmp'
+    tmp = f'{path}.{os.getpid()}.{threading.get_ident()}.tmp'
     with open(tmp, 'w', encoding='utf-8') as fh:
         json.dump(body, fh, indent=1, ensure_ascii=False)
     os.replace(tmp, path)
@@ -287,12 +299,25 @@ def run_cell(board, arm, arm_path, run, fp, budget, router_timeout, score_fn):
         'harness_denials': ((cert or {}).get('harness') or {}).get('denials') or [],
         'instrument_ok': not problems, 'instrument_problems': problems,
         'degraded_stages': degraded,
+        # how many earlier attempts of this cell ended in a crash; the
+        # outcome above is the latest attempt's
+        'prior_crashes': _prior_crashes(paths['json']),
         'error': ((cert or {}).get('route') or {}).get('error')
                  or (err or '')[-400:] if status != 'ok' else None,
         'cert': os.path.relpath(paths['cert'], run),
     }
     atomic_json(paths['json'], cell)
     return cell
+
+
+def _prior_crashes(cell_path):
+    try:
+        old = json.load(open(cell_path, encoding='utf-8'))
+    except (OSError, ValueError):
+        return 0
+    if old.get('status') != 'crash':
+        return 0
+    return int(old.get('prior_crashes') or 0) + 1
 
 
 # ---------------------------------------------------------------- arms
@@ -452,31 +477,60 @@ def evaluate(run, boards, arms, budget, router_timeout, workers, label):
             try:
                 c = f.result()
             except Exception as e:
-                c = {'board': b['dir'], 'arm': a.name, 'outcome': 'crash',
-                     'status': 'crash', 'error': f'{type(e).__name__}: {e}',
-                     'instrument_ok': False, 'wall_seconds': 0}
+                # The runner itself failed on this cell.  The record goes
+                # to the cell file like any other: the cell list is
+                # rebuilt from disk below, and a crash kept only in
+                # memory used to vanish from the run — a smaller
+                # denominator with nothing to show for it.
+                c = _crash_cell(run, b, a, fp, budget,
+                                f'runner exception: {type(e).__name__}: {e}')
             results.append(c)
             flag = '' if c.get('instrument_ok') else '  <-- INSTRUMENT'
             print(f"[{label} {i}/{len(todo)}] {c.get('outcome', '?'):18s} "
                   f"{c.get('wall_seconds', 0)!s:>6}s {a.name:22s} "
                   f"{b['dir'][:34]}{flag}", flush=True)
-    # every cell, fresh or just run
+    # every cell, fresh or just run — and every cell that should exist.
+    # A cell with no file after the run is an instrument fault on
+    # record, never a denominator that quietly shrank.
     cells = []
     for b in boards:
         for a in arms:
             p = cell_paths(run, b['dir'], a)['json']
-            if os.path.exists(p):
+            if not os.path.exists(p):
+                c = _crash_cell(run, b, a, fp, budget, 'cell vanished: no cell file after the run')
+                print(f"[{label}] INSTRUMENT {a.name} {b['dir'][:34]}: {c['instrument_problems'][0]}",
+                      flush=True)
+            else:
                 try:
-                    cells.append(json.load(open(p, encoding='utf-8')))
+                    c = json.load(open(p, encoding='utf-8'))
                 except ValueError:
-                    pass
+                    c = _crash_cell(run, b, a, fp, budget, 'cell file unreadable')
+            cells.append(c)
     summary = summarise(cells, arms, boards)
     summary.update({'label': label, 'code_fp': fp, 'budget_s': budget,
                     'cells': len(cells), 'expected': total,
                     'seconds': round(time.time() - t0, 1)})
+    if len(cells) != total:
+        summary['instrument_bad_cells'] += total - len(cells)
     atomic_json(os.path.join(run, f'summary_{label}.json'), summary)
     print(json.dumps(summary['by_arm'], indent=1), flush=True)
     return cells, summary
+
+
+def _crash_cell(run, board, arm, fp, budget, why):
+    """The record of a cell that produced no measurement, written to its
+    cell file so that it is counted, shown, and re-run."""
+    cell = {'board': board['dir'], 'set': board['set'], 'arm': arm.name,
+            'arm_digest': arm.digest(),
+            'arm_axes': {'plan': arm.plan, 'loop': arm.loop},
+            'code_fp': None, 'static_fp': fp, 'loaded': None,
+            'budget_s': budget, 'status': 'crash', 'outcome': 'crash',
+            'score': None, 'wall_seconds': 0,
+            'instrument_ok': False, 'instrument_problems': [why[:300]],
+            'degraded_stages': [], 'error': why[:400],
+            'prior_crashes': _prior_crashes(cell_paths(run, board['dir'], arm)['json'])}
+    atomic_json(cell_paths(run, board['dir'], arm)['json'], cell)
+    return cell
 
 
 def summarise(cells, arms, boards):
