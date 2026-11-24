@@ -30,15 +30,98 @@ FluxPCB evaluated on **autorouter-bench** (real boards, camera-scored by KiCad D
 pic-programmer. Compared to the Freerouting baseline alone, rp2040 rises
 from 86% / 4 DRC errors to 100% / 0.
 
+### PCBWorld-Bench (118 real boards, KiCad DRC under each board's own rules)
+
+Clean pass = **0 error-severity DRC violations AND 0 unconnected items**.
+
+| Split | Boards | Before | After rule congruence (2026-11-21) | Latest (2026-11-24) | PCBRouteAgent (PNS+LLM) |
+|-------|--------|--------|------------------------------------|---------------------|--------------------------|
+| D3-A (small) | 99 | 82 (82.8%) | 91 (91.9%) | **96 (97.0%)** | 94.9% |
+| D3-B (medium) | 10 | 8 (80.0%) | 9 (90.0%) | **9 (90.0%)** | 100% |
+| D3-C (large) | 9 | 5 (55.6%) | 4 (44.4%) | 4 (44.4%) | 40% |
+| **All** | **118** | **95 (80.5%)** | **104 (88.1%)** | **109 (92.4%)** | — |
+
+The latest column is the unrestricted configuration: every repair operator
+enabled (polyline connector, grid maze escape, short rip-up, width and
+clearance repair). **Per-operator attribution is not measured.** An earlier
+three-round comparison (101 → 106 → 109) looked like an iteration gain, but
+the difference came from a harness defect: a policy that disallowed one
+operator vetoed the *whole* repair batch on every board where that operator
+ran (13 boards in round 1, 4 in round 2). Two boards still fail, one of
+them by exceeding the time budget. No LLM and no push-and-shove engine —
+DSN export, Freerouting 2.5.0, and a transactional repair loop.
+
+### P0/P1 hardening (2026-11-22): fail-closed measurement + scope
+
+The same 118-board score (104/118) is now produced by a **fail-closed**
+pipeline: a missing/stale/foreign DRC report can no longer become a pass;
+repair batches are rejected if they add a violation class or increase the
+total; exceptions restore the byte snapshot; `.kicad_pro` and `.kicad_dru`
+survive every save. Each board now carries a **scope** (project/DSN hashes,
+rule-register digest, executor and tool versions, claim set, assumptions)
+and a live hash-chained ledger. The honest two-axis result:
+
+- **board verdict: 104 pass / 14 fail** (physical claims)
+- **readiness: 0 unconditional passes** — every pass is `ASSUMED` on the
+  injected default-rule policy and `GAP` on the rule register (`R_om≈0.93`:
+  3 of 43 declared rules are representable by the DSN model).
+
+Regression: `pytest fluxpcb/tests` 16/16, `inject_corruption.py` 25/25.
+
+**P2 second oracle (118-board audit):** the same clean boards were re-judged
+under a separate JLC profile (fab minima, annular/hole/edge at error
+severity). **AHR = 0.2981** — 31 of 104 project-clean boards fail the fab
+rules, almost all on `copper_edge_clearance` (73), `annular_width` (31) and
+`hole_clearance` (6), rules the project's own DRC does not check. The
+"clean" number is therefore conditional on the project rule register,
+exactly as the scope object now records. Wrong-project and stale-report
+probes: 118/118 rejected.
+
+### Why the numbers moved: one contract, proven per board
+
+Every board above was previously routed against a rule table that differed
+from the one DRC judges. Two independent causes were found, fixed, and the
+result is now **proved** rather than asserted:
+
+1. **The DSN export lost the project.** `pcbnew` binds a project by
+   basename; the strip step wrote `placed.kicad_pcb` with no paired
+   `placed.kicad_pro`, so every net resolved to KiCad's default class.
+   First audit: **118/118 boards divergent** (117 wrong per-net
+   width/clearance, 113 missing default rule, 57 wrong via diameter).
+2. **The adapter re-quantized.** Integer-µm rounding turned 0.1524 mm
+   (6 mil) into 152 µm and could no-op silently when the exporter's text
+   differed. Now every rule is written as an exact float-µm literal, the
+   patch is span-based, and the output is re-parsed and diffed against the
+   project table.
+
+After the fix: **118/118 boards congruent**, zero read-back failures. The
+proof is an exhaustive table diff — `(net) -> width, clearance` plus the
+default rule and via geometry — decidable because the domain is finite.
+
+### Repair is transactional; passes are falsification-gated
+
+Each repair batch runs on a byte-level snapshot and commits only if the
+severity-weighted violation load strictly decreases
+(`short 50 · clearance 10 · width 1 · unconnected 10`), with rule
+congruence as a hard precondition; a rejected batch is restored exactly
+(54 commits, 0 hard-claim regressions). Every pass goes through a gate that
+has demonstrated it can fail on a sealed negative control, is keyed by the
+hash of everything it read, and is composed worst-first
+(7/7 gates qualified; 118/118 congruence claims pass; hash chain intact).
+Three injected corruptions — wrong project, stale zone fill, 0.4 µm
+quantization shortfall — are all refused
+(`work/pcbworld/inject_corruption.json`).
+
 ### Why it works
 
-1. **Board-true DSN**: KiCad's Specctra export always writes the default
-   0.2mm clearance because `LoadBoard()` never loads the `.kicad_pro`.
-   fluxpcb patches the DSN to the board's own rules (rp2040: 0.127mm,
-   H7: 0.09mm) — routing that the fine-pitch escapes require.
-2. **Project snapshot/restore**: both `strip` and `import-ses` rewrite the
-   paired project with KiCad defaults; the backend restores it so DRC
-   judges the real rules.
+1. **Board-true DSN**: KiCad's Specctra export writes default rules when the
+   board is loaded without its project (a project binds by *basename*).
+   fluxpcb binds the project beside the stripped board, transfers the
+   effective table as exact float-µm values, and re-parses the DSN to prove
+   the read-back matches (rp2040: 0.127mm, H7: 0.09mm).
+2. **Project snapshot/restore**: `pcbnew` save (strip, import-ses, and every
+   zone refill) rewrites the paired `.kicad_pro` with KiCad defaults;
+   the pipeline snapshots and restores it so DRC judges the real rules.
 3. **7 repair operators** (from the pcb-hybrid-routing-advanced skill):
    `copper_text_to_silk` · `width_cascade_surgery` · `policy_waiver_probe`
    (real `.kicad_dru` write + PROBE) · `plane_bridge` · `topology_swap` ·
@@ -59,9 +142,13 @@ from 86% / 4 DRC errors to 100% / 0.
 
 ### H7 BGA flight controller (6L, TFBGA240)
 
-- **14 unconnected / 259 ratsnest = 94.6%** in a single automated pass
-  (was 71 opens), board-true 0.10mm clearance, 0 clearance errors,
-  ~460s. Remaining: 14 connector-level opens + 5 hole_clearance.
+- **0 unconnected / 259 ratsnest = 100% connected** after the P4 hardening
+  (was 71 opens → 14), board-true rules, **9 clearance errors**, 951.6s.
+  The 9 residue are `router_fault:clearance`: 2 violate our own
+  `flux_policy_*` waivers, 7 are netclass Default 0.15 with actual
+  ~0.10–0.14 (a DSN object-class boundary issue, not a stale rule).
+  0/0 is not yet reached — connectivity and manufacturability are two
+  different claims.
 
 ---
 

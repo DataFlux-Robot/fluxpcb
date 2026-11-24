@@ -1,0 +1,117 @@
+[
+ {
+  "set": "d3a",
+  "id": "0007_raspberry_pi_pullup_button_pullup_shutdown_button(revB)",
+  "dir": "0007_raspberry_pi_pullup_button_pullup_shutdown_button-revB-"
+ },
+ {
+  "set": "d3a",
+  "id": "0023_hardware-designs_si7021-board",
+  "dir": "0023_hardware-designs_si7021-board"
+ },
+ {
+  "set": "d3a",
+  "id": "0024_memsarray_mems_modules",
+  "dir": "0024_memsarray_mems_modules"
+ },
+ {
+  "set": "d3a",
+  "id": "0048_MySRaspiGW_MySRaspiGW",
+  "dir": "0048_MySRaspiGW_MySRaspiGW"
+ },
+ {
+  "set": "d3a",
+  "id": "0049_MySRaspiGW_MySRaspiGW_PA_LNA",
+  "dir": "0049_MySRaspiGW_MySRaspiGW_PA_LNA"
+ },
+ {
+  "set": "d3a",
+  "id": "0050_MySRaspiGW_MySRaspiGW_PA_LNA_Pimoroni",
+  "dir": "0050_MySRaspiGW_MySRaspiGW_PA_LNA_Pimoroni"
+ },
+ {
+  "set": "d3a",
+  "id": "0051_MySRaspiGW_MySRaspiGW_Pimoroni",
+  "dir": "0051_MySRaspiGW_MySRaspiGW_Pimoroni"
+ },
+ {
+  "set": "d3a",
+  "id": "0052_breakout-boards_50-to-100",
+  "dir": "0052_breakout-boards_50-to-100"
+ },
+ {
+  "set": "d3a",
+  "id": "0054_induction-hob_temperature-sensor",
+  "dir": "0054_induction-hob_temperature-sensor"
+ },
+ {
+  "set": "d3a",
+  "id": "0056_nrf2rfm69_nrf2rfm69",
+  "dir": "0056_nrf2rfm69_nrf2rfm69"
+ },
+ {
+  "set": "d3a",
+  "id": "0066_ESP8266-WS2811-LEDs_ws2811controller_panels",
+  "dir": "0066_ESP8266-WS2811-LEDs_ws2811controller_panels"
+ },
+ {
+  "set": "d3a",
+  "id": "0072_esp8266_wi07_3_adapter_esp",
+  "dir": "0072_esp8266_wi07_3_adapter_esp"
+ },
+ {
+  "set": "d3a",
+  "id": "0081_everled_everled",
+  "dir": "0081_everled_everled"
+ },
+ {
+  "set": "d3a",
+  "id": "0085_mini-whip_mini-whip-power-feed",
+  "dir": "0085_mini-whip_mini-whip-power-feed"
+ },
+ {
+  "set": "d3a",
+  "id": "0086_BB-PWR-8009_BB-PWR-8009_revA",
+  "dir": "0086_BB-PWR-8009_BB-PWR-8009_revA"
+ },
+ {
+  "set": "d3a",
+  "id": "0092_DerKnopf_power-supply",
+  "dir": "0092_DerKnopf_power-supply"
+ },
+ {
+  "set": "d3a",
+  "id": "0100_smt-zvs-driver_IH10-mc",
+  "dir": "0100_smt-zvs-driver_IH10-mc"
+ },
+ {
+  "set": "d3b",
+  "id": "0203_MOD-MPU9150_mod-mpu9150",
+  "dir": "0203_MOD-MPU9150_mod-mpu9150"
+ },
+ {
+  "set": "d3b",
+  "id": "0376_cat-trainer_teensy_base_pcb",
+  "dir": "0376_cat-trainer_teensy_base_pcb"
+ },
+ {
+  "set": "d3c",
+  "id": "0496_kitspace_f-91w",
+  "dir": "0496_kitspace_f-91w"
+ },
+ {
+  "set": "d3c",
+  "id": "0520_RGBMatrixPanelCPLD-PhotonBackpack_RGBMatrixPanel_CPLD_negative",
+  "dir": "0520_RGBMatrixPanelCPLD-PhotonBackpack_RGBMatrixPanel_CPLD_negative"
+ },
+ {
+  "set": "d3c",
+  "id": "0571_Brushless_ESC_Brushless_ESC",
+  "dir": "0571_Brushless_ESC_Brushless_ESC"
+ },
+ {
+  "set": "d3c",
+  "id": "0599_RGBMatrixPanelCPLD-PhotonBackpack_RGBMatrixPanel_CPLD",
+  "dir": "0599_RGBMatrixPanelCPLD-PhotonBackpack_RGBMatrixPanel_CPLD"
+ }
+]

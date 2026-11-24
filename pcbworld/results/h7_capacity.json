@@ -1,0 +1,41 @@
+{
+ "board": "h743-fc.kicad_pcb",
+ "bga": "U1",
+ "pads": 265,
+ "pitch_mm": 0.8,
+ "pad_size_min_max_mm": [
+  0.4,
+  0.4
+ ],
+ "drill_min_max_mm": [
+  0.0,
+  0.0
+ ],
+ "copper_layers": 6,
+ "signal_layers_est": 4,
+ "rules": {
+  "min_track": 0.127,
+  "min_clearance": 0.15,
+  "class_clearance": 0.2,
+  "min_hole_to_hole": 0.25,
+  "min_annular": 0.1
+ },
+ "pad_gap_mm": 0.4,
+ "traces_per_channel": 0,
+ "rings": {
+  "0": 1,
+  "1": 8,
+  "2": 16,
+  "4": 32,
+  "5": 40,
+  "6": 48,
+  "7": 56,
+  "8": 64
+ },
+ "max_ring": 8,
+ "required_rings": 9,
+ "capacity_rings": 4,
+ "margin_rings": -5,
+ "verdict": "capacity_infeasible_at_this_stackup",
+ "notes": "each signal layer escapes ~1 additional ring; if margin < 0, change stackup/via-in-pad/depopulate before routing"
+}

@@ -1,0 +1,312 @@
+{
+ "boards": 118,
+ "by_state": {
+  "ASSUMED": 104,
+  "FAIL": 9,
+  "INFEASIBLE": 5
+ },
+ "by_set": {
+  "d3a": {
+   "ASSUMED": 91,
+   "FAIL": 6,
+   "INFEASIBLE": 2
+  },
+  "d3b": {
+   "ASSUMED": 9,
+   "FAIL": 1
+  },
+  "d3c": {
+   "INFEASIBLE": 3,
+   "ASSUMED": 4,
+   "FAIL": 2
+  }
+ },
+ "assumptions": {
+  "default_rule_policy": 118,
+  "netclass_unclaimed_nets": 1
+ },
+ "rule_register": {
+  "declared": 43,
+  "represented": 3,
+  "gap": 40,
+  "R_om": 0.93,
+  "declared_ids": [
+   "jlc.clearance",
+   "jlc.description",
+   "jlc.track_width",
+   "jlc.via_diameter",
+   "jlc.via_drill",
+   "kicad.clearance",
+   "kicad.connection_width",
+   "kicad.courtyard",
+   "kicad.default_rule",
+   "kicad.footprint_type_mismatch",
+   "kicad.hole_to_hole",
+   "kicad.isolated_copper",
+   "kicad.lib_footprint_mismatch",
+   "kicad.max_error",
+   "kicad.min_clearance",
+   "kicad.min_copper_edge_clearance",
+   "kicad.min_hole_clearance",
+   "kicad.min_hole_to_hole",
+   "kicad.min_microvia_diameter",
+   "kicad.min_microvia_drill",
+   "kicad.min_resolved_spokes",
+   "kicad.min_text_height",
+   "kicad.min_text_thickness",
+   "kicad.min_through_hole_diameter",
+   "kicad.min_track_width",
+   "kicad.min_via_annular_width",
+   "kicad.min_via_diameter",
+   "kicad.missing_courtyard",
+   "kicad.npth_inside_courtyard",
+   "kicad.padstack",
+   "kicad.pth_inside_courtyard",
+   "kicad.shorting_items",
+   "kicad.silk_edge_clearance",
+   "kicad.silk_over_copper",
+   "kicad.silk_overlap",
+   "kicad.solder_mask_bridge",
+   "kicad.starved_thermal",
+   "kicad.track_dangling",
+   "kicad.track_width",
+   "kicad.via_dangling",
+   "kicad.via_diameter",
+   "kicad.via_drill",
+   "kicad.zones_intersect"
+  ],
+  "represented_ids": [
+   "kicad.clearance",
+   "kicad.default_rule",
+   "kicad.track_width"
+  ],
+  "gap_ids": [
+   "jlc.clearance",
+   "jlc.description",
+   "jlc.track_width",
+   "jlc.via_diameter",
+   "jlc.via_drill",
+   "kicad.connection_width",
+   "kicad.courtyard",
+   "kicad.footprint_type_mismatch",
+   "kicad.hole_to_hole",
+   "kicad.isolated_copper",
+   "kicad.lib_footprint_mismatch",
+   "kicad.max_error",
+   "kicad.min_clearance",
+   "kicad.min_copper_edge_clearance",
+   "kicad.min_hole_clearance",
+   "kicad.min_hole_to_hole",
+   "kicad.min_microvia_diameter",
+   "kicad.min_microvia_drill",
+   "kicad.min_resolved_spokes",
+   "kicad.min_text_height",
+   "kicad.min_text_thickness",
+   "kicad.min_through_hole_diameter",
+   "kicad.min_track_width",
+   "kicad.min_via_annular_width",
+   "kicad.min_via_diameter",
+   "kicad.missing_courtyard",
+   "kicad.npth_inside_courtyard",
+   "kicad.padstack",
+   "kicad.pth_inside_courtyard",
+   "kicad.shorting_items",
+   "kicad.silk_edge_clearance",
+   "kicad.silk_over_copper",
+   "kicad.silk_overlap",
+   "kicad.solder_mask_bridge",
+   "kicad.starved_thermal",
+   "kicad.track_dangling",
+   "kicad.via_dangling",
+   "kicad.via_diameter",
+   "kicad.via_drill",
+   "kicad.zones_intersect"
+  ],
+  "digest": "a3dc694e566ba1626815a2bc49f714594e4f005b5ef0995b10789d1a04f13664"
+ },
+ "failures": [
+  {
+   "dir": "0024_memsarray_mems_modules",
+   "set": "d3a",
+   "state": "FAIL",
+   "n_errors": 0,
+   "n_unconnected": 3,
+   "types": {},
+   "txn": {
+    "c": 0,
+    "r": 1
+   }
+  },
+  {
+   "dir": "0048_MySRaspiGW_MySRaspiGW",
+   "set": "d3a",
+   "state": "INFEASIBLE",
+   "n_errors": 2,
+   "n_unconnected": 1,
+   "types": {
+    "track_width": 2
+   },
+   "txn": {
+    "c": 0,
+    "r": 1
+   }
+  },
+  {
+   "dir": "0051_MySRaspiGW_MySRaspiGW_Pimoroni",
+   "set": "d3a",
+   "state": "FAIL",
+   "n_errors": 0,
+   "n_unconnected": 1,
+   "types": {},
+   "txn": {
+    "c": 1,
+    "r": 1
+   }
+  },
+  {
+   "dir": "0052_breakout-boards_50-to-100",
+   "set": "d3a",
+   "state": "FAIL",
+   "n_errors": 0,
+   "n_unconnected": 1,
+   "types": {},
+   "txn": {
+    "c": 0,
+    "r": 1
+   }
+  },
+  {
+   "dir": "0054_induction-hob_temperature-sensor",
+   "set": "d3a",
+   "state": "INFEASIBLE",
+   "n_errors": 8,
+   "n_unconnected": 1,
+   "types": {
+    "track_width": 8
+   },
+   "txn": {
+    "c": 0,
+    "r": 1
+   }
+  },
+  {
+   "dir": "0056_nrf2rfm69_nrf2rfm69",
+   "set": "d3a",
+   "state": "FAIL",
+   "n_errors": 0,
+   "n_unconnected": 1,
+   "types": {},
+   "txn": {
+    "c": 1,
+    "r": 1
+   }
+  },
+  {
+   "dir": "0077_HaveSome_PCB_HaveSomePCB",
+   "set": "d3a",
+   "state": "FAIL",
+   "n_errors": 0,
+   "n_unconnected": 1,
+   "types": {},
+   "txn": {
+    "c": 0,
+    "r": 1
+   }
+  },
+  {
+   "dir": "0086_BB-PWR-8009_BB-PWR-8009_revA",
+   "set": "d3a",
+   "state": "FAIL",
+   "n_errors": 0,
+   "n_unconnected": 1,
+   "types": {},
+   "txn": {
+    "c": 0,
+    "r": 1
+   }
+  },
+  {
+   "dir": "0203_MOD-MPU9150_mod-mpu9150",
+   "set": "d3b",
+   "state": "FAIL",
+   "n_errors": 0,
+   "n_unconnected": 3,
+   "types": {},
+   "txn": {
+    "c": 0,
+    "r": 1
+   }
+  },
+  {
+   "dir": "0400_laptimer58_Chickadee",
+   "set": "d3c",
+   "state": "INFEASIBLE",
+   "n_errors": 9,
+   "n_unconnected": 0,
+   "types": {
+    "track_width": 9
+   },
+   "txn": {
+    "c": 0,
+    "r": 1
+   }
+  },
+  {
+   "dir": "0496_kitspace_f-91w",
+   "set": "d3c",
+   "state": "FAIL",
+   "n_errors": 46,
+   "n_unconnected": 14,
+   "types": {
+    "clearance": 35,
+    "shorting_items": 11
+   },
+   "txn": {
+    "c": 1,
+    "r": 1
+   }
+  },
+  {
+   "dir": "0520_RGBMatrixPanelCPLD-PhotonBackpack_RGBMatrixPanel_CPLD_negative",
+   "set": "d3c",
+   "state": "INFEASIBLE",
+   "n_errors": 50,
+   "n_unconnected": 0,
+   "types": {
+    "track_width": 50
+   },
+   "txn": {
+    "c": 0,
+    "r": 1
+   }
+  },
+  {
+   "dir": "0571_Brushless_ESC_Brushless_ESC",
+   "set": "d3c",
+   "state": "FAIL",
+   "n_errors": 1,
+   "n_unconnected": 0,
+   "types": {
+    "clearance": 1
+   },
+   "txn": {
+    "c": 1,
+    "r": 1
+   }
+  },
+  {
+   "dir": "0599_RGBMatrixPanelCPLD-PhotonBackpack_RGBMatrixPanel_CPLD",
+   "set": "d3c",
+   "state": "INFEASIBLE",
+   "n_errors": 36,
+   "n_unconnected": 29,
+   "types": {
+    "track_width": 36
+   },
+   "txn": {
+    "c": 0,
+    "r": 1
+   }
+  }
+ ]
+}

@@ -31,6 +31,7 @@ Each command prints one line `__RESULT__{json}` and exits.
 """
 import json
 import os
+import shutil
 import sys
 
 import pcbnew
@@ -108,6 +109,13 @@ def strip(src, out_dir):
         text = without_copper_zones(f.read())
     with open(placed, "w") as f:
         f.write(text)
+    # pcbnew binds a project by BASENAME.  ``placed`` is a new name, so
+    # without this copy the export silently resolves every net to the stock
+    # default class (0.2 mm) -- the router then solves a different problem
+    # from the one DRC judges.
+    pro_src = os.path.splitext(src)[0] + ".kicad_pro"
+    if os.path.exists(pro_src):
+        shutil.copy(pro_src, os.path.join(out_dir, "placed.kicad_pro"))
     b = pcbnew.LoadBoard(placed)
     for t in list(b.GetTracks()):
         b.Remove(t)

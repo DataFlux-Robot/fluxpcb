@@ -1,0 +1,30 @@
+{
+ "d3a": {
+  "clean": 94,
+  "n": 99,
+  "rate": 94.9,
+  "routing_clean": 94,
+  "routing_rate": 94.9
+ },
+ "d3b": {
+  "clean": 8,
+  "n": 10,
+  "rate": 80.0,
+  "routing_clean": 8,
+  "routing_rate": 80.0
+ },
+ "d3c": {
+  "clean": 4,
+  "n": 9,
+  "rate": 44.4,
+  "routing_clean": 4,
+  "routing_rate": 44.4
+ },
+ "all": {
+  "clean": 106,
+  "n": 118,
+  "rate": 89.8,
+  "routing_clean": 106,
+  "routing_rate": 89.8
+ }
+}

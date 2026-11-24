@@ -17,3 +17,13 @@ core_out/
 ses_import.log
 ses_import.err
 tools_bin/openEMS/
+
+# Scratch and machine-local work. The PCBWorld bench data (boards, runs,
+# rounds) lives outside the repo; pcbworld/README.md explains how to get it.
+/work/
+/.litrev/
+/.litreview/
+/--timeout
+/--timeout.kicad_pro
+/routed_test-drc.json
+/work_s2_clearance.json

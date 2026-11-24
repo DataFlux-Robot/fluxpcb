@@ -1,0 +1,42 @@
+[
+ {
+  "set": "d3a",
+  "id": "0001_rufs__autosave-simple_kicad_schema_and_pcb_v1",
+  "dir": "0001_rufs__autosave-simple_kicad_schema_and_pcb_v1"
+ },
+ {
+  "set": "d3a",
+  "id": "0002_rufs_simple_kicad_schema_and_pcb_v1",
+  "dir": "0002_rufs_simple_kicad_schema_and_pcb_v1"
+ },
+ {
+  "set": "d3a",
+  "id": "0003_kitspace_grove_adaptor",
+  "dir": "0003_kitspace_grove_adaptor"
+ },
+ {
+  "set": "d3a",
+  "id": "0004_S1G-Mod_JST_Adapter",
+  "dir": "0004_S1G-Mod_JST_Adapter"
+ },
+ {
+  "set": "d3a",
+  "id": "0005_AVR-Playground_hello_world",
+  "dir": "0005_AVR-Playground_hello_world"
+ },
+ {
+  "set": "d3a",
+  "id": "0006_raspberry_pi_pullup_button_pullup_shutdown_button",
+  "dir": "0006_raspberry_pi_pullup_button_pullup_shutdown_button"
+ },
+ {
+  "set": "d3a",
+  "id": "0007_raspberry_pi_pullup_button_pullup_shutdown_button(revB)",
+  "dir": "0007_raspberry_pi_pullup_button_pullup_shutdown_button-revB-"
+ },
+ {
+  "set": "d3a",
+  "id": "0008_CapPCB_CapPcb",
+  "dir": "0008_CapPCB_CapPcb"
+ }
+]

@@ -1,0 +1,2267 @@
+[
+ {
+  "set": "d3a",
+  "id": "0001_rufs__autosave-simple_kicad_schema_and_pcb_v1",
+  "dir": "0001_rufs__autosave-simple_kicad_schema_and_pcb_v1",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0002_rufs_simple_kicad_schema_and_pcb_v1",
+  "dir": "0002_rufs_simple_kicad_schema_and_pcb_v1",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0003_kitspace_grove_adaptor",
+  "dir": "0003_kitspace_grove_adaptor",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0004_S1G-Mod_JST_Adapter",
+  "dir": "0004_S1G-Mod_JST_Adapter",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0005_AVR-Playground_hello_world",
+  "dir": "0005_AVR-Playground_hello_world",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0006_raspberry_pi_pullup_button_pullup_shutdown_button",
+  "dir": "0006_raspberry_pi_pullup_button_pullup_shutdown_button",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0007_raspberry_pi_pullup_button_pullup_shutdown_button(revB)",
+  "dir": "0007_raspberry_pi_pullup_button_pullup_shutdown_button-revB-",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0008_CapPCB_CapPcb",
+  "dir": "0008_CapPCB_CapPcb",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0009_SmartLaserCO2-PCB_WaterCool",
+  "dir": "0009_SmartLaserCO2-PCB_WaterCool",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0010_SmartLaserCO2-PCB_OptAdjust",
+  "dir": "0010_SmartLaserCO2-PCB_OptAdjust",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0011_PixyWirelessShield_Shield PIXY",
+  "dir": "0011_PixyWirelessShield_Shield-PIXY",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0012_kitspace_ir_sensor",
+  "dir": "0012_kitspace_ir_sensor",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0013_crossover-schiit-stack_xover4schiit",
+  "dir": "0013_crossover-schiit-stack_xover4schiit",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0014_hardware-designs_m-trigger",
+  "dir": "0014_hardware-designs_m-trigger",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0015_kitspace_tt_opt101_module_b1",
+  "dir": "0015_kitspace_tt_opt101_module_b1",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0016_breakout-boards_avr-isp-x2",
+  "dir": "0016_breakout-boards_avr-isp-x2",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0017_Blink-Eras_AVR_ISP_Pogo",
+  "dir": "0017_Blink-Eras_AVR_ISP_Pogo",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0018_Hardware_Playground_hy_adapter",
+  "dir": "0018_Hardware_Playground_hy_adapter",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0019_CubeSAT-Reaction-Wheel_Edison_Motor_Servo",
+  "dir": "0019_CubeSAT-Reaction-Wheel_Edison_Motor_Servo",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0020_Cherry-Mx-Bitboard_Cherry Mx Bitboard",
+  "dir": "0020_Cherry-Mx-Bitboard_Cherry-Mx-Bitboard",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0021_RPi-PWM-Fan-interface_RPi PWM Fan interface",
+  "dir": "0021_RPi-PWM-Fan-interface_RPi-PWM-Fan-interface",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0022_OpenVNAVI_motor unit",
+  "dir": "0022_OpenVNAVI_motor-unit",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0023_hardware-designs_si7021-board",
+  "dir": "0023_hardware-designs_si7021-board",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0024_memsarray_mems_modules",
+  "dir": "0024_memsarray_mems_modules",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0025_kitspace_hum_temp_sensor",
+  "dir": "0025_kitspace_hum_temp_sensor",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0026_PCB_constant_current_ac_hv",
+  "dir": "0026_PCB_constant_current_ac_hv",
+  "drc": {
+   "errors": 5,
+   "errorsByType": {
+    "shorting_items": 4,
+    "clearance": 1
+   },
+   "unconnected": 0,
+   "axis": {
+    "routing": 5,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": false
+  },
+  "cleanPass": false,
+  "cleanPassRouting": false
+ },
+ {
+  "set": "d3a",
+  "id": "0027_ID-FIX_scanConnect",
+  "dir": "0027_ID-FIX_scanConnect",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0028_hardware-designs_c-trigger",
+  "dir": "0028_hardware-designs_c-trigger",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0029_espeverywhere__autosave-espeverywhere_breakout",
+  "dir": "0029_espeverywhere__autosave-espeverywhere_breakout",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0030_kitspace_sop8breakout",
+  "dir": "0030_kitspace_sop8breakout",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0031_kitspace_Potentiometer_mount_4LED",
+  "dir": "0031_kitspace_Potentiometer_mount_4LED",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0032_kitspace_Potentiometer_mount_8LED",
+  "dir": "0032_kitspace_Potentiometer_mount_8LED",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0033_breakout-boards_swd-to-wires",
+  "dir": "0033_breakout-boards_swd-to-wires",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0034_NavigationThing_NavigationThingBacklight",
+  "dir": "0034_NavigationThing_NavigationThingBacklight",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0035_KiCad-Like-a-Pro-Tutorial_rf24-breakout-v1",
+  "dir": "0035_KiCad-Like-a-Pro-Tutorial_rf24-breakout-v1",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0036_nRF24breakoutBoard_nRF24-breakout",
+  "dir": "0036_nRF24breakoutBoard_nRF24-breakout",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0037_hardware-designs_spsgrf-board",
+  "dir": "0037_hardware-designs_spsgrf-board",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0038_PCB_serie_led_strip",
+  "dir": "0038_PCB_serie_led_strip",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0039_drawduino_drawduino",
+  "dir": "0039_drawduino_drawduino",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0040_oshtimer_transponder",
+  "dir": "0040_oshtimer_transponder",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0041_FogDrive_attiny45_slim",
+  "dir": "0041_FogDrive_attiny45_slim",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0042_starsynctrackers_reset_switch",
+  "dir": "0042_starsynctrackers_reset_switch",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0043_breakout-boards_swd-and-uart",
+  "dir": "0043_breakout-boards_swd-and-uart",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0044_blink-errr_blink-errr",
+  "dir": "0044_blink-errr_blink-errr",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0045_retroreflectors_TANGOFLOCK",
+  "dir": "0045_retroreflectors_TANGOFLOCK",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0046_mearm-base-pcb_ServoPCB",
+  "dir": "0046_mearm-base-pcb_ServoPCB",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0047_LoLin_Designs_LoLin",
+  "dir": "0047_LoLin_Designs_LoLin",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0048_MySRaspiGW_MySRaspiGW",
+  "dir": "0048_MySRaspiGW_MySRaspiGW",
+  "drc": {
+   "errors": 2,
+   "errorsByType": {
+    "track_width": 2
+   },
+   "unconnected": 1,
+   "axis": {
+    "routing": 3,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": false
+  },
+  "cleanPass": false,
+  "cleanPassRouting": false
+ },
+ {
+  "set": "d3a",
+  "id": "0049_MySRaspiGW_MySRaspiGW_PA_LNA",
+  "dir": "0049_MySRaspiGW_MySRaspiGW_PA_LNA",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0050_MySRaspiGW_MySRaspiGW_PA_LNA_Pimoroni",
+  "dir": "0050_MySRaspiGW_MySRaspiGW_PA_LNA_Pimoroni",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0051_MySRaspiGW_MySRaspiGW_Pimoroni",
+  "dir": "0051_MySRaspiGW_MySRaspiGW_Pimoroni",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 1,
+   "axis": {
+    "routing": 1,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": false
+  },
+  "cleanPass": false,
+  "cleanPassRouting": false
+ },
+ {
+  "set": "d3a",
+  "id": "0052_breakout-boards_50-to-100",
+  "dir": "0052_breakout-boards_50-to-100",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0053_mechkeys_lfk78-jtag",
+  "dir": "0053_mechkeys_lfk78-jtag",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0054_induction-hob_temperature-sensor",
+  "dir": "0054_induction-hob_temperature-sensor",
+  "drc": {
+   "errors": 8,
+   "errorsByType": {
+    "track_width": 8
+   },
+   "unconnected": 1,
+   "axis": {
+    "routing": 9,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": false
+  },
+  "cleanPass": false,
+  "cleanPassRouting": false
+ },
+ {
+  "set": "d3a",
+  "id": "0055_dustbox_Dustbox",
+  "dir": "0055_dustbox_Dustbox",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0056_nrf2rfm69_nrf2rfm69",
+  "dir": "0056_nrf2rfm69_nrf2rfm69",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0057_tepmachcha_tepmachcha",
+  "dir": "0057_tepmachcha_tepmachcha",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0058_scimpy_powersupply",
+  "dir": "0058_scimpy_powersupply",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0059_marlin-neopixel-bridge_ATtiny85_Marneo",
+  "dir": "0059_marlin-neopixel-bridge_ATtiny85_Marneo",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0060_Paperino_HW_paperino_breakout",
+  "dir": "0060_Paperino_HW_paperino_breakout",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0061_kitspace_temp_breakout",
+  "dir": "0061_kitspace_temp_breakout",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0062_I2CTempsensor_sensors",
+  "dir": "0062_I2CTempsensor_sensors",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0063_stlinkv2_breakout_stlink_breakout",
+  "dir": "0063_stlinkv2_breakout_stlink_breakout",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0064_kicad-guitar-preamp_Preamp-Instructables",
+  "dir": "0064_kicad-guitar-preamp_Preamp-Instructables",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0065_DiscoDanceFloorV1_BusTerminator",
+  "dir": "0065_DiscoDanceFloorV1_BusTerminator",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0066_ESP8266-WS2811-LEDs_ws2811controller_panels",
+  "dir": "0066_ESP8266-WS2811-LEDs_ws2811controller_panels",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0067_radio_saw_dcc6c",
+  "dir": "0067_radio_saw_dcc6c",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0068_AVR-ISP_pogo-plug_1.27mm_AVR-ISP_pogo-plug_1.27mm",
+  "dir": "0068_AVR-ISP_pogo-plug_1.27mm_AVR-ISP_pogo-plug_1.27mm",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0069_C-BISCUIT_crowbar",
+  "dir": "0069_C-BISCUIT_crowbar",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0070_Raspberry-Pi-Soft-Power-Controller_Switching Supply TPS563208 MCI",
+  "dir": "0070_Raspberry-Pi-Soft-Power-Controller_Switching-Supply-TPS563208-MCI",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0071_hackyflasher_Flasher",
+  "dir": "0071_hackyflasher_Flasher",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0072_esp8266_wi07_3_adapter_esp",
+  "dir": "0072_esp8266_wi07_3_adapter_esp",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0073_z2amiller_sensorboard_programmer",
+  "dir": "0073_z2amiller_sensorboard_programmer",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0074_kitspace_12V5A_breakout",
+  "dir": "0074_kitspace_12V5A_breakout",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0075_RPi-ATtiny85-Programmer_rpi_attiny85_programmer",
+  "dir": "0075_RPi-ATtiny85-Programmer_rpi_attiny85_programmer",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0076_breakout-boards_usb-5v-3v3",
+  "dir": "0076_breakout-boards_usb-5v-3v3",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0077_HaveSome_PCB_HaveSomePCB",
+  "dir": "0077_HaveSome_PCB_HaveSomePCB",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0078_Hardware_Playground_buck_led_driver",
+  "dir": "0078_Hardware_Playground_buck_led_driver",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0079_Inkjet_InkjetBreakout",
+  "dir": "0079_Inkjet_InkjetBreakout",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0080_kitspace_RPi_shield",
+  "dir": "0080_kitspace_RPi_shield",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0081_everled_everled",
+  "dir": "0081_everled_everled",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0082_firefly-jar_solar_lamp",
+  "dir": "0082_firefly-jar_solar_lamp",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0083_DustSensorShield_DustSensorShield",
+  "dir": "0083_DustSensorShield_DustSensorShield",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0084_kitspace__autosave-nunchuk_breakout",
+  "dir": "0084_kitspace__autosave-nunchuk_breakout",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0085_mini-whip_mini-whip-power-feed",
+  "dir": "0085_mini-whip_mini-whip-power-feed",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0086_BB-PWR-8009_BB-PWR-8009_revA",
+  "dir": "0086_BB-PWR-8009_BB-PWR-8009_revA",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0087_solar-lanterns_proto1",
+  "dir": "0087_solar-lanterns_proto1",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0088_DA_Lamp_attiny44a_servo_i2c",
+  "dir": "0088_DA_Lamp_attiny44a_servo_i2c",
+  "drc": {
+   "errors": 2,
+   "errorsByType": {
+    "shorting_items": 2
+   },
+   "unconnected": 0,
+   "axis": {
+    "routing": 2,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": false
+  },
+  "cleanPass": false,
+  "cleanPassRouting": false
+ },
+ {
+  "set": "d3a",
+  "id": "0089_cobwebb-junction-box_CobwebbJunctionBox",
+  "dir": "0089_cobwebb-junction-box_CobwebbJunctionBox",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0090_keyboard_converter_adapter_ibm4704_converter_adapter_ibm4704",
+  "dir": "0090_keyboard_converter_adapter_ibm4704_converter_adapter_ibm4704",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0091_rufs_dra818v_breakout_board",
+  "dir": "0091_rufs_dra818v_breakout_board",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0092_DerKnopf_power-supply",
+  "dir": "0092_DerKnopf_power-supply",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0093_kitspace_nunchuk_breakout",
+  "dir": "0093_kitspace_nunchuk_breakout",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0094_kitspace_gas_sensor",
+  "dir": "0094_kitspace_gas_sensor",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0095_PsuFanController_FanController",
+  "dir": "0095_PsuFanController_FanController",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0097_bristle_bot_light_follow_bristle_bot",
+  "dir": "0097_bristle_bot_light_follow_bristle_bot",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0098_MSGEQ7-Breakout-Board_MSGEQ7_Breakout_Board",
+  "dir": "0098_MSGEQ7-Breakout-Board_MSGEQ7_Breakout_Board",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0099_SparkSwitch_SparkProtectionSwitch",
+  "dir": "0099_SparkSwitch_SparkProtectionSwitch",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3a",
+  "id": "0100_smt-zvs-driver_IH10-mc",
+  "dir": "0100_smt-zvs-driver_IH10-mc",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3b",
+  "id": "0113_maytal_Maytal",
+  "dir": "0113_maytal_Maytal",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3b",
+  "id": "0144_ottawa-badges-2016_ottawa-badge-tagger-2016",
+  "dir": "0144_ottawa-badges-2016_ottawa-badge-tagger-2016",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3b",
+  "id": "0174_sensorboard_DiffIR",
+  "dir": "0174_sensorboard_DiffIR",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3b",
+  "id": "0203_MOD-MPU9150_mod-mpu9150",
+  "dir": "0203_MOD-MPU9150_mod-mpu9150",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 3,
+   "axis": {
+    "routing": 3,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": false
+  },
+  "cleanPass": false,
+  "cleanPassRouting": false
+ },
+ {
+  "set": "d3b",
+  "id": "0232_ATtiny461Breakout_ATTiny461DevBoard",
+  "dir": "0232_ATtiny461Breakout_ATTiny461DevBoard",
+  "drc": {
+   "errors": 1,
+   "errorsByType": {
+    "shorting_items": 1
+   },
+   "unconnected": 0,
+   "axis": {
+    "routing": 1,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": false
+  },
+  "cleanPass": false,
+  "cleanPassRouting": false
+ },
+ {
+  "set": "d3b",
+  "id": "0260_NiMH-Charger_NiMH Charger",
+  "dir": "0260_NiMH-Charger_NiMH-Charger",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3b",
+  "id": "0288_raspberrypi-3-usb-hub_usb_hub",
+  "dir": "0288_raspberrypi-3-usb-hub_usb_hub",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3b",
+  "id": "0316_kicad-workshop_fancyboard",
+  "dir": "0316_kicad-workshop_fancyboard",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3b",
+  "id": "0344_mavbridge_mavbridge",
+  "dir": "0344_mavbridge_mavbridge",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3b",
+  "id": "0376_cat-trainer_teensy_base_pcb",
+  "dir": "0376_cat-trainer_teensy_base_pcb",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3c",
+  "id": "0400_laptimer58_Chickadee",
+  "dir": "0400_laptimer58_Chickadee",
+  "drc": {
+   "errors": 9,
+   "errorsByType": {
+    "track_width": 9
+   },
+   "unconnected": 0,
+   "axis": {
+    "routing": 9,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": false
+  },
+  "cleanPass": false,
+  "cleanPassRouting": false
+ },
+ {
+  "set": "d3c",
+  "id": "0423_induction-hob_temperature-sender",
+  "dir": "0423_induction-hob_temperature-sender",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3c",
+  "id": "0448_uedaino_uedaino",
+  "dir": "0448_uedaino_uedaino",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3c",
+  "id": "0496_kitspace_f-91w",
+  "dir": "0496_kitspace_f-91w",
+  "drc": {
+   "errors": 115,
+   "errorsByType": {
+    "clearance": 53,
+    "shorting_items": 10,
+    "track_width": 52
+   },
+   "unconnected": 14,
+   "axis": {
+    "routing": 129,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": false
+  },
+  "cleanPass": false,
+  "cleanPassRouting": false
+ },
+ {
+  "set": "d3c",
+  "id": "0520_RGBMatrixPanelCPLD-PhotonBackpack_RGBMatrixPanel_CPLD_negative",
+  "dir": "0520_RGBMatrixPanelCPLD-PhotonBackpack_RGBMatrixPanel_CPLD_negative",
+  "drc": {
+   "errors": 50,
+   "errorsByType": {
+    "track_width": 50
+   },
+   "unconnected": 0,
+   "axis": {
+    "routing": 50,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": false
+  },
+  "cleanPass": false,
+  "cleanPassRouting": false
+ },
+ {
+  "set": "d3c",
+  "id": "0546_ozinverter_ozinverterkicad",
+  "dir": "0546_ozinverter_ozinverterkicad",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ },
+ {
+  "set": "d3c",
+  "id": "0571_Brushless_ESC_Brushless_ESC",
+  "dir": "0571_Brushless_ESC_Brushless_ESC",
+  "drc": {
+   "errors": 2,
+   "errorsByType": {
+    "clearance": 2
+   },
+   "unconnected": 0,
+   "axis": {
+    "routing": 2,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": false
+  },
+  "cleanPass": false,
+  "cleanPassRouting": false
+ },
+ {
+  "set": "d3c",
+  "id": "0599_RGBMatrixPanelCPLD-PhotonBackpack_RGBMatrixPanel_CPLD",
+  "dir": "0599_RGBMatrixPanelCPLD-PhotonBackpack_RGBMatrixPanel_CPLD",
+  "drc": {
+   "errors": 36,
+   "errorsByType": {
+    "track_width": 36
+   },
+   "unconnected": 29,
+   "axis": {
+    "routing": 65,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": false
+  },
+  "cleanPass": false,
+  "cleanPassRouting": false
+ },
+ {
+  "set": "d3c",
+  "id": "0626_TOBS_HybridChargeController",
+  "dir": "0626_TOBS_HybridChargeController",
+  "drc": {
+   "errors": 0,
+   "errorsByType": {},
+   "unconnected": 0,
+   "axis": {
+    "routing": 0,
+    "library": 0,
+    "silk": 0,
+    "other": 0
+   },
+   "cleanPassRouting": true
+  },
+  "cleanPass": true,
+  "cleanPassRouting": true
+ }
+]

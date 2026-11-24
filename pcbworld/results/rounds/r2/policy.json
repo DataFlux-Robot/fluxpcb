@@ -1,0 +1,41 @@
+{
+ "version": 1,
+ "strategy_doc": "Capacity before search. Prefer exact certificates over new heuristics. When a corridor is 1-40 um short, rip up the blocking net if its fanout is small; otherwise report infeasible instead of retrying.",
+ "operator_portfolio": [
+  "widen_narrow_tracks",
+  "clearance_chain",
+  "endpoint_attach",
+  "connect_unconnected",
+  "maze_escape"
+ ],
+ "plan_template": {
+  "escape_order": [
+   "maze",
+   "geomir",
+   "via_slot"
+  ],
+  "corridor_widths_mm": [
+   0.5,
+   1.0,
+   2.0
+  ],
+  "via_slot_radii_mm": [
+   0.3,
+   0.5,
+   0.8,
+   1.1,
+   1.5
+  ]
+ },
+ "budgets": {
+  "actions_per_board": 3,
+  "ripup_max": 8,
+  "replan_max": 4,
+  "maze_seconds": 30
+ },
+ "rationale_log": [
+  "27 opens survived the polyline connector"
+ ],
+ "enabled_planning": true,
+ "policy_digest": "48b07167ea6f08fb89d86cbbce696d600c5877b9eccde5502f889882f5088c9e"
+}

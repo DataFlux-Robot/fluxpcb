@@ -1,0 +1,102 @@
+{
+ "A1_divergence_detected": {
+  "ok": true,
+  "detail": "rule mismatch (default_rule=1, value=1): GND:value; :default_rule"
+ },
+ "A2_ledger_refuses": {
+  "ok": true,
+  "detail": "outcome=fail note=1 net mismatches"
+ },
+ "A3_patch_restores_congruence": {
+  "ok": true,
+  "detail": "rule tables congruent (1 nets)"
+ },
+ "B1_stale_fill_refused": {
+  "ok": true,
+  "detail": "outcome=fail"
+ },
+ "B2_rho_stale_detected": {
+  "ok": true,
+  "detail": "same=True moved=False"
+ },
+ "C1_shortfall_fails": {
+  "ok": true,
+  "detail": "Cmp.FAIL"
+ },
+ "C2_band_indeterminate": {
+  "ok": true,
+  "detail": "Cmp.INDETERMINATE"
+ },
+ "C3_exact_equality_passes": {
+  "ok": true,
+  "detail": "Cmp.PASS"
+ },
+ "C4_pass_held_to_condition": {
+  "ok": true,
+  "detail": "outcome=fail note=limit 152400.0 | passed but does not meet acceptance (152000.0 vs 152400.0 nm)"
+ },
+ "D1_control_mandatory": {
+  "ok": true,
+  "detail": "gate no_control: negative control is mandatory"
+ },
+ "D2_unqualified_never_passes": {
+  "ok": true,
+  "detail": "outcome=unqualified note=known-bad did not fail (pass: )"
+ },
+ "E1_worst_first": {
+  "ok": true,
+  "detail": "{\"rule_congruence\": \"fail\", \"fill_for_A\": \"pass\", \"quantization\": \"fail\"}"
+ },
+ "F1_chain_intact": {
+  "ok": true,
+  "detail": "ok"
+ },
+ "F2_tamper_detected": {
+  "ok": true,
+  "detail": "entry 0: digest mismatch"
+ },
+ "G1_selfconsistent_wrong_project_passes_old_gate": {
+  "ok": true,
+  "detail": "outcome=pass (this is the false-pass vector)"
+ },
+ "G2_project_identity_closes_vector": {
+  "ok": true,
+  "detail": "outcome=fail note=project identity mismatch"
+ },
+ "H1_stale_zero_report_passes_old_gate": {
+  "ok": true,
+  "detail": "outcome=pass (this is the false-pass vector)"
+ },
+ "H2_report_binding_closes_vector": {
+  "ok": true,
+  "detail": "outcome=fail note=report belongs to another board/state"
+ },
+ "I1_rule_scope_exposes_model_gap": {
+  "ok": true,
+  "detail": "outcome=fail measured=0.7"
+ },
+ "J1_new_type_rejected_even_if_weighted_falls": {
+  "ok": true,
+  "detail": "new violation types: ['clearance']"
+ },
+ "J2_total_increase_rejected": {
+  "ok": true,
+  "detail": "total increased 1 -> 2 (weighted 1 -> 2)"
+ },
+ "K1_exception_restores_snapshot": {
+  "ok": true,
+  "detail": "rolled_back=1"
+ },
+ "L1_english_measurement_parsed": {
+  "ok": true,
+  "detail": "actual=0.1769 req=0.2 measured=True"
+ },
+ "M1_missing_drc_not_clean": {
+  "ok": true,
+  "detail": "ok=False stale_removed=True"
+ },
+ "N1_gap_assumed_precede_pass": {
+  "ok": true,
+  "detail": "GAP/ASSUMED ordered before PASS"
+ }
+}

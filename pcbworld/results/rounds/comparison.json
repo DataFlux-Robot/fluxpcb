@@ -1,0 +1,137 @@
+{
+ "rounds": [
+  "r1",
+  "r2",
+  "r3"
+ ],
+ "pcbrouteagent": {
+  "d3a": 94.9,
+  "d3b": 100.0,
+  "d3c": 40.0
+ },
+ "table": [
+  {
+   "round": "r1",
+   "policy": "70aeed93089e",
+   "delta": null,
+   "gate": null,
+   "d3a": {
+    "clean": 89,
+    "n": 99,
+    "rate": 89.9,
+    "routing_rate": 89.9,
+    "vs_pcbr": -5.0
+   },
+   "d3b": {
+    "clean": 8,
+    "n": 10,
+    "rate": 80.0,
+    "routing_rate": 80.0,
+    "vs_pcbr": -20.0
+   },
+   "d3c": {
+    "clean": 4,
+    "n": 9,
+    "rate": 44.4,
+    "routing_rate": 44.4,
+    "vs_pcbr": 4.4
+   },
+   "all": {
+    "clean": 101,
+    "n": 118,
+    "rate": 85.6,
+    "routing_rate": 85.6
+   }
+  },
+  {
+   "round": "r2",
+   "policy": "48b07167ea6f",
+   "delta": null,
+   "gate": null,
+   "d3a": {
+    "clean": 94,
+    "n": 99,
+    "rate": 94.9,
+    "routing_rate": 94.9,
+    "vs_pcbr": 0.0
+   },
+   "d3b": {
+    "clean": 8,
+    "n": 10,
+    "rate": 80.0,
+    "routing_rate": 80.0,
+    "vs_pcbr": -20.0
+   },
+   "d3c": {
+    "clean": 4,
+    "n": 9,
+    "rate": 44.4,
+    "routing_rate": 44.4,
+    "vs_pcbr": 4.4
+   },
+   "all": {
+    "clean": 106,
+    "n": 118,
+    "rate": 89.8,
+    "routing_rate": 89.8
+   }
+  },
+  {
+   "round": "r3",
+   "policy": "fc8a4029f530",
+   "delta": null,
+   "gate": null,
+   "d3a": {
+    "clean": 96,
+    "n": 99,
+    "rate": 97.0,
+    "routing_rate": 97.0,
+    "vs_pcbr": 2.1
+   },
+   "d3b": {
+    "clean": 9,
+    "n": 10,
+    "rate": 90.0,
+    "routing_rate": 90.0,
+    "vs_pcbr": -10.0
+   },
+   "d3c": {
+    "clean": 4,
+    "n": 9,
+    "rate": 44.4,
+    "routing_rate": 44.4,
+    "vs_pcbr": 4.4
+   },
+   "all": {
+    "clean": 109,
+    "n": 118,
+    "rate": 92.4,
+    "routing_rate": 92.4
+   }
+  }
+ ],
+ "flips": [
+  {
+   "from": "r1",
+   "to": "r2",
+   "gained": [
+    "0024_memsarray_mems_modules",
+    "0052_breakout-boards_50-to-100",
+    "0056_nrf2rfm69_nrf2rfm69",
+    "0077_HaveSome_PCB_HaveSomePCB",
+    "0086_BB-PWR-8009_BB-PWR-8009_revA"
+   ],
+   "lost": []
+  },
+  {
+   "from": "r2",
+   "to": "r3",
+   "gained": [
+    "0026_PCB_constant_current_ac_hv",
+    "0088_DA_Lamp_attiny44a_servo_i2c",
+    "0232_ATtiny461Breakout_ATTiny461DevBoard"
+   ],
+   "lost": []
+  }
+ ]
+}

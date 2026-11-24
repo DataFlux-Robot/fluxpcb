@@ -1,0 +1,15 @@
+{
+ "boards": 118,
+ "project_clean": 104,
+ "out_of_model_boards": 31,
+ "AHR": 0.2981,
+ "detected_types": {
+  "copper_edge_clearance": 73,
+  "annular_width": 31,
+  "hole_clearance": 6,
+  "clearance": 4
+ },
+ "wrong_pro_detected": 118,
+ "stale_report_detected": 118,
+ "oracle_independent": true
+}

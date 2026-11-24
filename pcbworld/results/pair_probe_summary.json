@@ -1,0 +1,12 @@
+{
+ "hole_to_hole": {
+  "ok": 8,
+  "killed": 8,
+  "MS": 1.0
+ },
+ "copper_edge_clearance": {
+  "ok": 8,
+  "killed": 8,
+  "MS": 1.0
+ }
+}

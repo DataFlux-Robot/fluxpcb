@@ -1,0 +1,145 @@
+{
+ "mutation": {
+  "thin": {
+   "generated": 24,
+   "crossed": 17,
+   "killed": 17,
+   "killed_crossed": 17,
+   "MS": 1.0,
+   "blind_spots": 0,
+   "equivalents": 7
+  },
+  "move": {
+   "generated": 24,
+   "crossed": 8,
+   "killed": 8,
+   "killed_crossed": 8,
+   "MS": 1.0,
+   "blind_spots": 0,
+   "equivalents": 16
+  },
+  "delete": {
+   "generated": 8,
+   "crossed": 0,
+   "killed": 8,
+   "killed_crossed": 0,
+   "MS": null,
+   "blind_spots": 0,
+   "equivalents": 8
+  },
+  "short": {
+   "generated": 8,
+   "crossed": 0,
+   "killed": 8,
+   "killed_crossed": 0,
+   "MS": null,
+   "blind_spots": 0,
+   "equivalents": 8
+  },
+  "via_drill": {
+   "generated": 12,
+   "crossed": 0,
+   "killed": 3,
+   "killed_crossed": 0,
+   "MS": null,
+   "blind_spots": 0,
+   "equivalents": 12
+  },
+  "shift_pad": {
+   "generated": 24,
+   "crossed": 0,
+   "killed": 3,
+   "killed_crossed": 0,
+   "MS": null,
+   "blind_spots": 0,
+   "equivalents": 24
+  }
+ },
+ "unclassified": [],
+ "pairs": {
+  "pairs": {
+   "kicad.clearance": "validated",
+   "kicad.track_width": "validated",
+   "kicad.hole_clearance": "validated",
+   "kicad.hole_to_hole": "validated",
+   "kicad.copper_edge_clearance": "validated",
+   "kicad.min_via_annular_width": "validated",
+   "kicad.via_drill": "mapped",
+   "kicad.track_dangling": "mapped",
+   "kicad.via_dangling": "mapped",
+   "kicad.shorting_items": "validated"
+  },
+  "validated": 7,
+  "mapped": 3,
+  "blind_spot": 0,
+  "validated_ids": [
+   "kicad.clearance",
+   "kicad.copper_edge_clearance",
+   "kicad.hole_clearance",
+   "kicad.hole_to_hole",
+   "kicad.min_via_annular_width",
+   "kicad.shorting_items",
+   "kicad.track_width"
+  ],
+  "mapped_ids": [
+   "kicad.track_dangling",
+   "kicad.via_dangling",
+   "kicad.via_drill"
+  ],
+  "blind_spot_ids": []
+ },
+ "redteam": {
+  "boards": 118,
+  "project_clean": 104,
+  "out_of_model_boards": 31,
+  "AHR": 0.2981,
+  "detected_types": {
+   "copper_edge_clearance": 73,
+   "annular_width": 31,
+   "hole_clearance": 6,
+   "clearance": 4
+  },
+  "wrong_pro_detected": 118,
+  "stale_report_detected": 118,
+  "oracle_independent": true,
+  "pair_probe": {
+   "hole_to_hole": {
+    "ok": 8,
+    "killed": 8,
+    "MS": 1.0
+   },
+   "copper_edge_clearance": {
+    "ok": 8,
+    "killed": 8,
+    "MS": 1.0
+   }
+  }
+ },
+ "register": {
+  "declared": 43,
+  "R_om_dsn": 0.93,
+  "R_om_check": 0.837,
+  "validated_pairs": 7
+ },
+ "metrics": {
+  "MS_by_class": {
+   "thin": 1.0,
+   "move": 1.0,
+   "delete": null,
+   "short": null,
+   "via_drill": null,
+   "shift_pad": null
+  },
+  "blind_spots": {
+   "thin": 0,
+   "move": 0,
+   "delete": 0,
+   "short": 0,
+   "via_drill": 0,
+   "shift_pad": 0
+  },
+  "AHR": 0.2981,
+  "wrong_pro_detected": 118,
+  "stale_report_detected": 118
+ }
+}

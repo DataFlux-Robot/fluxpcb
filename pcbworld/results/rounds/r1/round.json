@@ -1,0 +1,73 @@
+{
+ "round": "r1",
+ "policy_digest": "70aeed93089e53f7ea58104c74d13e57c8a8a6426470ed29f550db3969fc1a23",
+ "delta": null,
+ "policy": {
+  "version": 1,
+  "strategy_doc": "Capacity before search. Prefer exact certificates over new heuristics. When a corridor is 1-40 um short, rip up the blocking net if its fanout is small; otherwise report infeasible instead of retrying.",
+  "operator_portfolio": [
+   "widen_narrow_tracks",
+   "clearance_chain",
+   "endpoint_attach",
+   "connect_unconnected"
+  ],
+  "plan_template": {
+   "escape_order": [
+    "maze",
+    "geomir",
+    "via_slot"
+   ],
+   "corridor_widths_mm": [
+    0.5,
+    1.0,
+    2.0
+   ],
+   "via_slot_radii_mm": [
+    0.3,
+    0.5,
+    0.8,
+    1.1,
+    1.5
+   ]
+  },
+  "budgets": {
+   "actions_per_board": 3,
+   "ripup_max": 8,
+   "replan_max": 4,
+   "maze_seconds": 30
+  },
+  "rationale_log": [],
+  "enabled_planning": true
+ },
+ "score_summary": {
+  "d3a": {
+   "clean": 89,
+   "n": 99,
+   "rate": 89.9,
+   "routing_clean": 89,
+   "routing_rate": 89.9
+  },
+  "d3b": {
+   "clean": 8,
+   "n": 10,
+   "rate": 80.0,
+   "routing_clean": 8,
+   "routing_rate": 80.0
+  },
+  "d3c": {
+   "clean": 4,
+   "n": 9,
+   "rate": 44.4,
+   "routing_clean": 4,
+   "routing_rate": 44.4
+  },
+  "all": {
+   "clean": 101,
+   "n": 118,
+   "rate": 85.6,
+   "routing_clean": 101,
+   "routing_rate": 85.6
+  }
+ },
+ "gate": null
+}

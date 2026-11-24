@@ -22,3 +22,11 @@ with its tracks and vias removed, pours and placement kept.
 `score.py` is the clean-pass check: `kicad-cli pcb drc` with the board's project, zones
 refilled, error severity; a board passes with no error and no unconnected item. Results:
 `results/pcbworld-2026-10/`.
+
+## fluxpcb runs (2026-11)
+
+The later 118-board fluxpcb runs add their scripts to this directory
+(`run_bench.py`, `full_round.py`, `score_runs.py`, `tri_round.py`, `redteam.py`
+and the negative controls) and keep their summaries in `results/`. See
+[FLUXPCB_RUNS.md](FLUXPCB_RUNS.md), including the correction to the
+three-round numbers before quoting them.
