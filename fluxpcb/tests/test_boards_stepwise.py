@@ -319,3 +319,30 @@ def test_an_open_is_repaired_operator_by_operator(tmp_path, registry):
     assert [(s['operator'], s['decision']) for s in out['steps']] == [
         ('connect_unconnected', 'commit')]
     assert _evaluate(path).total == 0
+
+
+def test_the_dev_loop_repairs_a_board_file_with_the_benchmark_stage(tmp_path):
+    """DevRouteLoop.repair_board is the benchmark's repair stage on a
+    file: a width finding and an open on one board come out of it
+    clean."""
+    import pcbnew
+
+    from fluxpcb.devloop import DevRouteLoop
+
+    path = str(tmp_path / 'loop.kicad_pcb')
+    _board(path)
+    b = pcbnew.LoadBoard(path)
+    for t in list(b.GetTracks()):
+        if t.GetNetCode() == b.FindNet('B').GetNetCode() and abs(t.GetStart().y / 1e6 - 11.0) < 1e-3:
+            b.Remove(t)                     # B loses its track: an open
+    pcbnew.SaveBoard(path, b)
+    loop = DevRouteLoop(board_state=None, design_plan=None)
+    out = loop.repair_board(path)
+    assert out['before']['total'] == 2 and out['before']['n_unconnected'] == 1, out
+    assert out['clean'], out
+    assert out['after']['total'] == 0
+    assert out['rounds']['committed'] >= 1
+    assert out['trim']['stage'] == 'trim'
+    ops = [op for e in out['rounds']['log']
+           for op in ((e.get('action') or {}).get('operators_run') or [])]
+    assert 'connect_unconnected' in ops and 'widen_narrow_tracks' in ops

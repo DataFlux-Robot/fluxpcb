@@ -12,6 +12,12 @@ Orchestrates:
   5. Component 8 (FeedbackRuntime) — feedback + repair
 
 Converges when opens==0 and shorts==0 and drc==0.
+
+`run` orchestrates the components (tasks, dispatch plans, a router that
+takes them).  A board FILE that came off any router is repaired by
+`repair_board`: the same stage the benchmark runs on every cell —
+transactional rounds of operator passes, then the stub trim — so a
+board is repaired the same way wherever it came from.
 """
 from __future__ import annotations
 
@@ -139,6 +145,56 @@ class DevRouteLoop:
         result.seconds = time.time() - t0
 
         return result
+
+    def repair_board(self, board_path: str, drc_json: str = None,
+                     rounds: int = 3, params=None, allowed_ops=None,
+                     trim: bool = True) -> dict:
+        """Repair a routed board file: the benchmark's repair stage.
+
+        Zone-refilled, DRC'd, then up to `rounds` rounds in which every
+        operator is judged on its own (repair_drc.repair_rounds), then
+        dangling stubs taken off (repair_drc.trim_dangling).  The DRC is
+        asked three times per evaluation and judged on the union
+        (verifiers.txn.steady).  The board file is changed in place;
+        nothing is kept that the DRC did not confirm.
+
+        Returns {'before', 'after', 'rounds', 'trim'} — the claims as
+        dicts and the two stage records — and 'clean': the board has no
+        error-severity finding and no open.
+        """
+        import pcbnew
+
+        from ..repair_drc import (no_assert_dialogs, repair_rounds,
+                                  run_drc, save_preserving_project,
+                                  trim_dangling)
+        from ..verifiers.params import OperatorParams
+        from ..verifiers.txn import claims_from_drc, steady
+
+        no_assert_dialogs()
+        drc_json = drc_json or board_path + '.drc.json'
+
+        def once(path):
+            b = pcbnew.LoadBoard(path)
+            pcbnew.ZONE_FILLER(b).Fill(b.Zones())
+            # the save must not rewrite the project: the DRC reads the
+            # board's own rules from it, in another process
+            save_preserving_project(b, path)
+            d = run_drc(path, drc_json)
+            if d.get('ok') is False:
+                raise RuntimeError(d.get('error', 'DRC report not ok'))
+            return claims_from_drc(d)
+
+        evaluate = steady(once)
+        before = evaluate(board_path)
+        rep = repair_rounds(board_path, drc_json, evaluate, rounds=rounds,
+                            params=params or OperatorParams(),
+                            allowed_ops=allowed_ops, initial=before)
+        stubs = (trim_dangling(board_path, drc_json, evaluate, initial=rep.last)
+                 if trim else None)
+        after = evaluate(board_path)
+        return {'before': before.as_dict(), 'after': after.as_dict(),
+                'rounds': rep.as_dict(), 'trim': stubs,
+                'clean': after.total == 0 and after.rule_congruent}
 
     def _repair(
         self,
