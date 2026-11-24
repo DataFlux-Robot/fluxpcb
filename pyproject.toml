@@ -23,6 +23,9 @@ include = ["fluxpcb*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "board: runs on real board fixtures and needs pcbnew and kicad-cli; skipped when the fixture set (FLUXPCB_FIXTURES) is not installed",
+]
 
 [tool.setuptools.package-data]
 fluxpcb = ["dashboard/static/*.html"]

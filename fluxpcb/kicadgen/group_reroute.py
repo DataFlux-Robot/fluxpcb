@@ -24,6 +24,7 @@ import random
 import pcbnew
 
 from . import geomir, routegrid as rg
+from .boardops import discard
 from .conflict import conflict_closure, without
 
 
@@ -129,10 +130,17 @@ def group_reroute(board, a, b, net_name, layer, trials=40, max_set=4,
                             'layer': layers.index(t.GetLayer()),
                             'width': t.GetWidth() / 1e6,
                             'orig': t})
+        # what stands in for the victims on the board right now: their
+        # original tracks first, then whatever the last restore put back
+        current = [v.pop('orig') for v in victims]
         rng = random.Random(seed)
         for trial in range(trials):
-            for v in victims:
-                board.Remove(v['orig'])
+            for t in current:
+                # the originals are tracks from the file and never come
+                # back as themselves (a failed trial puts NEW tracks back):
+                # see kicadgen/boardops.py
+                discard(board, t)
+            current = []
             made, ok = [], True
             target_pts = _route(board, a, b, nc, layer, layers, width, rt,
                                bounds)
@@ -157,20 +165,22 @@ def group_reroute(board, a, b, net_name, layer, trials=40, max_set=4,
             if ok:
                 return {'status': 'ok', 'set_size': len(rip),
                         'trial': trial, 'added': len(made), 'width': width}
-            # restore: new copper out, ripped tracks back with their
-            # original geometry
+            # restore: new copper out (it was created here, so Remove is
+            # fine), the victims back as new tracks with their original
+            # geometry
             for t in made:
                 board.Remove(t)
             for v in victims:
-                o = v['orig']
                 t = pcbnew.PCB_TRACK(board)
-                t.SetStart(o.GetStart())
-                t.SetEnd(o.GetEnd())
-                t.SetWidth(o.GetWidth())
-                t.SetLayer(o.GetLayer())
+                t.SetStart(pcbnew.VECTOR2I(int(round(v['a'][0] * 1e6)),
+                                           int(round(v['a'][1] * 1e6))))
+                t.SetEnd(pcbnew.VECTOR2I(int(round(v['b'][0] * 1e6)),
+                                         int(round(v['b'][1] * 1e6))))
+                t.SetWidth(int(round(v['width'] * 1e6)))
+                t.SetLayer(layers[v['layer']])
                 t.SetNetCode(v['net'])
                 board.Add(t)
-                v['orig'] = t
+                current.append(t)
         return {'status': 'infeasible', 'set_size': len(rip),
                 'trials': trials}
     except Exception as e:

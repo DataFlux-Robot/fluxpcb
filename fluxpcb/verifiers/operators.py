@@ -28,6 +28,8 @@ Usage:
 from __future__ import annotations
 
 import math
+import os
+import re
 import sys
 from dataclasses import dataclass, field
 from typing import Any, Optional
@@ -182,6 +184,182 @@ class Violation:
     # report (not defaulted).  Operators that compute floors/waivers must
     # not run on a fabricated 0.0.
     has_measurement: bool = False
+
+
+# DRC findings a widened track can induce: the new copper runs into
+# something the narrow one used to clear.
+_COPPER_CONFLICTS = ('clearance', 'shorting_items', 'hole_clearance',
+                     'copper_edge_clearance', 'hole_to_hole')
+
+# kicad-cli speaks the system language: the same finding arrives as
+# "Clearance 0.2000 mm; actual 0.1795 mm" or "间距 0.2000 mm; 实际 0.1795 mm",
+# and a width finding as "min width" or "最小宽度".
+_REQ_PATTERNS = (r'clearance\s*[:=]?\s*([0-9.]+)\s*mm',
+                 r'间距\s*[:=]?\s*([0-9.]+)\s*mm',
+                 r'min(?:imum)?\s*width\s*[:=]?\s*([0-9.]+)\s*mm',
+                 r'最小宽度\s*[:=]?\s*([0-9.]+)\s*mm')
+_ACT_PATTERNS = (r'actual\s*[:=]?\s*([0-9.]+)\s*mm',
+                 r'实际\s*[:=]?\s*([0-9.]+)\s*mm')
+
+
+def _measure_from_description(desc: str) -> tuple:
+    """(required_mm, actual_mm) from a DRC description in either language.
+
+    (None, None) when the text does not say: a missing number stays
+    missing, it is never read as 0.
+    """
+    req = act = None
+    for pat in _REQ_PATTERNS:
+        m = re.search(pat, desc or '', re.I)
+        if m:
+            req = float(m.group(1))
+            break
+    for pat in _ACT_PATTERNS:
+        m = re.search(pat, desc or '', re.I)
+        if m:
+            act = float(m.group(1))
+            break
+    return req, act
+
+
+def _item_kind(desc: str) -> str:
+    d = (desc or '').lower()
+    if '过孔' in desc or 'via' in d:
+        return 'via'
+    if '焊盘' in desc or 'pad' in d:
+        return 'pad'
+    if '走线' in desc or '线段' in desc or 'track' in d or 'segment' in d:
+        return 'track'
+    return 'other'
+
+
+def _item_net(desc: str) -> str:
+    """The net a DRC item names: '过孔 [/SDA] (F.Cu - B.Cu)' -> '/SDA'."""
+    m = re.search(r'\[([^\]]*)\]', desc or '')
+    return m.group(1) if m else ''
+
+
+def _near(p, q, tol=0.002):
+    return math.hypot(p[0] - q[0], p[1] - q[1]) <= tol
+
+
+def _track_chain(board, t, tol_um=2.0):
+    """The simple path of same-net, same-layer tracks through `t`.
+
+    Returns (tracks, a, b): the path's tracks and its two terminals in
+    mm, or ([], None, None) when the track is not part of such a path.
+    A terminal is where the path meets copper that stays — a pad, a via,
+    or a junction where other same-net tracks continue — and those are
+    the anchors a re-plan has to keep.  A dangling end, a loop, or a
+    branch attached mid-track is not a path this can lift.
+    """
+    nc, lid = t.GetNetCode(), t.GetLayer()
+    tol = tol_um * 1000
+    others = [o for o in board.GetTracks()
+              if o is not t and type(o).__name__ != 'PCB_VIA'
+              and o.GetNetCode() == nc and o.GetLayer() == lid]
+    vias = [v for v in board.GetTracks() if type(v).__name__ == 'PCB_VIA']
+    pads = [(p.GetNetCode(), p.GetBoundingBox())
+            for fp in board.GetFootprints() for p in fp.Pads()]
+
+    def same(p, q):
+        return abs(p.x - q.x) <= tol and abs(p.y - q.y) <= tol
+
+    def anchored(pt):
+        for pn, bb in pads:
+            if (pn == nc and bb.GetLeft() <= pt.x <= bb.GetRight()
+                    and bb.GetTop() <= pt.y <= bb.GetBottom()):
+                return True
+        return any(same(v.GetPosition(), pt) for v in vias)
+
+    chain, skip = [t], {t.m_Uuid.AsString()}
+    terms = []
+    for pt in (t.GetStart(), t.GetEnd()):
+        cur = pt
+        for _ in range(60):
+            if anchored(cur):
+                break
+            nxt = [o for o in others if o.m_Uuid.AsString() not in skip
+                   and (same(o.GetStart(), cur) or same(o.GetEnd(), cur))]
+            if not nxt:
+                return [], None, None          # a dangling end
+            if len(nxt) > 1:
+                break                          # a junction: copper that stays
+            skip.add(nxt[0].m_Uuid.AsString())
+            chain.append(nxt[0])
+            cur = nxt[0].GetEnd() if same(nxt[0].GetStart(), cur) else nxt[0].GetStart()
+        else:
+            return [], None, None
+        terms.append((cur.x / 1e6, cur.y / 1e6))
+    # A branch that ends in the MIDDLE of a path track relies on that
+    # track staying where it is.
+    for o in others:
+        if o.m_Uuid.AsString() in skip:
+            continue
+        for c in chain:
+            s, e = c.GetStart(), c.GetEnd()
+            for p in (o.GetStart(), o.GetEnd()):
+                d = _pt_seg((p.x, p.y), (s.x, s.y), (e.x, e.y))
+                if d <= tol and not (same(p, s) or same(p, e)):
+                    return [], None, None
+    return chain, terms[0], terms[1]
+
+
+def _pt_seg(p, a, b):
+    """Distance from point p to segment ab (nm, as given)."""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    l2 = dx * dx + dy * dy
+    if l2 == 0:
+        return math.hypot(p[0] - a[0], p[1] - a[1])
+    t = max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2))
+    return math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy)
+
+
+def _restore_chain(board, rec):
+    """Undo a re-plan: the new copper out, the lifted path back as it was
+    (a track that was a suspect goes back to its narrow width)."""
+    import pcbnew
+
+    for tr in rec['created']:
+        try:
+            board.Remove(tr)
+        except Exception:
+            pass
+    for (sx, sy, ex, ey, w, uid, layer, net) in rec['chain']:
+        try:
+            o = pcbnew.PCB_TRACK(board)
+            o.SetStart(pcbnew.VECTOR2I(sx, sy))
+            o.SetEnd(pcbnew.VECTOR2I(ex, ey))
+            o.SetWidth(rec['narrow'].get(uid, w))
+            o.SetLayer(layer)
+            o.SetNetCode(net)
+            board.Add(o)
+        except Exception:
+            pass
+
+
+def _widen_certificate(fact, min_w_um, violations, tried):
+    """Why a narrow track stayed narrow: the conflict the DRC measured.
+
+    `fact` describes the track as it was before anything moved, so the
+    record does not depend on an object the board may since have replaced.
+    """
+    from .certs import cert_entry
+    v = (violations or [{}])[0] or {}
+    req, act = _measure_from_description(v.get('description') or '')
+    others = [i for i in v.get('items') or []
+              if str(i.get('uuid') or '') != fact['uuid']]
+    d = (others[0].get('description') or '') if others else ''
+    blocker = {'kind': _item_kind(d), 'net': _item_net(d),
+               'conflicts': len(violations or [])}
+    if req is not None and act is not None:
+        blocker['short_by_mm'] = round(req - act, 4)
+    return cert_entry(
+        'widen_narrow_tracks', {'net': fact['net'], 'pos': fact['pos']},
+        'verify_rejected', why_not={'blocker': blocker},
+        attempt={'class': 'track_width', 'from_mm': fact['w'],
+                 'to_mm': min_w_um / 1e6, 'tried': list(tried)},
+        requirement={'clearance_mm': req})
 
 
 class RepairOperators:
@@ -1444,17 +1622,23 @@ class RepairOperators:
         """Widen tracks below the board's minimum track width.
 
         Morphology: track_width violations (actual < required).
-        Mechanism: SetWidth(min_width) if the widened swept area passes the
-        clearance check against every other-net item on the layer.
-        Verification: re-run DRC — track_width violations disappear without
-        new clearance violations.
+        Mechanism: SetWidth(min_width) — on the tracks the board allows.
 
-        Args:
-            board: pcbnew.BOARD
-            violations: optional list of track_width violations
+        WHICH tracks the board allows is measured, not predicted.  A
+        cheap geometric check only flags the tracks that might conflict;
+        those few are confirmed with one run of the real DRC, and a
+        confirmed conflict is settled in place — by sliding the track
+        within its own-net copper, or by re-planning its connection at
+        the full width — instead of costing the whole batch.
 
-        Returns:
-            RepairResult with widened count
+        Why: with the blind widen alone, two tracks 8 µm too close to a
+        pad made the transaction reject the widening of all nine narrow
+        tracks on 0400; with the geometric check alone, widenings the DRC
+        accepts were refused and three other boards failed.  A prediction
+        is wrong in one direction or the other; measuring the suspects
+        is wrong in neither, and costs a DRC run only where there are any.
+
+        Verification: the DRC run here, then the transaction's own.
         """
         result = RepairResult(operator="widen_narrow_tracks")
 
@@ -1476,19 +1660,15 @@ class RepairOperators:
             result.notes.append("pcbnew unavailable")
             return result
 
-        # Collect same-layer copper for the clearance re-check
-        _sd = self._segment_distance
-
-        # Pads are obstacles too (a widen that clears tracks can still eat a
-        # pad); same-net pads are NOT obstacles -- copper merges.
+        # Fixed copper a widened track can run into.  Pads by bounding
+        # box (a conservative over-estimate for round and oval shapes);
+        # same-net pads are NOT obstacles, copper merges.
         pad_boxes = []       # (left, top, right, bottom, layer, netcode)
         same_net_boxes = {}  # netcode -> axis-aligned boxes
+        vias = []            # (x, y, radius, netcode, via)
         try:
             for fp in board.GetFootprints():
                 for pad in fp.Pads():
-                    p = pad.GetPosition()
-                    sz = pad.GetSize()
-                    r = max(sz.x, sz.y) / 2e6
                     bb = pad.GetBoundingBox()
                     box = (bb.GetLeft() / 1e6, bb.GetTop() / 1e6,
                            bb.GetRight() / 1e6, bb.GetBottom() / 1e6)
@@ -1499,8 +1679,22 @@ class RepairOperators:
                                 pad_boxes.append((*box, lid, pad.GetNetCode()))
                         except Exception:
                             continue
+            # The pre-check used to ignore vias, so a track about to run
+            # into one was never even flagged (0054: a widened /SCL track
+            # 20 µm from an /SDA via).
+            for v in board.GetTracks():
+                if type(v).__name__ == 'PCB_VIA':
+                    c = v.GetPosition()
+                    # NOT v.GetWidth() here: a KiCad 10 via carries one
+                    # width per layer, and the no-layer call raises an
+                    # assertion DIALOG that no headless run ever dismisses
+                    # (every cell that had a via hung to its budget).  The
+                    # width is read per layer in the check itself.
+                    vias.append((c.x / 1e6, c.y / 1e6, v.GetNetCode(), v))
         except Exception:
             pass
+
+        _sd = self._segment_distance
 
         def _in_same_net(x, y, nc):
             for (l, t, r, b) in same_net_boxes.get(nc, []):
@@ -1508,19 +1702,18 @@ class RepairOperators:
                     return True
             return False
 
-        def _supported(tr, x, y, nc):
-            """Is this point electrically held by same-net copper?
-
-            A pad counts if the point is inside its box; a track counts if the
-            point lies within half its width of its centreline.  A stub may be
-            slid only while both ends stay supported.
-            """
+        def _supported(x, y, nc, skip):
+            """Is this point electrically held by same-net copper other
+            than `skip`?  A pad counts if the point is inside its box; a
+            track counts if the point lies within half its width of its
+            centreline.  A track may be slid only while both ends stay
+            supported."""
             if _in_same_net(x, y, nc):
                 return True
             if _sd is None:
                 return False
             for o in tracks:
-                if o is tr or o.GetNetCode() != nc:
+                if o is skip or o.GetNetCode() != nc:
                     continue
                 os_, oe = o.GetStart(), o.GetEnd()
                 d = _sd(x, y, x, y, os_.x / 1e6, os_.y / 1e6,
@@ -1544,12 +1737,23 @@ class RepairOperators:
                             oe.x / 1e6, oe.y / 1e6)
                     if d < need + o.GetWidth() / 2e6:
                         return False
+                for (cx, cy, vnc, via) in vias:
+                    if vnc == nc:
+                        continue
+                    try:
+                        if not via.IsOnLayer(lid):
+                            continue
+                        vr = via.GetWidth(lid) / 2e6      # this layer's width
+                    except Exception:
+                        continue
+                    if _sd(x1, y1, x2, y2, cx, cy, cx, cy) < need + vr:
+                        return False
                 for (l, tp, r, bt, plid, pnc) in pad_boxes:
                     if plid != lid or pnc == nc:
                         continue
-                    # Exact distance to the pad's rectangle: the old circle
-                    # (radius = max(size)/2) turned a 1.85x0.45 mm pad into a
-                    # 0.925 mm disc and refused legal widenings.
+                    # Distance to the pad's rectangle: the old circle
+                    # (radius = max(size)/2) turned a 1.85x0.45 mm pad into
+                    # a 0.925 mm disc and refused legal widenings.
                     if l <= x1 <= r and tp <= y1 <= bt:
                         return False
                     if l <= x2 <= r and tp <= y2 <= bt:
@@ -1569,90 +1773,515 @@ class RepairOperators:
         except Exception:
             pass
 
-        widened = 0
-        nudged = 0
-        refused = 0
+        # (track, original width in µm, predicted clear)
+        narrow = []
         for t in tracks:
             try:
                 w_um = t.GetWidth()
                 if w_um >= min_w_um:
                     continue
                 s, e = t.GetStart(), t.GetEnd()
-                x1, y1 = s.x / 1e6, s.y / 1e6
-                x2, y2 = e.x / 1e6, e.y / 1e6
-                nc = t.GetNetCode()
-
-                if self.blind_widen:
-                    t.SetWidth(min_w_um)
-                    widened += 1
-                    continue
-                if _clear(t, x1, y1, x2, y2):
-                    t.SetWidth(min_w_um)
-                    widened += 1
-                    continue
-
-                # Blocked in place.  If both endpoints sit inside same-net
-                # pads, the stub may be translated perpendicular to its
-                # direction without breaking connectivity; search for a
-                # position where the widened sweep is legal.
-                moved = False
-                if _supported(t, x1, y1, nc) and _supported(t, x2, y2, nc):
-                    import pcbnew as _pcb
-                    dx, dy = x2 - x1, y2 - y1
-                    L = math.hypot(dx, dy)
-                    if L > 1e-9:
-                        px, py = -dy / L, dx / L
-                        for dist in (0.005, 0.01, 0.02, 0.03, 0.05, 0.08, 0.12):
-                            for sgn in (1, -1):
-                                nx1, ny1 = x1 + sgn * px * dist, y1 + sgn * py * dist
-                                nx2, ny2 = x2 + sgn * px * dist, y2 + sgn * py * dist
-                                if not (_supported(t, nx1, ny1, nc)
-                                        and _supported(t, nx2, ny2, nc)):
-                                    continue
-                                if _clear(t, nx1, ny1, nx2, ny2):
-                                    t.SetStart(_pcb.VECTOR2I(int(round(nx1 * 1e6)),
-                                                            int(round(ny1 * 1e6))))
-                                    t.SetEnd(_pcb.VECTOR2I(int(round(nx2 * 1e6)),
-                                                          int(round(ny2 * 1e6))))
-                                    t.SetWidth(min_w_um)
-                                    widened += 1
-                                    nudged += 1
-                                    moved = True
-                                    break
-                            if moved:
-                                break
-                if not moved:
-                    refused += 1
+                clear = _clear(t, s.x / 1e6, s.y / 1e6, e.x / 1e6, e.y / 1e6)
+                narrow.append((t, w_um, clear))
             except Exception:
                 continue
 
-        # Also widen any zero-length stubs that slipped through
+        widened = nudged = replanned = pushed = refused = suspects_n = 0
+        measured = False
+
+        def _slide(t):
+            """Both ends on same-net copper: the track may be moved
+            perpendicular to itself without breaking connectivity.  The
+            first offset where the widened sweep is legal, or None."""
+            s, e = t.GetStart(), t.GetEnd()
+            x1, y1, x2, y2 = s.x / 1e6, s.y / 1e6, e.x / 1e6, e.y / 1e6
+            nc = t.GetNetCode()
+            if not (_supported(x1, y1, nc, t) and _supported(x2, y2, nc, t)):
+                return None
+            dx, dy = x2 - x1, y2 - y1
+            L = math.hypot(dx, dy)
+            if L <= 1e-9:
+                return None
+            px, py = -dy / L, dx / L
+            for dist in (0.005, 0.01, 0.02, 0.03, 0.05, 0.08, 0.12):
+                for sgn in (1, -1):
+                    nx1, ny1 = x1 + sgn * px * dist, y1 + sgn * py * dist
+                    nx2, ny2 = x2 + sgn * px * dist, y2 + sgn * py * dist
+                    if not (_supported(nx1, ny1, nc, t)
+                            and _supported(nx2, ny2, nc, t)):
+                        continue
+                    if _clear(t, nx1, ny1, nx2, ny2):
+                        return (nx1, ny1, nx2, ny2)
+            return None
+
+        def _place(t, pos):
+            nx1, ny1, nx2, ny2 = pos
+            t.SetStart(pcbnew.VECTOR2I(int(round(nx1 * 1e6)),
+                                       int(round(ny1 * 1e6))))
+            t.SetEnd(pcbnew.VECTOR2I(int(round(nx2 * 1e6)),
+                                     int(round(ny2 * 1e6))))
+
+        def _push_via(t, uid, short_mm):
+            """A via in a widened track's way can step aside: the tracks
+            that end on it stay inside its copper.  The first offset past
+            the shortfall, away from the track, where the via clears every
+            other-net item on every layer it spans.
+
+            Returns (via, new position, old position) in mm, or None.
+            """
+            via = next((v for (_x, _y, _n, v) in vias
+                        if v.m_Uuid.AsString() == uid), None)
+            if via is None or _sd is None:
+                return None
+            c = via.GetPosition()
+            vx, vy = c.x / 1e6, c.y / 1e6
+            s, e = t.GetStart(), t.GetEnd()
+            ax, ay, bx, by = s.x / 1e6, s.y / 1e6, e.x / 1e6, e.y / 1e6
+            dx, dy = bx - ax, by - ay
+            l2 = dx * dx + dy * dy
+            k = (0.0 if l2 == 0 else max(0.0, min(
+                1.0, ((vx - ax) * dx + (vy - ay) * dy) / l2)))
+            ux, uy = vx - (ax + k * dx), vy - (ay + k * dy)
+            L = math.hypot(ux, uy)
+            if L <= 1e-9:
+                return None
+            ux, uy = ux / L, uy / L
+            vnc = via.GetNetCode()
+            need = self._board_rules.get('min_clearance', 0.0)
+            lids = []
+            try:
+                lids = [lid for lid in board.GetEnabledLayers().CuStack()
+                        if via.IsOnLayer(lid)]
+            except Exception:
+                return None
+
+            def radius(layer):
+                try:
+                    return via.GetWidth(layer) / 2e6    # per layer, KiCad 10
+                except Exception:
+                    return None
+
+            def legal(px, py):
+                for lid in lids:
+                    vr = radius(lid)
+                    if vr is None:
+                        return False
+                    for o in tracks:
+                        if o.GetNetCode() == vnc or o.GetLayer() != lid:
+                            continue
+                        os_, oe = o.GetStart(), o.GetEnd()
+                        if _sd(px, py, px, py, os_.x / 1e6, os_.y / 1e6,
+                               oe.x / 1e6, oe.y / 1e6) < need + vr + o.GetWidth() / 2e6:
+                            return False
+                    for (l, tp, r, bt, plid, pnc) in pad_boxes:
+                        if plid != lid or pnc == vnc:
+                            continue
+                        if math.hypot(max(l - px, 0.0, px - r),
+                                      max(tp - py, 0.0, py - bt)) < need + vr:
+                            return False
+                    for (cx, cy, onc, ov) in vias:
+                        if onc == vnc or ov is via:
+                            continue
+                        try:
+                            if not ov.IsOnLayer(lid):
+                                continue
+                            orad = ov.GetWidth(lid) / 2e6
+                        except Exception:
+                            continue
+                        if math.hypot(cx - px, cy - py) < need + vr + orad:
+                            return False
+                return True
+
+            for extra in (0.005, 0.01, 0.02, 0.03, 0.05):
+                for sgn in (1, -1):          # away from the track first
+                    px = vx + sgn * ux * (short_mm + extra)
+                    py = vy + sgn * uy * (short_mm + extra)
+                    if legal(px, py):
+                        return via, (px, py), (vx, vy)
+            return None
+
+        if self.blind_widen:
+            for t, w_um, clear in narrow:
+                t.SetWidth(min_w_um)
+                widened += 1
+            suspects = [(t, w_um) for t, w_um, clear in narrow if not clear]
+            suspects_n = len(suspects)
+            if suspects and self.params.widen_measure:
+                settled = self._settle_widen(board, suspects, min_w_um,
+                                             violations, _slide, _place, _push_via)
+                measured = settled['measured']
+                nudged = settled['slid']
+                pushed = settled['pushed']
+                replanned = settled['replanned']
+                refused = settled['refused']
+        else:
+            # The checked path, kept as the control: widen what the
+            # geometric check passes, slide what it can, refuse the rest.
+            for t, w_um, clear in narrow:
+                if clear:
+                    t.SetWidth(min_w_um)
+                    widened += 1
+                    continue
+                pos = _slide(t)
+                if pos is not None:
+                    _place(t, pos)
+                    t.SetWidth(min_w_um)
+                    widened += 1
+                    nudged += 1
+                else:
+                    refused += 1
+
         result.repaired_count = widened
         result.failed_count = refused
-        result.success = widened > 0
-        if widened:
-            result.notes.append(
-                f"widened {widened} tracks to {min_w:.3f}mm "
-                f"({refused} refused: clearance)"
-            )
-            self._ledger.append({
-                'operator': 'widen_narrow_tracks',
-                'widened': widened,
-                'nudged': nudged,
-                'refused': refused,
-                'target_mm': min_w,
-            })
-        else:
-            result.notes.append(f"no tracks below {min_w:.3f}mm to widen")
-
-        result.certificate = {
+        result.success = widened > refused or replanned > 0
+        cert = {
             'operator': 'widen_narrow_tracks',
             'widened': widened,
             'nudged': nudged,
+            'vias_pushed': pushed,
+            'replanned': replanned,
             'refused': refused,
+            'suspects': suspects_n,
+            'measured': measured,
             'target_mm': min_w,
         }
+        result.certificate = cert
+        if widened:
+            result.notes.append(
+                f"widened {widened} tracks to {min_w:.3f}mm "
+                f"({nudged} slid, {pushed} vias pushed, {replanned} re-planned, "
+                f"{refused} refused)")
+            self._ledger.append({k: v for k, v in cert.items() if k != 'measured'})
+        else:
+            result.notes.append(f"no tracks below {min_w:.3f}mm to widen")
+
         return result
+
+    def _drc_errors(self, board, tag='widen'):
+        """The board as it is in memory, judged by the real DRC.
+
+        Zones are refilled first (the transaction's evaluation does the
+        same) and the board is saved with its project file preserved, so
+        the DRC still reads the board's own rules.  Returns the error-
+        severity, non-excluded findings, or None when the DRC could not
+        run: a measurement that failed is not "no findings".
+        """
+        from ..repair_drc import run_drc, save_preserving_project
+        path = board.GetFileName()
+        if not path or not os.path.exists(path):
+            return None
+        try:
+            import pcbnew
+            pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+            save_preserving_project(board, path)
+        except Exception:
+            return None
+        d = run_drc(path, path + f'.{tag}.drc.json')
+        if not d.get('ok'):
+            return None
+        return [v for v in d.get('violations') or []
+                if v.get('severity') == 'error' and not v.get('excluded')]
+
+    def _settle_widen(self, board, suspects, min_w_um, violations, slide, place,
+                      push_via):
+        """Measure the tracks a blind widening flagged; settle the real conflicts.
+
+        suspects: [(track, original width in µm)], already widened.  A
+        conflict is real when the DRC reports a finding the board did not
+        have before and that names a suspect.  Each real conflict is
+        settled in the order that moves the least: slide the track within
+        its own-net copper; step the blocking via aside; re-plan the
+        connection at the full width.  What cannot be settled goes back
+        to its narrow width — a width finding, which is where the board
+        was — with its blocker on record.  Whatever was moved is measured
+        a second time and undone if it still conflicts.
+        """
+        import pcbnew
+        out = {'measured': False, 'slid': 0, 'pushed': 0, 'replanned': 0,
+               'refused': 0}
+        by_id = {t.m_Uuid.AsString(): (t, w) for t, w in suspects}
+        facts = {}
+        for uid, (t, w) in by_id.items():
+            s = t.GetStart()
+            facts[uid] = {'uuid': uid, 'net': t.GetNetname(),
+                          'pos': [s.x / 1e6, s.y / 1e6], 'w': w / 1e6}
+        narrow = {uid: w for uid, (t, w) in by_id.items()}
+        tries = (('slide', 'via', 'replan') if self.params.widen_replan
+                 else ('slide', 'via'))
+
+        def uuids(v):
+            """The item uuids of a finding — a raw DRC record, or a
+            Violation as parse_violations returns them (the caller's
+            `violations` are those)."""
+            items = (v.get('items') if isinstance(v, dict)
+                     else getattr(v, 'items', None)) or []
+            return {str(i.get('uuid') or '') for i in items if isinstance(i, dict)}
+
+        def other_item(v, uid):
+            """(uuid, kind) of the finding's other item, if there is one."""
+            for i in v.get('items') or []:
+                u = str(i.get('uuid') or '')
+                if u and u != uid:
+                    return u, _item_kind(i.get('description') or '')
+            return None
+
+        def shortfall(v):
+            req, act = _measure_from_description(v.get('description') or '')
+            return None if req is None or act is None else req - act
+
+        pre = {frozenset(uuids(v)) for v in violations or []
+               if v.type in _COPPER_CONFLICTS}
+
+        found = self._drc_errors(board, 'widen')
+        if found is None:
+            # No measurement available: fall back to the prediction,
+            # which leaves the board no worse than it was.
+            for uid, (t, w) in by_id.items():
+                pos = slide(t)
+                if pos is None:
+                    t.SetWidth(w)
+                    out['refused'] += 1
+                    self._ledger.append(_widen_certificate(
+                        facts[uid], min_w_um, [], tries))
+                else:
+                    place(t, pos)
+                    out['slid'] += 1
+            return out
+        out['measured'] = True
+
+        offenders = {}
+        for v in found:
+            u = uuids(v)
+            if frozenset(u) in pre:
+                continue                     # the board had it already
+            for uid in by_id:
+                if uid in u:
+                    offenders.setdefault(uid, []).append(v)
+
+        settled = []
+        for uid, vs in offenders.items():
+            t, w = by_id[uid]
+            pos = slide(t)
+            if pos is not None:
+                s, e = t.GetStart(), t.GetEnd()
+                place(t, pos)
+                settled.append(('slide', {'t': t, 'w': w, 'fact': facts[uid],
+                                          'names': {uid},
+                                          'old': (s.x, s.y, e.x, e.y)}))
+                out['slid'] += 1
+                continue
+            # The track cannot move: can the via in its way?
+            pushed = None
+            if len(vs) == 1:
+                other = other_item(vs[0], uid)
+                short = shortfall(vs[0])
+                if other and other[1] == 'via' and short is not None:
+                    pushed = push_via(t, other[0], short)
+            if pushed is not None:
+                via, new, old = pushed
+                via.SetPosition(pcbnew.VECTOR2I(int(round(new[0] * 1e6)),
+                                                int(round(new[1] * 1e6))))
+                settled.append(('via', {'via': via, 'old': old, 't': t, 'w': w,
+                                        'fact': facts[uid],
+                                        'names': {uid, via.m_Uuid.AsString()}}))
+                out['pushed'] += 1
+                continue
+            rec = (self._replan_chain(board, t, min_w_um, narrow)
+                   if self.params.widen_replan else None)
+            if rec is not None:
+                settled.append(('replan', {
+                    'rec': rec, 'fact': facts[uid],
+                    'names': {x.m_Uuid.AsString() for x in rec['created']}}))
+                out['replanned'] += 1
+                continue
+            if not self.params.widen_replan:
+                t.SetWidth(w)
+            # else: the failed re-plan already put the path back as new
+            # tracks, this one at its narrow width; `t` itself is gone
+            # from the board and must not be touched again
+            out['refused'] += 1
+            self._ledger.append(_widen_certificate(facts[uid], min_w_um, vs, tries))
+
+        if settled:
+            after = self._drc_errors(board, 'widen2')
+            if after is not None:
+                bad = set()
+                for v in after:
+                    u = uuids(v)
+                    if frozenset(u) not in pre:
+                        bad |= u
+                for kind, s in settled:
+                    hits = [v for v in after if uuids(v) & s['names']]
+                    if not any(uuids(v) & bad for v in hits):
+                        continue
+                    if kind == 'slide':
+                        old = s['old']
+                        s['t'].SetStart(pcbnew.VECTOR2I(old[0], old[1]))
+                        s['t'].SetEnd(pcbnew.VECTOR2I(old[2], old[3]))
+                        s['t'].SetWidth(s['w'])
+                        out['slid'] -= 1
+                    elif kind == 'via':
+                        old = s['old']
+                        s['via'].SetPosition(pcbnew.VECTOR2I(
+                            int(round(old[0] * 1e6)), int(round(old[1] * 1e6))))
+                        s['t'].SetWidth(s['w'])
+                        out['pushed'] -= 1
+                    else:
+                        _restore_chain(board, s['rec'])
+                        out['replanned'] -= 1
+                    out['refused'] += 1
+                    self._ledger.append(_widen_certificate(
+                        s['fact'], min_w_um, hits, tries + ('confirm',)))
+        return out
+
+    def _replan_chain(self, board, t, min_w_um, narrow):
+        """Re-plan, at the full width, the connection a narrow track is part of.
+
+        The track is one piece of a simple path between two anchors.  The
+        path is lifted, planned again from anchor to anchor at the
+        required width, on the same layer, against the remaining copper;
+        every new segment is verified exactly; and the two anchors must
+        still be connected afterwards.  If any step fails the path is put
+        back as it was.
+
+        Returns a record for undoing the change, or None.
+        """
+        from pathlib import Path
+
+        from ..kernel.rules import load_rules
+        try:
+            import pcbnew
+
+            from ..kicadgen import geomir, microroute, routegrid as rg
+            from ..kicadgen.boardops import discard
+        except Exception:
+            return None
+        record, keep = None, False
+        try:
+            layers = rg.signal_layer_ids(board)
+            li = layers.index(t.GetLayer())
+            nc = t.GetNetCode()
+            chain, a, b = _track_chain(board, t)
+            if a is None or b is None or _near(a, b) or len(chain) > 60:
+                return None
+            segs, rects = geomir.extract_objects(board, layers)
+            rt = verifier_rules(load_rules(Path(board.GetFileName())),
+                                self.params.pad_clearance_strict)
+            bb = board.GetBoardEdgesBoundingBox()
+            bounds = (bb.GetLeft() / 1e6, bb.GetTop() / 1e6,
+                      bb.GetRight() / 1e6, bb.GetBottom() / 1e6)
+            width = min_w_um / 1e6
+            lifted = [(c.GetStart().x, c.GetStart().y, c.GetEnd().x, c.GetEnd().y,
+                       c.GetWidth(), c.m_Uuid.AsString(), c.GetLayer(), c.GetNetCode())
+                      for c in chain]
+
+            def is_chain(g):
+                if g[0] != nc:
+                    return False
+                p, q = g[1], g[2]
+                for (sx, sy, ex, ey, _w, _u, _l, _n) in lifted:
+                    s_pt, e_pt = (sx / 1e6, sy / 1e6), (ex / 1e6, ey / 1e6)
+                    if ((_near(p, s_pt) and _near(q, e_pt))
+                            or (_near(p, e_pt) and _near(q, s_pt))):
+                        return True
+                return False
+
+            segs_wo = list(segs)
+            segs_wo[li] = [g for g in segs[li] if not is_chain(g)]
+            record = {'created': [], 'chain': lifted,
+                      'narrow': {u: w for (u, w) in narrow.items()
+                                 if u in {x[5] for x in lifted}}}
+            for c in chain:
+                # from the file, never coming back (a failed re-plan puts
+                # NEW tracks back): see kicadgen/boardops.py
+                discard(board, c)
+            plans, _ = geomir.plan_paths(
+                a, b, width, nc, segs_wo, rects, bounds=bounds,
+                width_ladder=(width,), rules=rt, planes_by_layer=None)
+            cands = [[list(p) for p in pl['pts']] for pl in plans
+                     if int(pl['pts'][0][2]) == li
+                     and int(pl['pts'][-1][2]) == li]
+            for attempt in (0, 1):
+                if attempt == 1:
+                    # geomir proposes shapes with offsets of half a
+                    # millimetre and up.  A corridor a few tens of
+                    # microns wide (0054: a 0.2 mm track between two
+                    # vias, 0.06 mm to spare) takes a grid fine enough to
+                    # see it — searched here, in this window only.
+                    fine = microroute.plan_local(
+                        a, b, width, nc, segs_wo[li], rects[li], rt,
+                        margin=0.45)
+                    if fine is None:
+                        return None
+                    cands = [[[p[0], p[1], li] for p in fine['pts']]]
+                while cands and not record['created']:
+                    self._draw_path(board, cands.pop(0), a, b, width,
+                                    min_w_um, nc, li, layers, segs_wo,
+                                    rects, rt, record)
+                if record['created']:
+                    break
+            if not record['created']:
+                return None
+            try:
+                if not rg.pair_connected(board, {'nc': nc, 'a': a, 'b': b}):
+                    return None
+            except Exception:
+                pass                          # the DRC will say if it is open
+            keep = True
+            return record
+        except Exception:
+            return None
+        finally:
+            # every exit but success puts the lifted path back, exactly once
+            if record is not None and not keep:
+                _restore_chain(board, record)
+
+    def _draw_path(self, board, pts, a, b, width, width_um, nc, li, layers,
+                   segs_wo, rects, rt, record):
+        """Snap a candidate to its anchors, verify each segment exactly,
+        draw it.  On any failure the segments this call added are taken
+        back off the board and False is returned."""
+        from ..kicadgen import geomir
+        try:
+            import pcbnew
+        except Exception:
+            return False
+        made, keep = [], False
+        try:
+            pts = [list(p) for p in pts]
+            pts[0][0], pts[0][1] = a
+            pts[-1][0], pts[-1][1] = b
+            for p, q in zip(pts, pts[1:]):
+                if abs(p[0] - q[0]) < 1e-6 and abs(p[1] - q[1]) < 1e-6:
+                    continue
+                good, _ = geomir.verify_polyline(
+                    [(p[0], p[1]), (q[0], q[1])], width, nc,
+                    segs_wo[li], rects[li], rt)
+                if not good:
+                    return False
+                tr = pcbnew.PCB_TRACK(board)
+                tr.SetStart(pcbnew.VECTOR2I(int(round(p[0] * 1e6)),
+                                            int(round(p[1] * 1e6))))
+                tr.SetEnd(pcbnew.VECTOR2I(int(round(q[0] * 1e6)),
+                                          int(round(q[1] * 1e6))))
+                tr.SetWidth(width_um)
+                tr.SetLayer(layers[li])
+                tr.SetNetCode(nc)
+                board.Add(tr)
+                made.append(tr)
+                record['created'].append(tr)
+            keep = bool(made)
+            return keep
+        except Exception:
+            return False
+        finally:
+            if not keep and made:
+                for tr in made:
+                    try:
+                        board.Remove(tr)
+                    except Exception:
+                        pass
+                record['created'] = [x for x in record['created'] if x not in made]
 
     # ══════════════════════════════════════════════════════════════════
     # Dispatch: select operator by violation morphology
@@ -1768,6 +2397,7 @@ class RepairOperators:
             from pathlib import Path
 
             from ..kicadgen import geomir, routegrid as rg
+            from ..kicadgen.boardops import discard
             from ..kernel.rules import load_rules
         except Exception as e:
             result.notes.append(f"geomir unavailable: {e}")
@@ -1803,7 +2433,9 @@ class RepairOperators:
             width = max(floor, t.GetWidth() / 1e6)
             width_iu = int(t.GetWidth())
             nc = t.GetNetCode()
-            board.Remove(t)
+            # a track from the file, never coming back (a failed reroute
+            # puts a NEW track back): see kicadgen/boardops.py
+            discard(board, t)
             try:
                 segs, rects = geomir.extract_objects(board, layers)
                 rt = verifier_rules(load_rules(Path(board.GetFileName())),

@@ -233,3 +233,15 @@ def test_loaded_project_files_reports_only_project_code(ws):
         del sys.modules['fake_proj_mod'], sys.modules['fake_std_mod']
     assert c._norm(fake.__file__) in loaded
     assert all('test_codefp.py' not in p for p in loaded)
+
+
+def test_a_package_directory_on_sys_path_does_not_loop(ws, monkeypatch):
+    """The suite itself puts fluxpcb/kicadgen on sys.path; from then on
+    find_spec answers for modules the index reaches only from their own
+    directory.  The resolver and find_spec then called each other until
+    the stack blew (318 lookups of one name, under pytest only)."""
+    _write(ws['a'] / 'entry.py', 'import lazy\nimport sut.core\n')
+    monkeypatch.syspath_prepend(str(ws['sut']))
+    info = c.path_closure([ws['entry']], required=REQ['sut'])
+    assert 'lazy.py' in _rels(info)             # found, once, in the index
+    assert 'lazy.py' not in _rels(info, 'deferred')

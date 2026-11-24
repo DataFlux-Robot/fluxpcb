@@ -142,6 +142,7 @@ def reroute_nets(board_path: str, nets, timeout_s: int = 240,
     """
     import pcbnew
     import shutil
+    from fluxpcb.kicadgen.boardops import discard
     from fluxpcb.router.freerouting import FreeroutingBackend
 
     nets = set(nets)
@@ -160,7 +161,9 @@ def reroute_nets(board_path: str, nets, timeout_s: int = 240,
         for t in list(b.GetTracks()):
             try:
                 if t.GetNetname() in nets:
-                    b.Remove(t)
+                    # tracks from the file, never coming back
+                    # (kicadgen/boardops.py)
+                    discard(b, t)
                     removed += 1
             except Exception:
                 continue
@@ -197,7 +200,7 @@ def parse_violations(drc: dict) -> list:
     """
     import re
 
-    from fluxpcb.verifiers.operators import Violation
+    from fluxpcb.verifiers.operators import Violation, _measure_from_description
 
     raw_violations = drc.get('violations', [])
     violations = []
@@ -222,14 +225,15 @@ def parse_violations(drc: dict) -> list:
                     break
                 except (TypeError, ValueError):
                     pass
-        if not req_ok:
-            m = re.search(r'(?:clearance|间距)\s*([0-9.]+)\s*mm', desc, re.I)
-            if m:
-                required, req_ok = float(m.group(1)), True
-        if not act_ok:
-            m = re.search(r'(?:actual|实际)\s*([0-9.]+)\s*mm', desc, re.I)
-            if m:
-                actual, act_ok = float(m.group(1)), True
+        if not (req_ok and act_ok):
+            # The text says it in either language ("Clearance 0.2000 mm;
+            # actual 0.1795 mm", "最小宽度 0.2000 mm; 实际 0.1500 mm").  A
+            # width finding used to leave its minimum unread.
+            req_txt, act_txt = _measure_from_description(desc)
+            if not req_ok and req_txt is not None:
+                required, req_ok = req_txt, True
+            if not act_ok and act_txt is not None:
+                actual, act_ok = act_txt, True
 
         net = ''
         net2 = ''
@@ -394,6 +398,21 @@ class MorphPicker:
         return None
 
 
+def no_assert_dialogs():
+    """A GUI assertion dialog is the one failure a headless run cannot
+    recover from: the process waits for a click that never comes.  KiCad
+    10 raised one from PCB_VIA.GetWidth() called without a layer, and
+    every cell that had a via ran to its wall-clock budget with nothing
+    on record.  Suppressed, the call returns and the DRC judges the
+    result.  The right call is still the right call — this is the net.
+    """
+    try:
+        import wx
+        wx.DisableAsserts()
+    except Exception:
+        pass
+
+
 def repair_with_operators(board_path: str, drc_json: str,
                           allowed_ops=None, classes=None, params=None) -> dict:
     """Apply skill-package repair operators to DRC violations.
@@ -422,6 +441,7 @@ def repair_with_operators(board_path: str, drc_json: str,
     violations = parse_violations(drc)
 
     ops = RepairOperators(params=params)
+    no_assert_dialogs()
     import pcbnew
     board = pcbnew.LoadBoard(board_path)
 
@@ -505,6 +525,7 @@ if __name__ == '__main__':
             elif rest[i] == '--max-nets':
                 _max = int(rest[i + 1])
         _rip = '--rip' in rest
+        no_assert_dialogs()
         _out = reroute_residues(_b, _d, _t, types=_types, rip=_rip,
                                 max_nets=_max)
         # This interpreter is the other half of a cell: report the project

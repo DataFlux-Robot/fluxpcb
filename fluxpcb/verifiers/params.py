@@ -48,6 +48,12 @@ SCHEMA = {
     'rip_cap': _int(1, 60),
     # width
     'blind_widen': {'kind': 'bool'},
+    # after a blind widening, measure the tracks the cheap check flagged
+    # and settle the ones that really conflict (instead of losing the
+    # whole batch to the transaction gate)
+    'widen_measure': {'kind': 'bool'},
+    # settle a real conflict by re-planning that connection at full width
+    'widen_replan': {'kind': 'bool'},
     'width_cascade': _num_tuple(0.05, 0.5, 1, 8),
     'signal_floor_mm': _float(0.05, 0.3),
     'power_floor_mm': _float(0.05, 0.5),
@@ -127,6 +133,8 @@ class OperatorParams:
     rip_cap: int = 20
     # width
     blind_widen: bool = True
+    widen_measure: bool = True
+    widen_replan: bool = True
     width_cascade: tuple = (0.2, 0.15, 0.127, 0.11)
     signal_floor_mm: float = 0.11
     power_floor_mm: float = 0.15

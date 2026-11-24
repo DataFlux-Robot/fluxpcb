@@ -402,7 +402,14 @@ def _locate(name: str, index: _Index) -> list | None:
 
     None  — found nowhere at all.
     []    — found outside every repository: the environment, not the code.
-    files — inside a repository: index it and resolve.
+    files — inside a repository: index its root and look there.
+
+    It looks in the INDEX and never calls back into resolve(): in a
+    process that has a package directory on sys.path (the test suite
+    puts fluxpcb/kicadgen there), find_spec answers for a module the
+    index reaches only from its own directory, and the two functions
+    went round in a circle — 318 lookups of 'geomir' before the stack
+    blew.
     """
     try:
         spec = importlib.util.find_spec(name)
@@ -416,7 +423,9 @@ def _locate(name: str, index: _Index) -> list | None:
     if not os.path.exists(os.path.join(_repo_root(origin), '.git')):
         return []
     index.add_root(_repo_root(origin))
-    return index.resolve(name)[0]
+    found = [f for cand, _k in index.top.get(name, [])
+             for f in index._descend(cand, '')]
+    return found or None
 
 
 def path_closure(entries, extra=(), required: str = None) -> dict:
