@@ -26,6 +26,11 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 from common import KICAD_PYTHON  # noqa: E402
 
+# "python3" is common.py's default and does not exist on Windows: the
+# pcbnew helper then fails to launch and every cell is "router_failed"
+# in a fifth of a second (2026-11-25).  This interpreter has pcbnew.
+if not os.environ.get("KICAD_PYTHON") and not shutil.which(KICAD_PYTHON):
+    KICAD_PYTHON = sys.executable
 os.environ.setdefault("KICAD_PYTHON", KICAD_PYTHON)
 
 # Guard against a stale duplicate package: the benchmark must run the same
@@ -59,6 +64,40 @@ def _rule_register():
     return _contract.RuleRegister.default(
         os.path.join(repo, 'boards', 'rules', '*.json'),
         os.path.join(repo, 'fluxpcb', 'knowhow_constraints.json'))
+
+
+# what a cell needs after the router for its own work: DRC, repair, ledger
+REPAIR_RESERVE_S = 150
+# what the DRC calls a track or via that nothing is connected to at one end
+DANGLING = ('track_dangling', 'via_dangling')
+
+
+def _dangling(drc):
+    """Item uuids the DRC reports as unconnected stubs, whatever its
+    severity for them."""
+    out = set()
+    for v in (drc or {}).get('violations') or []:
+        if v.get('type') in DANGLING and not v.get('excluded'):
+            out |= {str(i.get('uuid')) for i in v.get('items') or []
+                    if i.get('uuid')}
+    return sorted(out)
+
+
+def _remove_dangling(path, uuids):
+    """Take the stubs off the board file.  Returns how many went."""
+    import pcbnew
+
+    from fluxpcb.kicadgen.boardops import discard
+    from fluxpcb.repair_drc import save_preserving_project
+
+    b = pcbnew.LoadBoard(path)
+    gone = 0
+    for t in list(b.GetTracks()):
+        if t.m_Uuid.AsString() in uuids:
+            discard(b, t)
+            gone += 1
+    save_preserving_project(b, path)
+    return gone
 
 
 def route_and_repair(paired_pcb, out_pcb, pro_src, timeout_s,
@@ -229,14 +268,37 @@ def route_and_repair(paired_pcb, out_pcb, pro_src, timeout_s,
         except Exception as e:
             pre, pre_full = {'error': f'{type(e).__name__}: {e}'}, None
 
+    def _attempt(result, threads, cap):
+        return {'threads': threads, 'max_passes': arm.router_passes,
+                'timeout_s': cap, 'routed': result.routed,
+                'timed_out': result.timed_out, 'seconds': result.seconds,
+                'passes': result.passes, 'error': result.error}
+
     fr = backend.route(route_input, out_pcb, timeout_s=timeout_s,
                        use_board_rules=True, keep_nets=keep_nets)
+    attempts = [_attempt(fr, arm.router_threads, timeout_s)]
+    # A router that ran out of time measured the budget, not the board.
+    # Route once more, with other settings, for as long as the cell's
+    # budget still holds a repair afterwards.  0344: five passes are
+    # enough and take 157-221 s on a loaded machine, against a 240 s cap;
+    # 8 threads were the fastest setting measured there, 2 the slowest.
+    budget = int(os.environ.get('FLUXPCB_CELL_BUDGET') or arm.board_budget_s)
+    left = budget - (time.time() - t_wall) - REPAIR_RESERVE_S
+    cap = min(int(timeout_s * arm.params.router_retry_scale), int(left))
+    if (not fr.routed and fr.timed_out and arm.params.router_retry
+            and cap >= 1.2 * timeout_s):
+        again = FreeroutingBackend(threads=arm.params.router_retry_threads,
+                                   max_passes=arm.router_passes)
+        fr = again.route(route_input, out_pcb, timeout_s=cap,
+                         use_board_rules=True, keep_nets=keep_nets)
+        attempts.append(_attempt(fr, arm.params.router_retry_threads, cap))
     cert = done(dict(
         base, **plan_cert,
-        route={'routed': fr.routed, 'seconds': fr.seconds,
+        route={'routed': fr.routed, 'seconds': sum(a['seconds'] for a in attempts),
                'passes': fr.passes, 'error': fr.error,
-               'timed_out': fr.timed_out, 'threads': arm.router_threads,
-               'max_passes': arm.router_passes, 'timeout_s': timeout_s},
+               'timed_out': fr.timed_out, 'threads': attempts[-1]['threads'],
+               'max_passes': arm.router_passes, 'timeout_s': attempts[-1]['timeout_s'],
+               'attempts': attempts, 'retried': len(attempts) > 1},
         rule_audit_pre=fr.rule_audit, rule_patch=fr.patch,
         rule_congruent=fr.rule_congruence,
         plan_consumed={
@@ -354,10 +416,54 @@ def route_and_repair(paired_pcb, out_pcb, pro_src, timeout_s,
                 after = evaluate(out_pcb)
                 repair_log.append(stage('reroute', reroute_rep, mode='full'))
 
+    # ---- trim: a stub the router left is a warning to the DRC; a strict
+    # referee counts it.  Leaves only, each round confirmed by the DRC:
+    # one more error or one more open puts the stubs back.
+    trim = {'stage': 'trim', 'mode': 'leaves', 'committed': 0,
+            'rolled_back': 0, 'denied': 0, 'errors': 0, 'log': [],
+            'removed': 0, 'rounds': 0}
+    if arm.loop != 'route_only':
+        for _ in range(3 if arm.params.trim_dangling else 0):
+            with open(holder['drc_json'], encoding='utf-8') as f:
+                stubs = _dangling(json.load(f))
+            if not stubs:
+                break
+            trim['rounds'] += 1
+            backup = out_pcb + '.before-trim'
+            shutil.copyfile(out_pcb, backup)
+            gone = _remove_dangling(out_pcb, stubs)
+            shutil.copy(pro_src, out_pro)
+            try:
+                trimmed = evaluate(out_pcb)
+            except Exception:
+                trimmed = None
+            if trimmed is not None and trimmed.total <= after.total:
+                after = trimmed
+                trim['removed'] += gone
+                trim['committed'] += 1
+                trim['log'].append({'round': trim['rounds'], 'decision': 'commit',
+                                    'removed': gone})
+                os.remove(backup)
+            else:
+                shutil.copyfile(backup, out_pcb)
+                os.remove(backup)
+                shutil.copy(pro_src, out_pro)
+                after = evaluate(out_pcb)      # the report goes with the board
+                trim['rolled_back'] += 1
+                trim['log'].append({'round': trim['rounds'], 'decision': 'rollback',
+                                    'why': ('DRC failed' if trimmed is None else
+                                            f'total {after.total} -> {trimmed.total}')})
+                break
+        repair_log.append(trim)
+
     with open(holder['drc_json'], encoding='utf-8') as f:
         final_drc = json.load(f)
 
     cert['claims_after'] = after.as_dict()
+    # what a strict referee adds up: stubs still on the board
+    cert['dangling'] = {k: sum(1 for v in final_drc.get('violations') or []
+                               if v.get('type') == k and not v.get('excluded'))
+                        for k in DANGLING}
     cert['txn'] = main_rep.as_dict() if main_rep is not None else {
         'committed': 0, 'rolled_back': 0, 'denied': 0, 'log': [], 'final': {}}
     cert['repair'] = repair_log

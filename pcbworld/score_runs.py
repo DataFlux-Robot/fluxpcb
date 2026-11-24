@@ -34,6 +34,10 @@ SILK_TYPES = frozenset({
     'text_height', 'text_thickness'})
 
 
+# what the DRC calls a track or via nothing is connected to at one end
+DANGLING = ('track_dangling', 'via_dangling')
+
+
 def axis_of(vtype: str) -> str:
     if vtype in ROUTING_TYPES:
         return 'routing'
@@ -79,9 +83,34 @@ def score_one(pcb: str, pro: str) -> dict:
     for t, n in by.items():
         axis[axis_of(t)] += n
     axis['routing'] += unconn
-    return {'errors': sum(by.values()), 'errorsByType': by,
-            'unconnected': unconn, 'axis': axis,
-            'cleanPassRouting': axis['routing'] == 0}
+    # The strict criterion adds what the error criterion cannot see: a
+    # track or via nothing is connected to at one end is a warning.  The
+    # error report is made with --severity-error on purpose (it is the
+    # criterion the comparison table uses); the stubs come from a second
+    # report of the same board.  Both runs of one DRC take a second.
+    strict_rep = pcb + '.score.drc.all.json'
+    dangling = None
+    try:
+        subprocess.run([KICAD_CLI, 'pcb', 'drc', '--format', 'json',
+                        '--severity-all', '--refill-zones', '-o', strict_rep, pcb],
+                       capture_output=True, text=True, timeout=1800)
+        with open(strict_rep, encoding='utf-8') as f:
+            da = json.load(f)
+        dangling = len([v for v in da.get('violations', [])
+                        if v.get('type') in DANGLING and not v.get('excluded')])
+    except (OSError, ValueError, subprocess.SubprocessError):
+        dangling = None                     # unknown is never "none"
+    finally:
+        if os.path.exists(strict_rep):
+            os.remove(strict_rep)
+    out = {'errors': sum(by.values()), 'errorsByType': by,
+           'unconnected': unconn, 'axis': axis,
+           'cleanPassRouting': axis['routing'] == 0,
+           'dangling': dangling}
+    if dangling is not None:
+        out['strictErrors'] = out['errors'] + unconn + dangling
+        out['cleanPassStrict'] = out['strictErrors'] == 0
+    return out
 
 
 def main():

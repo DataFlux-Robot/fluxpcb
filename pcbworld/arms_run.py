@@ -129,18 +129,33 @@ def fresh(path, arm, fp):
 
 
 def atomic_json(path, body):
-    """Write-then-replace, with a temporary name unique to the writer.
+    """Write-then-replace, with a temporary name unique to the writer,
+    and a replace that waits for concurrent readers.
 
     Two workers can write the same file (the per-board manifest when
     several arms share a board): with one fixed temporary name the
     second writer's replace found the file already moved, raised, and
-    the cell it was recording vanished from the run.
+    the cell it was recording vanished from the run.  With unique names
+    there is a second race on Windows: the replace is refused while
+    another worker has the destination open to read it.  That reader is
+    done in milliseconds, so the writer waits instead of failing.
     """
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = f'{path}.{os.getpid()}.{threading.get_ident()}.tmp'
     with open(tmp, 'w', encoding='utf-8') as fh:
         json.dump(body, fh, indent=1, ensure_ascii=False)
-    os.replace(tmp, path)
+    for attempt in range(50):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            if attempt == 49:
+                try:
+                    os.remove(tmp)
+                except OSError:
+                    pass
+                raise
+            time.sleep(0.02 * (attempt + 1))
 
 
 def instrument(cert, arm, fp, status='ok'):
@@ -215,6 +230,18 @@ def classify(status, score):
     return 'fail'
 
 
+def classify_strict(cell):
+    """The error criterion, plus what it does not see: a track or via left
+    unconnected at one end is a warning to the DRC.  None when the cell
+    has no strict score (an older run, or no board)."""
+    score = cell.get('score') or {}
+    if cell.get('outcome') != 'clean':
+        return cell.get('outcome')
+    if score.get('dangling') is None:
+        return None
+    return 'clean' if score.get('dangling') == 0 else 'fail'
+
+
 def run_cell(board, arm, arm_path, run, fp, budget, router_timeout, score_fn):
     cid = cell_id(board['dir'], arm)
     paths = cell_paths(run, board['dir'], arm)
@@ -238,6 +265,8 @@ def run_cell(board, arm, arm_path, run, fp, budget, router_timeout, score_fn):
     # disagree about what "every cell runs" means.
     env = dict(os.environ)
     env[_cf().FILES_ENV] = os.pathsep.join(_cf().closure_files())
+    # what a cell may spend: a retry inside the cell has to know it
+    env['FLUXPCB_CELL_BUDGET'] = str(budget)
     proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
                             text=True, encoding='utf-8', errors='replace', env=env)
     try:
@@ -306,6 +335,7 @@ def run_cell(board, arm, arm_path, run, fp, budget, router_timeout, score_fn):
                  or (err or '')[-400:] if status != 'ok' else None,
         'cert': os.path.relpath(paths['cert'], run),
     }
+    cell['outcome_strict'] = classify_strict(cell)
     atomic_json(paths['json'], cell)
     return cell
 
@@ -541,6 +571,14 @@ def summarise(cells, arms, boards):
             'clean': sum(1 for c in mine if c.get('outcome') == 'clean'),
             'fail': sum(1 for c in mine if c.get('outcome') == 'fail'),
             'budget': sum(1 for c in mine if c.get('outcome') == 'budget'),
+            # the error criterion and the strict one (stubs counted)
+            'clean_strict': sum(1 for c in mine
+                                if c.get('outcome_strict') == 'clean'),
+            'unscored_strict': sum(1 for c in mine
+                                   if c.get('outcome') == 'clean'
+                                   and c.get('outcome_strict') is None),
+            'dangling_left': sum((c.get('score') or {}).get('dangling') or 0
+                                 for c in mine),
             'other': sum(1 for c in mine if c.get('outcome') not in
                          ('clean', 'fail', 'budget')),
             'mean_wall_s': round(sum(c.get('wall_seconds') or 0 for c in mine)
