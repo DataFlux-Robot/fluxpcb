@@ -33,6 +33,7 @@ from __future__ import annotations
 import itertools
 import math
 import os
+import time
 
 from .certs import DRC_REJECTED, NOT_APPLICABLE, NO_PATH, OK, SEALED
 
@@ -594,6 +595,7 @@ def run(ops, board, violations):
     opens_before = sum(1 for v in before if v.type == 'unconnected')
     gone = set()
     state = {'kept': [], 'ledger': [], 'tried': 0, 'dead': set()}
+    t_start = time.time()
 
     def solve(t):
         """One mover.  Returns (record | None, outcome, why_not).  Whatever
@@ -824,7 +826,13 @@ def run(ops, board, violations):
         return None, ('sealed' if sealed else 'no_path'), {
             'tried': tried, 'conflict_set': k if sealed else None}
 
+    # findings until the time is used, whatever the count: 0599 has 28
+    # opens, and four a call (the old cap) never got through them
     for v in violations[:p.conflict_cap]:
+        if time.time() - t_start > p.conflict_budget_s:
+            result.notes.append(f'{p.conflict_budget_s:.0f} s used: '
+                                f'{len(state["ledger"])} of {len(violations)} findings tried')
+            break
         if v.type == 'unconnected':
             try:
                 if not still_open(board, v):

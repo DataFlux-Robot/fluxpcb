@@ -58,13 +58,15 @@ SCHEMA = {
     # layers allowed); when its layer is closed, lift the conflict set
     # too and route it again after
     'conflict_reroute': {'kind': 'bool'},
-    'conflict_cap': _int(1, 20),
+    'conflict_cap': _int(1, 60),
     'conflict_max_set': _int(1, 4),
     'conflict_trials': _int(1, 24),
     'conflict_lifts': _int(1, 8),
     # conflict sets tried per connection: when one cannot be routed again
     # the next cheapest is priced
     'conflict_sets': _int(1, 8),
+    # and no longer than this per call, whatever the count
+    'conflict_budget_s': _float(10.0, 3000.0),
     # the router ran out of time (the bench loop): route once more with
     # other settings and a longer cap
     'router_retry': {'kind': 'bool'},
@@ -72,6 +74,8 @@ SCHEMA = {
     'router_retry_scale': _float(1.0, 6.0),
     # take dangling stubs off at the end (the bench loop)
     'trim_dangling': {'kind': 'bool'},
+    # the repair round as one transaction per operator (the bench loop)
+    'stepwise_repair': {'kind': 'bool'},
     'width_cascade': _num_tuple(0.05, 0.5, 1, 8),
     'signal_floor_mm': _float(0.05, 0.3),
     'power_floor_mm': _float(0.05, 0.5),
@@ -155,17 +159,19 @@ class OperatorParams:
     widen_replan: bool = True
     # conflict reroute
     conflict_reroute: bool = True
-    conflict_cap: int = 4
+    conflict_cap: int = 20
     conflict_max_set: int = 2
     conflict_trials: int = 6
     conflict_lifts: int = 4
     conflict_sets: int = 3
+    conflict_budget_s: float = 300.0
     # router timeout retry: 0344 needs 5 passes and 157-221 s of a loaded
     # machine; 2 threads were the slowest setting measured, 8 the fastest
     router_retry: bool = True
     router_retry_threads: int = 8
     router_retry_scale: float = 2.5
     trim_dangling: bool = True
+    stepwise_repair: bool = True
     width_cascade: tuple = (0.2, 0.15, 0.127, 0.11)
     signal_floor_mm: float = 0.11
     power_floor_mm: float = 0.15
