@@ -1,0 +1,22 @@
+{
+  "name": "default",
+  "max_actions": 3,
+  "max_seconds": 900,
+  "allowed_ops": [
+    "copper_text_to_silk",
+    "widen_narrow_tracks",
+    "width_cascade_surgery",
+    "policy_waiver_probe",
+    "plane_bridge",
+    "topology_swap",
+    "endpoint_attach",
+    "reroute_violating_nets",
+    "connect_unconnected"
+  ],
+  "require_claims": [
+    "rule_congruence",
+    "drc_clean",
+    "unconnected_zero"
+  ],
+  "allow_gate_weakening": false
+}

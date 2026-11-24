@@ -1,0 +1,8 @@
+{
+  "name": "strict_widen_only",
+  "max_actions": 1,
+  "max_seconds": 300,
+  "allowed_ops": ["widen_narrow_tracks"],
+  "require_claims": ["rule_congruence", "drc_clean", "unconnected_zero"],
+  "allow_gate_weakening": false
+}

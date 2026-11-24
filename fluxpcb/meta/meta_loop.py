@@ -90,7 +90,15 @@ class MetaMetaLoop:
         Returns:
             True if diff passes frozen tests
         """
-        # Simplified: accept all diffs
+        # A diff counts only if it is held-out positive and does not
+        # narrow the scope.  No evidence -> not validated.
+        if diff is None or not getattr(diff, 'changes', None):
+            return False
+        if getattr(diff, 'scope_narrowed', False):
+            return False
+        delta = getattr(diff, 'heldout_delta', None)
+        if delta is None or delta <= 0:
+            return False
         return True
 
     @property

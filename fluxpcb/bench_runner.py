@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sys
 import time
 
@@ -49,6 +50,12 @@ def run_board(board_path: str, output_path: str, timeout_s: int = 1200,
 
     work_dir = os.path.dirname(os.path.abspath(output_path)) or '.'
     os.makedirs(work_dir, exist_ok=True)
+    # The referee pairs a board with a project by basename.  Put the input
+    # project beside the output so DRC judges the board's own rules.
+    src_pro = os.path.splitext(board_path)[0] + '.kicad_pro'
+    out_pro = os.path.splitext(output_path)[0] + '.kicad_pro'
+    if os.path.exists(src_pro):
+        shutil.copy(src_pro, out_pro)
 
     # ── Step 1: route ──────────────────────────────────────────────
     if engine == "freerouting":
@@ -60,9 +67,14 @@ def run_board(board_path: str, output_path: str, timeout_s: int = 1200,
                     'completionPct': 0.0, 'seconds': time.time() - t0}
         # FLUXPCB_USE_BOARD_RULES=1 routes at the board's own design rules
         # (the DSN export otherwise falls back to KiCad's default 0.2mm).
-        use_board_rules = os.environ.get('FLUXPCB_USE_BOARD_RULES', '0') == '1'
+        # Board rules are the default: routing against anything else means
+        # the router solves a different problem from the one DRC judges.
+        use_board_rules = os.environ.get('FLUXPCB_USE_BOARD_RULES', '1') == '1'
         fr = backend.route(board_path, output_path, timeout_s=timeout_s,
                            use_board_rules=use_board_rules)
+        rule_congruent = bool(fr.rule_congruence)
+        rule_audit = fr.rule_audit
+        rule_patch = fr.patch
         if not fr.routed:
             return {'error': f'refresh routing failed: {fr.error}',
                     'completionPct': 0.0, 'seconds': fr.seconds}
@@ -104,6 +116,10 @@ def run_board(board_path: str, output_path: str, timeout_s: int = 1200,
             pass
         route_seconds = result.get('seconds', 0)
         engine_label = 'ncer'
+        # NCER draws directly on the board: congruence by construction (T0).
+        rule_congruent = True
+        rule_audit = {'ok': True, 'notes': ['ncer draws on the judged board']}
+        rule_patch = None
 
     # ── Step 2: refill zones + repair operators + DRC ─────────────
     repair_summary = {}
@@ -118,34 +134,45 @@ def run_board(board_path: str, output_path: str, timeout_s: int = 1200,
             filler.Fill(b.Zones())
             b.Save(output_path)
 
-        # 2b. repair operators (copper text, waivers, endpoints, widen)
-        #     Loop: widening can expose marginal clearance shortfalls that a
-        #     follow-up waiver pass clears, so iterate while improving.
+        # 2b. repair as transactions: commit only on a lexicographic
+        # improvement of the full hard-claim vector (no new violation type,
+        # errors + unconnected strictly lower), else restore byte-for-byte.
         from fluxpcb.repair_drc import run_drc, repair_with_operators
-        drc_json = output_path + '.drc_before.json'
-        prev_errs = None
-        for _round in range(3):
-            run_drc(output_path, drc_json)
-            try:
-                with open(drc_json) as _f:
-                    _d = json.load(_f)
-                n_errs = len([v for v in _d.get('violations', [])
-                              if v.get('severity') == 'error'])
-            except Exception:
-                n_errs = 0
-            if prev_errs is not None and n_errs >= prev_errs:
-                break  # no further improvement
-            prev_errs = n_errs
-            if n_errs == 0:
-                break
-            repair_summary = repair_with_operators(output_path, drc_json)
+        from fluxpcb.verifiers.residue import classify_drc
+        from fluxpcb.verifiers.txn import claims_from_drc, transactional_repair
 
-        # 2c. refill again + final measurement
-        b = pcbnew.LoadBoard(output_path)
-        if b is not None:
-            filler = pcbnew.ZONE_FILLER(b)
-            filler.Fill(b.Zones())
-            b.Save(output_path)
+        holder = {'drc': None}
+
+        def _evaluate(path):
+            bb = pcbnew.LoadBoard(path)
+            if bb is not None:
+                pcbnew.ZONE_FILLER(bb).Fill(bb.Zones())
+                bb.Save(path)
+            dj = path + '.drc.json'
+            run_drc(path, dj)
+            holder['drc'] = dj
+            with open(dj, encoding='utf-8') as f:
+                dd = json.load(f)
+            return claims_from_drc(dd, rule_congruent=rule_congruent)
+
+        def _action(path):
+            if not holder['drc']:
+                return {}
+            return repair_with_operators(path, holder['drc'])
+
+        claims_before = _evaluate(output_path)
+        txn_report = transactional_repair(output_path, _action, _evaluate,
+                                          max_rounds=3)
+        claims_after = _evaluate(output_path)
+        try:
+            with open(holder['drc'], encoding='utf-8') as _f:
+                residue = classify_drc(json.load(_f))
+        except Exception:
+            residue = {}
+        repair_summary = {
+            'operators_run': holder['action'].get('operators_run', []),
+            'repaired': txn_report.committed,
+            'failed': txn_report.rolled_back}
 
         b = pcbnew.LoadBoard(output_path)
         b.BuildConnectivity()
@@ -173,7 +200,20 @@ def run_board(board_path: str, output_path: str, timeout_s: int = 1200,
 
     completion = 100.0 * (1 - unconnected / rats) if rats > 0 and unconnected >= 0 else 0.0
 
+    hard = locals().get('claims_after')
     return {
+        # A percentage is informational only.  The pass/fail verdict is the
+        # hard-claim vector: 0 errors AND 0 unconnected under the board's
+        # own rules, with rule-model congruence proven before routing.
+        'status': ('pass' if (hard is not None and hard.total == 0
+                              and hard.rule_congruent) else 'fail'),
+        'hardClaims': hard.as_dict() if hard is not None else None,
+        'ruleCongruent': bool(locals().get('rule_congruent', False)),
+        'ruleAudit': locals().get('rule_audit'),
+        'rulePatch': locals().get('rule_patch'),
+        'txn': (locals().get('txn_report').as_dict()
+                if locals().get('txn_report') is not None else None),
+        'residue': locals().get('residue'),
         'completionPct': round(completion, 1),
         'unconnected': unconnected,
         'ratsnest': rats,

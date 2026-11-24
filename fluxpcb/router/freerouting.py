@@ -88,6 +88,10 @@ class FreeroutingResult:
     passes: int = 0
     log: str = ""
     error: str = ""
+    # rule-model congruence (T1-A): did the router receive the referee's table?
+    rule_congruence: bool = False
+    rule_audit: dict = None
+    patch: dict = None
 
 
 class FreeroutingBackend:
@@ -139,54 +143,79 @@ class FreeroutingBackend:
             return {'raw': r.stdout}
 
     def _patch_dsn_from_project(self, board_path: str, dsn_path: str):
-        """Rewrite the DSN clearance/width with the board's own rules.
+        """Transfer the project's effective rule table into the DSN.
 
-        KiCad's Specctra export writes the DEFAULT 0.2mm clearance because
-        pcbnew.LoadBoard() does not load the .kicad_pro. Boards designed for
-        fine-pitch parts carry stricter/finer rules (H7: 0.09mm clearance,
-        0.15mm tracks), and routing at 0.2mm removes the escape channels.
+        Two layers of proof:
+          1. before: exhaustive L1 diff (project table vs DSN table);
+          2. after: the patch is re-parsed and diffed again; a rewrite that
+             does not read back equal is a failure, not a warning.
 
-        Reads Default netclass clearance/track_width from the paired
-        .kicad_pro and replaces the DSN's rule values (DSN units = microns).
+        Returns True only when the post-patch tables are congruent.
         """
         import json
-        import re
+
+        from ..contract import CongruenceError, RuleModel, patch_dsn
 
         pro_path = os.path.splitext(board_path)[0] + '.kicad_pro'
         if not os.path.exists(pro_path):
-            return
+            self.last_patch = {'ok': False, 'notes': ['no .kicad_pro beside board']}
+            return False
         try:
             with open(pro_path, encoding='utf-8') as f:
                 pro = json.load(f)
-        except Exception:
-            return
-
-        clearance_mm = None
-        width_mm = None
-        for cls in pro.get('net_settings', {}).get('classes', []):
-            if cls.get('name') == 'Default':
-                clearance_mm = cls.get('clearance')
-                width_mm = cls.get('track_width')
-                break
-        if clearance_mm is None:
-            return
-
-        clearance_um = int(round(float(clearance_mm) * 1000))
-        width_um = int(round(float(width_mm) * 1000)) if width_mm else None
-
-        try:
             with open(dsn_path, encoding='utf-8', errors='replace') as f:
                 text = f.read()
+            dsn_model = RuleModel.from_dsn(text)
+            model = RuleModel.from_project(
+                pro, net_names=sorted(dsn_model.all_nets()))
+            # T2-b A/B switch: a pcb-level default rule constrains objects
+            # outside every class (pads with no net).  Whether that helps or
+            # hurts is an empirical question; measure both.
+            inject = os.environ.get('FLUXPCB_INJECT_DEFAULT', '1') != '0'
+            new_text, report = patch_dsn(text, model, strict=True,
+                                         inject_default=inject)
+        except CongruenceError as e:
+            self.last_patch = e.report.as_dict()
+            self.last_congruence = False
+            return False
+        except Exception as e:
+            self.last_patch = {'ok': False, 'notes': [f'patch failed: {e}']}
+            self.last_congruence = False
+            return False
 
-            # Patch the generic clearance rules (leave the smd_smd sub-rule)
-            text = re.sub(r'\(clearance 200\)', f'(clearance {clearance_um})', text)
-            if width_um:
-                text = re.sub(r'\(width 200\)', f'(width {width_um})', text)
+        with open(dsn_path, 'w', encoding='utf-8') as f:
+            f.write(new_text)
+        self.last_patch = report.as_dict()
+        self.last_congruence = report.ok
+        return report.ok
 
-            with open(dsn_path, 'w', encoding='utf-8') as f:
-                f.write(text)
-        except Exception:
-            pass
+    def audit_rules(self, board_path: str, dsn_path: str) -> dict:
+        """Compare the project's table with the exported DSN (no rewriting)."""
+        import json
+
+        from ..contract import RuleModel
+
+        pro_path = os.path.splitext(board_path)[0] + '.kicad_pro'
+        out = {'ok': False, 'notes': []}
+        if not os.path.exists(pro_path):
+            out['notes'].append('no .kicad_pro beside board')
+            return out
+        try:
+            with open(pro_path, encoding='utf-8') as f:
+                pro = json.load(f)
+            with open(dsn_path, encoding='utf-8', errors='replace') as f:
+                text = f.read()
+            dsn_model = RuleModel.from_dsn(text)
+            model = RuleModel.from_project(
+                pro, net_names=sorted(dsn_model.all_nets()))
+            diff = model.diff(dsn_model)
+            out.update(diff.as_dict())
+            out['project_digest'] = model.digest()
+            out['dsn_digest'] = dsn_model.digest()
+            return out
+        except Exception as e:
+            out['notes'].append(f'audit failed: {e}')
+            return out
 
     def route(self, board_path: str, out_path: str,
               timeout_s: int = 300, keep_copper_protected: bool = True,
@@ -211,6 +240,8 @@ class FreeroutingBackend:
         """
         t0 = time.time()
         result = FreeroutingResult(output_path=out_path)
+        self.last_patch = None
+        self.last_congruence = False
 
         ok, reason = self.available()
         if not ok:
@@ -248,9 +279,19 @@ class FreeroutingBackend:
             if os.path.exists(unrouted_path):
                 board_path = unrouted_path
 
-            # Optionally align the DSN with the board's own design rules
+            # The router must solve the referee's problem.  Audit, then
+            # transfer (and prove the transfer) when requested.
+            result.rule_audit = self.audit_rules(board_path, dsn_path)
             if use_board_rules:
                 self._patch_dsn_from_project(board_path, dsn_path)
+                result.rule_congruence = bool(self.last_congruence)
+                result.patch = self.last_patch
+                if not self.last_congruence:
+                    # Keep routing (a wrong table still produces copper),
+                    # but nothing downstream may call the result verified.
+                    result.log = result.log or ''
+            else:
+                result.rule_congruence = bool(result.rule_audit.get('ok'))
         except Exception as e:
             result.error = f'DSN export failed: {e}'
             return result

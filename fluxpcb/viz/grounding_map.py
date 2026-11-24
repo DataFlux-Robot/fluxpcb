@@ -40,6 +40,12 @@ class GroundingMap:
         verification: Optional[VerificationReport] = None,
         mfg: Optional[ManufacturingReport] = None,
         trajectory: Optional[Trajectory] = None,
+        harness_diffs: int = 0,
+        heldout_delta: Optional[float] = None,
+        plan: Optional[dict] = None,
+        classification: Optional[dict] = None,
+        dispatch: Optional[dict] = None,
+        stale_count: Optional[int] = None,
     ) -> dict:
         """Build the grounding map.
 
@@ -64,10 +70,16 @@ class GroundingMap:
             },
         }
 
-        # Component 2: Meta-meta loop
+        # Component 2: Meta-meta loop.  Active only if it produced an
+        # evaluated harness change; a layer with no diff has no effect.
+        mm_active = bool(harness_diffs) and (heldout_delta is not None
+                                             and heldout_delta > 0)
         components['2_meta_meta_loop'] = {
-            'status': 'active',
-            'evidence': {'harness_diffs': 0},
+            'status': 'active' if mm_active else 'inactive',
+            'evidence': {'harness_diffs': harness_diffs,
+                         'heldout_delta': heldout_delta,
+                         'reason': None if mm_active else
+                         'no evaluated harness change'},
         }
 
         # Component 3: Dev execution loop
@@ -79,28 +91,35 @@ class GroundingMap:
             },
         }
 
-        # Component 4: PCB design agent
+        # Component 4: PCB design agent.  A plan must exist and carry claims.
+        plan_ok = bool(plan) and bool(plan.get('claims'))
         components['4_design_agent'] = {
-            'status': 'active',
-            'evidence': {'plan_generated': True},
+            'status': 'active' if plan_ok else 'inactive',
+            'evidence': {'plan_generated': bool(plan),
+                         'claims': len((plan or {}).get('claims') or []),
+                         'plan_hash': (plan or {}).get('hash')},
         }
 
-        # Component 5: Communication runtime
+        # Component 5: Communication runtime.  Active if a state was carried
+        # and a real stale count was supplied.
+        comm_ok = stale_count is not None and trajectory is not None
         components['5_comm_runtime'] = {
-            'status': 'active',
-            'evidence': {'stale_count': 0},
+            'status': 'active' if comm_ok else 'inactive',
+            'evidence': {'stale_count': stale_count},
         }
 
         # Component 6: Subagents
         components['6_subagents'] = {
-            'status': 'active',
-            'evidence': {'classification': True},
+            'status': 'active' if classification else 'inactive',
+            'evidence': {'classification': bool(classification),
+                         'tasks': len((classification or {}).get('tasks') or [])},
         }
 
         # Component 7: LLM dispatch
         components['7_llm_dispatch'] = {
-            'status': 'active',
-            'evidence': {'planner': 'rule'},
+            'status': 'active' if dispatch else 'inactive',
+            'evidence': {'dispatch': bool(dispatch),
+                         'planner': (dispatch or {}).get('planner')},
         }
 
         # Component 8: Feedback runtime
@@ -137,10 +156,13 @@ class GroundingMap:
             },
         }
 
-        # Component 12: Grounding map
+        # Component 12: Grounding map — active because it rendered this map,
+        # with the count of inactive components it made visible.
+        n_inactive = sum(1 for c in components.values()
+                         if c['status'] != 'active')
         components['12_grounding_map'] = {
             'status': 'active',
-            'evidence': {'generated': True},
+            'evidence': {'generated': True, 'inactive_components': n_inactive},
         }
 
         # Overall status

@@ -129,12 +129,12 @@ class FeedbackRuntime:
         opens = event.result.get('opens', 0)
         drc = event.result.get('drc_errors', 0)
 
-        # If DRC errors are high, suggest relaxed clearance
+        # A meta/feedback layer may not lower a gate to make a board pass.
+        # Propose a topology change instead; the rule model stays fixed.
         if drc > 5:
             self._rule_updates.append({
-                'param': 'clearance_mm',
-                'action': 'relax',
-                'value': 0.1,
+                'param': 'reroute_violating_nets',
+                'action': 'enable',
                 'reason': 'high_drc_errors',
             })
 

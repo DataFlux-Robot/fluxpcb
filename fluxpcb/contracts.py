@@ -300,6 +300,9 @@ class HarnessDiff:
     changes: dict = field(default_factory=dict)
     git_commit: str = ""
     frozen_test_score: float = 0.0
+    heldout_delta: float = None      # measured on a held-out family split
+    scope_narrowed: bool = False     # SII: any declared dimension removed
+    authority: str = ''              # named human, when a gate changed
 
 
 # ──────────────────────────────────────────────────────────────────────

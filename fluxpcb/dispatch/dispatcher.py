@@ -210,12 +210,12 @@ Return JSON with fields:
         """
         candidates = []
 
-        # If DRC errors are high, suggest relaxed clearance
+        # Gate lowering is structurally forbidden: propose a topology change.
         if result.get('drc_errors', 0) > 10:
             candidates.append({
-                'name': 'relaxed_clearance',
-                'category': 'clearance',
-                'params': {'clearance_mm': 0.1},
+                'name': 'reroute_violating_nets',
+                'category': 'topology',
+                'params': {'reroute_nets': True},
                 'expected_improvement': 0.1,
                 'risk': 0.2,
             })

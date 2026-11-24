@@ -27,6 +27,7 @@ class MetaRunResult:
     candidates_evaluated: int = 0
     seconds: float = 0.0
     strategy_saved: bool = False
+    status: str = 'no_data'
 
 
 class MetaDevLoop:
@@ -79,7 +80,9 @@ class MetaDevLoop:
 
             if drc > 0:
                 diagnosis.failure_modes.append('drc_errors')
-                diagnosis.suggestions.append('relaxed_clearance')
+                # A meta layer may not lower a gate to make a board pass.
+                # Propose a topology change (re-route) instead.
+                diagnosis.suggestions.append('reroute_violating_nets')
 
         diagnosis.completion_pct = 100 - sum(
             e.result.get('opens', 0) for e in last.events
@@ -122,21 +125,12 @@ class MetaDevLoop:
 
         if 'drc_errors' in diagnosis.failure_modes:
             candidates.append(RoutingCandidate(
-                name='relaxed_clearance',
-                category='clearance',
-                params={'clearance_mm': 0.1},
+                name='reroute_violating_nets',
+                category='topology',
+                params={'reroute_nets': True},
                 expected_improvement=0.1,
                 risk=0.2,
             ))
-
-        # Combined
-        candidates.append(RoutingCandidate(
-            name='combined',
-            category='combined',
-            params={'escape_first': True, 'clearance_mm': 0.1},
-            expected_improvement=0.2,
-            risk=0.3,
-        ))
 
         return candidates
 
@@ -144,6 +138,7 @@ class MetaDevLoop:
         self,
         candidates: list[RoutingCandidate],
         board: Any = None,
+        evaluator: Any = None,
     ) -> tuple[RoutingCandidate, RoutingResult]:
         """Select best candidate by evaluating.
 
@@ -157,14 +152,14 @@ class MetaDevLoop:
         best_candidate = None
         best_result = None
 
+        if evaluator is None:
+            # Refusing to fabricate: a meta layer that invents its own
+            # scores cannot be wrong, which is the definition of decorative.
+            raise RuntimeError(
+                'MetaDevLoop.select requires a real evaluator; '
+                'fabricated scores are not permitted')
         for candidate in candidates:
-            # Evaluate candidate (simplified)
-            result = RoutingResult(
-                candidate=candidate,
-                completion_pct=80.0,  # Placeholder
-                drc_errors=5,
-                seconds=10.0,
-            )
+            result = evaluator(candidate)
 
             self._history.append(result)
 
@@ -186,17 +181,30 @@ class MetaDevLoop:
         t0 = time.time()
         result = MetaRunResult()
 
-        # Diagnose from history
-        diagnosis = self.diagnose([])
+        # Diagnose from real history; with no trajectories there is nothing
+        # to select, and the honest result is no_data, not a placeholder.
+        trajectories = [r.trajectory for r in self._history
+                        if getattr(r, 'trajectory', None)]
+        if not trajectories:
+            result.seconds = time.time() - t0
+            result.status = 'no_data'
+            return result
+        diagnosis = self.diagnose(trajectories)
 
         # Evolve candidates
         candidates = self.evolve(diagnosis)
         result.candidates_evaluated = len(candidates)
 
-        # Select best
-        best_candidate, best_result = self.select(candidates)
+        # Select best against a real evaluator (injected by the caller)
+        if self.optimizer is None:
+            result.seconds = time.time() - t0
+            result.status = 'no_evaluator'
+            return result
+        best_candidate, best_result = self.select(
+            candidates, evaluator=self.optimizer.evaluate_candidate)
         result.best_candidate = best_candidate
         result.best_result = best_result
+        result.status = 'ok'
 
         # Save strategy
         if self.store and best_candidate:
