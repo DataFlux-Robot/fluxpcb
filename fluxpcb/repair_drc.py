@@ -505,8 +505,16 @@ if __name__ == '__main__':
             elif rest[i] == '--max-nets':
                 _max = int(rest[i + 1])
         _rip = '--rip' in rest
-        print('__REROUTE__' + json.dumps(
-            reroute_residues(_b, _d, _t, types=_types, rip=_rip,
-                             max_nets=_max)), flush=True)
+        _out = reroute_residues(_b, _d, _t, types=_types, rip=_rip,
+                                max_nets=_max)
+        # This interpreter is the other half of a cell: report the project
+        # code it loaded, so the cell's fingerprint covers it — the parent
+        # process cannot see another interpreter's sys.modules.
+        try:
+            from fluxpcb.meta import codefp as _cf
+            _out['loaded'] = _cf.loaded_project_files()
+        except Exception as _e:                      # evidence, not a result
+            _out['loaded_error'] = f'{type(_e).__name__}: {_e}'
+        print('__REROUTE__' + json.dumps(_out), flush=True)
     else:
         main()
