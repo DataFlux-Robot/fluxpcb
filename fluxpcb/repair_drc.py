@@ -631,13 +631,15 @@ def remove_items(board_path: str, uuids) -> int:
 
 
 def trim_dangling(board_path: str, drc_json: str, evaluate, initial=None,
-                  rounds: int = 3, restore_project=None) -> dict:
+                  rounds: int = 8, restore_project=None) -> dict:
     """Take dangling stubs off the board: leaves only, each round
     confirmed by the DRC.  One more error or one more open puts the
     stubs back.
 
     6 of the 110 boards that passed the first full run carried a stub;
     a referee that counts stubs (the strict criterion) failed them.
+    Taking one stub off can expose the next (a chain of them): 0077
+    needed four rounds, and three left one on.
 
     Returns the stage record: removed, rounds, committed, rolled_back
     and a log of the rounds.
