@@ -62,20 +62,24 @@ def test_the_union_of_evaluations_is_every_finding_seen():
     assert union_claims(with_open, with_open) == with_open
 
 
-def test_steady_asks_again_only_when_the_answer_moves():
+def test_steady_judges_on_the_union_of_three_unless_nothing_is_reported():
     calls = []
-    answers = iter([_errs('clearance'), _errs('clearance', 'clearance'),
-                    _errs('clearance', 'clearance', 'track_width')])
+    answers = [_errs('clearance'), _errs('clearance', 'clearance'),
+               _errs('clearance', 'clearance', 'track_width')]
 
     def evaluate(_path):
         calls.append(1)
-        return next(answers)
+        return answers[min(len(calls), len(answers)) - 1]
 
     assert steady(evaluate)('b').n_errors == 3 and len(calls) == 3
     calls.clear()
-    same = lambda _path: _errs('clearance')  # noqa: E731
-    assert steady(same)('b').n_errors == 1 and True
-    clean = lambda _path: claims_from_drc({'violations': []})  # noqa: E731
+    # two runs that agree may agree on the same under-report: asked anyway
+    same = [_errs('clearance')] * 3
+
+    def same_again(_path):
+        calls.append(1)
+        return same[min(len(calls), 3) - 1]
+    assert steady(same_again)('b').n_errors == 1 and len(calls) == 3
     counted = []
 
     def clean_counting(_path):

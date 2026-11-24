@@ -471,7 +471,8 @@ def _digest(path):
 
 def repair_stepwise(board_path: str, drc_json: str, evaluate,
                     allowed_ops=None, classes=None, params=None,
-                    kind: str = 'repair', rule_congruent: bool = True) -> dict:
+                    kind: str = 'repair', rule_congruent: bool = True,
+                    initial=None) -> dict:
     """One repair round as a chain of small transactions, one per operator.
 
     A round used to be one transaction: every operator's copper went in
@@ -484,13 +485,18 @@ def repair_stepwise(board_path: str, drc_json: str, evaluate,
     own copper back where it was and is on record by name.
 
     `evaluate(board_path) -> Claims` is the caller's (it refills zones
-    and runs the DRC into `drc_json`).  Returns what repair_with_operators
+    and runs the DRC into `drc_json`); `initial` is the claims of the
+    board as it stands, when the caller already has them from that same
+    `evaluate` — otherwise the board is evaluated once more.  Each step
+    is judged against the evaluation of the state before it, never
+    against a single DRC report read from disk: the two are not the
+    same measure (see txn.steady).  Returns what repair_with_operators
     returns — operators run, repaired, failed, the ledger — plus
     `steps`: one entry per operator with its decision.  When no operator
     had anything to do the result is `{'no_op': True}`.
     """
     from fluxpcb.verifiers.operator_spec import TEXT_TO_SILK, default_registry
-    from fluxpcb.verifiers.txn import claims_from_drc, transactional_repair
+    from fluxpcb.verifiers.txn import transactional_repair
 
     def report():
         with open(drc_json, encoding='utf-8') as f:
@@ -503,14 +509,20 @@ def repair_stepwise(board_path: str, drc_json: str, evaluate,
         return classes is None or vtype in classes
 
     def has(classes_):
+        """Is there something for an operator of these classes to do?"""
         d = report()
         if d.get('ok') is False:
             return False
+        # an open is not a violation to the DRC: it has its own list
+        if 'unconnected' in classes_ and any(
+                not u.get('excluded') for u in d.get('unconnected_items') or []):
+            return True
         return any(v.get('severity') == 'error' and not v.get('excluded')
                    and v.get('type') in classes_ for v in d.get('violations') or [])
 
     if not os.path.exists(drc_json):
         evaluate(board_path)              # no report yet: make one
+    claims = initial if initial is not None else evaluate(board_path)
     entries = []
     if ok(TEXT_TO_SILK) and wanted('clearance') and has({'clearance'}):
         entries.append((TEXT_TO_SILK, (TEXT_TO_SILK,), {'clearance'}))
@@ -520,8 +532,6 @@ def repair_stepwise(board_path: str, drc_json: str, evaluate,
             entries.append((spec.name, spec.emitted(), set(spec.classes)))
 
     out = {'operators_run': [], 'repaired': 0, 'failed': 0, 'ledger': [], 'steps': []}
-    first = report()
-    claims = claims_from_drc(first, rule_congruent=rule_congruent)
     for (name, emitted, classes_) in entries:
         def one(path, _emitted=emitted, _name=name):
             was = _digest(path)
@@ -558,7 +568,7 @@ def repair_stepwise(board_path: str, drc_json: str, evaluate,
         out['failed'] += stats.get('failed') or 0
         out['ledger'].extend(stats.get('ledger') or [])
         if step.committed:
-            claims = claims_from_drc(report(), rule_congruent=rule_congruent)
+            claims = step.last           # as evaluated, not as last reported
     if not out['steps']:
         return {'no_op': True, 'operators_run': [], 'steps': []}
     return out

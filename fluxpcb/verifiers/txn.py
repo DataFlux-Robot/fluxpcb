@@ -175,25 +175,24 @@ def union_claims(*claims: Claims) -> Claims:
                   type_counts=tuple(sorted(types.items())))
 
 
-def steady(evaluate, most: int = 3):
-    """`evaluate` asked again until it repeats itself.
+def steady(evaluate, runs: int = 3):
+    """`evaluate` asked `runs` times, judged on the union.
 
-    Two evaluations of one state that agree are the state.  Two that
-    disagree get a third, and the union of all is the state.  A state
-    with nothing to report is not asked again: the DRC never leaves a
-    board with a violation at zero (one report per crowd of violations
-    always comes out).  Returns a function with `evaluate`'s contract;
-    it costs one more DRC on every evaluation that finds something.
+    Two runs that happen to agree can agree on the same under-report
+    (a test's width repair was still thrown away as "total increased"
+    about one time in three), so agreement is not trusted: a state with
+    something to report is always asked three times.  A state with
+    nothing to report is not asked again: the DRC never leaves a board
+    with a violation at zero (one report per crowd of violations always
+    comes out).  Returns a function with `evaluate`'s contract; it costs
+    two more DRCs on every evaluation that finds something.
     """
     def ev(path):
         first = evaluate(path)
-        if first.total == 0:
+        if first.total == 0 or runs <= 1:
             return first
-        second = evaluate(path)
-        if second.ids == first.ids:
-            return first
-        out = union_claims(first, second)
-        for _ in range(max(0, most - 2)):
+        out = first
+        for _ in range(runs - 1):
             out = union_claims(out, evaluate(path))
         return out
     return ev
@@ -259,6 +258,11 @@ class TxnReport:
     errors: int = 0
     log: list = field(default_factory=list)
     final: dict = field(default_factory=dict)
+    # the claims of the state the board was left in, as the object (not
+    # the dict): a chain of transactions judges each link against the
+    # one before it, and two evaluations of one state are not the same
+    # object.  Not serialized.
+    last: object = None
 
     def as_dict(self) -> dict:
         return {'committed': self.committed, 'rolled_back': self.rolled_back,
@@ -293,6 +297,7 @@ def transactional_repair(board_path: str, action_fn, eval_fn,
     rep = TxnReport()
     before = initial if initial is not None else eval_fn(board_path)
     rep.final = before.as_dict()
+    rep.last = before
     for r in range(max_rounds):
         if before.total == 0:
             say(f'round {r}: clean, nothing to repair')
@@ -362,6 +367,7 @@ def transactional_repair(board_path: str, action_fn, eval_fn,
             say(f'round {r}: commit ({why})')
             before = after
             rep.final = after.as_dict()
+            rep.last = after
         else:
             restore_snapshot(snap)
             _remove_new_sidecars(board_path, snap)

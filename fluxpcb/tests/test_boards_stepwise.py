@@ -294,3 +294,28 @@ def test_a_stub_that_carries_a_connection_stays(tmp_path, registry):
     assert 'total 0 -> 1' in trim['log'][0]['why']
     assert _evaluate(path).total == 0            # the stub is back
     assert dangling_counts(_drc(path))['track_dangling'] == 1
+
+
+def test_an_open_is_repaired_operator_by_operator(tmp_path, registry):
+    """An open is not a violation to the DRC: it sits in its own list.
+    The first version of repair_stepwise looked only at the violations
+    and found nothing for the connector to do (0077 and 0051 came back
+    from a targeted run with their open untouched)."""
+    import pcbnew
+
+    path = str(tmp_path / 'open.kicad_pcb')
+    _board(path, with_c=False)
+    b = pcbnew.LoadBoard(path)
+    for t in list(b.GetTracks()):
+        if t.GetNetCode() == b.FindNet('A').GetNetCode():
+            discard_track = t
+    b.Remove(discard_track)
+    for t in b.GetTracks():
+        t.SetWidth(pcbnew.FromMM(0.25))
+    pcbnew.SaveBoard(path, b)
+    before = _evaluate(path)
+    assert before.total == 1 and before.n_unconnected == 1
+    out = repair_stepwise(path, path + '.drc.json', _evaluate)
+    assert [(s['operator'], s['decision']) for s in out['steps']] == [
+        ('connect_unconnected', 'commit')]
+    assert _evaluate(path).total == 0
