@@ -113,6 +113,11 @@ def default_registry() -> OperatorRegistry:
     reg.register(OperatorSpec(
         name='maze_escape', method='maze_escape',
         classes=('unconnected',), priority=61))
+    # An open the connector could not draw: the same operator, for a
+    # connection that is not on the board yet.
+    reg.register(OperatorSpec(
+        name='conflict_reroute_open', method='conflict_reroute',
+        classes=('unconnected',), priority=62, emits=('conflict_reroute',)))
     return reg
 
 

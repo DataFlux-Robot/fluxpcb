@@ -111,7 +111,7 @@ def _raster(nx, ny, x0, y0, step, width, nc, segs, rects, rules, priced,
             continue
         need = geomir.pad_need(rect, smd) + own
         hw, hh = rect[2], rect[3]
-        if (len(rect) > 4 and rect[4]) and not (len(rect) > 5 and rect[5]):
+        if len(rect) > 4 and rect[4]:
             hw = hh = math.hypot(hw, hh)     # the box that holds it at any angle
         cx, cy = rect[0], rect[1]
         for (j, i) in _cells(x0, y0, step, nx, ny,
@@ -277,6 +277,9 @@ def plan_layers(a, b, la, lb, width, nc, segs, rects, rules=None, via_r=0.3,
                 edge=None, edge_keep=0.5):
     """A path from a on layer `la` to b on layer `lb`, changing layer
     through vias wherever one is legal, at `via_cost` mm per via.
+    `la` and `lb` may be tuples: a through-hole pad is an anchor on
+    every copper layer it is on, and the search may start or end on any
+    of them.
 
     Same grids as plan_local, one per layer, plus one that says where a
     through-via's barrel clears foreign copper on every layer (pads are
@@ -323,7 +326,7 @@ def plan_layers(a, b, la, lb, width, nc, segs, rects, rules=None, via_r=0.3,
                 continue
             reach = max(clear, geomir.pad_need(rect, 0.0)) + via_r
             hw, hh = rect[2], rect[3]
-            if rect[4] and not (len(rect) > 5 and rect[5]):
+            if rect[4]:
                 hw = hh = math.hypot(hw, hh)
             for (j, i) in _cells(x0, y0, step, nx, ny,
                                  (rect[0] - hw - reach, rect[1] - hh - reach,
@@ -359,17 +362,21 @@ def plan_layers(a, b, la, lb, width, nc, segs, rects, rules=None, via_r=0.3,
                         return (i, j)
         return (ci, cj)
 
+    las = (la,) if isinstance(la, int) else tuple(la)
+    lbs = (lb,) if isinstance(lb, int) else tuple(lb)
     gi, gj = cell(*b)
-    sa, sb = near_free(a, la)
-    goal = (lb, gi, gj)
-    if la == lb and (sa, sb) == (gi, gj):
-        return _finish_layers([[(a[0], a[1], la), (b[0], b[1], lb)]], width, nc,
-                              segs, rects, rules, via_r, step, nx * ny * nlay, 0)
+    starts = [(li,) + near_free(a, li) for li in las]
+    goals = {(lj, gi, gj) for lj in lbs}
+    for (li, sa, sb) in starts:
+        if (li, sa, sb) in goals:
+            return _finish_layers([[(a[0], a[1], li), (b[0], b[1], li)]],
+                                  width, nc, segs, rects, rules, via_r, step,
+                                  nx * ny * nlay, 0)
 
     def h(li, i, j):
         dx, dy = abs(i - gi), abs(j - gj)
         base = (max(dx, dy) + (SQRT2 - 1) * min(dx, dy)) * step
-        return base + (via_cost if li != lb else 0.0)
+        return base + (0.0 if li in lbs else via_cost)
 
     def index(li, i, j):
         return (li * ny + j) * nx + i
@@ -377,9 +384,12 @@ def plan_layers(a, b, la, lb, width, nc, segs, rects, rules=None, via_r=0.3,
     INF = float('inf')
     gscore = [INF] * (nlay * nx * ny)
     parent = [-1] * (nlay * nx * ny)
-    sid, gid = index(la, sa, sb), index(lb, gi, gj)
-    gscore[sid] = 0.0
-    heap = [(h(la, sa, sb), 0.0, (la, sa, sb))]
+    heap = []
+    for st in starts:
+        sid = index(*st)
+        gscore[sid] = 0.0
+        parent[sid] = sid                 # its own parent: the chain ends here
+        heapq.heappush(heap, (h(*st), 0.0, st))
     expanded = 0
     found = False
     while heap:
@@ -387,7 +397,7 @@ def plan_layers(a, b, la, lb, width, nc, segs, rects, rules=None, via_r=0.3,
         here = index(li, i, j)
         if g > gscore[here] + 1e-12:
             continue
-        if here == gid:
+        if (li, i, j) in goals:
             found = True
             break
         expanded += 1
@@ -416,20 +426,20 @@ def plan_layers(a, b, la, lb, width, nc, segs, rects, rules=None, via_r=0.3,
                     heapq.heappush(heap, (ng + h(lj, i, j), ng, (lj, i, j)))
     if not found:
         return None
-    path, cur = [], gid
-    while cur != sid:
+    path, cur = [], here
+    while parent[cur] != cur:
         path.append(cur)
         cur = parent[cur]
-    path.append(sid)
+    path.append(cur)
     path.reverse()
     pts = []
     for n, d in enumerate(path):
         li, rest = divmod(d, nx * ny)
         j, i = divmod(rest, nx)
         if n == 0:
-            pt = (a[0], a[1], la)
+            pt = (a[0], a[1], li)
         elif n == len(path) - 1:
-            pt = (b[0], b[1], lb)
+            pt = (b[0], b[1], li)
         else:
             pt = (x0 + i * step, y0 + j * step, li)
         if pts and pts[-1] == pt:

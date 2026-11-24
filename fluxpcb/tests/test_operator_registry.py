@@ -18,13 +18,13 @@ def test_default_registry_order_and_availability():
     assert reg.names() == [
         'short_rip_reroute', 'widen_narrow_tracks', 'clearance_chain',
         'conflict_reroute', 'endpoint_attach', 'plane_bridge', 'topology_swap',
-        'connect_unconnected', 'maze_escape']
+        'connect_unconnected', 'maze_escape', 'conflict_reroute_open']
     assert [s.name for s in reg.unavailable()] == [
         'plane_bridge', 'topology_swap']
     # A stub never claims a class, so dispatch cannot run it.
     assert reg.for_type('via_dangling') == []
     assert [s.name for s in reg.for_type('unconnected')] == [
-        'connect_unconnected', 'maze_escape']
+        'connect_unconnected', 'maze_escape', 'conflict_reroute_open']
 
 
 def test_every_available_method_exists_on_the_operator_library():

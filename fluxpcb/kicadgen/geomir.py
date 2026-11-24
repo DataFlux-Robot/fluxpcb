@@ -46,30 +46,109 @@ CLEAR_SMD = float(__import__("os").environ.get("FLUXNT_GEOMIR_CLEAR_SMD",
 
 
 # ===================================================== pure planning core
+class CopperIndex:
+    """Which copper can be near a query, by 1 mm cell.
+
+    The verifier measured every track on the layer for every candidate
+    segment.  On a board with 700 tracks a layer one repair batch made
+    344,000 such calls (0496: 27 minutes).  An item is filed under the
+    cells its box covers, grown by what a query has to add to reach it
+    (a track: its own half-width; a pad: its clearance, and the rule's);
+    a query gets back only the items filed under the cells its own box,
+    grown by its reach, covers — in list order, so the verifier that
+    uses it names the same first violation by the same amount.
+
+    `rules` are the ones the queries will judge by (never smaller than
+    the module constants): a pad is filed as far as its clearance under
+    those rules asks.
+    """
+
+    CELL = 1.0
+
+    def __init__(self, segs_by_layer, rects_by_layer, rules=None):
+        self._segs, self._rects = segs_by_layer, rects_by_layer
+        smd = max((rules or {}).get("clearance_smd", CLEAR_SMD), CLEAR_SMD)
+        clear = max((rules or {}).get("clearance", CLEAR), CLEAR)
+        self._t, self._p = {}, {}
+        for li, lst in enumerate(segs_by_layer):
+            for i, g in enumerate(lst):
+                (_net, s, e, hw) = g[:4]
+                self._file(self._t, li, i, min(s[0], e[0]) - hw,
+                           min(s[1], e[1]) - hw, max(s[0], e[0]) + hw,
+                           max(s[1], e[1]) + hw)
+        for li, lst in enumerate(rects_by_layer):
+            for i, g in enumerate(lst):
+                rect = g[1]
+                grow = math.hypot(rect[2], rect[3]) + pad_need(rect, smd) + clear
+                self._file(self._p, li, i, rect[0] - grow, rect[1] - grow,
+                           rect[0] + grow, rect[1] + grow)
+
+    def _file(self, table, li, i, x0, y0, x1, y1):
+        c = self.CELL
+        for cx in range(int(math.floor(x0 / c)), int(math.floor(x1 / c)) + 1):
+            for cy in range(int(math.floor(y0 / c)), int(math.floor(y1 / c)) + 1):
+                table.setdefault((cx, cy), []).append((li, i))
+
+    def _ids(self, table, x0, y0, x1, y1, reach, li):
+        c = self.CELL
+        seen = set()
+        for cx in range(int(math.floor((x0 - reach) / c)),
+                        int(math.floor((x1 + reach) / c)) + 1):
+            for cy in range(int(math.floor((y0 - reach) / c)),
+                            int(math.floor((y1 + reach) / c)) + 1):
+                for (l, i) in table.get((cx, cy), ()):
+                    if l == li:
+                        seen.add(i)
+        return sorted(seen)
+
+    def tracks(self, x0, y0, x1, y1, reach, li):
+        """`reach` is clearance plus what the query itself is wide: a
+        track's half-width, or a via's radius."""
+        return [self._segs[li][i] for i in self._ids(self._t, x0, y0, x1, y1, reach, li)]
+
+    def pads(self, x0, y0, x1, y1, reach, li):
+        return [self._rects[li][i] for i in self._ids(self._p, x0, y0, x1, y1, reach, li)]
+
+
 def via_ok(x, y, nc, segs_by_layer, rects_by_layer, via_r=None,
-           rules=None):
+           rules=None, index=None):
     """Through-via legality (T1): the barrel crosses EVERY layer, so it
     must clear foreign copper on ALL of them. The 10 hop-repair shorts
     came from checking only the path's layer. hyuhang822 rule: via
     legality = strictest of the three constraints (barrel-vs-copper per
-    layer; hole-to-hole stays with DRC at commit)."""
+    layer; hole-to-hole stays with DRC at commit).
+
+    With `index` (a CopperIndex of the same lists) only the copper that
+    can be near the site is measured."""
     from routegrid import seg_seg_dist, pt_rect_dist
     _clear = (rules or {}).get("clearance", CLEAR)
     # T2-fix: via_r is the size of the via WE PLACE (rg.add_via annulus
     # 0.25 -> 0.5 dia), NOT the design-rule MINIMUM (0.4/2=0.2 made the
     # verifier looser — the T2 regression's root cause)
     via_r = 0.25 if via_r is None else via_r
-    for li in range(len(segs_by_layer)):
-        for net, s, e, hw in segs_by_layer[li]:
+    nlay = len(segs_by_layer)
+    if index is not None:
+        layers = [(index.tracks(x, y, x, y, _clear + via_r, li),
+                   index.pads(x, y, x, y, via_r, li)) for li in range(nlay)]
+    else:
+        layers = [(segs_by_layer[li], rects_by_layer[li]) for li in range(nlay)]
+    for segs, rects in layers:
+        for net, s, e, hw in segs:
             if net == nc:
                 continue
-            if seg_seg_dist((x, y), (x, y), s, e) < _clear + hw + via_r:
+            need = _clear + hw + via_r
+            if _box_gap(x, y, x, y, s[0], s[1], e[0], e[1]) >= need * need:
+                continue            # too far by its box: too far
+            if seg_seg_dist((x, y), (x, y), s, e) < need:
                 return False, {"type": "via-vs-track", "net": net,
                                "at": [round(x, 2), round(y, 2)]}
-        for net, rect in rects_by_layer[li]:
+        for net, rect in rects:
             if net == nc:
                 continue
-            if pt_pad_dist(x, y, rect) < max(_clear, pad_need(rect, 0.0)) + via_r:
+            need = max(_clear, pad_need(rect, 0.0)) + via_r
+            if _bbox_gap((x, y), (x, y), rect) >= need:
+                continue
+            if pt_pad_dist(x, y, rect) < need:
                 return False, {"type": "via-vs-pad", "net": net,
                                "at": [round(x, 2), round(y, 2)]}
     return True, None
@@ -199,13 +278,18 @@ def pad_need(rect, rule_smd):
     return max(rule_smd, local)
 
 
-def verify_polyline(pts, width, nc, segs, rects, rules=None):
+def verify_polyline(pts, width, nc, segs, rects, rules=None, index=None,
+                   layer=None):
     """World-geometry verification of one polyline against fixed copper
     lists (same rules as commit_gate — the single geometric truth).
 
     segs: [(net, (x1,y1), (x2,y2), half_w)]   rects: [(net, rect)]
     Returns (ok, blocker) where blocker describes the first violation
     for the fix-it feedback ("violated: X, by how much").
+
+    With `index` (a CopperIndex of every layer's lists) and `layer` (the
+    router layer `segs`/`rects` are), each segment measures only the
+    copper filed near its own box: the same verdict, the same blocker.
     """
     from routegrid import seg_seg_dist, pt_rect_dist
     # T2: rule values come from the ONE table when provided (module
@@ -214,20 +298,26 @@ def verify_polyline(pts, width, nc, segs, rects, rules=None):
     _smd = (rules or {}).get("clearance_smd", CLEAR_SMD)
     own = width / 2
     for (p, q) in zip(pts, pts[1:]):
-        pad = own + CLEAR + 0.05
-        x0, x1 = min(p[0], q[0]) - pad, max(p[0], q[0]) + pad
-        y0, y1 = min(p[1], q[1]) - pad, max(p[1], q[1]) + pad
-        for net, s, e, hw in segs:
+        if index is not None and layer is not None:
+            x0, x1 = min(p[0], q[0]), max(p[0], q[0])
+            y0, y1 = min(p[1], q[1]), max(p[1], q[1])
+            near_segs = index.tracks(x0, y0, x1, y1, _clear + own, layer)
+            near_rects = index.pads(x0, y0, x1, y1, own, layer)
+        else:
+            near_segs, near_rects = segs, rects
+        for net, s, e, hw in near_segs:
             if net == nc:
                 continue
-            if seg_seg_dist(p, q, s, e) < _clear + hw + own:
+            need = _clear + hw + own
+            if _box_gap(p[0], p[1], q[0], q[1], s[0], s[1], e[0], e[1]) >= need * need:
+                continue            # too far by its box: too far
+            d = seg_seg_dist(p, q, s, e)
+            if d < need:
                 return False, {"type": "track", "net": net,
                                "at": [round((s[0] + e[0]) / 2, 2),
                                       round((s[1] + e[1]) / 2, 2)],
-                               "short_by_mm": round(
-                                   _clear + hw + own -
-                                   seg_seg_dist(p, q, s, e), 3)}
-        for net, rect in rects:
+                               "short_by_mm": round(need - d, 3)}
+        for net, rect in near_rects:
             if net == nc:
                 continue
             _need = pad_need(rect, _smd)
@@ -367,13 +457,15 @@ def plan_paths(a, b, width, nc, segs_by_layer, rects_by_layer,
     verified, rejects = [], []
     nlay = len(segs_by_layer)
     ladder = width_ladder or WIDTH_LADDER_DEFAULT
+    # built once: every candidate below asks it what is near
+    index = CopperIndex(segs_by_layer, rects_by_layer, rules)
     for width in (width,) + tuple(w for w in ladder if w < width):
         all_cands = (candidate_polylines(a, b, bounds=bounds)
                      + slot_waypoints(a, b, segs_by_layer, rects_by_layer,
                                       nc, width))
         _plan_paths_at_width(a, b, width, nc, segs_by_layer,
                              rects_by_layer, nlay, all_cands,
-                             verified, rejects, limit, rules)
+                             verified, rejects, limit, rules, index)
         if len(verified) >= limit:
             break
     if not verified and rejects:
@@ -381,7 +473,7 @@ def plan_paths(a, b, width, nc, segs_by_layer, rects_by_layer,
         # a candidate missing by 0.015mm is a false negative, not a wall
         verified.extend(near_miss_retry(a, b, width, nc, segs_by_layer,
                                         rects_by_layer, rejects,
-                                        rules=rules))
+                                        rules=rules, index=index))
     # ② 平面完整性优先: 跨平面数是第一排序键(切 GND 平面 = 制造
     # power-fragment 开路), 长度次之
     if planes_by_layer:
@@ -397,7 +489,7 @@ def plan_paths(a, b, width, nc, segs_by_layer, rects_by_layer,
 
 def _plan_paths_at_width(a, b, width, nc, segs_by_layer, rects_by_layer,
                          nlay, all_cands, verified, rejects, limit,
-                         rules=None):
+                         rules=None, index=None):
     for li in range(nlay):
         for cand0 in all_cands:
             if len(verified) >= limit:
@@ -409,7 +501,7 @@ def _plan_paths_at_width(a, b, width, nc, segs_by_layer, rects_by_layer,
             for (p, q) in zip(cand, cand[1:]):
                 ok, blocker = verify_polyline(
                     [(p[0], p[1]), (q[0], q[1])], width, nc,
-                    segs_by_layer[li], rects_by_layer[li], rules)
+                    segs_by_layer[li], rects_by_layer[li], rules, index, li)
                 if not ok:
                     bad_seg = (p, q, blocker)
                     break
@@ -431,13 +523,14 @@ def _plan_paths_at_width(a, b, width, nc, segs_by_layer, rects_by_layer,
                 quiet = 1 - li
                 ok2, blk2 = verify_polyline(
                     [(p[0], p[1]), (q[0], q[1])], width, nc,
-                    segs_by_layer[quiet], rects_by_layer[quiet], rules)
+                    segs_by_layer[quiet], rects_by_layer[quiet], rules,
+                    index, quiet)
                 # T1: the vias' barrels cross ALL layers — verify them
                 # in 3D before accepting the hop (the 10-shorts bug)
                 v_ok = (via_ok(p[0], p[1], nc, segs_by_layer,
-                               rects_by_layer, rules=rules)[0]
+                               rects_by_layer, rules=rules, index=index)[0]
                         and via_ok(q[0], q[1], nc, segs_by_layer,
-                                   rects_by_layer, rules=rules)[0])
+                                   rects_by_layer, rules=rules, index=index)[0])
                 if ok2 and v_ok:
                     out = []
                     for pt in cand:
@@ -470,7 +563,8 @@ def _plan_paths_at_width(a, b, width, nc, segs_by_layer, rects_by_layer,
                             if not verify_polyline(
                                     [(u[0], u[1]), (v2[0], v2[1])], width,
                                     nc, segs_by_layer[u[2]],
-                                    rects_by_layer[u[2]], rules)[0]:
+                                    rects_by_layer[u[2]], rules, index,
+                                    u[2])[0]:
                                 tail_ok = False
                                 break
                         if not tail_ok:
@@ -509,16 +603,17 @@ def _plan_paths_at_width(a, b, width, nc, segs_by_layer, rects_by_layer,
             for off in perps:
                 sites.append((a[0] + (b[0] - a[0]) * t + px * off,
                               a[1] + (b[1] - a[1]) * t + py * off))
+        # each site is judged once, not once per partner
+        legal = [via_ok(va[0], va[1], nc, segs_by_layer,
+                        rects_by_layer, index=index)[0] for va in sites]
         for quiet in range(1, nlay):
-            for va in sites:
-                if not via_ok(va[0], va[1], nc, segs_by_layer,
-                              rects_by_layer, rules=rules)[0]:
+            for ia, va in enumerate(sites):
+                if not legal[ia]:
                     continue
-                for vb in sites:
+                for ib, vb in enumerate(sites):
                     if abs(va[0] - vb[0]) + abs(va[1] - vb[1]) < 1.5:
                         continue
-                    if not via_ok(vb[0], vb[1], nc, segs_by_layer,
-                                  rects_by_layer, rules=rules)[0]:
+                    if not legal[ib]:
                         continue
                     if len(verified) >= 3:
                         break
@@ -532,7 +627,8 @@ def _plan_paths_at_width(a, b, width, nc, segs_by_layer, rects_by_layer,
                         li = p[2]
                         ok, blocker = verify_polyline(
                             [(p[0], p[1]), (q[0], q[1])], width, nc,
-                            segs_by_layer[li], rects_by_layer[li])
+                            segs_by_layer[li], rects_by_layer[li],
+                            index=index, layer=li)
                         if not ok:
                             bad = blocker
                             break
@@ -753,7 +849,7 @@ def islands_of(board, nc):
 
 
 def near_miss_retry(a, b, width, nc, segs_by_layer, rects_by_layer,
-                    rejects, rules=None, n_shifts=8):
+                    rejects, rules=None, n_shifts=8, index=None):
     """Stream ② — the false-negative killer (hyuhang: 'why does it say
     unroutable when space exists?'): the best rejected candidate missed
     by a hair (0.015-0.3mm) — shift the polyline PERPENDICULARLY AWAY
@@ -791,7 +887,7 @@ def near_miss_retry(a, b, width, nc, segs_by_layer, rects_by_layer,
             li = pts[0][2] if len(pts[0]) > 2 else 0
             v, _bl = verify_polyline([p, q], width, nc,
                                      segs_by_layer[li],
-                                     rects_by_layer[li], rules)
+                                     rects_by_layer[li], rules, index, li)
             if not v:
                 ok = False
                 break
@@ -899,13 +995,23 @@ def pt_pad_dist(x, y, rect):
     return pt_rect_dist(x, y, rect)
 
 
+def _box_gap(ax, ay, bx, by, cx, cy, dx, dy):
+    """Squared distance between the boxes of two segments.  Never more
+    than the squared distance between the segments, so "box gap >=
+    need" proves the segments are legal without measuring them."""
+    gx = max(min(ax, bx) - max(cx, dx), min(cx, dx) - max(ax, bx), 0.0)
+    gy = max(min(ay, by) - max(cy, dy), min(cy, dy) - max(ay, by), 0.0)
+    return gx * gx + gy * gy
+
+
 def _bbox_gap(p, q, rect):
     """Distance between the track's box and the pad's box (0 when they
     meet).  A rotated pad gets the box that holds it at any angle."""
     cx, cy, hw, hh = rect[0], rect[1], rect[2], rect[3]
     rot = rect[4] if len(rect) > 4 else 0.0
-    round_ = len(rect) > 5 and bool(rect[5])
-    if rot and not round_:
+    # at any angle other than 0 a pad is judged as its rectangle (see
+    # pt_pad_dist), so it gets the box that holds that rectangle
+    if rot:
         hw = hh = math.hypot(hw, hh)
     gx = max(min(p[0], q[0]) - (cx + hw), (cx - hw) - max(p[0], q[0]), 0.0)
     gy = max(min(p[1], q[1]) - (cy + hh), (cy - hh) - max(p[1], q[1]), 0.0)

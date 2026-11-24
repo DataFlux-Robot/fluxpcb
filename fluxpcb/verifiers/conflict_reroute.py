@@ -245,15 +245,17 @@ def _remove(board, items):
             pass
 
 
-def candidates(board, layers, a, b, la, width, nc, rt, bounds, via,
+def candidates(board, layers, a, b, las, lbs, width, nc, rt, bounds, via,
                margin=1.5):
     """Paths for a connection that the verifier finds free, cheapest first.
 
-    Cost is length plus VIA_COST per via, so a detour on the connection's
-    own layer is preferred to a hop unless it is 4 mm longer.  Every
-    candidate starts and ends on its anchors and is judged by geomir
-    against the board as it is now (the connection itself is not on it):
-    what comes back can be drawn.
+    las, lbs: the layers the connection may start and end on (a lifted
+    track gives its own layer on both sides; a through-hole pad gives
+    every layer it is on).  Cost is length plus VIA_COST per via, so a
+    detour on one layer is preferred to a hop unless it is 4 mm longer.
+    Every candidate starts and ends on its anchors and is judged by
+    geomir against the board as it is now (a lifted connection is not on
+    it): what comes back can be drawn.
     """
     from ..kicadgen import geomir
     from ..kicadgen.microroute import plan_layers, plan_local
@@ -269,8 +271,8 @@ def candidates(board, layers, a, b, la, width, nc, rt, bounds, via,
                     'vias': sum(1 for p, q in zip(pts, pts[1:]) if p[2] != q[2]),
                     'mode': mode, 'width': width})
 
-    # own layer, heuristic shapes (a candidate may hop to the quiet layer
-    # in the middle; its ends stay where the anchors are)
+    # heuristic shapes (a candidate may hop to the quiet layer in the
+    # middle; its ends have to sit on layers the anchors offer)
     try:
         plans, _ = geomir.plan_paths(
             a, b, width, nc, segs, rects, bounds=bounds,
@@ -279,25 +281,24 @@ def candidates(board, layers, a, b, la, width, nc, rt, bounds, via,
         plans = []
     for pl in plans:
         pts = [(p[0], p[1], int(p[2])) for p in pl.get('pts') or []]
-        if len(pts) >= 2 and pts[0][2] == la and pts[-1][2] == la:
+        if len(pts) >= 2 and pts[0][2] in las and pts[-1][2] in lbs:
             # a near-miss plan comes back shifted sideways, ends included:
             # it starts and ends on the anchors or it is an open
-            pts[0] = (a[0], a[1], la)
-            pts[-1] = (b[0], b[1], la)
             add(pts, 'shapes:%s' % pl.get('mode', ''))
-    # own layer, fine grid
-    try:
-        got = plan_local(a, b, width, nc, segs[la], rects[la], rt,
-                         margin=margin, edge=bounds, edge_keep=via['edge'])
-    except Exception:
-        got = None
-    if got:
-        add([(x, y, la) for x, y in got['pts']], 'fine-grid')
+    # one layer, fine grid
+    for li in sorted(set(las) & set(lbs)):
+        try:
+            got = plan_local(a, b, width, nc, segs[li], rects[li], rt,
+                             margin=margin, edge=bounds, edge_keep=via['edge'])
+        except Exception:
+            got = None
+        if got:
+            add([(x, y, li) for x, y in got['pts']], 'fine-grid')
     # through vias, wherever one is legal: a hop to another layer and
     # back, or the whole connection moved
     try:
-        got = plan_layers(a, b, la, la, width, nc, segs, rects, rt,
-                          via_r=via['dia'] / 2.0, via_cost=VIA_COST,
+        got = plan_layers(a, b, tuple(las), tuple(lbs), width, nc, segs, rects,
+                          rt, via_r=via['dia'] / 2.0, via_cost=VIA_COST,
                           margin=margin + 0.5, edge=bounds, edge_keep=via['edge'])
     except Exception:
         got = None
@@ -465,6 +466,56 @@ def edge_keepout(board):
     return keep
 
 
+def _item(board, uid):
+    """The track, via or pad with this uuid."""
+    for t in board.GetTracks():
+        if t.m_Uuid.AsString() == uid:
+            return t
+    for fp in board.GetFootprints():
+        for pad in fp.Pads():
+            if pad.m_Uuid.AsString() == uid:
+                return pad
+    return None
+
+
+def _item_layers(item, layers):
+    """The router layers an item is copper on (a via: all of them)."""
+    kind = type(item).__name__
+    if kind == 'PCB_VIA':
+        return list(range(len(layers)))
+    if kind != 'PAD':                 # a track: the one layer it is on
+        return [layers.index(item.GetLayer())]
+    return [li for li, lid in enumerate(layers) if item.IsOnLayer(lid)]
+
+
+def _anchor(item, other):
+    """Where a connection to `item` starts: a pad's centre, a via's
+    position, the end of a track nearest to `other`."""
+    if type(item).__name__ in ('PCB_VIA', 'PAD'):
+        return _mm(item.GetPosition())
+    s, e = _mm(item.GetStart()), _mm(item.GetEnd())
+    return s if math.dist(s, other) <= math.dist(e, other) else e
+
+
+def still_open(board, v):
+    """Does the DRC's missing connection still exist?  (An earlier
+    operator may have drawn it.)  KiCad's own connectivity answers."""
+    items = [_item(board, str(i.get('uuid') or '')) for i in (v.items or [])]
+    items = [x for x in items if x is not None]
+    if len(items) != 2:
+        return True                    # unknown: treat as open, never skip
+    board.BuildConnectivity()
+    conn = board.GetConnectivity()
+    want = items[1].m_Uuid.AsString()
+    for x in conn.GetConnectedItems(items[0], int(items[1].Type())):
+        try:
+            if x.m_Uuid.AsString() == want:
+                return False
+        except Exception:
+            continue
+    return True
+
+
 def net_table(board):
     """uuid -> netcode for every track, via and pad on the board."""
     table = {t.m_Uuid.AsString(): t.GetNetCode() for t in board.GetTracks()}
@@ -545,8 +596,9 @@ def run(ops, board, violations):
                 lift(board, rec, members)
                 gone.update(rec['gone'])
                 state['tried'] += 1
-                cands, segs, rects = candidates(board, layers, a, b, la, width,
-                                                nc, rt, bounds, via)
+                cands, segs, rects = candidates(board, layers, a, b, (la,),
+                                                (la,), width, nc, rt, bounds,
+                                                via)
                 # the cheapest set that has not already failed: a set
                 # that could not be routed again is a wall for this search
                 avoid, skipped = [], 0
@@ -572,8 +624,8 @@ def run(ops, board, violations):
                             if k and priced['pts'] else None)
                 if (set_cost is not None and (best is None or set_cost < best)
                         and dead not in state['dead']
-                        and reroute_set(rec, a, b, la, width, nc,
-                                        priced['crossed'])):
+                        and through_set(rec, a, b, (la,), (la,), width, nc,
+                                        la, priced['crossed'])):
                     rec['outcome'] = 'conflict_set'
                     return rec, 'conflict_set', {'tried': tried}
                 if draw_first(board, rec, cands, width, nc, layers, rt, via):
@@ -595,61 +647,178 @@ def run(ops, board, violations):
         return None, ('sealed' if sealed else 'no_path'), {
             'tried': tried, 'conflict_set': k if sealed else None}
 
-    def reroute_set(rec, a, b, la, width, nc, crossed):
-        """Lift the conflict set, route this connection, route the set
-        again.  On failure everything this touched is back as it was."""
-        victims = []
-        for item in crossed:
-            vt = find_track(board, layers, la, item)
-            if vt is None:
-                return False
-            victims.append((vt, vt.GetNetCode(), vt.GetNetname(),
-                            max(vt.GetWidth() / 1e6, floor),
-                            _mm(vt.GetStart()), _mm(vt.GetEnd())))
-        vrecs = []
-        for (vt, _vnc, vnet, _vw, va, vb) in victims:
-            vr = record(vnet)
-            lift(board, vr, [(vt, va, vb)])
-            gone.update(vr['gone'])
-            vrecs.append(vr)
-        done = False
+    def lift_base(vt, la):
+        """Lift one track of the set and remember the run it is part of
+        (its wrappers go stale with the lift).  Returns (record, info)."""
+        vnc, vnet = vt.GetNetCode(), vt.GetNetname()
+        va, vb = _mm(vt.GetStart()), _mm(vt.GetEnd())
+        vw = max(vt.GetWidth() / 1e6, floor)
+        run_ = connection(board, vt) or [(vt, va, vb)]
+        # `vt` is about to be lifted: its wrapper goes stale, so whatever
+        # is needed from it is taken now
+        info = (vnc, vw, run_,
+                next(k for k, m in enumerate(run_) if m[0] is vt),
+                vt.m_Uuid.AsString(),
+                [m[0].m_Uuid.AsString() for m in run_], vt, vnet)
+        vr = record(vnet)
+        vr.update(a=[round(va[0], 3), round(va[1], 3)],
+                  b=[round(vb[0], 3), round(vb[1], 3)], lifted_n=1)
+        lift(board, vr, [(vt, va, vb)])
+        gone.update(vr['gone'])
+        return vr, info
+
+    def re_route(vr, info, la):
+        """A victim — its crossed track already lifted in `vr` — on a new
+        path: that track alone, then with more of its run, as for the
+        connection that pushed it.  False leaves `vr` as it was."""
+        vnc, vw, run_, i, vt_uid, uids, vt, vnet = info
+        for ka, kb in lifts(i, len(run_), p.conflict_lifts):
+            members = run_[i - ka:i + kb + 1]
+            a_, b_ = members[0][1], members[-1][2]
+            sub = record(vnet)          # what this step lifts on top
+            extra = [m for m in members if m[0] is not vt]
+            if extra:
+                lift(board, sub, extra)
+                gone.update(sub['gone'])
+            cands, _, _ = candidates(board, layers, a_, b_, (la,), (la,), vw,
+                                     vnc, rt, bounds, via)
+            if cands and draw_first(board, sub, cands, vw, vnc, layers, rt, via):
+                vr['lifted'] = vr['lifted'] + sub['lifted']
+                vr['created'] = sub['created'] + vr['created']
+                vr.update(a=[round(a_[0], 3), round(a_[1], 3)],
+                          b=[round(b_[0], 3), round(b_[1], 3)],
+                          lifted_n=len(members), plan=sub.get('plan'))
+                return True
+            fresh = unmake(board, sub)
+            old = run_
+            run_ = [(fresh.get(uids[k], old[k][0]), old[k][1], old[k][2])
+                    for k in range(len(old))]
+            uids = [vt_uid if m[0] is vt else m[0].m_Uuid.AsString()
+                    for m in run_]
+        return False
+
+    def through_set(rec, a, b, las, lbs, width, nc, la, crossed):
+        """The copper in the way is lifted, this connection routed through,
+        and that copper routed again after it, in several orders.  False
+        leaves everything as it was and remembers the set as one that
+        does not work."""
+        key = frozenset((x[0], x[1], x[2]) for x in crossed)
+        done, victims = False, []
         try:
-            cands, _, _ = candidates(board, layers, a, b, la, width, nc, rt,
-                                     bounds, via)
-            if not draw_first(board, rec, cands, width, nc, layers, rt, via):
-                state['dead'].add(frozenset((x[0], x[1], x[2]) for x in crossed))
+            for item in crossed:
+                vt = find_track(board, layers, la, item)
+                if vt is None:
+                    return False
+                victims.append(lift_base(vt, la))
+            cands, _, _ = candidates(board, layers, a, b, las, lbs, width,
+                                     nc, rt, bounds, via)
+            if not cands or not draw_first(board, rec, cands, width, nc,
+                                           layers, rt, via):
                 return False
-            for order in list(itertools.permutations(range(len(victims))))[:p.conflict_trials]:
+            for order in list(itertools.permutations(range(len(crossed))))[:p.conflict_trials]:
                 ok = True
                 for idx in order:
-                    _vt, vnc, _vnet, vw, va, vb = victims[idx]
-                    cands, _, _ = candidates(board, layers, va, vb, la, vw,
-                                             vnc, rt, bounds, via)
-                    if not draw_first(board, vrecs[idx], cands, vw, vnc,
-                                      layers, rt, via):
+                    if not re_route(*victims[idx], la):
                         ok = False
                         break
                 if ok:
-                    rec['set'] = [{'net': vr['net'], 'plan': vr.get('plan')}
-                                  for vr in vrecs]
+                    rec['set'] = [{'net': vr['net'], 'lifted': vr['lifted_n'],
+                                   'plan': vr.get('plan')}
+                                  for (vr, _info) in victims]
                     done = True
                     return True
-                for vr in vrecs:            # this order's copper comes off
+                for (vr, _info) in victims:   # this order's copper comes off
                     _remove(board, vr['created'])
                     vr['created'], vr['plan'] = [], None
-            # the set cannot be routed again behind this connection; the
-            # same set behind a longer lift of it cannot either
-            state['dead'].add(frozenset((x[0], x[1], x[2]) for x in crossed))
             return False
         finally:
             if not done:
-                for vr in vrecs:
+                for (vr, _info) in victims:
                     unmake(board, vr)
                 _remove(board, rec['created'])
                 rec['created'] = []
                 rec.pop('plan', None)
+                state['dead'].add(key)
+
+    def solve_open(v):
+        """A connection the DRC reports missing, with no free path.  The
+        same two ways out as for a track: alone (any layers its anchors
+        offer), or through the copper that closes it."""
+        pads = [_item(board, u) for u in [str(i.get('uuid') or '')
+                                         for i in (v.items or [])]]
+        pads = [x for x in pads if x is not None]
+        if len(pads) != 2:
+            return None, 'no_path', {'why': 'the open does not name two items'}
+        (pa, pb) = pads
+        try:
+            nc = pa.GetNetCode()
+            net = pa.GetNetname()
+            a, b = _anchor(pa, _mm(pb.GetPosition())), _anchor(pb, _mm(pa.GetPosition()))
+            las, lbs = tuple(_item_layers(pa, layers)), tuple(_item_layers(pb, layers))
+        except Exception as ex:
+            return None, 'no_path', {'error': f'{type(ex).__name__}: {ex}'}
+        width = max(float(rt.get('track_width') or 0.0), floor)
+        rec = record(net)
+        rec.update(a=[round(a[0], 3), round(a[1], 3)],
+                   b=[round(b[0], 3), round(b[1], 3)], lifted_n=0)
+        tried, options = [], []
+        for la in sorted(set(las)):
+            state['tried'] += 1
+            cands, segs, rects = candidates(board, layers, a, b, las, lbs,
+                                            width, nc, rt, bounds, via)
+            avoid, skipped = [], 0
+            while True:
+                priced = plan_local(a, b, width, nc, segs[la], rects[la], rt,
+                                    margin=3.0, edge=bounds,
+                                    edge_keep=via['edge'],
+                                    cross={'cost': RIP_PRICE,
+                                           'max': p.conflict_max_set,
+                                           'inside': RIP_PRICE / 2,
+                                           'avoid': avoid})
+                dead = frozenset((x[0], x[1], x[2]) for x in priced['crossed'])
+                if priced['why'] != 'crosses' or dead not in state['dead']:
+                    break
+                avoid.extend(dead)
+                skipped += 1
+            k = len(priced['crossed'])
+            best = (cands[0]['length_mm'] + VIA_COST * cands[0]['vias']
+                    if cands else None)
+            set_cost = (_len(priced['pts']) + RIP_PRICE * k
+                        if k and priced['pts'] and dead not in state['dead']
+                        else None)
+            tried.append({'start_layer': board.GetLayerName(layers[la]),
+                          'candidates': len(cands), 'priced': priced['why'],
+                          'crossed': k, 'sets_skipped': skipped})
+            options.append((best, 'alone', (cands,)))
+            options.append((set_cost, 'set', (la, priced['crossed'])))
+        options = [o for o in options if o[0] is not None]
+        options.sort(key=lambda o: o[0])
+        for _cost, kind, args in options:
+            if kind == 'alone':
+                if draw_first(board, rec, args[0], width, nc, layers, rt, via):
+                    rec['outcome'] = 'clear'
+                    return rec, 'clear', {'tried': tried}
+            elif through_set(rec, a, b, las, lbs, width, nc, args[0], args[1]):
+                rec['outcome'] = 'conflict_set'
+                return rec, 'conflict_set', {'tried': tried}
+        sealed = priced['why'] == 'set_too_large'
+        return None, ('sealed' if sealed else 'no_path'), {
+            'tried': tried, 'conflict_set': k if sealed else None}
 
     for v in violations[:p.conflict_cap]:
+        if v.type == 'unconnected':
+            try:
+                if not still_open(board, v):
+                    rec, outcome, why = None, 'already_clear', {}
+                else:
+                    rec, outcome, why = solve_open(v)
+            except Exception as ex:
+                rec, outcome, why = None, 'no_path', {
+                    'error': f'{type(ex).__name__}: {ex}', 'where': _where(ex)}
+            if rec is not None:
+                state['kept'].append(rec)
+            state['ledger'].append((v, None, rec, outcome, why))
+            continue
         if v.type != 'clearance':
             continue
         movers = []
@@ -709,6 +878,8 @@ def run(ops, board, violations):
                        lifts=state['tried'])
         counts[outcome] += 1
         pos = v.location or (0.0, 0.0)
+        if rec is not None:
+            pos = rec['a']
         ops._ledger.append(cert_entry(
             'conflict_reroute',
             {'net': v.net, 'pos': [float(pos[0]), float(pos[1])],

@@ -52,12 +52,29 @@ def _copy(src, dst):
             shutil.copy(os.path.join(src, f), os.path.join(dst, f))
 
 
+def _unchanged(pcb, want, key):
+    """A fixture is a control: it must still be the board that was
+    archived.  (An operator run straight on the fixture file saved its
+    own repair over it once — every test that used it would then have
+    measured nothing.)"""
+    import hashlib
+
+    with open(pcb, 'rb') as fh:
+        got = hashlib.sha256(fh.read()).hexdigest()[:16]
+    if got != want:
+        pytest.fail(f'fixture {key} changed underfoot: sha256 {got}, '
+                    f'manifest says {want}.  Restore it from its archived '
+                    f'source before trusting any test on it.')
+
+
 def board(key, tmp_path):
     """A copy of fixture `key` beside its project; the pcb's path."""
     entry = next(b for b in manifest()['boards'] if b['key'] == key)
     dst = os.path.join(str(tmp_path), key)
     _copy(os.path.join(root(), 'boards', key), dst)
-    return os.path.join(dst, entry['board'] + '.kicad_pcb')
+    pcb = os.path.join(dst, entry['board'] + '.kicad_pcb')
+    _unchanged(pcb, entry.get('sha256_pcb'), key)
+    return pcb
 
 
 def control(name, tmp_path):

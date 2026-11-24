@@ -13,7 +13,11 @@ makes the flip mean something:
   * the same with that signal boxed in its turn: nothing changes;
   * good boards are left untouched.
 
-The small board is built here with pcbnew, so it is in git.
+An OPEN connection goes through the same operator (0051: the
+connector alone leaves it open; through the two tracks in its way it
+closes, and both of those are routed again and still connected).
+
+The small boards are built here with pcbnew, so they are in git.
 """
 import os
 import sys
@@ -36,13 +40,14 @@ pytestmark = pytest.mark.board
 SD_A = '/Controller//SD_A'
 
 
-def _run(pcb, errs, operator='conflict_reroute', **params):
+def _run(pcb, errs, operator='conflict_reroute', _unconnected=(), **params):
     no_assert_dialogs()
     board = F.load(pcb)
     # by keyword: the first positional argument of RepairOperators is a
     # distance, and passing the params object there silently runs defaults
     ops = RepairOperators(params=OperatorParams(**params))
-    res = getattr(ops, operator)(board, parse_violations({'violations': errs}))
+    res = getattr(ops, operator)(board, parse_violations(
+        {'violations': errs, 'unconnected_items': list(_unconnected)}))
     F.save(board, pcb)
     return res, ops
 
@@ -259,3 +264,154 @@ def test_the_small_board_without_the_defect_is_left_alone(tmp_path):
     assert not res.success
     assert _copper(F.load(pcb)) == before
     assert not F.drc(pcb)[0]
+
+
+# ------------------------------------------------------- open connections
+def test_0051_the_open_goes_through_the_copper_in_its_way(tmp_path):
+    pcb = F.board('0051', tmp_path)
+    errs, unconn = F.drc(pcb)
+    assert not errs and len(unconn) == 1
+    others = sorted(_copper(F.load(pcb)))
+    res, ops = _run(pcb, errs, _unconnected=unconn)
+    errs2, unconn2 = F.drc(pcb)
+    assert not errs2 and not unconn2            # the flip
+    (outcome, conflict_set, _why), = _outcomes(ops)
+    assert outcome == 'ok' and sorted(conflict_set) == ['+3V3', 'CE']
+    rec, = res.certificate['records']
+    assert rec['net'] == 'CSN' and rec['outcome'] == 'conflict_set'
+    # the tracks that moved belong to the connection and to the two nets
+    # named in the set, to no other net
+    after = _copper(F.load(pcb))
+    moved = {r[1] for r in after} ^ {r[1] for r in others}
+    assert moved <= {'+3V3', 'CE', 'CSN'}, moved
+    keep = lambda rows: [r for r in rows  # noqa: E731
+                         if r[1] not in ('+3V3', 'CE', 'CSN')]
+    assert keep(after) == keep(others)
+
+
+def test_0051_the_connector_alone_leaves_it_open(tmp_path):
+    """The state before this change: the archived run's own operators on
+    the archived board."""
+    pcb = F.board('0051', tmp_path)
+    errs, unconn = F.drc(pcb)
+    no_assert_dialogs()
+    board = F.load(pcb)
+    ops = RepairOperators()
+    vs = parse_violations({'violations': errs, 'unconnected_items': unconn})
+    ops.connect_unconnected_geomir(board, vs)
+    ops.maze_escape(board, vs)
+    F.save(board, pcb)
+    errs2, unconn2 = F.drc(pcb)
+    assert not errs2 and len(unconn2) == 1
+
+
+def test_an_open_that_is_already_closed_is_left_alone(tmp_path):
+    pcb = F.board('0051', tmp_path)
+    errs, unconn = F.drc(pcb)
+    res, _ops = _run(pcb, errs, _unconnected=unconn)
+    assert res.success
+    board = F.load(pcb)
+    before = _copper(board)
+    ops2 = RepairOperators()
+    again = ops2.conflict_reroute(board, parse_violations(
+        {'violations': errs, 'unconnected_items': unconn}))
+    assert not again.success and not again.certificate.get('records')
+    assert [o[0] for o in _outcomes(ops2)] == ['not_applicable']
+    assert _copper(F.load(pcb)) == before
+
+
+def _open_scene(path, band=True):
+    """Net A has two pads and no track; net B is a wall across the board
+    between them; with `band` the back layer is net C, so the only way
+    from one A pad to the other is through B."""
+    import pcbnew
+
+    b = pcbnew.NewBoard(path)
+
+    def V(x, y):
+        return pcbnew.VECTOR2I(pcbnew.FromMM(x), pcbnew.FromMM(y))
+
+    def size(w, h):
+        return pcbnew.VECTOR2I(pcbnew.FromMM(w), pcbnew.FromMM(h))
+
+    for a, c in (((0, 0), (20, 0)), ((20, 0), (20, 14)),
+                 ((20, 14), (0, 14)), ((0, 14), (0, 0))):
+        sh = pcbnew.PCB_SHAPE(b)
+        sh.SetShape(pcbnew.SHAPE_T_SEGMENT)
+        sh.SetLayer(pcbnew.Edge_Cuts)
+        sh.SetStart(V(*a))
+        sh.SetEnd(V(*c))
+        sh.SetWidth(pcbnew.FromMM(0.05))
+        b.Add(sh)
+    codes = {}
+    for name in ('A', 'B', 'C'):
+        n = pcbnew.NETINFO_ITEM(b, name)
+        b.Add(n)
+        codes[name] = n.GetNetCode()
+    count = [0]
+
+    def pad(x, y, net, layer=pcbnew.F_Cu, w=0.5, h=0.5):
+        count[0] += 1
+        fp = pcbnew.FOOTPRINT(b)
+        fp.SetReference('J%d' % count[0])
+        fp.SetPosition(V(x, y))
+        b.Add(fp)
+        p = pcbnew.PAD(fp)
+        p.SetNumber('1')
+        p.SetShape(pcbnew.PAD_SHAPE_RECT)
+        p.SetSize(size(w, h))
+        p.SetPosition(V(x, y))
+        p.SetAttribute(pcbnew.PAD_ATTRIB_SMD)
+        ls = pcbnew.LSET()
+        ls.AddLayer(layer)                    # SMD on the layer given
+        p.SetLayerSet(ls)
+        p.SetNetCode(codes[net])
+        fp.Add(p)
+
+    def track(a, c, net, layer=pcbnew.F_Cu, w=0.25):
+        t = pcbnew.PCB_TRACK(b)
+        t.SetStart(V(*a))
+        t.SetEnd(V(*c))
+        t.SetWidth(pcbnew.FromMM(w))
+        t.SetLayer(layer)
+        t.SetNetCode(codes[net])
+        b.Add(t)
+
+    pad(2.0, 7.0, 'A')
+    pad(18.0, 7.0, 'A')
+    # the wall reaches to where a track can no longer pass its end
+    pad(10.0, 0.85, 'B')
+    pad(10.0, 13.15, 'B')
+    track((10.0, 0.85), (10.0, 13.15), 'B')
+    if band:                                  # one big SMD pad: a
+        pad(10.0, 7.0, 'C', pcbnew.B_Cu, 18.5, 12.5)   # track's ends are round
+    pcbnew.SaveBoard(path, b)
+    return path
+
+
+def test_an_open_boxed_by_a_signal_goes_through_and_the_signal_moves(tmp_path):
+    pcb = _open_scene(str(tmp_path / 'open.kicad_pcb'))
+    errs, unconn = F.drc(pcb)
+    assert not errs and len(unconn) == 1
+    res, ops = _run(pcb, errs, _unconnected=unconn)
+    errs2, unconn2 = F.drc(pcb)
+    assert not errs2 and not unconn2            # the flip
+    (outcome, conflict_set, _why), = _outcomes(ops)
+    assert outcome == 'ok' and conflict_set == ['B']
+    rec, = res.certificate['records']
+    assert rec['outcome'] == 'conflict_set' and rec['plan']['vias'] == 0
+    assert not [r for r in _copper(F.load(pcb)) if r[0] == 'via']
+
+
+def test_an_open_on_a_free_back_layer_takes_two_vias(tmp_path):
+    pcb = _open_scene(str(tmp_path / 'hop.kicad_pcb'), band=False)
+    errs, unconn = F.drc(pcb)
+    assert not errs and len(unconn) == 1
+    res, ops = _run(pcb, errs, _unconnected=unconn)
+    errs2, unconn2 = F.drc(pcb)
+    assert not errs2 and not unconn2
+    (outcome, conflict_set, _why), = _outcomes(ops)
+    assert outcome == 'ok' and conflict_set == []
+    rec, = res.certificate['records']
+    assert rec['outcome'] == 'clear' and rec['plan']['vias'] == 2
+    assert len([r for r in _copper(F.load(pcb)) if r[0] == 'via']) == 2
