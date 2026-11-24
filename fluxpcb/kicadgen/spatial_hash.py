@@ -47,7 +47,7 @@ class SpatialHash:
                      (net, a, b, half_w))
 
     def add_rect(self, net, rect, margin=0.0):
-        cx, cy, hw, hh, _ang = rect
+        cx, cy, hw, hh, _ang = rect[:5]
         m = max(hw, hh) + margin + self.bucket
         self._insert(self.rects, cx - m, cy - m, cx + m, cy + m,
                      (net, rect))

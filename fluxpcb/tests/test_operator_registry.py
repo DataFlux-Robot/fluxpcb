@@ -17,7 +17,7 @@ def test_default_registry_order_and_availability():
     reg = default_registry()
     assert reg.names() == [
         'short_rip_reroute', 'widen_narrow_tracks', 'clearance_chain',
-        'endpoint_attach', 'plane_bridge', 'topology_swap',
+        'conflict_reroute', 'endpoint_attach', 'plane_bridge', 'topology_swap',
         'connect_unconnected', 'maze_escape']
     assert [s.name for s in reg.unavailable()] == [
         'plane_bridge', 'topology_swap']

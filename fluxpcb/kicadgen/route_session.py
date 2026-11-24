@@ -128,7 +128,7 @@ def pad_rect(pad):
 
 def pt_rect_dist(px, py, rect):
     import math
-    cx, cy, hw, hh, ang = rect
+    cx, cy, hw, hh, ang = rect[:5]
     if ang:
         ca, sa = math.cos(ang), math.sin(ang)
         dx, dy = px - cx, py - cy

@@ -2381,6 +2381,23 @@ class RepairOperators:
                              'moved': moved, 'unsupported': failed})
         return result
 
+    def conflict_reroute(self, board, violations: list[Violation] = None) -> RepairResult:
+        """A connection that cannot move alone gets a new path.
+
+        The track behind a clearance finding is lifted with its run —
+        anchor to anchor — and planned again, on its own layer or through
+        vias on another.  When its own layer is closed, the copper that
+        closes it (the conflict set, found by a priced search) is lifted
+        too and routed again afterwards.  One DRC run confirms the batch;
+        see verifiers/conflict_reroute.py.
+        """
+        if not self.params.conflict_reroute:
+            result = RepairResult(operator="conflict_reroute")
+            result.notes.append("disabled by policy")
+            return result
+        from .conflict_reroute import run
+        return run(self, board, violations)
+
     def short_rip_reroute(self, board, violations: list[Violation] = None) -> RepairResult:
         """Rip the shorting TRACK and reroute it around the obstacle.
 
@@ -2721,6 +2738,10 @@ class RepairOperators:
             return classes is None or vtype in classes
 
         results = []
+        # What the board had before any operator ran: conflict_reroute
+        # judges its own change against the DRC and needs every finding
+        # here, not only the bucket it was handed.
+        self._drc_before = list(violations)
 
         # 0. Copper text → silkscreen (removes a whole violation class cheaply;
         #    routers cannot see copper graphics as obstacles). Runs first so the

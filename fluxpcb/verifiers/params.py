@@ -54,6 +54,14 @@ SCHEMA = {
     'widen_measure': {'kind': 'bool'},
     # settle a real conflict by re-planning that connection at full width
     'widen_replan': {'kind': 'bool'},
+    # conflict reroute: lift the boxed-in connection, re-plan it (other
+    # layers allowed); when its layer is closed, lift the conflict set
+    # too and route it again after
+    'conflict_reroute': {'kind': 'bool'},
+    'conflict_cap': _int(1, 20),
+    'conflict_max_set': _int(1, 4),
+    'conflict_trials': _int(1, 24),
+    'conflict_lifts': _int(1, 8),
     'width_cascade': _num_tuple(0.05, 0.5, 1, 8),
     'signal_floor_mm': _float(0.05, 0.3),
     'power_floor_mm': _float(0.05, 0.5),
@@ -135,6 +143,12 @@ class OperatorParams:
     blind_widen: bool = True
     widen_measure: bool = True
     widen_replan: bool = True
+    # conflict reroute
+    conflict_reroute: bool = True
+    conflict_cap: int = 4
+    conflict_max_set: int = 2
+    conflict_trials: int = 6
+    conflict_lifts: int = 4
     width_cascade: tuple = (0.2, 0.15, 0.127, 0.11)
     signal_floor_mm: float = 0.11
     power_floor_mm: float = 0.15

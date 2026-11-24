@@ -89,6 +89,11 @@ def default_registry() -> OperatorRegistry:
         classes=('clearance',), priority=30,
         emits=('width_cascade_surgery', 'policy_waiver_probe',
                'nudge_clearance')))
+    # What the nudge cannot move: the connection is lifted whole and
+    # planned again, alone or together with the copper boxing it in.
+    reg.register(OperatorSpec(
+        name='conflict_reroute', method='conflict_reroute',
+        classes=('clearance',), priority=35))
     reg.register(OperatorSpec(
         name='endpoint_attach', method='endpoint_attach',
         classes=('track_dangling',), priority=40))

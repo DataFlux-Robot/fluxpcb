@@ -94,7 +94,7 @@ def pad_rect(pad):
 
 
 def pt_rect_dist(px, py, rect):
-    cx, cy, hw, hh, ang = rect
+    cx, cy, hw, hh, ang = rect[:5]
     if ang:
         ca, sa = __import__("math").cos(ang), __import__("math").sin(ang)
         dx, dy = px - cx, py - cy
@@ -109,7 +109,7 @@ def pt_rect_dist(px, py, rect):
 
 def seg_hits_rect(x1, y1, x2, y2, rect, clear_mm):
     # bounding-box prefilter
-    cx, cy, hw, hh, _ = rect
+    cx, cy, hw, hh, _ = rect[:5]
     m = hw + hh + clear_mm + 0.5
     if min(x1, x2) > cx + m or max(x1, x2) < cx - m:
         return False

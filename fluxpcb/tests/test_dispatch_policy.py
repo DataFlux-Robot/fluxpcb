@@ -50,6 +50,9 @@ class RecordingOperators(RepairOperators):
     def nudge_clearance(self, board, violations=None):
         return self._rec('nudge_clearance')
 
+    def conflict_reroute(self, board, violations=None):
+        return self._rec('conflict_reroute')
+
     def endpoint_attach(self, board, floating_traces):
         return self._rec('endpoint_attach')
 
@@ -72,6 +75,7 @@ def test_without_a_policy_everything_runs():
     assert ops.calls[0] == TEXT_TO_SILK
     assert set(CHAIN) <= set(ops.calls)
     assert 'maze_escape' in ops.calls and 'short_rip_reroute' in ops.calls
+    assert 'conflict_reroute' in ops.calls
 
 
 def test_a_disallowed_operator_is_never_selected():
@@ -96,7 +100,9 @@ def test_clearance_chain_runs_only_its_permitted_steps():
     assert ops.calls == [TEXT_TO_SILK, 'nudge_clearance']
     skipped = {e['operator'] for e in ops.ledger
                if e.get('skipped') == 'not permitted by policy'}
-    assert skipped == {'width_cascade_surgery', 'policy_waiver_probe'}
+    # the operator that follows the chain is selected by the same rule
+    assert skipped == {'width_cascade_surgery', 'policy_waiver_probe',
+                       'conflict_reroute'}
 
 
 def test_class_restriction_handles_one_morphology_per_round():

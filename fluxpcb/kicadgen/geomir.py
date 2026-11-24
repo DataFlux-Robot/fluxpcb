@@ -69,7 +69,7 @@ def via_ok(x, y, nc, segs_by_layer, rects_by_layer, via_r=None,
         for net, rect in rects_by_layer[li]:
             if net == nc:
                 continue
-            if pt_pad_dist(x, y, rect) < _clear + via_r:
+            if pt_pad_dist(x, y, rect) < max(_clear, pad_need(rect, 0.0)) + via_r:
                 return False, {"type": "via-vs-pad", "net": net,
                                "at": [round(x, 2), round(y, 2)]}
     return True, None
@@ -181,6 +181,24 @@ def slot_waypoints(a, b, segs_by_layer, rects_by_layer, nc, width):
     return out
 
 
+def pad_need(rect, rule_smd):
+    """Clearance a track must keep from THIS pad.
+
+    The rule value, or the pad's own override when it asks for more.  A
+    pad may carry a local clearance (a 4.5 mm battery pad with 0.5 mm on
+    0571); DRC judges against it, and a verifier that only knew the
+    netclass value (0.2 mm) kept accepting positions DRC rejects — the
+    nudge operator "verified" a fix the DRC then refused, and the whole
+    repair batch was rolled back.  rect[6] is the override in mm (0 or
+    absent: none).
+    """
+    try:
+        local = float(rect[6]) if len(rect) > 6 else 0.0
+    except (TypeError, ValueError):
+        local = 0.0
+    return max(rule_smd, local)
+
+
 def verify_polyline(pts, width, nc, segs, rects, rules=None):
     """World-geometry verification of one polyline against fixed copper
     lists (same rules as commit_gate — the single geometric truth).
@@ -212,17 +230,17 @@ def verify_polyline(pts, width, nc, segs, rects, rules=None):
         for net, rect in rects:
             if net == nc:
                 continue
-            n = max(2, int(math.hypot(q[0] - p[0], q[1] - p[1]) / 0.1))
-            for k in range(n + 1):
-                t = k / n
-                x, y = p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t
-                d = pt_pad_dist(x, y, rect)
-                if d < _smd + own:
-                    return False, {"type": "pad", "net": net,
-                                   "at": [round(rect[0], 2),
-                                          round(rect[1], 2)],
-                                   "short_by_mm": round(
-                                       _smd + own - d, 3)}
+            _need = pad_need(rect, _smd)
+            # boxes first: a pad this track cannot reach costs no trig
+            if _bbox_gap(p, q, rect) >= _need + own:
+                continue
+            d = seg_pad_dist(p, q, rect)
+            if d < _need + own:
+                return False, {"type": "pad", "net": net,
+                               "at": [round(rect[0], 2),
+                                      round(rect[1], 2)],
+                               "short_by_mm": round(
+                                   _need + own - d, 3)}
     return True, None
 
 
@@ -560,10 +578,15 @@ def extract_objects(board, layer_ids):
                             int(pcbnew.PAD_SHAPE_CIRCLE))
                 except (AttributeError, TypeError):
                     _rnd = False
+                # the pad's own clearance override (mm; 0 = none): pad_need
+                try:
+                    _local = pad.GetLocalClearance() / MM
+                except (AttributeError, TypeError):
+                    _local = 0.0
                 for li, lid in enumerate(layer_ids):
                     if pad.IsOnLayer(lid):
                         rects[li].append(
-                            (nc, (cx, cy, hw, hh, ang, _rnd)))
+                            (nc, (cx, cy, hw, hh, ang, _rnd, _local)))
             except (AttributeError, TypeError):
                 continue    # ok-silent: 畸形焊盘逐个跳过
     for it in board.GetTracks():
@@ -874,6 +897,52 @@ def pt_pad_dist(x, y, rect):
         return max(0.0, math.hypot(x - cx, y - cy) - w)
     from routegrid import pt_rect_dist
     return pt_rect_dist(x, y, rect)
+
+
+def _bbox_gap(p, q, rect):
+    """Distance between the track's box and the pad's box (0 when they
+    meet).  A rotated pad gets the box that holds it at any angle."""
+    cx, cy, hw, hh = rect[0], rect[1], rect[2], rect[3]
+    rot = rect[4] if len(rect) > 4 else 0.0
+    round_ = len(rect) > 5 and bool(rect[5])
+    if rot and not round_:
+        hw = hh = math.hypot(hw, hh)
+    gx = max(min(p[0], q[0]) - (cx + hw), (cx - hw) - max(p[0], q[0]), 0.0)
+    gy = max(min(p[1], q[1]) - (cy + hh), (cy - hh) - max(p[1], q[1]), 0.0)
+    return math.hypot(gx, gy)
+
+
+def seg_pad_dist(p, q, rect):
+    """Exact distance from segment p-q to a pad.
+
+    verify_polyline used to sample the segment every 0.1 mm and judge
+    the samples.  A track clipping a corner between two samples passed,
+    and the shortfall it reported was that of the first sample over the
+    line, not the deepest point (0571: 0.033 reported where the track
+    was 0.212 mm too close).  Same shapes as pt_pad_dist: a round pad
+    at no angle is a circle, every other pad its rectangle.
+    """
+    cx, cy, hw, hh = rect[0], rect[1], rect[2], rect[3]
+    rot = rect[4] if len(rect) > 4 else 0.0
+    from routegrid import pt_seg_dist, seg_seg_dist
+    if len(rect) > 5 and bool(rect[5]) and not rot:
+        return max(0.0, pt_seg_dist(cx, cy, p[0], p[1], q[0], q[1]) - hw)
+    if rot:
+        ca, sa = math.cos(rot), math.sin(rot)
+
+        def local(pt):
+            dx, dy = pt[0] - cx, pt[1] - cy
+            return (dx * ca + dy * sa, -dx * sa + dy * ca)
+    else:
+        def local(pt):
+            return (pt[0] - cx, pt[1] - cy)
+    a, b = local(p), local(q)
+    for (x, y) in (a, b):
+        if abs(x) < hw and abs(y) < hh:
+            return 0.0                       # an end inside the pad
+    corners = [(-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh)]
+    return min(seg_seg_dist(a, b, corners[k], corners[(k + 1) % 4])
+               for k in range(4))
 
 
 def _seg_rect_dist(a, b, rect):

@@ -28,8 +28,8 @@ def seg_clearance_profile(p, q, width, nc, segs, rects,
     """Min clearance margin of segment p->q at `width` against one layer.
 
     Returns the binding obstacle, the minimum margin, and the widest track
-    that would still fit (`w_max_mm`).  Pad distance is sampled like the
-    verifier does (every 0.1 mm), so the answer matches what was judged.
+    that would still fit (`w_max_mm`).  Pad distance is the verifier's
+    own (geomir.seg_pad_dist), so the answer matches what was judged.
     """
     from . import routegrid
     seg_seg_dist = routegrid.seg_seg_dist
@@ -48,14 +48,10 @@ def seg_clearance_profile(p, q, width, nc, segs, rects,
     for (net, rect) in rects:
         if net == nc:
             continue
-        n = max(2, int(math.hypot(q[0] - p[0], q[1] - p[1]) / 0.1))
-        best = float('inf')
-        for k in range(n + 1):
-            t = k / n
-            x = p[0] + (q[0] - p[0]) * t
-            y = p[1] + (q[1] - p[1]) * t
-            best = min(best, _pt_pad_dist(x, y, rect))
-        needed = _pad_needed(pc, own)
+        best = _seg_pad_dist(p, q, rect)      # the verifier's own distance
+        # a pad's own clearance override binds before the rule value does
+        local = rect[6] if len(rect) > 6 else 0.0
+        needed = _pad_needed(max(pc, float(local or 0.0)), own)
         rows.append((best - needed, best, needed, 'pad', net,
                      (rect[0], rect[1]), rect[2]))
 
@@ -84,7 +80,8 @@ def via_profile(x, y, nc, segs, rects, via_r, clearance):
             if net == nc:
                 continue
             d = _pt_pad_dist(x, y, rect)
-            needed = clearance + via_r
+            local = rect[6] if len(rect) > 6 else 0.0
+            needed = max(clearance, float(local or 0.0)) + via_r
             rows.append((d - needed, d, needed, 'pad', net,
                          (rect[0], rect[1]), rect[2]))
         if rows:
@@ -209,6 +206,11 @@ def resolve_blocker(board, blocker):
 def _pt_pad_dist(x, y, rect):
     from . import geomir
     return geomir.pt_pad_dist(x, y, rect)
+
+
+def _seg_pad_dist(p, q, rect):
+    from . import geomir
+    return geomir.seg_pad_dist(p, q, rect)
 
 
 def _finish(rows, width):
