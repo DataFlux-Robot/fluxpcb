@@ -62,6 +62,13 @@ SCHEMA = {
     'conflict_max_set': _int(1, 4),
     'conflict_trials': _int(1, 24),
     'conflict_lifts': _int(1, 8),
+    # the router ran out of time (the bench loop): route once more with
+    # other settings and a longer cap
+    'router_retry': {'kind': 'bool'},
+    'router_retry_threads': _int(1, 64),
+    'router_retry_scale': _float(1.0, 6.0),
+    # take dangling stubs off at the end (the bench loop)
+    'trim_dangling': {'kind': 'bool'},
     'width_cascade': _num_tuple(0.05, 0.5, 1, 8),
     'signal_floor_mm': _float(0.05, 0.3),
     'power_floor_mm': _float(0.05, 0.5),
@@ -149,6 +156,12 @@ class OperatorParams:
     conflict_max_set: int = 2
     conflict_trials: int = 6
     conflict_lifts: int = 4
+    # router timeout retry: 0344 needs 5 passes and 157-221 s of a loaded
+    # machine; 2 threads were the slowest setting measured, 8 the fastest
+    router_retry: bool = True
+    router_retry_threads: int = 8
+    router_retry_scale: float = 2.5
+    trim_dangling: bool = True
     width_cascade: tuple = (0.2, 0.15, 0.127, 0.11)
     signal_floor_mm: float = 0.11
     power_floor_mm: float = 0.15
