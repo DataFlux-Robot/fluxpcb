@@ -8,43 +8,82 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from fluxpcb.meta.feedback import FailurePacket, gradient  # noqa: E402
+from fluxpcb.meta.feedback import (FailurePacket, gradient,  # noqa: E402
+                                    residue_class)
 from fluxpcb.meta.gate import validate_candidate  # noqa: E402
 from fluxpcb.meta.policy import PolicyArtifact, propose_deltas  # noqa: E402
 
 
 def _cert(**kw):
+    """A cert in the current format: every round logged with its ledger."""
     base = {
-        'plan_digest': 'p1', 'policy_digest': 'q1',
+        'plan_digest': 'p1', 'policy_digest': 'q1', 'arm_digest': 'q1',
+        'arm': {'name': 'gate+batch'},
         'capacity': {'verdict': 'unknown'},
         'claims_after': {'n_errors': 2, 'n_unconnected': 1, 'total': 3,
                          'type_counts': {'clearance': 2}},
         'residue': {'router_fault': 2, 'unconnected': 1},
-        'txn': {'log': [{'decision': 'rollback', 'why': 'new violation types',
-                         'action': {'operators_run': ['maze_escape']}}]},
-        'ledger': [{'operator': 'maze_escape', 'grid_paths': 1,
-                    'exact_rejected': 1,
-                    'first_blocker': {'type': 'track', 'short_by_mm': 0.017}}],
+        'repair': [{
+            'stage': 'repair', 'mode': 'batch', 'committed': 0,
+            'rolled_back': 1, 'denied': 0, 'errors': 0,
+            'log': [{'round': 0, 'decision': 'rollback',
+                     'why': "new violation types: ['clearance']",
+                     'action': {'operators_run': ['maze_escape'],
+                                'repaired': 1, 'failed': 1,
+                                'ledger': [{
+                                    'operator': 'maze_escape',
+                                    'grid_paths': 1, 'exact_rejected': 1,
+                                    'first_blocker': {'type': 'track',
+                                                      'short_by_mm': 0.017}}]}}]}],
+        'harness': {'denials': []},
     }
     base.update(kw)
     return base
 
 
+def _cell(**kw):
+    base = {'board': 'b1', 'set': 'd3a', 'arm': 'gate+batch',
+            'arm_digest': 'q1', 'outcome': 'fail', 'status': 'ok',
+            'score': {'errors': 2, 'unconnected': 1,
+                      'errorsByType': {'clearance': 2}},
+            'features': {'pads': 10}, 'wall_seconds': 12.0,
+            'instrument_ok': True}
+    base.update(kw)
+    return base
+
+
+def _packet(**cell):
+    return FailurePacket.from_cert('b1', _cert(), 'd3a', cell=_cell(**cell))
+
+
 def test_packet_maps_axes_and_evidence():
-    p = FailurePacket.from_cert('b1', _cert(), 'd3a')
+    p = _packet()
     assert p.axis == {'routing': 3}
     assert p.feasibility['maze_grid_paths'] == 1
+    assert p.feasibility['maze_exact_rejected'] == 1
     assert p.blockers[0]['short_by_mm'] == 0.017
-    assert p.digest() == FailurePacket.from_cert('b1', _cert(),
-                                                 'd3a').digest()
+    assert p.rounds[0]['new_types'] == ['clearance']
+    assert [e['operator'] for e in p.operator_trace] == ['maze_escape']
+    assert p.digest() == _packet().digest()
     g = gradient([p])
-    assert g['axis']['routing'] == 3 and g['feasibility']['maze_grid_paths'] == 1
+    assert g['axis']['routing'] == 3
+    assert g['feasibility']['maze_grid_paths'] == 1
+    assert g['residue'] == {'clearance': 1, 'unconnected': 1}
     assert g['worst'][0]['board'] == 'b1'
 
 
-def test_packet_capacity_infeasible_is_feasibility_evidence():
-    p = FailurePacket.from_cert('h7', _cert(capacity={'verdict': 'infeasible'}))
-    assert p.feasibility['capacity_infeasible'] is True
+def test_packet_reads_the_older_txn_format():
+    cert = {'claims_after': {'n_errors': 1, 'n_unconnected': 0, 'total': 1,
+                             'type_counts': {'track_width': 1}},
+            'txn': {'log': [{'round': 0, 'decision': 'commit',
+                             'action': {'operators_run': ['widen_narrow_tracks'],
+                                        'repaired': 1, 'failed': 0, 'ledger': []}}]}}
+    p = FailurePacket.from_cert('b0', cert, 'd3a', cell=_cell(
+        board='b0', outcome='clean',
+        score={'errors': 0, 'unconnected': 0, 'errorsByType': {}}))
+    assert p.rounds[0]['decision'] == 'commit'
+    assert p.rounds[0]['stage'] == 'repair'
+    assert residue_class(p) == []
 
 
 def test_policy_deltas_are_typed_and_digest_changes():

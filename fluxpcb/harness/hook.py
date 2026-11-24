@@ -54,19 +54,29 @@ class HarnessPolicy:
 class HarnessHook:
     policy: HarnessPolicy
     actions: int = 0
+    actions_by_stage: dict = field(default_factory=dict)
     denials: list = field(default_factory=list)
 
     def before_action(self, op: str, ctx: dict = None) -> tuple:
-        # The batch's operator list is known only after dispatch; the
-        # action boundary checks the budget, after_action checks the ops.
-        if self.actions >= self.policy.max_actions:
+        # The action budget is per stage: a repair stage that spent its
+        # three actions must not starve the reroute stage (it used to).
+        used = self.actions_by_stage.get(op, 0)
+        if used >= self.policy.max_actions:
             why = f'action budget exhausted ({self.policy.max_actions})'
             self.denials.append(why)
             return False, why
+        self.actions_by_stage[op] = used + 1
         self.actions += 1
         return True, 'ok'
 
     def after_action(self, ops) -> tuple:
+        """Assertion, not the enforcement point.
+
+        Operators are filtered when dispatch SELECTS them; a disallowed
+        operator reaching this check means the selection leaked, and the
+        run is invalid evidence.  (It used to be the only enforcement: a
+        single disallowed name vetoed the whole batch.)
+        """
         bad = [o for o in (ops or ()) if self.policy.allowed_ops
                and o not in self.policy.allowed_ops]
         if bad:
@@ -92,7 +102,9 @@ class HarnessHook:
     def as_dict(self) -> dict:
         return {'policy': self.policy.as_dict(),
                 'policy_digest': self.policy.digest(),
-                'actions': self.actions, 'denials': self.denials[-20:]}
+                'actions': self.actions,
+                'actions_by_stage': dict(self.actions_by_stage),
+                'denials': self.denials[-20:]}
 
 
 def load_hook(path: str = None) -> HarnessHook:

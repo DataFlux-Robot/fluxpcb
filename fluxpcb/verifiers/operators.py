@@ -71,6 +71,26 @@ def _desc_layers(desc, layers):
     return out
 
 
+def verifier_rules(rt: dict, strict_pad_clearance: bool) -> dict:
+    """The rule table the geometric verifier judges with.
+
+    KiCad judges a track against a pad of ANOTHER net at the netclass
+    clearance.  geomir's pad check uses `clearance_smd`, the pad-to-pad
+    rule, which is far smaller (0.0375 mm against 0.2 mm on the first
+    board this was measured on).  Paths that passed that check were then
+    rejected by DRC and the whole repair batch rolled back.  Strict mode
+    judges track-vs-pad at the netclass clearance; measured on four
+    boards it took the pre-routed copper from 6 DRC errors to 0 without
+    losing a connection.
+    """
+    if not strict_pad_clearance:
+        return rt
+    out = dict(rt)
+    out['clearance_smd'] = max(float(out.get('clearance_smd') or 0.0),
+                               float(out.get('clearance') or 0.0))
+    return out
+
+
 def _uuid_item(board, u):
     """Exact board item lookup by uuid (pads and tracks only)."""
     if not u:
@@ -132,6 +152,10 @@ def _items_connected(board, a, b, nc):
     return False
 
 
+from .certs import cert_entry
+from ..kicadgen import whynot
+
+
 @dataclass
 class RepairResult:
     """Result of a repair operator."""
@@ -170,7 +194,7 @@ class RepairOperators:
     rules and never propose a width/clearance that violates them.
     """
 
-    def __init__(self, distance_mm: float = 0.0):
+    def __init__(self, distance_mm: float = 0.0, params=None):
         """Initialize repair operators.
 
         Args:
@@ -182,7 +206,11 @@ class RepairOperators:
         # Blind widening: set every below-floor track to the floor and let
         # DRC adjudicate.  The geometric pre-check refused widenings DRC
         # accepts (0006: 2 refusals, DRC-clean after a blind widen).
-        self.blind_widen = True
+        from .params import OperatorParams
+        # The variables the meta loops optimise; defaults reproduce the
+        # hand-written ladders exactly.
+        self.params = params or OperatorParams()
+        self.blind_widen = self.params.blind_widen
 
     def load_board_rules(self, board) -> dict:
         """Load the board's design rules (constraint single source).
@@ -250,7 +278,7 @@ class RepairOperators:
         track width is above the skill floor, the board rule wins (it is the
         manufacturing constraint).
         """
-        skill_floor = POWER_WIDTH_FLOOR_MM if is_power else SIGNAL_WIDTH_FLOOR_MM
+        skill_floor = self.params.power_floor_mm if is_power else self.params.signal_floor_mm
         board_min = self._board_rules.get('min_track_width', 0.0)
         return max(skill_floor, board_min)
 
@@ -309,7 +337,7 @@ class RepairOperators:
 
             # Cascade: narrow until spacing gain >= shortfall, but NEVER below
             # the effective floor (board min width or skill floor, whichever is higher)
-            for width in WIDTH_CASCADE:
+            for width in self.params.width_cascade:
                 if width < floor:
                     break  # floor reached
                 if width >= original_width:
@@ -350,8 +378,8 @@ class RepairOperators:
             'operator': 'width_cascade_surgery',
             'repaired': result.repaired_count,
             'failed': result.failed_count,
-            'floor_signal': SIGNAL_WIDTH_FLOOR_MM,
-            'floor_power': POWER_WIDTH_FLOOR_MM,
+            'floor_signal': self.params.signal_floor_mm,
+            'floor_power': self.params.power_floor_mm,
         }
         return result
 
@@ -401,21 +429,21 @@ class RepairOperators:
             # Classification: is this "rule too strict" or "genuine"?
             shortfall = v.required_mm - v.actual_mm
 
-            if v.actual_mm < JLC_CLEARANCE_FLOOR_MM:
+            if v.actual_mm < self.params.jlc_clearance_floor_mm:
                 # Below JLC floor → genuine unmanufacturable, cannot waive
                 result.failed_count += 1
                 result.notes.append(
                     f"{v.net}: {v.actual_mm:.4f}mm < JLC floor "
-                    f"{JLC_CLEARANCE_FLOOR_MM}mm → genuine violation"
+                    f"{self.params.jlc_clearance_floor_mm}mm → genuine violation"
                 )
                 continue
 
-            if shortfall > WAIVER_SHORTFALL_BAND_MM:
+            if shortfall > self.params.waiver_band_mm:
                 # Shortfall too big → bend-too-big, cannot waive
                 result.failed_count += 1
                 result.notes.append(
                     f"{v.net}: shortfall {shortfall:.4f}mm > "
-                    f"{WAIVER_SHORTFALL_BAND_MM}mm → bend too big"
+                    f"{self.params.waiver_band_mm}mm → bend too big"
                 )
                 continue
 
@@ -477,8 +505,8 @@ class RepairOperators:
         result.certificate = {
             'operator': 'policy_waiver_probe',
             'waived': result.repaired_count,
-            'jlc_floor': JLC_CLEARANCE_FLOOR_MM,
-            'shortfall_band': WAIVER_SHORTFALL_BAND_MM,
+            'jlc_floor': self.params.jlc_clearance_floor_mm,
+            'shortfall_band': self.params.waiver_band_mm,
             'dru_path': dru_path,
             'probe_ok': probe_ok,
             'rules': pending_rules,
@@ -928,142 +956,6 @@ class RepairOperators:
     # re-verified against all same-layer copper before it is applied.
     # ══════════════════════════════════════════════════════════════════
 
-    def connect_unconnected(self, board, violations: list[Violation] = None) -> RepairResult:
-        """Connect open pairs with a width-floor track (straight or L).
-
-        Generic: uses only the two anchors and the net name from the DRC
-        report; no board names, no coordinates.  Clearance is checked
-        against every other-net track and pad before drawing; the caller's
-        transaction re-runs DRC and rolls back on any new violation.
-        """
-        result = RepairResult(operator="connect_unconnected")
-        try:
-            import pcbnew
-        except ImportError:
-            result.notes.append("pcbnew unavailable")
-            return result
-        if not board:
-            return result
-        rules = self.load_board_rules(board)
-        min_w = rules.get('min_track_width', 0.0)
-        clr = rules.get('min_clearance', 0.0)
-        if min_w <= 0:
-            result.notes.append("no min track width")
-            return result
-        _sd = self._segment_distance
-        tracks = [t for t in board.GetTracks()
-                  if type(t).__name__ != 'PCB_VIA']
-        pads = []
-        for fp in board.GetFootprints():
-            for pad in fp.Pads():
-                p = pad.GetPosition()
-                sz = pad.GetSize()
-                pads.append((p.x / 1e6, p.y / 1e6,
-                             max(sz.x, sz.y) / 2e6, pad.GetNetCode()))
-        need = clr + min_w / 2.0
-
-        def clear(x1, y1, x2, y2, nc, lid):
-            if _sd is None:
-                return True
-            for o in tracks:
-                if o.GetLayer() != lid or o.GetNetCode() == nc:
-                    continue
-                s0, e0 = o.GetStart(), o.GetEnd()
-                d = _sd(x1, y1, x2, y2, s0.x / 1e6, s0.y / 1e6,
-                        e0.x / 1e6, e0.y / 1e6)
-                if d < need + o.GetWidth() / 2e6:
-                    return False
-            for (px, py, pr, pnc) in pads:
-                if pnc == nc:
-                    continue
-                d = _sd(x1, y1, x2, y2, px, py, px, py)
-                if d < need + pr:
-                    return False
-            return True
-
-        def netcode(name):
-            try:
-                ni = board.GetNetInfo().GetNetItem(name)
-                return ni.GetNetCode() if ni else 0
-            except Exception:
-                return 0
-
-        added = failed = 0
-        for v in (violations or [])[:20]:
-            pts, lays = [], []
-            for it in (v.items or []):
-                p = it.get('pos') or {}
-                if p.get('x') is None:
-                    continue
-                pts.append((float(p['x']), float(p['y'])))
-                d = it.get('description') or ''
-                if 'B.Cu' in d:
-                    lays.append(pcbnew.B_Cu)
-                elif 'F.Cu' in d or 'Top' in d:
-                    lays.append(pcbnew.F_Cu)
-                else:
-                    lays.append(None)
-            if len(pts) < 2:
-                failed += 1
-                continue
-            (x1, y1), (x2, y2) = pts[0], pts[1]
-            nc = netcode(v.net)
-            if nc == 0:
-                failed += 1
-                continue
-            # Different layers need a via at the second anchor; the track
-            # then runs on the first anchor's layer.
-            l0 = lays[0] or pcbnew.F_Cu
-            l1 = lays[1] or l0
-            if l0 != l1:
-                try:
-                    via = pcbnew.PCB_VIA(board)
-                    via.SetPosition(pcbnew.VECTOR2I(int(x2 * 1e6), int(y2 * 1e6)))
-                    via.SetWidth(600000)
-                    via.SetDrill(300000)
-                    via.SetNetCode(nc)
-                    board.Add(via)
-                except Exception:
-                    pass
-            done = False
-            # With a via at the far anchor, the track must run on l0; a
-            # track on l1 would start on the wrong layer and stay open.
-            for lid in ((l0,) if l0 != l1 else (pcbnew.F_Cu, pcbnew.B_Cu)):
-                candidates = [
-                    ((x1, y1, x2, y2),),
-                    ((x1, y1, x1, y2), (x1, y2, x2, y2)),
-                    ((x1, y1, x2, y1), (x2, y1, x2, y2)),
-                ]
-                for segs in candidates:
-                    if not all(clear(a, b, c, d, nc, lid)
-                               for (a, b, c, d) in segs):
-                        continue
-                    for (a, b, c, d) in segs:
-                        t = pcbnew.PCB_TRACK(board)
-                        t.SetStart(pcbnew.VECTOR2I(int(a * 1e6), int(b * 1e6)))
-                        t.SetEnd(pcbnew.VECTOR2I(int(c * 1e6), int(d * 1e6)))
-                        t.SetWidth(int(round(min_w * 1e6)))
-                        t.SetLayer(lid)
-                        t.SetNetCode(nc)
-                        board.Add(t)
-                        created.append(t)
-                    added += 1
-                    done = True
-                    break
-                if done:
-                    break
-            if not done:
-                failed += 1
-        result.repaired_count = added
-        result.failed_count = failed
-        result.success = added > 0
-        result.certificate = {'operator': 'connect_unconnected', 'added': added,
-                              'failed': failed, 'width_mm': min_w}
-        if added:
-            self._ledger.append(result.certificate)
-        result.notes.append(f'connected {added}, failed {failed}')
-        return result
-
     def connect_unconnected_geomir(self, board, violations: list[Violation] = None) -> RepairResult:
         """Connect open pairs with geomir's width-aware path planner.
 
@@ -1091,22 +983,15 @@ class RepairOperators:
         layers = rg.signal_layer_ids(board)
         try:
             segs, rects = geomir.extract_objects(board, layers)
-            rt = load_rules(Path(board.GetFileName()))
+            rt = verifier_rules(load_rules(Path(board.GetFileName())),
+                                self.params.pad_clearance_strict)
         except Exception as e:
             result.notes.append(f"extract failed: {e}")
             return result
-        # Via geometry from the project table, never a constant: 0.6 mm
-        # against a 0.6858 mm board minimum made every closure dirty.
-        via_dia = float(rt.get('via_diameter') or 0.0)
-        via_drill = float(rt.get('via_drill') or 0.0)
-        try:
-            ds = board.GetDesignSettings()
-            via_dia = max(via_dia, ds.m_ViasMinSize / 1e6)
-            via_drill = max(via_drill, ds.m_MinThroughDrill / 1e6)
-        except Exception:
-            pass
-        via_dia = via_dia or 0.8
-        via_drill = min(via_drill or 0.4, via_dia - 0.1)
+        # Via geometry the board's DSN defines (a via of any other size
+        # makes the next router pass fail to parse) and that clears DRC.
+        from .via_geom import via_geometry
+        via_dia, via_drill, via_src = via_geometry(board, rt)
         via_iu = int(round(via_dia * 1e6))
         drill_iu = int(round(via_drill * 1e6))
         bb = board.GetBoardEdgesBoundingBox()
@@ -1145,7 +1030,7 @@ class RepairOperators:
             return '焊盘' in d or 'pad' in d
 
         added = failed = 0
-        for v in (violations or [])[:20]:
+        for v in (violations or [])[:self.params.connect_cap]:
             pts, anchor_items = [], []
             for it in (v.items or []):
                 pos = it.get('pos') or {}
@@ -1208,12 +1093,12 @@ class RepairOperators:
                 # 8-40 um too close (a crossing track clipped one corner).
                 # Move its INTERIOR vertices a little and re-verify.  The
                 # anchors stay fixed; the emission certificate still runs.
-                for rej in (rejects or [])[:4]:
+                for rej in (rejects or [])[:self.params.jitter_candidates]:
                     base = rej.get('pts') or []
                     if len(base) < 3:
                         continue
                     found = False
-                    for step in (0.02, 0.05, 0.1, 0.2, 0.3):
+                    for step in self.params.jitter_steps_mm:
                         for ang in range(8):
                             ax = math.cos(ang * math.pi / 4) * step
                             ay = math.sin(ang * math.pi / 4) * step
@@ -1288,7 +1173,7 @@ class RepairOperators:
                 for alt in alt_layers:
                     def _slots(ax, ay):
                         out = []
-                        for r in (0.3, 0.5, 0.8, 1.1, 1.5):
+                        for r in self.params.via_slot_radii_mm:
                             for k in range(12):
                                 ang = k * math.pi / 6
                                 cx = ax + r * math.cos(ang)
@@ -1366,7 +1251,7 @@ class RepairOperators:
                 mids = [((x1 + x2) / 2, (y1 + y2) / 2)]
                 # Fine offsets matter for SHORT gaps: a 0.5 mm near-miss
                 # needs a 0.5-1.5 mm detour, not a 2-8 mm one.
-                for off in (0.5, 1.0, 1.5, 2.0, 4.0, 8.0):
+                for off in self.params.corridor_offsets_mm:
                     for sign in (1, -1):
                         mids.append(((x1 + x2) / 2 + sign * px * off,
                                      (y1 + y2) / 2 + sign * py * off))
@@ -1392,6 +1277,40 @@ class RepairOperators:
                         break
             if not verified:
                 failed += 1
+                why = {'sealed': False}
+                try:
+                    sites = whynot.via_sites(x1, y1, nc, layers, segs, rects,
+                                             via_r=via_dia / 2.0,
+                                             clearance=float(rt.get('clearance') or 0.0))
+                    why['via_sites'] = sites
+                    why['sealed'] = bool(sites['sealed'])
+                except Exception:
+                    pass
+                best = None
+                for rej in (rejects or [])[:3]:
+                    blk = rej.get('blocked_by') or {}
+                    profile = None
+                    try:
+                        p0 = (rej.get('pts') or [[0, 0, 0]])[0]
+                        li0 = int(p0[2])
+                        profile = whynot.seg_clearance_profile(
+                            (x1, y1), (x2, y2), floor, nc,
+                            segs[li0], rects[li0],
+                            float(rt.get('clearance') or 0.15),
+                            pad_clearance=float(rt.get('clearance_smd') or 0.0375))
+                    except Exception:
+                        pass
+                    cand = {'blocker': blk, 'profile': profile}
+                    if best is None or (profile or {}).get(
+                            'margin_mm', -1) > (best.get('profile') or {}).get('margin_mm', -1):
+                        best = cand
+                why['best_reject'] = best
+                self._ledger.append(cert_entry(
+                    'connect_unconnected', {'net': v.net,
+                                            'pos': [x1, y1]},
+                    'no_path', why_not=why,
+                    attempt={'class': 'unconnected', 'width_mm': floor},
+                    requirement={'clearance_mm': float(rt.get('clearance') or 0.0)}))
                 continue
             plan = verified[0]
             w_iu = int(round(float(plan.get('width', floor)) * 1e6))
@@ -1494,6 +1413,19 @@ class RepairOperators:
                         board.Remove(it)
                     except Exception:
                         pass
+                blk = None
+                for e in reversed(self._ledger):
+                    if e.get('operator') == 'maze_escape' and e.get('first_blocker'):
+                        blk = e.get('first_blocker')
+                        break
+                self._ledger.append(cert_entry(
+                    'connect_unconnected', {'net': v.net,
+                                            'pos': [x1, y1]},
+                    'verify_rejected',
+                    why_not={'blocker': blk or {},
+                             'margin_mm': -(blk or {}).get('short_by_mm', 0.0) if (blk or {}).get('short_by_mm') else None},
+                    attempt={'class': 'unconnected', 'width_mm': floor},
+                    requirement={'clearance_mm': float(rt.get('clearance') or 0.0)}))
                 failed += 1
             else:
                 added += 1
@@ -1754,7 +1686,8 @@ class RepairOperators:
         try:
             layers = rg.signal_layer_ids(board)
             segs, rects = geomir.extract_objects(board, layers)
-            rt = load_rules(Path(board.GetFileName()))
+            rt = verifier_rules(load_rules(Path(board.GetFileName())),
+                                self.params.pad_clearance_strict)
         except Exception as e:
             result.notes.append(f"extract failed: {e}")
             return result
@@ -1765,7 +1698,7 @@ class RepairOperators:
             except Exception:
                 continue
         moved = failed = 0
-        for v in violations[:20]:
+        for v in violations[:self.params.nudge_cap]:
             if v.type != 'clearance' or not v.track_uuid:
                 failed += 1
                 continue
@@ -1788,7 +1721,7 @@ class RepairOperators:
                 failed += 1
                 continue
             done = False
-            for step_um in (10, 20, 40, 80, 160, 320):
+            for step_um in self.params.nudge_steps_um:
                 for sgn in (1, -1):
                     off = sgn * step_um / 1000.0
                     a = (s.x / 1e6 + px * off, s.y / 1e6 + py * off)
@@ -1849,7 +1782,7 @@ class RepairOperators:
         layers = rg.signal_layer_ids(board)
         rerouted = failed = 0
         seen = set()
-        for v in violations[:20]:
+        for v in violations[:self.params.rip_cap]:
             if v.type != 'shorting_items' or not v.track_uuid:
                 failed += 1
                 continue
@@ -1873,7 +1806,8 @@ class RepairOperators:
             board.Remove(t)
             try:
                 segs, rects = geomir.extract_objects(board, layers)
-                rt = load_rules(Path(board.GetFileName()))
+                rt = verifier_rules(load_rules(Path(board.GetFileName())),
+                                self.params.pad_clearance_strict)
                 x1, y1 = s.x / 1e6, s.y / 1e6
                 x2, y2 = e.x / 1e6, e.y / 1e6
                 bb = board.GetBoardEdgesBoundingBox()
@@ -1971,13 +1905,15 @@ class RepairOperators:
         layers = rg.signal_layer_ids(board)
         try:
             segs, rects = geomir.extract_objects(board, layers)
-            rt = load_rules(Path(board.GetFileName()))
+            rt = verifier_rules(load_rules(Path(board.GetFileName())),
+                                self.params.pad_clearance_strict)
             # Rasterization margins must be at least the net's clearance,
             # otherwise the grid proposes cells that exact verification
             # (correctly) rejects.  Restore immediately after build: the
             # occupancy map is already precomputed.
             _saved = (rg.CLEAR_MM, rg.TRACK_MARGIN, rg.PAD_MARGIN)
-            _cr = float(rt.get('clearance') or 0.0)
+            _cr = (float(rt.get('clearance') or 0.0)
+                   + self.params.maze_grid_extra_mm)
             rg.CLEAR_MM = max(rg.CLEAR_MM, _cr)
             rg.TRACK_MARGIN = max(rg.TRACK_MARGIN, _cr)
             rg.PAD_MARGIN = max(rg.PAD_MARGIN, _cr)
@@ -1988,18 +1924,14 @@ class RepairOperators:
         except Exception as e:
             result.notes.append(f"grid failed: {e}")
             return result
-        via_dia = float(rt.get('via_diameter') or 0.0) or 0.8
-        try:
-            via_dia = max(via_dia,
-                          board.GetDesignSettings().m_ViasMinSize / 1e6)
-        except Exception:
-            pass
+        from .via_geom import via_geometry
+        via_dia, _via_drill, _via_src = via_geometry(board, rt)
         width_iu = int(round(floor * 1e6))
         added = failed = 0
         grid_paths = 0
         rejected = []
         first_blocker = None
-        for v in (violations or [])[:6]:
+        for v in (violations or [])[:self.params.maze_cap]:
             items = v.items or []
             if v.type != 'unconnected' or len(items) < 2:
                 failed += 1
@@ -2026,14 +1958,31 @@ class RepairOperators:
             li = common[0] if common else (la[0] if la else 0)
             lj = common[0] if common else (lb[0] if lb else 0)
             (x1, y1), (x2, y2) = pos
+            mstats = {}
             try:
                 path = maze.plan_maze(
                     gm, (x1, y1, layers[li]), (x2, y2, layers[lj]), nc,
-                    max_expand=120000)
+                    max_expand=self.params.maze_max_expand, stats=mstats)
             except Exception:
                 path = None
             if not path:
                 failed += 1
+                budget = whynot.search_budget(mstats.get('expanded'),
+                                              mstats.get('limit'), None)
+                why = {'budget': budget}
+                try:
+                    sites = whynot.via_sites(
+                        x1, y1, nc, layers, segs, rects,
+                        via_r=via_dia / 2.0, rules=rt) if False else None
+                except Exception:
+                    sites = None
+                self._ledger.append(cert_entry(
+                    'maze_escape', {'net': v.net, 'pos': [x1, y1]},
+                    ('budget_exhausted' if budget['exhausted'] else 'no_path'),
+                    why_not=why,
+                    attempt={'class': 'unconnected', 'width_mm': floor,
+                             'max_expand': self.params.maze_max_expand},
+                    requirement={'clearance_mm': float(rt.get('clearance') or 0.0)}))
                 continue
             grid_paths += 1
             pts = maze.merge_path(path)
@@ -2082,6 +2031,15 @@ class RepairOperators:
                         board.Remove(it)
                     except Exception:
                         pass
+                self._ledger.append(cert_entry(
+                    'maze_escape', {'net': v.net, 'pos': [x1, y1]},
+                    'verify_rejected',
+                    why_not={'blocker': first_blocker or {},
+                             'margin_mm': -(first_blocker or {}).get(
+                                 'short_by_mm', 0.0) if (first_blocker or {}).get('short_by_mm') else None},
+                    attempt={'class': 'unconnected', 'width_mm': floor,
+                             'grid_paths': grid_paths},
+                    requirement={'clearance_mm': float(rt.get('clearance') or 0.0)}))
                 failed += 1
                 continue
             try:
@@ -2103,7 +2061,8 @@ class RepairOperators:
             self._ledger.append(result.certificate)
         return result
 
-    def dispatch_repair(self, board, violations: list[Violation]) -> list[RepairResult]:
+    def dispatch_repair(self, board, violations: list[Violation],
+                        allowed=None, classes=None) -> list[RepairResult]:
         """Auto-select and run the right operator for each violation class.
 
         This is the "morphology recognizer" from the skill's 5-tuple: match
@@ -2112,26 +2071,39 @@ class RepairOperators:
         Args:
             board: pcbnew.BOARD
             violations: all DRC violations
+            allowed: operator names a policy permits (None = everything).
+                Selection happens HERE: a disallowed operator is never run,
+                so it cannot take the rest of the batch down with it.
+            classes: restrict this pass to these violation types (one
+                morphology per transaction round); None = all.
 
         Returns:
             List of RepairResults (one per operator that ran)
         """
-        from .operator_spec import default_registry
+        from .operator_spec import TEXT_TO_SILK, default_registry
+
+        def ok(name):
+            return allowed is None or name in allowed
+
+        def wanted(vtype):
+            return classes is None or vtype in classes
 
         results = []
 
         # 0. Copper text → silkscreen (removes a whole violation class cheaply;
         #    routers cannot see copper graphics as obstacles). Runs first so the
         #    remaining clearance violations are genuine track-vs-track cases.
-        r_text = self.copper_text_to_silk(board)
-        if r_text.success:
-            results.append(r_text)
-            # Drop clearance violations whose pair involved text — they are
-            # resolved by the move above and would confuse the width cascade.
-            violations = [
-                v for v in violations
-                if not (v.type == 'clearance' and 'text' in (v.net2 or '').lower())
-            ]
+        if ok(TEXT_TO_SILK) and wanted('clearance'):
+            r_text = self.copper_text_to_silk(board)
+            if r_text.success:
+                results.append(r_text)
+                # Drop clearance violations whose pair involved text — they are
+                # resolved by the move above and would confuse the width cascade.
+                violations = [
+                    v for v in violations
+                    if not (v.type == 'clearance'
+                            and 'text' in (v.net2 or '').lower())
+                ]
 
         # Order and ownership live in the capability registry; a stub is
         # skipped with a reason instead of being dispatched as if it worked.
@@ -2140,8 +2112,20 @@ class RepairOperators:
                 self._ledger.append({'operator': spec.name,
                                      'skipped': spec.reason})
                 continue
-            bucket = [v for v in violations if v.type in spec.classes]
+            if not any(wanted(c) for c in spec.classes):
+                continue
+            bucket = [v for v in violations
+                      if v.type in spec.classes and wanted(v.type)]
             if not bucket:
+                continue
+            if spec.name == 'clearance_chain':
+                # The chain filters its own steps against the policy.
+                results.extend(self._repair_clearance(board, bucket, allowed))
+                continue
+            emitted = spec.emitted()
+            if not all(ok(n) for n in emitted):
+                self._ledger.append({'operator': spec.name,
+                                     'skipped': 'not permitted by policy'})
                 continue
             if spec.method == 'endpoint_attach':
                 floats = [{'net': v.net, 'uuid': v.track_uuid,
@@ -2155,12 +2139,20 @@ class RepairOperators:
                 results.append(out)
         return results
 
-    def _repair_clearance(self, board, violations: list[Violation]) -> list:
+    def _repair_clearance(self, board, violations: list[Violation],
+                          allowed=None) -> list:
         """Clearance chain: width cascade -> waiver floor -> geometric nudge.
 
         Only violations with a real measured gap are eligible: a fabricated
-        0.0 would mint a wrong floor.
+        0.0 would mint a wrong floor.  Each step is gated by the policy.
         """
+        def ok(name):
+            return allowed is None or name in allowed
+
+        def skipped(name):
+            self._ledger.append({'operator': name,
+                                 'skipped': 'not permitted by policy'})
+
         out = []
         clearance_v = [v for v in violations if v.type == "clearance"]
         unmeasured = [v for v in clearance_v if not v.has_measurement]
@@ -2170,16 +2162,29 @@ class RepairOperators:
         clearance_v = [v for v in clearance_v if v.has_measurement]
         if not clearance_v:
             return out
-        r = self.width_cascade_surgery(board, clearance_v)
-        out.append(r)
+        r = None
+        if ok('width_cascade_surgery'):
+            r = self.width_cascade_surgery(board, clearance_v)
+            out.append(r)
+        else:
+            skipped('width_cascade_surgery')
         # Leftovers that reached floor → waiver probe
-        if r.failed_count > 0:
-            leftovers = [v for v in clearance_v if v.net in
-                         [n.split(':')[0] for n in r.notes if 'floor' in n]]
+        if ok('policy_waiver_probe'):
+            leftovers = []
+            if r is not None and r.failed_count > 0:
+                floors = [n.split(':')[0] for n in r.notes if 'floor' in n]
+                leftovers = [v for v in clearance_v if v.net in floors]
+            elif r is None:
+                leftovers = clearance_v
             if leftovers:
                 out.append(self.policy_waiver_probe(board, leftovers))
+        else:
+            skipped('policy_waiver_probe')
         # Geometric survivors: move the offending segment, not the rule.
-        out.append(self.nudge_clearance(board, clearance_v))
+        if ok('nudge_clearance'):
+            out.append(self.nudge_clearance(board, clearance_v))
+        else:
+            skipped('nudge_clearance')
         return out
 
     # ══════════════════════════════════════════════════════════════════

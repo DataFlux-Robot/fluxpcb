@@ -29,8 +29,12 @@ def nearest_cell(gm, x, y, li, nc, rmax=8):
     return None
 
 
-def plan_maze(gm, a, b, nc, max_expand=300000, via_cost=8.0):
-    """A* between a=(x,y,lid) and b=(x,y,lid); returns [(li,gx,gy)]."""
+def plan_maze(gm, a, b, nc, max_expand=300000, via_cost=8.0, stats=None):
+    """A* between a=(x,y,lid) and b=(x,y,lid); returns [(li,gx,gy)].
+
+    `stats`, when given, is a dict filled with {'expanded', 'limit',
+    'found'} so the caller can tell "walled" from "budget exhausted".
+    """
     rg = _grid()
     ali, bli = gm.li_of(a[2]), gm.li_of(b[2])
     if ali is None or bli is None:
@@ -82,7 +86,12 @@ def plan_maze(gm, a, b, nc, max_expand=300000, via_cost=8.0):
                     parent[nb] = node
                     heapq.heappush(heap, (ng + h(nb), ng, nb))
     if found is None:
+        if stats is not None:
+            stats.update({'expanded': expanded, 'limit': max_expand,
+                          'found': False})
         return None
+    if stats is not None:
+        stats.update({'expanded': expanded, 'limit': max_expand, 'found': True})
     chain = []
     node = found
     while node is not None:

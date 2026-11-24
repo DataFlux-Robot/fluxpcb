@@ -57,7 +57,8 @@ def _mst_edges(pads):
     return edges
 
 
-def pre_route(board_path, plan, max_nets=8, max_edges=24):
+def pre_route(board_path, plan, max_nets=8, max_edges=24, lock=True,
+              strict_pad_clearance=True):
     """Mutate the board file: draw verified escape edges for planned nets."""
     import pcbnew
 
@@ -69,15 +70,11 @@ def pre_route(board_path, plan, max_nets=8, max_edges=24):
     rules = board_rules(board)
     floor = max(float(rules.get('min_track_width') or 0.2), 0.2)
     layers = rg.signal_layer_ids(board)
-    rt = load_rules(Path(board_path))
-    via_dia = float(rt.get('via_diameter') or 0.0) or 0.8
-    try:
-        via_dia = max(via_dia,
-                      board.GetDesignSettings().m_ViasMinSize / 1e6)
-    except Exception:
-        pass
-    via_drill = float(rt.get('via_drill') or 0.0) or max(0.3,
-                                                         via_dia - 0.2)
+    from ..verifiers.operators import verifier_rules
+    rt = verifier_rules(load_rules(Path(board_path)),
+                        strict_pad_clearance)
+    from ..verifiers.via_geom import via_geometry
+    via_dia, via_drill, via_src = via_geometry(board, rt)
     bb = board.GetBoardEdgesBoundingBox()
     bounds = (bb.GetLeft() / 1e6, bb.GetTop() / 1e6,
               bb.GetRight() / 1e6, bb.GetBottom() / 1e6)
@@ -85,6 +82,7 @@ def pre_route(board_path, plan, max_nets=8, max_edges=24):
     segs, rects = geomir.extract_objects(board, layers)
     attempted = routed = failed = tracks = vias = 0
     detail = []
+    drawn, drawn_via = [], []
     for net_name in (plan.pre_routed_nets or [])[:max_nets]:
         net = board.FindNet(net_name)
         if net is None:
@@ -128,8 +126,15 @@ def pre_route(board_path, plan, max_nets=8, max_edges=24):
                     t.SetWidth(int(round(floor * 1e6)))
                     t.SetLayer(layers[int(p[2])])
                     t.SetNet(net)
+                    try:
+                        t.SetLocked(lock)
+                    except Exception:
+                        pass
                     board.Add(t)
                     created.append(t)
+                    drawn.append((net_name, layers[int(p[2])],
+                                  round(p[0], 4), round(p[1], 4),
+                                  round(q[0], 4), round(q[1], 4)))
                 else:
                     vok, _ = geomir.via_ok(p[0], p[1], nc, segs, rects,
                                            via_r=via_dia / 2.0, rules=rt)
@@ -142,8 +147,13 @@ def pre_route(board_path, plan, max_nets=8, max_edges=24):
                     v.SetWidth(int(round(via_dia * 1e6)))
                     v.SetDrill(int(round(via_drill * 1e6)))
                     v.SetNet(net)
+                    try:
+                        v.SetLocked(lock)
+                    except Exception:
+                        pass
                     board.Add(v)
                     created.append(v)
+                    drawn_via.append((net_name, round(p[0], 4), round(p[1], 4)))
             conn = False
             if ok:
                 try:
@@ -158,6 +168,10 @@ def pre_route(board_path, plan, max_nets=8, max_edges=24):
                         board.Remove(it)
                     except Exception:
                         pass
+                del drawn[len(drawn) - sum(1 for x in created
+                                           if x.GetClass() != 'PCB_VIA'):]
+                del drawn_via[len(drawn_via) - sum(1 for x in created
+                                                   if x.GetClass() == 'PCB_VIA'):]
                 failed += 1
                 continue
             routed += 1
@@ -165,8 +179,51 @@ def pre_route(board_path, plan, max_nets=8, max_edges=24):
             vias += len([x for x in created if x.GetClass() == 'PCB_VIA'])
             detail.append({'net': net_name, 'from': [a[0], a[1]],
                            'to': [b[0], b[1]]})
+            # The obstacle map must include what was just drawn: planning
+            # the next edge against a stale map ran it into the previous
+            # net's copper (2 shorts on the first board this ran on).
+            segs, rects = geomir.extract_objects(board, layers)
     pcbnew.SaveBoard(str(board_path), board)
     return {'nets_attempted': attempted, 'edges_routed': routed,
             'edges_failed': failed, 'tracks': tracks, 'vias': vias,
             'seconds': round(time.time() - t0, 2),
-            'detail': detail[:8]}
+            'detail': detail[:8], 'locked': bool(lock),
+            'via': {'diameter_mm': via_dia, 'drill_mm': via_drill,
+                    'source': via_src},
+            # geometry of committed copper, for the survival certificate
+            'drawn': drawn, 'drawn_vias': drawn_via}
+
+
+def survivors(board_path, pre) -> dict:
+    """How much of the pre-routed copper is still on a board.
+
+    strip removes every track; a pre-route that does not survive it never
+    reached the router.  This is the certificate that it did.
+    """
+    import pcbnew
+
+    if not pre:
+        return {'drawn': 0, 'surviving': 0}
+    want = [(d[0], d[1], d[2], d[3], d[4], d[5]) for d in pre.get('drawn') or []]
+    want_v = [(d[0], d[1], d[2]) for d in pre.get('drawn_vias') or []]
+    have = set()
+    b = pcbnew.LoadBoard(str(board_path))
+    for t in b.GetTracks():
+        try:
+            q = t.GetPosition()
+            if t.Type() == pcbnew.PCB_VIA_T:
+                have.add((t.GetNetname(), round(q.x / 1e6, 4),
+                          round(q.y / 1e6, 4), 'via'))
+                continue
+            a, c = t.GetStart(), t.GetEnd()
+            key = (t.GetNetname(), t.GetLayer(), round(a.x / 1e6, 4),
+                   round(a.y / 1e6, 4), round(c.x / 1e6, 4),
+                   round(c.y / 1e6, 4))
+            have.add(key)
+            have.add(key[:1] + (key[1], key[4], key[5], key[2], key[3]))
+        except Exception:
+            continue
+    seg = sum(1 for w in want if w in have)
+    via = sum(1 for w in want_v if w + ('via',) in have)
+    return {'drawn': len(want) + len(want_v),
+            'surviving': seg + via, 'segments': seg, 'vias': via}

@@ -187,19 +187,21 @@ class TxnReport:
     committed: int = 0
     rolled_back: int = 0
     denied: int = 0
+    errors: int = 0
     log: list = field(default_factory=list)
     final: dict = field(default_factory=dict)
 
     def as_dict(self) -> dict:
         return {'committed': self.committed, 'rolled_back': self.rolled_back,
-                'denied': self.denied,
-                'log': self.log[-20:], 'final': self.final}
+                'denied': self.denied, 'errors': self.errors,
+                'log': self.log[-40:], 'final': self.final}
 
 
 def transactional_repair(board_path: str, action_fn, eval_fn,
                          max_rounds: int = 3, log=None,
                          initial: Claims = None,
-                         hook=None) -> TxnReport:
+                         hook=None, kind: str = 'repair',
+                         stop_on_rollback: bool = True) -> TxnReport:
     """Run ``action_fn`` in a transaction until it stops helping.
 
     Args:
@@ -208,6 +210,15 @@ def transactional_repair(board_path: str, action_fn, eval_fn,
         eval_fn: ``eval_fn(board_path) -> Claims``; must be deterministic
             given the bytes on disk (it may refill zones first).
         max_rounds: hard cap (each round is one operator pass + one DRC).
+        kind: stage name for the harness budget ('repair' / 'reroute'), so
+            two stages do not spend each other's action budget.
+        stop_on_rollback: end the loop at the first rejected batch.  A loop
+            that handles one violation class per round turns this off, so a
+            class that cannot be repaired does not block the others.
+
+    Every round — committed, rolled back or denied — is logged WITH the
+    action's statistics (operators run, repaired, failed, operator ledger).
+    A meta loop that only sees rolled-back rounds cannot attribute a pass.
     """
     say = log or (lambda *a, **k: None)
     rep = TxnReport()
@@ -218,20 +229,45 @@ def transactional_repair(board_path: str, action_fn, eval_fn,
             say(f'round {r}: clean, nothing to repair')
             break
         if hook is not None:
-            allowed, why = hook.before_action('repair', {'round': r})
+            allowed, why = hook.before_action(kind, {'round': r})
             if not allowed:
                 say(f'round {r}: harness denied ({why})')
                 rep.denied += 1
+                rep.log.append({'round': r, 'decision': 'denied',
+                                'stage': kind, 'why': why,
+                                'before': before.as_dict()})
                 break
         snap = snapshot(board_path)
         try:
             stats = action_fn(board_path) or {}
+            if stats.get('error') and not stats.get('operators_run'):
+                # The action failed before doing anything (an isolated
+                # reroute that could not start, say).  That is an instrument
+                # error, not evidence that the repair does not help, and it
+                # must not be filed as a "no improvement" rollback.
+                restore_snapshot(snap)
+                _remove_new_sidecars(board_path, snap)
+                rep.errors += 1
+                rep.log.append({'round': r, 'decision': 'action_error',
+                                'stage': kind,
+                                'why': str(stats.get('error'))[:400],
+                                'before': before.as_dict(), 'action': stats})
+                say(f'round {r}: action error ({stats.get("error")}); restored')
+                break
+            if stats.get('no_op'):
+                # Nothing was left to select: the loop is done, and an
+                # evaluation round (a full DRC) would buy nothing.
+                break
             if hook is not None:
                 ok_ops, why_ops = hook.after_action(stats.get('operators_run'))
                 if not ok_ops:
                     restore_snapshot(snap)
                     say(f'round {r}: harness denied ({why_ops}); restored')
                     rep.denied += 1
+                    rep.log.append({'round': r, 'decision': 'denied',
+                                    'stage': kind, 'why': why_ops,
+                                    'before': before.as_dict(),
+                                    'action': stats})
                     break
         except Exception as e:
             restore_snapshot(snap)
@@ -251,7 +287,9 @@ def transactional_repair(board_path: str, action_fn, eval_fn,
         if ok:
             rep.committed += 1
             rep.log.append({'round': r, 'decision': 'commit', 'why': why,
-                            'before': before.as_dict(), 'after': after.as_dict()})
+                            'stage': kind,
+                            'before': before.as_dict(), 'after': after.as_dict(),
+                            'action': stats})
             say(f'round {r}: commit ({why})')
             before = after
             rep.final = after.as_dict()
@@ -260,10 +298,12 @@ def transactional_repair(board_path: str, action_fn, eval_fn,
             _remove_new_sidecars(board_path, snap)
             rep.rolled_back += 1
             rep.log.append({'round': r, 'decision': 'rollback', 'why': why,
+                            'stage': kind,
                             'before': before.as_dict(), 'after': after.as_dict(),
                             'action': stats})
             say(f'round {r}: rollback ({why})')
-            break
+            if stop_on_rollback:
+                break
     return rep
 
 

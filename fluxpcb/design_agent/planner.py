@@ -8,7 +8,9 @@ executor consumes the plan.
 from __future__ import annotations
 
 import hashlib
+import itertools
 import json
+import math
 from pathlib import Path
 
 from .capacity import capacity_claim
@@ -100,8 +102,43 @@ def _fine_pitch_regions(board) -> list:
     return regions
 
 
-def build_plan(board_path, budgets: dict = None) -> RoutingPlan:
-    """Build the typed plan for one board (no mutation)."""
+def _short_pair_nets(board, max_mm: float, max_pads: int = 40) -> list:
+    """Nets that have a close pad pair, most local first.
+
+    The second pre-route rule.  Escape regions (fine-pitch footprints) are
+    rare on real boards, so a plan that only pre-routes them changes
+    nothing almost everywhere.  Committing the most local connections
+    before the global router is the general form of the same idea: the
+    plan decides first what is easy and constrained, the router fills the
+    rest around it.
+    """
+    by_net = {}
+    for fp in board.GetFootprints():
+        for pad in fp.Pads():
+            n = pad.GetNetname()
+            if not n:
+                continue
+            q = pad.GetPosition()
+            by_net.setdefault(n, []).append((q.x / 1e6, q.y / 1e6))
+    out = []
+    for n, pts in by_net.items():
+        if len(pts) < 2 or len(pts) > max_pads:
+            continue
+        best = min(math.hypot(a[0] - b[0], a[1] - b[1])
+                   for a, b in itertools.combinations(pts, 2))
+        if best <= max_mm:
+            out.append((n, best))
+    out.sort(key=lambda t: (round(t[1], 3), t[0]))
+    return out
+
+
+def build_plan(board_path, budgets: dict = None,
+               pre_pair_mm: float = None) -> RoutingPlan:
+    """Build the typed plan for one board (no mutation).
+
+    `pre_pair_mm` adds the short-connection rule to the pre-route list;
+    None keeps the escape-region rule only.
+    """
     import pcbnew
 
     path = str(board_path)
@@ -114,6 +151,10 @@ def build_plan(board_path, budgets: dict = None) -> RoutingPlan:
     if cap.verdict != "infeasible":
         for region in regions:
             for net in region["nets"]:
+                if net not in pre:
+                    pre.append(net)
+        if pre_pair_mm is not None:
+            for net, _d in _short_pair_nets(board, pre_pair_mm):
                 if net not in pre:
                     pre.append(net)
         pre = pre[:24]

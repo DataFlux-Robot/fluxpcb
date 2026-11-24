@@ -85,6 +85,7 @@ class FreeroutingResult:
     output_path: str = ""
     seconds: float = 0.0
     timed_out: bool = False
+    kept_locked: int = 0       # tracks/vias the strip kept locked (keep/rip)
     passes: int = 0
     log: str = ""
     error: str = ""
@@ -137,10 +138,16 @@ class FreeroutingBackend:
         )
         if r.returncode != 0:
             raise RuntimeError(f'kicad helper {args[0]} failed: {r.stderr[:300]}')
-        try:
-            return json.loads(r.stdout) if r.stdout.strip() else {}
-        except json.JSONDecodeError:
-            return {'raw': r.stdout}
+        # The helper prefixes its JSON with __RESULT__ (it must flush and
+        # exit before pcbnew's teardown); parse that line, not the banner
+        # noise that precedes it.
+        for line in (r.stdout or '').splitlines():
+            if line.startswith('__RESULT__'):
+                try:
+                    return json.loads(line[len('__RESULT__'):])
+                except json.JSONDecodeError:
+                    return {'raw': line[:300]}
+        return {'raw': (r.stdout or '')[-300:]}
 
     def _patch_dsn_from_project(self, board_path: str, dsn_path: str):
         """Transfer the project's effective rule table into the DSN.
@@ -219,7 +226,8 @@ class FreeroutingBackend:
 
     def route(self, board_path: str, out_path: str,
               timeout_s: int = 300, keep_copper_protected: bool = True,
-              use_board_rules: bool = False) -> FreeroutingResult:
+              use_board_rules: bool = False,
+              keep_nets=None, rip_nets=None) -> FreeroutingResult:
         """Route a board with Freerouting.
 
         Args:
@@ -227,6 +235,10 @@ class FreeroutingBackend:
             out_path: Output .kicad_pcb (routed)
             timeout_s: Freerouting wall-clock cap
             keep_copper_protected: keep existing copper as protect (default)
+        keep_nets: nets whose existing copper stays (LOCKED) through the
+            strip; the router must route around it.
+        rip_nets: nets whose existing copper is removed; every other net's
+            copper stays (LOCKED).  Mutually exclusive with keep_nets.
             use_board_rules: patch the DSN with the board's own clearance and
                 track width from the paired .kicad_pro. KiCad's Specctra
                 export always writes the default 0.2mm because LoadBoard()
@@ -262,7 +274,13 @@ class FreeroutingBackend:
                 with open(src_pro, 'rb') as f:
                     pro_snapshot = f.read()
 
-            info = self._kicad('strip', board_path, work_dir, timeout=120)
+            strip_args = [board_path, work_dir]
+            if keep_nets:
+                strip_args.append('keep=' + '|'.join(sorted(set(keep_nets))))
+            elif rip_nets:
+                strip_args.append('rip=' + '|'.join(sorted(set(rip_nets))))
+            info = self._kicad('strip', *strip_args, timeout=120)
+            result.kept_locked = int(info.get('kept_locked', 0) or 0)
             dsn_path = os.path.join(work_dir, 'board.dsn')
             unrouted_path = os.path.join(work_dir, 'unrouted.kicad_pcb')
             if not os.path.exists(dsn_path):
@@ -299,8 +317,14 @@ class FreeroutingBackend:
         # 2. Run Freerouting
         ses_path = os.path.join(work_dir, 'board.ses')
         log_path = os.path.join(work_dir, 'freerouting.log')
+        # Optional heap cap (FLUXPCB_JAVA_XMX, e.g. "2g"): several router
+        # processes run side by side during an arm campaign, and an
+        # uncapped heap on each one exhausts the machine.
+        xmx = os.environ.get('FLUXPCB_JAVA_XMX', '')
         cmd = [
-            self.java, '-Djava.awt.headless=true', '-jar', self.jar,
+            self.java, '-Djava.awt.headless=true',
+            *(['-Xmx' + xmx] if xmx else []),
+            '-jar', self.jar,
             '-de', dsn_path, '-do', ses_path,
             '-mp', str(self.max_passes), '-mt', str(self.threads),
         ]

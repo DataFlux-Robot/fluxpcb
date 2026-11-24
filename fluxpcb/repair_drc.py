@@ -15,8 +15,16 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
+
+# Importable both as `fluxpcb.repair_drc` and as a bare script (the
+# isolated reroute runs this file directly).  Without this the `--reroute`
+# entry point cannot import fluxpcb at all.
+_PKG_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PKG_ROOT not in sys.path:
+    sys.path.insert(0, _PKG_ROOT)
 
 
 def run_drc(board_path: str, out_json: str) -> dict:
@@ -90,31 +98,47 @@ def refill_zones(board_path: str):
     save_preserving_project(b, board_path)
 
 
-def violating_nets(drc_json: str, types=('track_width', 'clearance')) -> set:
-    """Net names implicated by DRC violations of the given types."""
+def violating_net_counts(drc_json: str,
+                        types=('track_width', 'clearance')) -> dict:
+    """Net name -> number of DRC violations of the given types it carries."""
     import re
     with open(drc_json, encoding='utf-8') as f:
         d = json.load(f)
-    nets = set()
+    counts = {}
     for v in d.get('violations') or []:
         if v.get('severity') != 'error' or v.get('excluded'):
             continue
         if v.get('type') not in types:
             continue
+        nets = set()
         for it in v.get('items') or []:
             m = re.search(r'\[([^\]]+)\]', it.get('description') or '')
             if m:
                 nets.add(m.group(1))
-    return nets
+        for n in nets:
+            counts[n] = counts.get(n, 0) + 1
+    return counts
+
+
+def violating_nets(drc_json: str, types=('track_width', 'clearance')) -> set:
+    """Net names implicated by DRC violations of the given types."""
+    return set(violating_net_counts(drc_json, types))
 
 
 def reroute_nets(board_path: str, nets, timeout_s: int = 240,
-                 commit: bool = False) -> dict:
+                 commit: bool = False, rip: bool = False) -> dict:
     """Rip up ``nets`` and let Freerouting re-route them.
 
-    Everything else stays as protected copper in the DSN, so the router sees
-    the real obstacle field.  The caller must treat the result as a
-    transaction: evaluate and roll back if the hard-claim vector worsens.
+    rip=True is a real partial rip-up: the strip removes only these nets'
+    tracks and leaves every other track LOCKED (``(type fix)`` in the DSN),
+    so the router solves just these nets against the real obstacle field.
+
+    rip=False is the historical behaviour: the strip removes every track,
+    i.e. the whole board is routed again from placement and the net list
+    only decides who is reported as "ripped".
+
+    The caller must treat the result as a transaction: evaluate and roll
+    back if the hard-claim vector worsens.
     """
     import pcbnew
     import shutil
@@ -123,38 +147,44 @@ def reroute_nets(board_path: str, nets, timeout_s: int = 240,
     nets = set(nets)
     if not nets:
         return {'ok': False, 'reason': 'no nets'}
+    backend = FreeroutingBackend(
+        threads=int(os.environ.get('FLUXPCB_ROUTER_THREADS', '8') or 8),
+        max_passes=int(os.environ.get('FLUXPCB_ROUTER_PASSES', '15') or 15))
     base = os.path.splitext(board_path)[0]
     pro = base + '.kicad_pro'
     b = pcbnew.LoadBoard(board_path)
     if b is None:
         return {'ok': False, 'reason': 'load failed'}
     removed = 0
-    for t in list(b.GetTracks()):
-        try:
-            if t.GetNetname() in nets:
-                b.Remove(t)
-                removed += 1
-        except Exception:
-            continue
-    if removed == 0:
-        return {'ok': False, 'reason': 'no tracks removed'}
+    if not rip:
+        for t in list(b.GetTracks()):
+            try:
+                if t.GetNetname() in nets:
+                    b.Remove(t)
+                    removed += 1
+            except Exception:
+                continue
     work = base + '.reroute.kicad_pcb'
     save_preserving_project(b, work)
     if os.path.exists(pro):
         shutil.copy(pro, os.path.splitext(work)[0] + '.kicad_pro')
-    fr = FreeroutingBackend().route(work, work + '.out.kicad_pcb',
-                                    timeout_s=timeout_s, use_board_rules=True)
+    fr = backend.route(work, work + '.out.kicad_pcb',
+                       timeout_s=timeout_s, use_board_rules=True,
+                       rip_nets=nets if rip else None)
     if not fr.routed:
-        return {'ok': False, 'reason': fr.error, 'removed': removed}
+        return {'ok': False, 'reason': fr.error,
+                'removed': removed or None, 'rip': rip}
     # EXPERIMENTAL: the routed result is returned, not applied, unless the
     # caller opts in.  A caller that commits must wrap this in
     # transactional_repair and evaluate the post-state.
     if commit:
         shutil.copy(work + '.out.kicad_pcb', board_path)
-        if os.path.exists(pro) and os.path.abspath(pro) != os.path.abspath(base + '.kicad_pro'):
+        if (os.path.exists(pro) and os.path.abspath(pro)
+                != os.path.abspath(base + '.kicad_pro')):
             shutil.copy(pro, base + '.kicad_pro')
     return {'ok': True, 'nets': sorted(nets), 'removed': removed,
             'seconds': fr.seconds, 'congruent': fr.rule_congruence,
+            'kept_locked': fr.kept_locked, 'rip': rip,
             'output': work + '.out.kicad_pcb', 'committed': commit}
 
 
@@ -261,31 +291,50 @@ def parse_violations(drc: dict) -> list:
     return violations
 
 
+REROUTE_TYPES = ('track_width', 'clearance')
+RIP_TYPES = ('shorting_items', 'track_width', 'clearance')
+
+
 def reroute_residues(board_path: str, drc_json: str,
-                     timeout_s: int = 240) -> dict:
-    """Rip up the nets implicated by width/clearance violations and
-    re-route them.  The caller must run this inside a transaction: the
-    output is copied over the board, then evaluated and rolled back if the
-    hard-claim vector does not improve."""
+                     timeout_s: int = 240, types=REROUTE_TYPES,
+                     rip: bool = False, max_nets: int = 0) -> dict:
+    """Rip up the nets implicated by violations and re-route them.
+
+    The caller must run this inside a transaction: the output is copied
+    over the board, then evaluated and rolled back if the hard-claim vector
+    does not improve.  ``max_nets`` bounds a partial rip-up to the nets
+    that carry the most violations.
+    """
     import hashlib
-    nets = violating_nets(drc_json, types=('track_width', 'clearance'))
+    counts = violating_net_counts(drc_json, types=types)
+    nets = set(counts)
     if not nets:
-        return {'operators_run': [], 'reason': 'no width/clearance nets'}
-    info = reroute_nets(board_path, nets, timeout_s=timeout_s, commit=False)
+        return {'operators_run': [], 'reason': 'no nets with these violations'}
+    capped = False
+    if max_nets and len(nets) > max_nets:
+        ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+        nets = {n for n, _ in ranked[:max_nets]}
+        capped = True
+    info = reroute_nets(board_path, nets, timeout_s=timeout_s,
+                        commit=False, rip=rip)
     if not info.get('ok'):
         return {'operators_run': [], 'error': info.get('reason'),
-                'nets': sorted(nets)}
+                'nets': sorted(nets), 'rip': rip}
     shutil.copy(info['output'], board_path)
     h = hashlib.sha256(open(board_path, 'rb').read()).hexdigest()
     return {'operators_run': ['reroute_violating_nets'],
             'nets': sorted(nets), 'removed': info.get('removed'),
+            'kept_locked': info.get('kept_locked'),
+            'capped': capped, 'rip': rip,
             'seconds': info.get('seconds'),
             'congruent': info.get('congruent'),
             'board_sha': h[:16]}
 
 
 def reroute_residues_isolated(board_path: str, drc_json: str,
-                              timeout_s: int = 240) -> dict:
+                              timeout_s: int = 240, types=REROUTE_TYPES,
+                              rip: bool = False,
+                              max_nets: int = 0) -> dict:
     """Run reroute_residues in a fresh interpreter.
 
     pcbnew's SWIG wrappers become invalid after a net-level rip-up in the
@@ -293,18 +342,66 @@ def reroute_residues_isolated(board_path: str, drc_json: str,
     usable for the post-action evaluation.
     """
     cmd = [sys.executable, os.path.abspath(__file__), '--reroute',
-           board_path, drc_json, str(timeout_s)]
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
+           board_path, drc_json, str(timeout_s),
+           '--types', ','.join(types),
+           '--rip' if rip else '--full',
+           '--max-nets', str(max_nets)]
+    r = subprocess.run(cmd, capture_output=True, text=True,
+                       timeout=timeout_s + 600)
     for line in (r.stdout or '').splitlines():
         if line.startswith('__REROUTE__'):
             return json.loads(line[len('__REROUTE__'):])
     return {'operators_run': [], 'error': (r.stderr or '')[-200:]}
 
 
-def repair_with_operators(board_path: str, drc_json: str) -> dict:
+# Loop mode 'morph': one violation morphology per transaction round, in
+# this order.  Only classes that have an available operator are listed.
+MORPH_ORDER = ('shorting_items', 'unconnected', 'track_dangling',
+               'clearance', 'track_width')
+
+
+def count_class(drc_json: str, vtype: str) -> int:
+    """How many violations of one class the latest DRC report holds."""
+    with open(drc_json, encoding='utf-8') as f:
+        d = json.load(f)
+    if vtype == 'unconnected':
+        return sum(1 for u in d.get('unconnected_items') or []
+                   if not u.get('excluded'))
+    return sum(1 for v in d.get('violations') or []
+               if v.get('type') == vtype and v.get('severity') == 'error'
+               and not v.get('excluded'))
+
+
+class MorphPicker:
+    """Chooses the morphology for the next transaction round.
+
+    Walks MORPH_ORDER once per sweep, so a class whose repair keeps being
+    rolled back cannot monopolise the rounds; the next sweep revisits it
+    after other classes have had their turn.
+    """
+
+    def __init__(self):
+        self.tried = []
+
+    def pick(self, drc_json: str):
+        for vtype in MORPH_ORDER:
+            if vtype in self.tried:
+                continue
+            if count_class(drc_json, vtype) > 0:
+                self.tried.append(vtype)
+                return vtype
+        self.tried = []
+        return None
+
+
+def repair_with_operators(board_path: str, drc_json: str,
+                          allowed_ops=None, classes=None, params=None) -> dict:
     """Apply skill-package repair operators to DRC violations.
 
-    Returns a summary of what was repaired.
+    `allowed_ops` is the policy: operators outside it are never selected.
+    `classes` restricts the pass to given violation types (None = all).
+
+    Returns a summary of what was repaired, including the operator ledger.
     """
     # Ensure fluxpcb is importable regardless of how the script is invoked
     _here = os.path.dirname(os.path.abspath(__file__))
@@ -324,11 +421,12 @@ def repair_with_operators(board_path: str, drc_json: str) -> dict:
 
     violations = parse_violations(drc)
 
-    ops = RepairOperators()
+    ops = RepairOperators(params=params)
     import pcbnew
     board = pcbnew.LoadBoard(board_path)
 
-    results = ops.dispatch_repair(board, violations)
+    results = ops.dispatch_repair(board, violations, allowed=allowed_ops,
+                                  classes=classes)
 
     # Save repaired board (project bytes preserved: DRC must keep judging
     # against the board's own rules)
@@ -395,9 +493,20 @@ def main():
 
 
 if __name__ == '__main__':
-    if len(sys.argv) >= 4 and sys.argv[1] == '--reroute':
-        _b, _d, _t = sys.argv[2], sys.argv[3], sys.argv[4] if len(sys.argv) > 4 else 240
+    if len(sys.argv) >= 2 and sys.argv[1] == '--reroute':
+        _b = sys.argv[2] if len(sys.argv) > 2 else ''
+        _d = sys.argv[3] if len(sys.argv) > 3 else ''
+        _t = int(sys.argv[4]) if len(sys.argv) > 4 else 240
+        _types, _max = REROUTE_TYPES, 0
+        rest = sys.argv[5:]
+        for i in range(0, len(rest) - 1, 2):
+            if rest[i] == '--types':
+                _types = tuple(t for t in rest[i + 1].split(',') if t)
+            elif rest[i] == '--max-nets':
+                _max = int(rest[i + 1])
+        _rip = '--rip' in rest
         print('__REROUTE__' + json.dumps(
-            reroute_residues(_b, _d, int(_t))), flush=True)
+            reroute_residues(_b, _d, _t, types=_types, rip=_rip,
+                             max_nets=_max)), flush=True)
     else:
         main()

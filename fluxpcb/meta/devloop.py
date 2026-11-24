@@ -1,9 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""devloop — Meta-dev Loop (Component 1).
+"""devloop — the loop above the development loop (Component 1).
 
-HarnessPro diagnose→evolve→select loop.
-Improves the design method across runs and persists reusable strategies.
+Components 3 (the repair loop) and 4 (the plan) execute an ARM: a typed
+configuration.  This loop improves them from evidence, in three stages:
+
+  diagnose   read the traces of one arm on real boards and name the failure
+             patterns, with the typed variable each one points at;
+  evolve     turn the diagnosis into candidate arms, each ONE variable away
+             from the base — proposed by an LLM from the traces when one is
+             configured, otherwise by a rule table;
+  select     evaluate the candidates where the current arm actually has
+             trouble (on-policy) and keep only what cleans more than it
+             dirties.
+
+plus a per-board selector: which arm suits which kind of board, chosen
+from placement features alone.
+
+Nothing here invents a score.  `select` needs a real evaluator, and a
+generation reports whatever that evaluator measured — including nothing.
 """
 from __future__ import annotations
 
@@ -11,205 +26,238 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from ..contracts import (
-    RoutingCandidate,
-    RoutingDiagnosis,
-    RoutingResult,
-    Trajectory,
-)
+from ..contracts import RoutingCandidate
+from .diagnose import diagnose
+from .feedback import FailurePacket
+from .memory import Memory, delta_key
+from .proposer import as_record, candidate_arm, propose
+from .strategy_store import fit_selector
 
 
 @dataclass
 class MetaRunResult:
-    """Result of a meta-dev run."""
-    best_candidate: Optional[RoutingCandidate] = None
-    best_result: Optional[RoutingResult] = None
+    """One generation of the meta-dev loop."""
+    generation: int = 0
+    base_arm: Optional[str] = None
+    diagnosis: dict = field(default_factory=dict)
+    proposals: list = field(default_factory=list)   # what was proposed, by whom
+    candidates: list = field(default_factory=list)  # candidate arm names
+    results: list = field(default_factory=list)     # evaluator output per candidate
+    admitted: list = field(default_factory=list)    # coreset-level acceptance
+    selector: Optional[dict] = None
     candidates_evaluated: int = 0
     seconds: float = 0.0
-    strategy_saved: bool = False
-    status: str = 'no_data'
+    status: str = 'no_data'      # ok | no_data | blocked | no_proposal | no_evaluator
+    blocked_by: Optional[str] = None
+
+    def as_dict(self) -> dict:
+        return {'generation': self.generation, 'base_arm': self.base_arm,
+                'diagnosis': self.diagnosis, 'proposals': self.proposals,
+                'candidates': self.candidates, 'results': self.results,
+                'admitted': self.admitted, 'selector': self.selector,
+                'candidates_evaluated': self.candidates_evaluated,
+                'seconds': self.seconds, 'status': self.status,
+                'blocked_by': self.blocked_by}
+
+
+def _delta(candidate) -> str:
+    p = candidate.params
+    return delta_key(p.get('base', ''), p.get('variable', ''),
+                     p.get('value'))
 
 
 class MetaDevLoop:
-    """Meta-dev loop — diagnose→evolve→select.
+    """diagnose -> evolve -> select, over arms instead of over thresholds."""
 
-    Improves the design method across runs.
-    """
-
-    def __init__(
-        self,
-        task: Any = None,
-        optimizer: Any = None,
-        store: Any = None,
-    ):
-        """Initialize meta-dev loop.
-
-        Args:
-            task: PCBTask instance
-            optimizer: PCBProOptimizer instance
-            store: StrategyStore instance
-        """
+    def __init__(self, task: Any = None, optimizer: Any = None,
+                 store: Any = None, memory: Any = None,
+                 allow_llm: bool = True, max_candidates: int = 3):
         self.task = task
         self.optimizer = optimizer
         self.store = store
-        self._history: list[RoutingResult] = []
+        self.memory = memory
+        self.allow_llm = allow_llm
+        self.max_candidates = max_candidates
+        self._arms: dict = {}          # candidate name -> Arm
+        self._base_arm = None
+        self.last_proposals: list = []
+        self._history: list = []
 
-    def diagnose(self, trajectories: list[Trajectory]) -> RoutingDiagnosis:
-        """Diagnose routing failures from trajectories.
+    def arm(self, name: str):
+        return self._arms.get(name)
 
-        Args:
-            trajectories: List of execution trajectories
+    # -- stage 1 ------------------------------------------------------
+    @staticmethod
+    def diagnose(trajectories: list) -> dict:
+        """Failure patterns with the typed variables they point at."""
+        return diagnose(trajectories)
 
-        Returns:
-            RoutingDiagnosis with failure modes and suggestions
+    # -- stage 2 ------------------------------------------------------
+    def evolve(self, diagnosis: dict, packets: list = None,
+               base_arm=None) -> list:
+        """Candidate arms, each one variable away from the base arm."""
+        if base_arm is not None:
+            self._base_arm = base_arm
+        if self._base_arm is None:
+            return []
+        if not diagnosis.get('instrument_ok', False):
+            self.last_proposals = []
+            return []
+        resumed = self._resumed(self._base_arm)
+        if resumed:
+            # An interrupted generation left proposals without a verdict.
+            # Finish those before asking for anything new, otherwise they
+            # would be skipped as "already tried" and never measured.
+            out = {'proposals': resumed}
+        else:
+            out = propose(packets or [], self._base_arm, memory=self.memory,
+                          max_deltas=self.max_candidates,
+                          allow_llm=self.allow_llm)
+            if self.memory is not None:
+                for p in out['proposals']:
+                    self.memory.append(
+                        'proposal', delta=p.key(self._base_arm.name),
+                        variable=p.variable, value=p.value,
+                        proposer=p.proposer, pattern=p.pattern, why=p.why)
+        self.last_proposals = out['proposals']
+        cands = []
+        for p in out['proposals']:
+            arm = candidate_arm(self._base_arm, p)
+            self._arms[arm.name] = arm
+            cands.append(RoutingCandidate(
+                name=arm.name, category='one_variable',
+                params={'base': self._base_arm.name,
+                        'variable': p.variable, 'value': p.value,
+                        'proposer': p.proposer, 'pattern': p.pattern,
+                        'why': p.why, 'arm_digest': arm.digest()},
+                expected_improvement=0.0, risk=0.0))
+        return cands
+
+    def _resumed(self, base_arm) -> list:
+        """Proposals made against `base_arm` that were never evaluated."""
+        if self.memory is None:
+            return []
+        from .proposer import Proposal
+        pending = self.memory.pending()
+        out, seen = [], set()
+        for e in self.memory.entries('proposal'):
+            key = e.get('delta')
+            if (key in pending and key not in seen
+                    and key.startswith(base_arm.name + '|')):
+                seen.add(key)
+                out.append(Proposal(
+                    variable=e['variable'], value=e['value'],
+                    why=e.get('why', ''), proposer=e.get('proposer', 'rules'),
+                    pattern=e.get('pattern', '')))
+        return out[:self.max_candidates]
+
+    # -- stage 3 ------------------------------------------------------
+    def select(self, candidates: list, board: Any = None,
+               evaluator: Any = None) -> tuple:
+        """The candidate whose real evaluation cleaned most, net of what it dirtied.
+
+        `evaluator(candidate)` returns {'wins', 'losses', ...}: boards the
+        candidate cleaned that the base arm did not, and the reverse.
         """
-        diagnosis = RoutingDiagnosis()
-
-        if not trajectories:
-            return diagnosis
-
-        # Analyze last trajectory
-        last = trajectories[-1]
-        for event in last.events:
-            opens = event.result.get('opens', 0)
-            drc = event.result.get('drc_errors', 0)
-
-            if opens > 0:
-                diagnosis.failure_modes.append('opens')
-                diagnosis.suggestions.append('escape_first')
-
-            if drc > 0:
-                diagnosis.failure_modes.append('drc_errors')
-                # A meta layer may not lower a gate to make a board pass.
-                # Propose a topology change (re-route) instead.
-                diagnosis.suggestions.append('reroute_violating_nets')
-
-        diagnosis.completion_pct = 100 - sum(
-            e.result.get('opens', 0) for e in last.events
-        )
-        diagnosis.drc_errors = sum(
-            e.result.get('drc_errors', 0) for e in last.events
-        )
-
-        return diagnosis
-
-    def evolve(self, diagnosis: RoutingDiagnosis) -> list[RoutingCandidate]:
-        """Generate candidates based on diagnosis.
-
-        Args:
-            diagnosis: RoutingDiagnosis
-
-        Returns:
-            List of RoutingCandidates to evaluate
-        """
-        candidates = []
-
-        # Baseline
-        candidates.append(RoutingCandidate(
-            name='baseline',
-            category='baseline',
-            params={},
-            expected_improvement=0.0,
-            risk=0.0,
-        ))
-
-        # Based on failure modes
-        if 'opens' in diagnosis.failure_modes:
-            candidates.append(RoutingCandidate(
-                name='escape_first',
-                category='escape',
-                params={'escape_first': True},
-                expected_improvement=0.15,
-                risk=0.1,
-            ))
-
-        if 'drc_errors' in diagnosis.failure_modes:
-            candidates.append(RoutingCandidate(
-                name='reroute_violating_nets',
-                category='topology',
-                params={'reroute_nets': True},
-                expected_improvement=0.1,
-                risk=0.2,
-            ))
-
-        return candidates
-
-    def select(
-        self,
-        candidates: list[RoutingCandidate],
-        board: Any = None,
-        evaluator: Any = None,
-    ) -> tuple[RoutingCandidate, RoutingResult]:
-        """Select best candidate by evaluating.
-
-        Args:
-            candidates: List of candidates to evaluate
-            board: Board to evaluate on
-
-        Returns:
-            (best_candidate, best_result)
-        """
-        best_candidate = None
-        best_result = None
-
         if evaluator is None:
             # Refusing to fabricate: a meta layer that invents its own
             # scores cannot be wrong, which is the definition of decorative.
             raise RuntimeError(
                 'MetaDevLoop.select requires a real evaluator; '
                 'fabricated scores are not permitted')
+        best, best_key = None, None
         for candidate in candidates:
             result = evaluator(candidate)
+            if result is not None:
+                self._history.append(dict(result, candidate=candidate.name))
+                key = (result.get('wins', 0) - result.get('losses', 0),
+                       -result.get('losses', 0),
+                       -result.get('mean_wall', 0))
+                if result.get('wins', 0) > result.get('losses', 0) and (
+                        best_key is None or key > best_key):
+                    best, best_key = candidate, key
+        del board
+        return best, best_key
 
-            self._history.append(result)
+    # -- channel A ----------------------------------------------------
+    @staticmethod
+    def fit(packets: list) -> dict:
+        """A per-board selector fitted on the given packets."""
+        return fit_selector(packets)
 
-            if best_result is None or result.score > best_result.score:
-                best_candidate = candidate
-                best_result = result
+    # -- on-policy ----------------------------------------------------
+    @staticmethod
+    def on_policy(packets: list, base: str) -> list:
+        """Boards the current arm fails, or passes only because repair fired.
 
-        return best_candidate, best_result
-
-    def run(self, budget_s: int = 300) -> MetaRunResult:
-        """Run the meta-dev loop.
-
-        Args:
-            budget_s: Time budget in seconds
-
-        Returns:
-            MetaRunResult with best strategy
+        The next generation is evaluated where the incumbent has trouble:
+        its training distribution is its deployment distribution.
         """
+        out = []
+        for p in packets:
+            if p.arm != base or p.status not in ('ok', 'budget'):
+                continue
+            dependent = any(r.get('decision') == 'commit'
+                            for r in (p.rounds or []))
+            if p.outcome != 'clean' or dependent:
+                out.append(p.board)
+        return sorted(set(out))
+
+    # -- one generation -----------------------------------------------
+    def generation(self, packets: list, base_arm, evaluator=None,
+                   generation: int = 0) -> MetaRunResult:
         t0 = time.time()
-        result = MetaRunResult()
+        self._base_arm = base_arm
+        res = MetaRunResult(generation=generation, base_arm=base_arm.name)
+        mine = [p for p in packets if p.arm == base_arm.name]
+        res.selector = fit_selector(packets)
+        if not mine:
+            res.status, res.seconds = 'no_data', round(time.time() - t0, 1)
+            return res
+        res.diagnosis = diagnose(mine)
+        if not res.diagnosis['instrument_ok']:
+            res.status, res.blocked_by = 'blocked', 'instrument'
+            res.seconds = round(time.time() - t0, 1)
+            return res
+        cands = self.evolve(res.diagnosis, mine)
+        res.proposals = as_record(self.last_proposals)
+        res.candidates = [c.name for c in cands]
+        res.candidates_evaluated = len(cands)
+        if not cands:
+            res.status = 'no_proposal'
+        elif evaluator is None:
+            res.status = 'no_evaluator'
+        else:
+            for c in cands:
+                out = evaluator(c)
+                if out is None:
+                    res.status = 'no_evaluator'
+                    break
+                res.results.append(dict(out, candidate=c.name))
+                won = out.get('wins', 0) > out.get('losses', 0)
+                if won:
+                    res.admitted.append(c.name)
+                if self.memory is not None:
+                    self.memory.append(
+                        'result', delta=_delta(c), candidate=c.name,
+                        outcome='admitted' if won else 'rejected',
+                        wins=out.get('wins', 0), losses=out.get('losses', 0),
+                        generation=generation)
+            else:
+                res.status = 'ok'
+        res.seconds = round(time.time() - t0, 1)
+        return res
 
-        # Diagnose from real history; with no trajectories there is nothing
-        # to select, and the honest result is no_data, not a placeholder.
-        trajectories = [r.trajectory for r in self._history
-                        if getattr(r, 'trajectory', None)]
-        if not trajectories:
-            result.seconds = time.time() - t0
-            result.status = 'no_data'
-            return result
-        diagnosis = self.diagnose(trajectories)
+    # -- legacy entry point -------------------------------------------
+    def run(self, budget_s: int = 300, packets: list = None,
+            base_arm=None, evaluator: Any = None) -> MetaRunResult:
+        if not packets or base_arm is None:
+            return MetaRunResult(status='no_data')
+        return self.generation(packets, base_arm, evaluator=evaluator)
 
-        # Evolve candidates
-        candidates = self.evolve(diagnosis)
-        result.candidates_evaluated = len(candidates)
+    @property
+    def history(self) -> list:
+        return list(self._history)
 
-        # Select best against a real evaluator (injected by the caller)
-        if self.optimizer is None:
-            result.seconds = time.time() - t0
-            result.status = 'no_evaluator'
-            return result
-        best_candidate, best_result = self.select(
-            candidates, evaluator=self.optimizer.evaluate_candidate)
-        result.best_candidate = best_candidate
-        result.best_result = best_result
-        result.status = 'ok'
 
-        # Save strategy
-        if self.store and best_candidate:
-            self.store.save(best_candidate.params, {'name': best_candidate.name})
-            result.strategy_saved = True
-
-        result.seconds = time.time() - t0
-        return result
+__all__ = ['MetaDevLoop', 'MetaRunResult', 'FailurePacket', 'Memory']
