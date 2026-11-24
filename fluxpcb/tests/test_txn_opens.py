@@ -7,7 +7,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from fluxpcb.verifiers.txn import accept, claims_from_drc  # noqa: E402
+from fluxpcb.verifiers.txn import (accept, claims_from_drc,  # noqa: E402
+                                steady, union_claims)
 
 
 def _drc(edges):
@@ -41,3 +42,53 @@ def test_two_opens_of_one_net_are_two_identities():
     assert len(net.unconnected_ids) == 2
     again = claims_from_drc(_drc([(A2, B), (A, B)]))
     assert again.unconnected_ids == net.unconnected_ids
+
+
+def _errs(*types_):
+    return claims_from_drc({'violations': [
+        {'type': t, 'severity': 'error', 'items': [{'uuid': 'u%d' % k}]}
+        for k, t in enumerate(types_)]})
+
+
+def test_the_union_of_evaluations_is_every_finding_seen():
+    two = _errs('clearance', 'clearance')
+    three = _errs('clearance', 'clearance', 'track_width')
+    u = union_claims(two, three)
+    # the ids are per finding (u0, u1, u2): the union has all three
+    assert u.n_errors == 3 and dict(u.type_counts) == {'clearance': 2, 'track_width': 1}
+    assert u.error_types == {'clearance', 'track_width'}
+    assert union_claims(two, two) == two
+    with_open = claims_from_drc(_drc([(A, B), Y]))
+    assert union_claims(with_open, with_open) == with_open
+
+
+def test_steady_asks_again_only_when_the_answer_moves():
+    calls = []
+    answers = iter([_errs('clearance'), _errs('clearance', 'clearance'),
+                    _errs('clearance', 'clearance', 'track_width')])
+
+    def evaluate(_path):
+        calls.append(1)
+        return next(answers)
+
+    assert steady(evaluate)('b').n_errors == 3 and len(calls) == 3
+    calls.clear()
+    same = lambda _path: _errs('clearance')  # noqa: E731
+    assert steady(same)('b').n_errors == 1 and True
+    clean = lambda _path: claims_from_drc({'violations': []})  # noqa: E731
+    counted = []
+
+    def clean_counting(_path):
+        counted.append(1)
+        return claims_from_drc({'violations': []})
+    assert steady(clean_counting)('b').total == 0 and len(counted) == 1
+
+
+def test_a_randomly_unreported_violation_cannot_reject_a_repair():
+    """A repair that leaves two of three violations must not be judged
+    "total increased" because the DRC happened to see all three this
+    time and only two before."""
+    before = union_claims(_errs('clearance', 'clearance'), _errs('clearance', 'clearance', 'clearance'))
+    after = union_claims(_errs('clearance', 'clearance'), _errs('clearance', 'clearance'))
+    assert before.n_errors == 3 and after.n_errors == 2
+    assert accept(before, after)[0]

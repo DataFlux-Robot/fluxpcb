@@ -18,12 +18,15 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from fluxpcb.tests import boards_local as F  # noqa: E402
-from fluxpcb.repair_drc import (repair_stepwise, repair_with_operators,  # noqa: E402
-                                run_drc, save_preserving_project)
+from fluxpcb.repair_drc import (dangling_counts, repair_rounds,  # noqa: E402
+                                repair_stepwise, repair_with_operators,
+                                run_drc, save_preserving_project,
+                                trim_dangling)
 from fluxpcb.verifiers import operator_spec  # noqa: E402
 from fluxpcb.verifiers.operator_spec import OperatorRegistry, OperatorSpec  # noqa: E402
 from fluxpcb.verifiers.operators import RepairOperators, RepairResult  # noqa: E402
-from fluxpcb.verifiers.txn import claims_from_drc, transactional_repair  # noqa: E402
+from fluxpcb.verifiers.txn import (claims_from_drc,  # noqa: E402
+                                   steady, transactional_repair)
 
 pytestmark = pytest.mark.board
 
@@ -96,13 +99,14 @@ def _board(path, with_c=True):
 
 
 def _sabotage(self, board, violations=None):
-    """An operator that makes things worse in a new way: a track of net B
-    laid across net A's track."""
+    """An operator that makes things worse in a new way: net B's track
+    run on past the edge of the board.  'copper_edge_clearance' is a
+    class no operator repairs."""
     import pcbnew
 
     t = pcbnew.PCB_TRACK(board)
-    t.SetStart(pcbnew.VECTOR2I(pcbnew.FromMM(10.0), pcbnew.FromMM(5.0)))
-    t.SetEnd(pcbnew.VECTOR2I(pcbnew.FromMM(10.0), pcbnew.FromMM(11.0)))
+    t.SetStart(pcbnew.VECTOR2I(pcbnew.FromMM(18.0), pcbnew.FromMM(11.0)))
+    t.SetEnd(pcbnew.VECTOR2I(pcbnew.FromMM(25.0), pcbnew.FromMM(11.0)))
     t.SetWidth(pcbnew.FromMM(0.25))
     t.SetLayer(pcbnew.F_Cu)
     t.SetNetCode(board.FindNet('B').GetNetCode())
@@ -128,7 +132,7 @@ def registry(monkeypatch):
     del RepairOperators._sabotage
 
 
-def _evaluate(pcb):
+def _evaluate_once(pcb):
     import pcbnew
 
     b = pcbnew.LoadBoard(pcb)
@@ -140,6 +144,13 @@ def _evaluate(pcb):
     return claims_from_drc(d)
 
 
+# The DRC reports a random subset of the violations that crowd onto one
+# item (three segments of C against B's track: 2, 3 or 4 findings from
+# run to run).  A judge that asks again until it repeats itself is the
+# only way a step's "better" or "worse" means anything on this board.
+_evaluate = steady(_evaluate_once)
+
+
 def test_a_bad_operator_no_longer_throws_away_a_good_one(tmp_path, registry):
     pcb = _board(str(tmp_path / 'step.kicad_pcb'))
     before = _evaluate(pcb)
@@ -148,11 +159,11 @@ def test_a_bad_operator_no_longer_throws_away_a_good_one(tmp_path, registry):
     after = _evaluate(pcb)
     steps = [(s['operator'], s['decision']) for s in out['steps']]
     assert steps[:2] == [('widen_narrow_tracks', 'commit'), ('_sabotage', 'rollback')]
-    assert 'new violation types' in out['steps'][1]['why']
+    assert "new violation types: ['copper_edge_clearance']" in out['steps'][1]['why']
     assert 'widen_narrow_tracks' in out['operators_run'] and '_sabotage' in out['operators_run']
-    # the width repair stayed, the short is gone with its operator
+    # the width repair stayed; the run off the board is gone with its operator
     assert 'track_width' not in after.error_types
-    assert 'shorting_items' not in after.error_types
+    assert 'copper_edge_clearance' not in after.error_types
     assert after.total < before.total
 
 
@@ -170,7 +181,6 @@ def test_as_one_batch_both_are_thrown_away(tmp_path, registry):
     # these three segments moves between runs of the same file — 2, 3 or
     # 4 — so the classes are compared, not the totals.)
     assert after.error_types == before.error_types == {'track_width', 'clearance'}
-    assert 'shorting_items' not in after.error_types
 
 
 def test_nothing_to_do_is_a_no_op(tmp_path, registry):
@@ -191,3 +201,96 @@ def test_a_policy_still_selects_what_may_run(tmp_path, registry):
                           allowed_ops={'nudge_clearance'})
     assert out['no_op'] and out['operators_run'] == []
     assert _evaluate(pcb).error_types == {'track_width', 'clearance'}
+
+
+def _stub(path):
+    """The clean two-net board with a stub on A: a short track hanging
+    off A's track into nowhere."""
+    import pcbnew
+
+    _board(path, with_c=False)
+    b = pcbnew.LoadBoard(path)
+    for t in b.GetTracks():
+        t.SetWidth(pcbnew.FromMM(0.25))
+    t = pcbnew.PCB_TRACK(b)
+    t.SetStart(pcbnew.VECTOR2I(pcbnew.FromMM(10.0), pcbnew.FromMM(7.0)))
+    t.SetEnd(pcbnew.VECTOR2I(pcbnew.FromMM(10.0), pcbnew.FromMM(4.0)))
+    t.SetWidth(pcbnew.FromMM(0.25))
+    t.SetLayer(pcbnew.F_Cu)
+    t.SetNetCode(b.FindNet('A').GetNetCode())
+    b.Add(t)
+    pcbnew.SaveBoard(path, b)
+    return path
+
+
+def _drc(pcb):
+    d = run_drc(pcb, pcb + '.drc.json')
+    assert d.get('ok')
+    return d
+
+
+def test_rounds_run_until_the_board_is_clean(tmp_path, registry):
+    pcb = _board(str(tmp_path / 'rounds.kicad_pcb'))
+    before = _evaluate(pcb)
+    rep = repair_rounds(pcb, pcb + '.drc.json', _evaluate, rounds=3, initial=before)
+    assert rep.committed >= 1 and rep.rolled_back == 0
+    assert _evaluate(pcb).total == 0
+    # every operator that ran is on record, with what it repaired
+    ops = [op for e in rep.log for op in ((e.get('action') or {}).get('operators_run') or [])]
+    assert 'widen_narrow_tracks' in ops
+
+
+def test_a_stub_comes_off_and_the_board_stays_clean(tmp_path, registry):
+    pcb = _stub(str(tmp_path / 'stub.kicad_pcb'))
+    _evaluate(pcb)
+    assert dangling_counts(_drc(pcb))['track_dangling'] == 1
+    before = _evaluate(pcb)
+    trim = trim_dangling(pcb, pcb + '.drc.json', _evaluate, initial=before)
+    assert (trim['removed'], trim['committed'], trim['rolled_back']) == (1, 1, 0)
+    assert dangling_counts(_drc(pcb))['track_dangling'] == 0
+    assert _evaluate(pcb).total == 0
+
+
+def test_a_stub_that_carries_a_connection_stays(tmp_path, registry):
+    """A track with a free end can still be carrying a pad: it crosses
+    another track of its net mid-track.  Taking it off opens the pad,
+    and the DRC says so: it goes back."""
+    import pcbnew
+
+    path = str(tmp_path / 'carrying.kicad_pcb')
+    _board(path, with_c=False)
+    b = pcbnew.LoadBoard(path)
+    for t in b.GetTracks():
+        t.SetWidth(pcbnew.FromMM(0.25))
+    # A: pad J1 at (2,7) -> track to (10,7), where it meets a vertical
+    # track that runs from a free end at (10,4) up to pad J2, moved to
+    # (10,10).  J2's own track from (18,7) is removed.
+    keep = []
+    for t in b.GetTracks():
+        s, e = t.GetStart(), t.GetEnd()
+        if t.GetNetCode() == b.FindNet('A').GetNetCode():
+            t.SetEnd(pcbnew.VECTOR2I(pcbnew.FromMM(10.0), pcbnew.FromMM(7.0)))
+            keep.append(t)
+        else:
+            keep.append(t)
+    for fp in b.GetFootprints():
+        if fp.GetReference() == 'J2':
+            fp.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(10.0), pcbnew.FromMM(10.0)))
+            for pad in fp.Pads():
+                pad.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(10.0), pcbnew.FromMM(10.0)))
+    t = pcbnew.PCB_TRACK(b)
+    t.SetStart(pcbnew.VECTOR2I(pcbnew.FromMM(10.0), pcbnew.FromMM(4.0)))
+    t.SetEnd(pcbnew.VECTOR2I(pcbnew.FromMM(10.0), pcbnew.FromMM(10.0)))
+    t.SetWidth(pcbnew.FromMM(0.25))
+    t.SetLayer(pcbnew.F_Cu)
+    t.SetNetCode(b.FindNet('A').GetNetCode())
+    b.Add(t)
+    pcbnew.SaveBoard(path, b)
+
+    before = _evaluate(path)
+    assert before.total == 0 and dangling_counts(_drc(path))['track_dangling'] == 1
+    trim = trim_dangling(path, path + '.drc.json', _evaluate, initial=before)
+    assert trim['rolled_back'] == 1 and trim['removed'] == 0
+    assert 'total 0 -> 1' in trim['log'][0]['why']
+    assert _evaluate(path).total == 0            # the stub is back
+    assert dangling_counts(_drc(path))['track_dangling'] == 1

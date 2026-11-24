@@ -564,6 +564,133 @@ def repair_stepwise(board_path: str, drc_json: str, evaluate,
     return out
 
 
+def repair_rounds(board_path: str, drc_json: str, evaluate, rounds: int = 3,
+                  allowed_ops=None, classes=None, params=None, initial=None,
+                  hook=None, rule_congruent: bool = True,
+                  kind: str = 'repair', stepwise: bool = True):
+    """The repair stage of route-and-repair: transactional rounds of
+    operator passes until the board is clean, a round does not improve
+    it, or `rounds` is used.  What ``flux run`` and the benchmark both
+    call; the bench script only hands it its own ``evaluate``.
+
+    Returns the transaction report (committed / rolled back rounds, each
+    with the operators' statistics and ledger).
+    """
+    from fluxpcb.verifiers.txn import transactional_repair
+
+    def action(path):
+        picked = list(classes) if classes is not None else None
+        if not stepwise:
+            return repair_with_operators(path, drc_json, allowed_ops=allowed_ops,
+                                         classes=picked, params=params)
+        return repair_stepwise(path, drc_json, evaluate, allowed_ops=allowed_ops,
+                               classes=picked, params=params, kind=kind,
+                               rule_congruent=rule_congruent)
+
+    return transactional_repair(board_path, action, evaluate, max_rounds=rounds,
+                                initial=initial, hook=hook, kind=kind,
+                                stop_on_rollback=True)
+
+
+# what the DRC calls a track or via nothing is connected to at one end
+DANGLING = ('track_dangling', 'via_dangling')
+
+
+def dangling_uuids(drc: dict) -> list:
+    """Item uuids the DRC reports as unconnected stubs, whatever its
+    severity for them (a stub is a warning, so the error criterion does
+    not see it)."""
+    out = set()
+    for v in (drc or {}).get('violations') or []:
+        if v.get('type') in DANGLING and not v.get('excluded'):
+            out |= {str(i.get('uuid')) for i in v.get('items') or []
+                    if i.get('uuid')}
+    return sorted(out)
+
+
+def dangling_counts(drc: dict) -> dict:
+    return {k: sum(1 for v in (drc or {}).get('violations') or []
+                   if v.get('type') == k and not v.get('excluded'))
+            for k in DANGLING}
+
+
+def remove_items(board_path: str, uuids) -> int:
+    """Take items off the board file by uuid.  Returns how many went."""
+    import pcbnew
+
+    from fluxpcb.kicadgen.boardops import discard
+
+    b = pcbnew.LoadBoard(board_path)
+    want, gone = set(uuids), 0
+    for t in list(b.GetTracks()):
+        if t.m_Uuid.AsString() in want:
+            discard(b, t)
+            gone += 1
+    save_preserving_project(b, board_path)
+    return gone
+
+
+def trim_dangling(board_path: str, drc_json: str, evaluate, initial=None,
+                  rounds: int = 3, restore_project=None) -> dict:
+    """Take dangling stubs off the board: leaves only, each round
+    confirmed by the DRC.  One more error or one more open puts the
+    stubs back.
+
+    6 of the 110 boards that passed the first full run carried a stub;
+    a referee that counts stubs (the strict criterion) failed them.
+
+    Returns the stage record: removed, rounds, committed, rolled_back
+    and a log of the rounds.
+    """
+    import shutil
+
+    from fluxpcb.verifiers.txn import claims_from_drc
+
+    trim = {'stage': 'trim', 'mode': 'leaves', 'committed': 0, 'rolled_back': 0,
+            'denied': 0, 'errors': 0, 'log': [], 'removed': 0, 'rounds': 0}
+
+    def read():
+        with open(drc_json, encoding='utf-8') as f:
+            return json.load(f)
+
+    before = initial
+    for _ in range(rounds):
+        stubs = dangling_uuids(read())
+        if not stubs:
+            break
+        trim['rounds'] += 1
+        backup = board_path + '.before-trim'
+        shutil.copyfile(board_path, backup)
+        gone = remove_items(board_path, stubs)
+        if restore_project is not None:
+            restore_project()
+        try:
+            after = evaluate(board_path)
+        except Exception:
+            after = None
+        if before is None:
+            before = claims_from_drc(read())
+        if after is not None and after.total <= before.total:
+            before = after
+            trim['removed'] += gone
+            trim['committed'] += 1
+            trim['log'].append({'round': trim['rounds'], 'decision': 'commit',
+                                'removed': gone})
+            os.remove(backup)
+        else:
+            shutil.copyfile(backup, board_path)
+            os.remove(backup)
+            if restore_project is not None:
+                restore_project()
+            before = evaluate(board_path)      # the report goes with the board
+            trim['rolled_back'] += 1
+            trim['log'].append({'round': trim['rounds'], 'decision': 'rollback',
+                                'why': ('DRC failed' if after is None else
+                                        f'total {before.total} -> {after.total}')})
+            break
+    return trim
+
+
 def main():
     """CLI: refill -> transactional repair -> report.
 

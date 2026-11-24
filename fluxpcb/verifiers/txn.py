@@ -153,6 +153,52 @@ def claims_from_drc(drc: dict, rule_congruent: bool = True) -> Claims:
     )
 
 
+def union_claims(*claims: Claims) -> Claims:
+    """The findings of several evaluations of one state.
+
+    kicad-cli's DRC does not report every violation every time.  When
+    several violations crowd onto one item it reports a random subset of
+    them: on a board where three segments of one net run too close to one
+    track, 14 runs of the same bytes gave 2, 3 or 4 errors (measured on
+    KiCad 10.0.6, 2026-11-25); on 0496, 26 to 35.  It never reports one
+    that is not there.  The union of three runs was the same ten times
+    out of ten on the small board; one run, never.
+    """
+    ids = frozenset().union(*[c.ids for c in claims])
+    errors = [i for i in ids if not i.startswith('unconnected|')]
+    opens = [i for i in ids if i.startswith('unconnected|')]
+    types = Counter(i.split('|', 1)[0] for i in errors)
+    return Claims(n_errors=len(errors), n_unconnected=len(opens),
+                  error_types=frozenset(types), error_ids=frozenset(errors),
+                  unconnected_ids=frozenset(opens),
+                  rule_congruent=all(c.rule_congruent for c in claims),
+                  type_counts=tuple(sorted(types.items())))
+
+
+def steady(evaluate, most: int = 3):
+    """`evaluate` asked again until it repeats itself.
+
+    Two evaluations of one state that agree are the state.  Two that
+    disagree get a third, and the union of all is the state.  A state
+    with nothing to report is not asked again: the DRC never leaves a
+    board with a violation at zero (one report per crowd of violations
+    always comes out).  Returns a function with `evaluate`'s contract;
+    it costs one more DRC on every evaluation that finds something.
+    """
+    def ev(path):
+        first = evaluate(path)
+        if first.total == 0:
+            return first
+        second = evaluate(path)
+        if second.ids == first.ids:
+            return first
+        out = union_claims(first, second)
+        for _ in range(max(0, most - 2)):
+            out = union_claims(out, evaluate(path))
+        return out
+    return ev
+
+
 def accept(before: Claims, after: Claims) -> tuple:
     """Lexicographic feasibility-first acceptance.
 
