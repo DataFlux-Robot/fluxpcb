@@ -240,6 +240,8 @@ def _item_net(desc: str) -> str:
 
 
 def _near(p, q, tol=0.002):
+    """Two points within `tol` — mm, unless the caller passes IU (as
+    _narrow_again does, comparing board units)."""
     return math.hypot(p[0] - q[0], p[1] - q[1]) <= tol
 
 
@@ -1966,7 +1968,7 @@ class RepairOperators:
         severity, non-excluded findings, or None when the DRC could not
         run: a measurement that failed is not "no findings".
         """
-        from ..repair_drc import run_drc, save_preserving_project
+        from ..repair_drc import run_drc_steady, save_preserving_project
         path = board.GetFileName()
         if not path or not os.path.exists(path):
             return None
@@ -1976,7 +1978,10 @@ class RepairOperators:
             save_preserving_project(board, path)
         except Exception:
             return None
-        d = run_drc(path, path + f'.{tag}.drc.json')
+        # three runs: one under-reports at random, and a miss here is a
+        # class the gate did not have (0599: the widening, lost in every
+        # round, for three clearance misses this single run had not seen)
+        d = run_drc_steady(path, path + f'.{tag}.drc.json')
         if not d.get('ok'):
             return None
         return [v for v in d.get('violations') or []
@@ -2006,7 +2011,7 @@ class RepairOperators:
             facts[uid] = {'uuid': uid, 'net': t.GetNetname(),
                           'pos': [s.x / 1e6, s.y / 1e6], 'w': w / 1e6}
         narrow = {uid: w for uid, (t, w) in by_id.items()}
-        tries = (('slide', 'via', 'replan') if self.params.widen_replan
+        tries = (('slide', 'via', 'replan', 'reroute') if self.params.widen_replan
                  else ('slide', 'via'))
 
         def uuids(v):
@@ -2086,6 +2091,9 @@ class RepairOperators:
                                         'names': {uid, via.m_Uuid.AsString()}}))
                 out['pushed'] += 1
                 continue
+            s0, e0 = t.GetStart(), t.GetEnd()
+            ends = ((s0.x, s0.y), (e0.x, e0.y))
+            nc0, layer0 = t.GetNetCode(), t.GetLayer()
             rec = (self._replan_chain(board, t, min_w_um, narrow)
                    if self.params.widen_replan else None)
             if rec is not None:
@@ -2094,11 +2102,32 @@ class RepairOperators:
                     'names': {x.m_Uuid.AsString() for x in rec['created']}}))
                 out['replanned'] += 1
                 continue
-            if not self.params.widen_replan:
-                t.SetWidth(w)
-            # else: the failed re-plan already put the path back as new
-            # tracks, this one at its narrow width; `t` itself is gone
-            # from the board and must not be touched again
+            # Same layer, alone, this connection has no path at the full
+            # width.  conflict_reroute has more ways out (other layers
+            # through vias; the copper in the way lifted and routed
+            # again) and keeps a change only when the DRC confirms it.
+            # 0599: one track 0.011 mm too close to a pad and a track.
+            # The failed re-plan put the track back as a NEW object at
+            # its thin width (or left the old one, wide, when it lifted
+            # nothing): find it, and hand it over at the full width,
+            # with the findings naming it.
+            again = (self._track_between(board, nc0, layer0, ends) if self.params.widen_replan
+                     else None)
+            if again is None:
+                again = t
+            renamed = [dict(v, items=[
+                dict(i, uuid=again.m_Uuid.AsString()) if i.get('uuid') == uid else i
+                for i in (v.get('items') or [])])
+                for v in vs]
+            if (self.params.widen_replan and again is not None
+                    and self._set_width(again, min_w_um)
+                    and self._reroute_widened(board, renamed)):
+                settled.append(('reroute', {'fact': facts[uid], 'names': set()}))
+                out['replanned'] += 1
+                continue
+            # Refused: the track goes back to its narrow width — whichever
+            # object it is now, and at whichever width it was left.
+            self._narrow_again(board, nc0, layer0, ends, w)
             out['refused'] += 1
             self._ledger.append(_widen_certificate(facts[uid], min_w_um, vs, tries))
 
@@ -2133,6 +2162,51 @@ class RepairOperators:
                     self._ledger.append(_widen_certificate(
                         s['fact'], min_w_um, hits, tries + ('confirm',)))
         return out
+
+    def _reroute_widened(self, board, findings):
+        """Let conflict_reroute re-route the connection of a widened track
+        that still conflicts.  True when it kept a change (the DRC
+        confirmed it); False, and the track back at the width it had,
+        when it did not."""
+        from .conflict_reroute import run as conflict_run
+        from ..repair_drc import parse_violations
+
+        try:
+            # the findings are the DRC's own records; the operator takes
+            # them the way the dispatch hands them out
+            viol = parse_violations({'violations': list(findings)})
+            return bool(conflict_run(self, board, viol).success)
+        except Exception:
+            return False
+
+    def _track_between(self, board, nc, layer, ends):
+        """The track of net `nc` on `layer` that runs between `ends`
+        (board units), whichever object it is now — a re-plan that
+        failed puts a lifted path back as new tracks."""
+        try:
+            for x in board.GetTracks():
+                if x.GetNetCode() != nc or x.GetLayer() != layer:
+                    continue
+                s, e = (x.GetStart().x, x.GetStart().y), (x.GetEnd().x, x.GetEnd().y)
+                if ((_near(s, ends[0], 3000) and _near(e, ends[1], 3000))
+                        or (_near(s, ends[1], 3000) and _near(e, ends[0], 3000))):
+                    return x
+        except Exception:
+            return None
+        return None
+
+    @staticmethod
+    def _set_width(track, w_iu):
+        try:
+            track.SetWidth(int(w_iu))
+            return True
+        except Exception:
+            return False
+
+    def _narrow_again(self, board, nc, layer, ends, w):
+        """That track back to width `w`, at whichever width it was left."""
+        x = self._track_between(board, nc, layer, ends)
+        return x is not None and self._set_width(x, w)
 
     def _replan_chain(self, board, t, min_w_um, narrow):
         """Re-plan, at the full width, the connection a narrow track is part of.

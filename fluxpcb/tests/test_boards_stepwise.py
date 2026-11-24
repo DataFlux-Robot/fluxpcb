@@ -99,14 +99,14 @@ def _board(path, with_c=True):
 
 
 def _sabotage(self, board, violations=None):
-    """An operator that makes things worse in a new way: net B's track
-    run on past the edge of the board.  'copper_edge_clearance' is a
-    class no operator repairs."""
+    """An operator that makes things worse in a new way: a track of net B
+    laid across net A's.  A short is the one class a repair is never
+    allowed to bring in, however much else it fixes."""
     import pcbnew
 
     t = pcbnew.PCB_TRACK(board)
-    t.SetStart(pcbnew.VECTOR2I(pcbnew.FromMM(18.0), pcbnew.FromMM(11.0)))
-    t.SetEnd(pcbnew.VECTOR2I(pcbnew.FromMM(25.0), pcbnew.FromMM(11.0)))
+    t.SetStart(pcbnew.VECTOR2I(pcbnew.FromMM(10.0), pcbnew.FromMM(5.0)))
+    t.SetEnd(pcbnew.VECTOR2I(pcbnew.FromMM(10.0), pcbnew.FromMM(11.0)))
     t.SetWidth(pcbnew.FromMM(0.25))
     t.SetLayer(pcbnew.F_Cu)
     t.SetNetCode(board.FindNet('B').GetNetCode())
@@ -159,11 +159,16 @@ def test_a_bad_operator_no_longer_throws_away_a_good_one(tmp_path, registry):
     after = _evaluate(pcb)
     steps = [(s['operator'], s['decision']) for s in out['steps']]
     assert steps[:2] == [('widen_narrow_tracks', 'commit'), ('_sabotage', 'rollback')]
-    assert "new violation types: ['copper_edge_clearance']" in out['steps'][1]['why']
+    # the DRC calls the same crossing 'shorting_items' or
+    # 'tracks_crossing' from run to run; either way it is a class the
+    # board did not have
+    assert 'new violation types' in out['steps'][1]['why']
+    assert any(t in out['steps'][1]['why']
+               for t in ('shorting_items', 'tracks_crossing'))
     assert 'widen_narrow_tracks' in out['operators_run'] and '_sabotage' in out['operators_run']
-    # the width repair stayed; the run off the board is gone with its operator
+    # the width repair stayed; the short is gone with its operator
     assert 'track_width' not in after.error_types
-    assert 'copper_edge_clearance' not in after.error_types
+    assert not after.error_types & {'shorting_items', 'tracks_crossing'}
     assert after.total < before.total
 
 
@@ -346,3 +351,4 @@ def test_the_dev_loop_repairs_a_board_file_with_the_benchmark_stage(tmp_path):
     ops = [op for e in out['rounds']['log']
            for op in ((e.get('action') or {}).get('operators_run') or [])]
     assert 'connect_unconnected' in ops and 'widen_narrow_tracks' in ops
+

@@ -398,6 +398,40 @@ class MorphPicker:
         return None
 
 
+def _finding_key(v: dict) -> tuple:
+    return (str(v.get('type') or ''),
+            tuple(sorted(str(i.get('uuid') or '') for i in v.get('items') or [])))
+
+
+def run_drc_steady(path: str, out_json: str, runs: int = 3) -> dict:
+    """run_drc `runs` times on the saved board; every finding any run
+    reported, once.
+
+    kicad-cli's DRC reports a random subset of the violations that crowd
+    onto one item (see verifiers.txn.steady).  An operator that confirms
+    its own work with one run then hands the gate a board with a class
+    the board did not have — 0599: widening left three clearance misses
+    the operator's single run had not seen, and the gate threw away all
+    the widening, every round.  The board file is not touched between
+    runs, so the zone fill and the save are the caller's, once.
+    """
+    d = run_drc(path, out_json)
+    if not d.get('ok') or runs <= 1:
+        return d
+    seen = {_finding_key(v): v for v in d.get('violations') or []}
+    for _ in range(runs - 1):
+        again = run_drc(path, out_json)
+        if not again.get('ok'):
+            continue                      # a failed run is not "no findings"
+        for v in again.get('violations') or []:
+            seen.setdefault(_finding_key(v), v)
+        if len(again.get('unconnected_items') or []) > len(d.get('unconnected_items') or []):
+            d['unconnected_items'] = again['unconnected_items']
+    d['violations'] = list(seen.values())
+    d['drc_runs'] = runs
+    return d
+
+
 def no_assert_dialogs():
     """A GUI assertion dialog is the one failure a headless run cannot
     recover from: the process waits for a click that never comes.  KiCad

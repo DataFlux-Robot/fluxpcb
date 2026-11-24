@@ -206,6 +206,12 @@ def accept(before: Claims, after: Claims) -> tuple:
       * introduce a violation type the board did not already have;
     and must strictly reduce ``errors + unconnected`` (or, at equal totals,
     strictly shrink the identity set).
+
+    The second rule is not relaxed for an operator that removes more
+    than it brings in (0599: 36 too-thin tracks widened to 1, with 3
+    clearance misses).  It was tried: the right fix is in the
+    operators — one that brings in a class has not measured its own
+    work with the same DRC the gate uses (see txn.steady).
     """
     if before.rule_congruent and not after.rule_congruent:
         return False, 'rule congruence lost'

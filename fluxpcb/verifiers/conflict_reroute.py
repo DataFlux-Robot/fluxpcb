@@ -440,7 +440,7 @@ def judge(board):
     None when the DRC could not run."""
     import pcbnew
 
-    from ..repair_drc import run_drc, save_preserving_project
+    from ..repair_drc import run_drc_steady, save_preserving_project
 
     path = board.GetFileName()
     if not path or not os.path.exists(path):
@@ -450,7 +450,7 @@ def judge(board):
         save_preserving_project(board, path)
     except Exception:
         return None
-    d = run_drc(path, path + '.conflict.drc.json')
+    d = run_drc_steady(path, path + '.conflict.drc.json')
     if not d.get('ok'):
         return None
     errs = [v for v in d.get('violations') or []
@@ -539,23 +539,34 @@ def still_open(board, v):
     return True
 
 
-def net_table(board):
-    """uuid -> netcode for every track, via and pad on the board."""
-    table = {t.m_Uuid.AsString(): t.GetNetCode() for t in board.GetTracks()}
-    for fp in board.GetFootprints():
-        for pad in fp.Pads():
-            table[pad.m_Uuid.AsString()] = pad.GetNetCode()
-    return table
+def blamed(finding, mine):
+    """Is a finding the doing of ONE change of this operator?
 
-
-def blamed(finding, mine, nets, table):
-    """Is a finding this operator's doing?  It names copper the operator
-    drew, or an item on a net it re-routed."""
+    It is when it names copper that change drew.  Nothing else on the
+    board moved: what was in the way was lifted (it is gone, and what
+    replaced it was drawn), so a finding between two old items was
+    there before.  Judging by the net instead refused good work — a net
+    that still has a thin track elsewhere (0599's GND and +5V) is no
+    reason to send back the open that was just closed on it — and
+    judging by "not in the baseline" refused it too when the baseline
+    was one under-reporting DRC run.
+    """
     for i in finding.get('items') or []:
-        u = str(i.get('uuid') or '')
-        if u in mine or table.get(u) in nets:
+        if str(i.get('uuid') or '') in mine:
             return True
     return False
+
+
+def missing_connections(board):
+    """How many connections the board is missing now, by KiCad's own
+    connectivity (the ratsnest), or None if it cannot tell.  Counted
+    the same way before and after a change: the DRC's list of unconnected
+    items and this are not the same measure, and are not mixed."""
+    try:
+        board.BuildConnectivity()
+        return int(board.GetConnectivity().GetUnconnectedCount(True))
+    except Exception:
+        return None
 
 
 def run(ops, board, violations):
@@ -577,6 +588,17 @@ def run(ops, board, violations):
         layers = rg.signal_layer_ids(board)
         rt = verifier_rules(load_rules(Path(board.GetFileName())),
                             ops.params.pad_clearance_strict)
+        if not Path(board.GetFileName()).with_suffix('.kicad_pro').exists():
+            # no project beside the board: the DRC judges by the board's
+            # own default netclass, not by the package's fallback table
+            # (0.15 mm against KiCad's 0.2: positions the verifier called
+            # legal were refused, and the operator saw no conflict)
+            try:
+                own = (board.GetDesignSettings().m_NetSettings
+                       .GetDefaultNetclass().GetClearance() / 1e6)
+                rt = dict(rt, clearance=max(float(rt.get('clearance') or 0.0), own))
+            except Exception:
+                pass
         floor = float(ops.load_board_rules(board).get('min_track_width') or 0.0)
         dia, drill, _src = via_geometry(board, rt)
     except Exception as e:
@@ -591,8 +613,9 @@ def run(ops, board, violations):
               bb.GetRight() / 1e6, bb.GetBottom() / 1e6)
     p = ops.params
     by_uuid = {t.m_Uuid.AsString(): t for t in board.GetTracks()}
-    before = getattr(ops, '_drc_before', None) or list(violations)
-    opens_before = sum(1 for v in before if v.type == 'unconnected')
+    # the board's missing connections before anything is lifted, counted
+    # the same way as after (see missing_connections)
+    opens_before = missing_connections(board)
     gone = set()
     state = {'kept': [], 'ledger': [], 'tried': 0, 'dead': set()}
     t_start = time.time()
@@ -878,21 +901,36 @@ def run(ops, board, violations):
     verdict = 'nothing_to_judge'
     if kept:
         judged = judge(board)
-        if judged is None:
-            verdict = 'drc_unavailable'
-        else:
-            errs, opens = judged
-            mine = {it.m_Uuid.AsString() for r in kept for it in r['created']}
-            nets = {r['net'] for r in kept}
-            table = net_table(board)
-            if any(blamed(x, mine, nets, table) for x in errs):
+        ok = False
+        # only the change a new finding blames goes back, and the board is
+        # judged again: 0599 had nineteen opens closed in one call, and
+        # one miss used to send all nineteen back
+        for _ in range(len(kept) + 1):
+            if judged is None:
+                verdict = 'drc_unavailable'
+                break
+            errs, _opens_reported = judged
+            guilty = [r for r in kept if any(
+                blamed(x, {it.m_Uuid.AsString() for it in r['created']})
+                for x in errs)]
+            if guilty:
                 verdict = 'new_findings'
-            elif opens > opens_before:
-                verdict = 'more_opens'
             else:
-                verdict = 'ok'
-        if verdict != 'ok':
-            for r in kept:
+                opens = missing_connections(board)
+                if opens is not None and opens_before is not None and opens > opens_before:
+                    verdict = 'more_opens'
+                    guilty = kept[-1:]        # the last one drawn goes first
+                else:
+                    verdict = 'ok'
+                    ok = True
+                    break
+            for r in guilty:
+                unmake(board, r)
+            kept = [r for r in kept if r not in guilty]
+            if kept:
+                judged = judge(board)
+        if not ok:
+            for r in kept:                    # no verdict to trust: nothing kept
                 unmake(board, r)
             kept = []
 
