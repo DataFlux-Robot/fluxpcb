@@ -71,9 +71,29 @@ Every artifact is SHA256-stamped. Every verdict links to evidence on disk. A mis
 
 ---
 
-## 📊 Benchmark Results
+## 📊 PCBWorld-Bench — D3-A 100% · D3-B 100% · D3-C 80%
 
-FluxPCB evaluated on **autorouter-bench** (8 real boards) with the clean NCER router:
+119 real boards from [PCBWorld](https://github.com/PCBWorld/PCBWorld), 3 independent
+runs per board, one criterion: **zero error-severity DRC findings and zero unconnected**.
+Full method, controls and limitations: [`fluxpcb/research/PCBWORLD_2026-11-25.md`](fluxpcb/research/PCBWORLD_2026-11-25.md).
+
+| Split | Boards | Ours (cells) | Every run | PCBRouteAgent |
+|---|---|---|---|---|
+| D3-A | 99 | **297/297 — 100.0%** | 99/99 | 94.9% |
+| D3-B | 10 | **30/30 — 100.0%** | 10/10 | 100% |
+| D3-C | 10 | **24/30 — 80.0%** | 8/10 | 40% |
+
+How: measured widening (a real DRC confirms each widened track, and settles the ones that
+conflict), a `conflict_reroute` operator that lifts a boxed-in connection anchor-to-anchor and
+plans it again — through vias on another layer, or through the copper that closes it (the
+conflict set, found by a priced search) — opens repaired by the same operator, a router
+retry on timeout, and a 1 mm copper index that took one repair round on a big board from
+27 minutes to 72 seconds without changing a single verdict.  Every mechanism ships with
+the control that makes it flip.  The pipeline on this path is rule-based: no LLM in it.
+
+2 boards of D3-C remain (`0496`, `0599`); the numbers above are from commit `d90e1a5`.
+
+### Older run: 8-board NCER study (2026-10, superseded)
 
 | Board | Layers | Connections | Completion | DRC | Time | Koppar (baseline) |
 |-------|--------|-------------|------------|-----|------|-------------------|
