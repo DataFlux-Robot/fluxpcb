@@ -21,7 +21,10 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))  # autorouter-bench
-sys.path.insert(0, os.path.join(ROOT, "..", "flux-neurotransmitter"))
+# FLUXPCB_PACKAGE: another checkout of the package (a development tree
+# while the main one is frozen for a run); unset, it is the one beside
+sys.path.insert(0, os.environ.get("FLUXPCB_PACKAGE")
+                or os.path.join(ROOT, "..", "flux-neurotransmitter"))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 from common import KICAD_PYTHON  # noqa: E402
@@ -68,38 +71,6 @@ def _rule_register():
 
 # what a cell needs after the router for its own work: DRC, repair, ledger
 REPAIR_RESERVE_S = 150
-# what the DRC calls a track or via that nothing is connected to at one end
-DANGLING = ('track_dangling', 'via_dangling')
-
-
-def _dangling(drc):
-    """Item uuids the DRC reports as unconnected stubs, whatever its
-    severity for them."""
-    out = set()
-    for v in (drc or {}).get('violations') or []:
-        if v.get('type') in DANGLING and not v.get('excluded'):
-            out |= {str(i.get('uuid')) for i in v.get('items') or []
-                    if i.get('uuid')}
-    return sorted(out)
-
-
-def _remove_dangling(path, uuids):
-    """Take the stubs off the board file.  Returns how many went."""
-    import pcbnew
-
-    from fluxpcb.kicadgen.boardops import discard
-    from fluxpcb.repair_drc import save_preserving_project
-
-    b = pcbnew.LoadBoard(path)
-    gone = 0
-    for t in list(b.GetTracks()):
-        if t.m_Uuid.AsString() in uuids:
-            discard(b, t)
-            gone += 1
-    save_preserving_project(b, path)
-    return gone
-
-
 def route_and_repair(paired_pcb, out_pcb, pro_src, timeout_s,
                      ledger_dir=None, board_family='', hook=None,
                      enable_planning=True, policy=None, arm=None,
@@ -116,8 +87,9 @@ def route_and_repair(paired_pcb, out_pcb, pro_src, timeout_s,
     from fluxpcb.router.freerouting import FreeroutingBackend
     from fluxpcb.repair_drc import (RIP_TYPES, MorphPicker,
                                     reroute_residues_isolated,
-                                    repair_with_operators, run_drc,
-                                    save_preserving_project)
+                                    repair_stepwise, repair_with_operators,
+                                    dangling_counts, run_drc,
+                                    save_preserving_project, trim_dangling)
     from fluxpcb.contract import Executor, RuleModel, ScopeBuilder
     from fluxpcb.design_agent.planner import build_plan
     from fluxpcb.design_agent.preroute import pre_route, survivors
@@ -129,7 +101,8 @@ def route_and_repair(paired_pcb, out_pcb, pro_src, timeout_s,
                                            project_identity, sha256_file)
     from fluxpcb.verifiers.live import record_board
     from fluxpcb.verifiers.residue import classify_drc
-    from fluxpcb.verifiers.txn import claims_from_drc, transactional_repair
+    from fluxpcb.verifiers.txn import (claims_from_drc, steady,
+                                        transactional_repair)
     import pcbnew
 
     t_wall = time.time()
@@ -344,6 +317,18 @@ def route_and_repair(paired_pcb, out_pcb, pro_src, timeout_s,
         holder['drc_json'] = drc_json
         return claims_from_drc(d, rule_congruent=fr.rule_congruence)
 
+    # kicad-cli's DRC reports a random subset of the violations that
+    # crowd onto one item; a gate that compares two single runs then
+    # rejects good repairs.  Judged on three runs, and the claims of
+    # the state are kept: the operators of a round are each judged
+    # against the evaluation before them, not against a report.
+    _once = evaluate
+
+    def evaluate(path):
+        out = steady(_once)(path)
+        holder['claims'] = out
+        return out
+
     picker = MorphPicker()
     allowed = arm.allowed()
 
@@ -357,9 +342,18 @@ def route_and_repair(paired_pcb, out_pcb, pro_src, timeout_s,
             if pick is None:
                 return {'no_op': True, 'operators_run': []}
             classes = [pick]
-        return repair_with_operators(path, holder['drc_json'],
-                                     allowed_ops=allowed, classes=classes,
-                                     params=arm.params)
+        if not getattr(arm.params, 'stepwise_repair', False):
+            return repair_with_operators(path, holder['drc_json'],
+                                         allowed_ops=allowed, classes=classes,
+                                         params=arm.params)
+        # one transaction per operator: a round as one transaction threw
+        # away every repair whenever one operator brought in a violation
+        # class the board did not have (0496: 67 repaired, rolled back
+        # for 'tracks_crossing')
+        return repair_stepwise(path, holder['drc_json'], evaluate,
+                               allowed_ops=allowed, classes=classes,
+                               params=arm.params, kind='repair',
+                               initial=holder.get('claims'))
 
     def stage(name, rep, **extra):
         return dict({'stage': name, 'committed': rep.committed,
@@ -417,43 +411,15 @@ def route_and_repair(paired_pcb, out_pcb, pro_src, timeout_s,
                 repair_log.append(stage('reroute', reroute_rep, mode='full'))
 
     # ---- trim: a stub the router left is a warning to the DRC; a strict
-    # referee counts it.  Leaves only, each round confirmed by the DRC:
-    # one more error or one more open puts the stubs back.
+    # referee counts it.  Leaves only, each round confirmed by the DRC.
     trim = {'stage': 'trim', 'mode': 'leaves', 'committed': 0,
             'rolled_back': 0, 'denied': 0, 'errors': 0, 'log': [],
             'removed': 0, 'rounds': 0}
     if arm.loop != 'route_only':
-        for _ in range(3 if arm.params.trim_dangling else 0):
-            with open(holder['drc_json'], encoding='utf-8') as f:
-                stubs = _dangling(json.load(f))
-            if not stubs:
-                break
-            trim['rounds'] += 1
-            backup = out_pcb + '.before-trim'
-            shutil.copyfile(out_pcb, backup)
-            gone = _remove_dangling(out_pcb, stubs)
-            shutil.copy(pro_src, out_pro)
-            try:
-                trimmed = evaluate(out_pcb)
-            except Exception:
-                trimmed = None
-            if trimmed is not None and trimmed.total <= after.total:
-                after = trimmed
-                trim['removed'] += gone
-                trim['committed'] += 1
-                trim['log'].append({'round': trim['rounds'], 'decision': 'commit',
-                                    'removed': gone})
-                os.remove(backup)
-            else:
-                shutil.copyfile(backup, out_pcb)
-                os.remove(backup)
-                shutil.copy(pro_src, out_pro)
-                after = evaluate(out_pcb)      # the report goes with the board
-                trim['rolled_back'] += 1
-                trim['log'].append({'round': trim['rounds'], 'decision': 'rollback',
-                                    'why': ('DRC failed' if trimmed is None else
-                                            f'total {after.total} -> {trimmed.total}')})
-                break
+        trim = trim_dangling(out_pcb, holder['drc_json'], evaluate,
+                             initial=after,
+                             rounds=8 if arm.params.trim_dangling else 0,
+                             restore_project=lambda: shutil.copy(pro_src, out_pro))
         repair_log.append(trim)
 
     with open(holder['drc_json'], encoding='utf-8') as f:
@@ -461,9 +427,7 @@ def route_and_repair(paired_pcb, out_pcb, pro_src, timeout_s,
 
     cert['claims_after'] = after.as_dict()
     # what a strict referee adds up: stubs still on the board
-    cert['dangling'] = {k: sum(1 for v in final_drc.get('violations') or []
-                               if v.get('type') == k and not v.get('excluded'))
-                        for k in DANGLING}
+    cert['dangling'] = dangling_counts(final_drc)
     cert['txn'] = main_rep.as_dict() if main_rep is not None else {
         'committed': 0, 'rolled_back': 0, 'denied': 0, 'log': [], 'final': {}}
     cert['repair'] = repair_log
