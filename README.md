@@ -110,6 +110,10 @@ Full method, controls and limitations: [`fluxpcb/research/PCBWORLD_2026-11-25.md
 | D3-B | 10 | **30/30 — 100.0%** | 10/10 | 100% |
 | D3-C | 10 | **24/30 — 80.0%** | 8/10 | 40% |
 
+Run protocol: 900 s per cell, 6 workers, `FLUXPCB_JAVA_XMX=2g` (without the cap, six un-capped
+routers exhaust memory and the two largest boards die without a certificate).  357/357 cells
+certified, zero instrument problems, zero crashes.  Code `02a65b3`.
+
 How: measured widening (a real DRC confirms each widened track, and settles the ones that
 conflict), a `conflict_reroute` operator that lifts a boxed-in connection anchor-to-anchor and
 plans it again — through vias on another layer, or through the copper that closes it (the
