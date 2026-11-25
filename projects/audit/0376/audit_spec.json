@@ -1,0 +1,173 @@
+{
+ "board": "0376_cat-trainer_teensy_base_pcb",
+ "note": "Every current, power and theta below is DECLARED, not measured. Each row carries a source string and the report prints a sensitivity: the conclusions move with these numbers, so they are inputs, not facts. Board facts (widths, copper, pad positions, pours) are measured from the .kicad_pcb.",
+ "stackup": {
+  "layers": 2,
+  "thickness_mm": 1.6,
+  "copper_mm": 0.035,
+  "er": 4.4,
+  "source": "assumed 1.6 mm FR4, 1 oz, er=4.4: this board file carries no (stackup) section and no stackup.yaml"
+ },
+ "rails": [
+  {
+   "net": "+9V",
+   "current_a": 0.6,
+   "v_rail": 9.0,
+   "source": "9 V wall adapter through F1, 0.6 A continuous (assumed); the pump stall current is higher and is not steady state"
+  },
+  {
+   "net": "+5V",
+   "current_a": 0.35,
+   "v_rail": 5.0,
+   "source": "U1 LM7805 (9 V in), 5 V logic + UART header (assumed)"
+  },
+  {
+   "net": "+3.3V",
+   "current_a": 0.15,
+   "v_rail": 3.3,
+   "source": "U2 LD1117V33 from +5V, Teensy + nRF24 (assumed)"
+  },
+  {
+   "net": "GND",
+   "current_a": 0.5,
+   "v_rail": 5.0,
+   "source": "return of the four rails (assumed sum, not a KCL result); the drop is reported as a fraction of the 5 V logic rail"
+  }
+ ],
+ "signals": [
+  {
+   "net": "Net-(U3-Pad13)",
+   "name": "SPI_SCK",
+   "driver": "U3",
+   "load": "U4",
+   "current_a": 0.02,
+   "f_hz": 10000000,
+   "harmonics": 5,
+   "source": "nRF24L01+ pinout assumed: module pad 5 = SCK; 3.3 V CMOS at 10 MHz, 20 mA RMS (assumed). If the pinout is wrong this is a data line, not the clock"
+  },
+  {
+   "net": "Net-(P_UART1-Pad3)",
+   "name": "UART_TX",
+   "driver": "U3",
+   "load": "P_UART1",
+   "current_a": 0.01,
+   "f_hz": 115200,
+   "harmonics": 5,
+   "source": "Teensy serial to the header at 115200 baud, 10 mA (assumed)"
+  }
+ ],
+ "parts": [
+  {
+   "ref": "U1",
+   "power_w": 1.4,
+   "w_mm": 10.2,
+   "h_mm": 15.0,
+   "theta_ja": 65,
+   "theta_jc": 5,
+   "theta_cs": 0.5,
+   "tjmax_c": 125,
+   "source": "(9-5) V x 0.35 A = 1.4 W linear regulator; theta_ja 65 K/W and theta_jc 5 K/W are TO-220 typical, not measured. P scales with I: +50% current -> +100% power"
+  },
+  {
+   "ref": "U2",
+   "power_w": 0.255,
+   "w_mm": 6.5,
+   "h_mm": 7.0,
+   "theta_ja": 50,
+   "theta_jc": 5,
+   "theta_cs": 0.5,
+   "tjmax_c": 125,
+   "source": "(5-3.3) V x 0.15 A = 0.255 W; SOT-223 typical theta, not measured"
+  },
+  {
+   "ref": "U5",
+   "power_w": 0.125,
+   "w_mm": 12.0,
+   "h_mm": 10.0,
+   "theta_ja": 60,
+   "theta_jc": 6,
+   "theta_cs": 0.5,
+   "tjmax_c": 150,
+   "source": "TA8428K Ron ~0.5 ohm at 0.5 A pump = 0.125 W; a 1.5 A stall is 1.1 W and is a fault case, not steady state. NOTE: this board's netlist leaves U5's supply pad on a net with only C7, so the pump current cannot be validated from the netlist"
+  }
+ ],
+ "sink": {
+  "ref": "U1",
+  "theta_sa": 4.0,
+  "w_mm": 20,
+  "h_mm": 15,
+  "source": "20x15x10 mm aluminium fin, natural convection, theta_sa ~4 K/W (assumed, catalogue order of magnitude). The sink footprint is clipped at the board edge, which the solve accounts for"
+ },
+ "emitters": [
+  {
+   "net": "Net-(U3-Pad13)",
+   "amp_db": -6,
+   "f_hz": 10000000,
+   "harmonics": 5,
+   "at": [
+    151.1,
+    72.4
+   ],
+   "source": "SPI clock, assumed strongest digital aggressor"
+  },
+  {
+   "net": "Net-(P_PUMP1-Pad1)",
+   "amp_db": 0,
+   "f_hz": 20000,
+   "harmonics": 5,
+   "at": [
+    110.5,
+    110.5
+   ],
+   "source": "pump PWM at 20 kHz through U5 (assumed); the driver has no rail net in this netlist, so the current is unverified"
+  },
+  {
+   "net": "Net-(P_UART1-Pad3)",
+   "amp_db": -10,
+   "f_hz": 115200,
+   "harmonics": 5,
+   "at": [
+    149.9,
+    110.5
+   ],
+   "source": "UART at 115200 baud (assumed)"
+  }
+ ],
+ "victims": [
+  {
+   "net": "Net-(U3-Pad12)",
+   "layer": "F.Cu",
+   "source": "nRF24 MISO (pinout assumed): the line that must stay quiet during a conversion"
+  },
+  {
+   "net": "Net-(P_DISP1-Pad1)",
+   "layer": "F.Cu",
+   "source": "display data to the header"
+  },
+  {
+   "net": "Net-(P_SERVO1-Pad3)",
+   "layer": "B.Cu",
+   "source": "servo PWM input"
+  }
+ ],
+ "shield": {
+  "exists": false,
+  "source": "no shield can on this board; if the nRF24 sits under one, add -20 dB"
+ },
+ "plane_pair": false,
+ "cavity_tol": 0.1,
+ "limits": {
+  "j_a_mm2": 45.0,
+  "drop_pct": 2.0,
+  "via_a": 1.0,
+  "gnd_mohm": 10.0,
+  "tj_of_max": 0.9,
+  "em_db": -20.0
+ },
+ "needed_information": [
+  "measured rail currents and the pump's real operating point (the netlist leaves U5's supply pad on a C7-only net, so the pump current cannot be derived)",
+  "the schematic net-to-function mapping: the nRF24 pinout above is assumed from the module's standard pin order, not read from a schematic",
+  "part theta_ja/theta_jc from the actual datasheets and the real heatsink's theta_sa",
+  "a plane pair (power/ground on adjacent layers) if plane resonance is to be a real check rather than a what-if"
+ ]
+}

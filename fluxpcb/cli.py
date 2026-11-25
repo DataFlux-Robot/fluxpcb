@@ -107,6 +107,14 @@ def main(argv=None):
                          help="输出目录(默认 <certs>/pages)")
     p_pages.add_argument("--limit", type=int, default=0)
 
+    p_phys = sub.add_parser("phys", help="单板物理审计(电流/回流/受扰/谐振/热)")
+    p_phys.add_argument("board", type=Path, help=".kicad_pcb 或包含它的目录")
+    p_phys.add_argument("--spec", type=Path, required=True, help="audit_spec.json")
+    p_phys.add_argument("--mode", choices=("fast", "full"), default="fast")
+    p_phys.add_argument("-o", "--out", type=Path, default=None, help="输出目录")
+    p_phys.add_argument("--drc-runs", type=int, default=3,
+                        help="铺铜前后各跑几次 DRC(并集)")
+
     p_dash = sub.add_parser("dashboard", help="启动本地Grounding Map可视化面板")
     p_dash.add_argument("dir", type=Path, nargs="?", default=ROOT / "projects",
                         help="projects根目录或单个项目目录")
@@ -216,6 +224,22 @@ def main(argv=None):
         report = verify_only(args.dir, pipeline)
         print(report.markdown())
         return 0 if report.released else 1
+
+    if args.cmd == "phys":
+        from fluxpcb.tools.phys_audit import run as phys_run
+        r = phys_run(args.board, args.spec, mode=args.mode,
+                     out_dir=str(args.out) if args.out else None,
+                     runs_drc=args.drc_runs)
+        s = r.get('summary') or {}
+        print(f"[flux] {args.mode} audit: {s.get('counts')} "
+              f"({s.get('confirmed', 0)} confirmed, {s.get('estimate', 0)} estimate, "
+              f"{s.get('unknown', 0)} unknown) in {r.get('elapsed_s')} s")
+        for row in (s.get('worst') or [])[:5]:
+            print(f"    - {row['severity']} {row['rule_id']} {row.get('where')}: "
+                  f"{row.get('measured')} {row.get('units') or ''}")
+        if r.get('page'):
+            print(f"[flux] page: {r['page']}")
+        return 0
 
     if args.cmd == "pages":
         from fluxpcb.dashboard.board_page import render_dir

@@ -8,112 +8,358 @@
   "P3": "informational"
  },
  "gates": {
-  "spec_schema": {"rule_id": "SPEC.schema", "severity": "P1", "status": "confirmed",
+  "spec_schema": {
+   "rule_id": "SPEC.schema",
+   "severity": "P1",
+   "status": "confirmed",
    "assumption": "the template's required keys are the whole contract for a spec",
-   "doc": "prompts/requirements.md"},
-  "requirement_coverage": {"rule_id": "SPEC.coverage", "severity": "P1", "status": "confirmed",
+   "doc": "prompts/requirements.md"
+  },
+  "requirement_coverage": {
+   "rule_id": "SPEC.coverage",
+   "severity": "P1",
+   "status": "confirmed",
    "assumption": "covered_by names map onto the gate list this build knows",
-   "doc": "KNOWHOW.md#K22"},
-  "bom_completeness": {"rule_id": "BOM.completeness", "severity": "P1", "status": "confirmed",
+   "doc": "KNOWHOW.md#K22"
+  },
+  "bom_completeness": {
+   "rule_id": "BOM.completeness",
+   "severity": "P1",
+   "status": "confirmed",
    "assumption": "every footprint on the board comes from a BOM line",
-   "doc": "KNOWHOW.md#K13"},
-  "bom_lcsc_verified": {"rule_id": "BOM.stock", "severity": "P1", "status": "confirmed",
+   "doc": "KNOWHOW.md#K13"
+  },
+  "bom_lcsc_verified": {
+   "rule_id": "BOM.stock",
+   "severity": "P1",
+   "status": "confirmed",
    "assumption": "the catalog snapshot is at most 7 days old and the part is buyable at that price",
-   "doc": "fluxpcb/tools/jlc_catalog.py"},
-  "erc_zero": {"rule_id": "ERC.report", "severity": "P0", "status": "confirmed",
+   "doc": "fluxpcb/tools/jlc_catalog.py"
+  },
+  "erc_zero": {
+   "rule_id": "ERC.report",
+   "severity": "P0",
+   "status": "confirmed",
    "assumption": "the ERC ran on the netlist that was exported from this schematic",
-   "doc": "KNOWHOW.md#K7"},
-  "netlist_topology": {"rule_id": "NETLIST.topology", "severity": "P0", "status": "confirmed",
+   "doc": "KNOWHOW.md#K7"
+  },
+  "netlist_topology": {
+   "rule_id": "NETLIST.topology",
+   "severity": "P0",
+   "status": "confirmed",
    "assumption": "the netlist text is the authoritative connectivity",
-   "doc": "KNOWHOW.md#K7"},
-  "drc_zero": {"rule_id": "DRC.report", "severity": "P0", "status": "confirmed",
+   "doc": "KNOWHOW.md#K7"
+  },
+  "drc_zero": {
+   "rule_id": "DRC.report",
+   "severity": "P0",
+   "status": "confirmed",
    "assumption": "the DRC ran against the board's own rules (.kicad_pro beside it) and the report is bound to this board's bytes",
-   "doc": "KNOWHOW.md#K20"},
-  "impedance_si": {"rule_id": "IMPEDANCE.z0_dev", "severity": "P1", "status": "estimate",
+   "doc": "KNOWHOW.md#K20"
+  },
+  "impedance_si": {
+   "rule_id": "IMPEDANCE.z0_dev",
+   "severity": "P1",
+   "status": "estimate",
    "assumption": "IPC-2141 closed form on the declared stackup; the copper as routed is not measured",
-   "doc": "fluxpcb/tools/ipc2141.py"},
-  "irdrop": {"rule_id": "IRDROP.max", "severity": "P1", "status": "estimate",
+   "doc": "fluxpcb/tools/ipc2141.py"
+  },
+  "irdrop": {
+   "rule_id": "IRDROP.max",
+   "severity": "P1",
+   "status": "estimate",
    "assumption": "a synthetic rail grid stands in for the copper; a geometry solve is dc_irdrop_geom",
-   "doc": "fluxpcb/tools/fdm.py"},
-  "thermal": {"rule_id": "THERMAL.tj", "severity": "P1", "status": "estimate",
+   "doc": "fluxpcb/tools/fdm.py"
+  },
+  "thermal": {
+   "rule_id": "THERMAL.tj",
+   "severity": "P1",
+   "status": "estimate",
    "assumption": "2-D conduction on a synthetic grid, natural convection; no per-component package model",
-   "doc": "fluxpcb/tools/fdm.py"},
-  "emc_precompliance": {"rule_id": "EMC.decap_network", "severity": "P2", "status": "estimate",
+   "doc": "fluxpcb/tools/fdm.py"
+  },
+  "emc_precompliance": {
+   "rule_id": "EMC.decap_network",
+   "severity": "P2",
+   "status": "estimate",
    "assumption": "series-RL / parallel-decap network at the declared switching edges; no field solve",
-   "doc": "fluxpcb/tools/returnpath.py"},
-  "firmware_build": {"rule_id": "FW.build", "severity": "P1", "status": "confirmed",
+   "doc": "fluxpcb/tools/returnpath.py"
+  },
+  "firmware_build": {
+   "rule_id": "FW.build",
+   "severity": "P1",
+   "status": "confirmed",
    "assumption": "the toolchain on PATH is the one the firmware targets",
-   "doc": "fluxpcb/tools/hostcc.py"},
-  "firmware_spi_loopback": {"rule_id": "FW.loopback", "severity": "P1", "status": "confirmed",
+   "doc": "fluxpcb/tools/hostcc.py"
+  },
+  "firmware_spi_loopback": {
+   "rule_id": "FW.loopback",
+   "severity": "P1",
+   "status": "confirmed",
    "assumption": "the loopback record was produced by this firmware build",
-   "doc": "fluxpcb/stages/firmware_gen.py"},
-  "placement_quality": {"rule_id": "PLACEMENT.overlap", "severity": "P1", "status": "estimate",
+   "doc": "fluxpcb/stages/firmware_gen.py"
+  },
+  "placement_quality": {
+   "rule_id": "PLACEMENT.overlap",
+   "severity": "P1",
+   "status": "estimate",
    "assumption": "regex geometry over the .kicad_pcb text; courtyards are read from the footprint, not recomputed",
-   "doc": "KNOWHOW.md#K2"},
-  "firmware_regression": {"rule_id": "FW.regression", "severity": "P1", "status": "confirmed",
+   "doc": "KNOWHOW.md#K2"
+  },
+  "firmware_regression": {
+   "rule_id": "FW.regression",
+   "severity": "P1",
+   "status": "confirmed",
    "assumption": "the host compiler reproduces the target's integer behaviour",
-   "doc": "fluxpcb/tests/test_k13.py"},
-  "spice_functional": {"rule_id": "SPICE.functional", "severity": "P1", "status": "confirmed",
+   "doc": "fluxpcb/tests/test_k13.py"
+  },
+  "spice_functional": {
+   "rule_id": "SPICE.functional",
+   "severity": "P1",
+   "status": "confirmed",
    "assumption": "the testbench is representative of the load; component models are the vendor's",
-   "doc": "fluxpcb/tools/spice.py"},
-  "plane_integrity": {"rule_id": "PLANE.presence", "severity": "P1", "status": "estimate",
+   "doc": "fluxpcb/tools/spice.py"
+  },
+  "plane_integrity": {
+   "rule_id": "PLANE.presence",
+   "severity": "P1",
+   "status": "estimate",
    "assumption": "zone presence and stitching read from the board text; fill is not measured here",
-   "doc": "KNOWHOW.md#K24"},
-  "dc_irdrop_geom": {"rule_id": "IRDROP.geom", "severity": "P0", "status": "confirmed",
+   "doc": "KNOWHOW.md#K24"
+  },
+  "dc_irdrop_geom": {
+   "rule_id": "IRDROP.geom",
+   "severity": "P0",
+   "status": "confirmed",
    "assumption": "the copper of this board is the conductor; one rail at a time",
-   "doc": "fluxpcb/tools/dcsolve.py"},
-  "dc_current_density": {"rule_id": "DCCURRENT.j_limit", "severity": "P0", "status": "confirmed",
+   "doc": "fluxpcb/tools/dcsolve.py"
+  },
+  "dc_current_density": {
+   "rule_id": "DCCURRENT.j_limit",
+   "severity": "P0",
+   "status": "confirmed",
    "assumption": "IPC-2221 current limit for 1 oz outer copper, no temperature derating",
-   "doc": "fluxpcb/tools/dcsolve.py"},
-  "plane_cavity_resonance": {"rule_id": "CAVITY.mode_overlap", "severity": "P1", "status": "confirmed",
+   "doc": "fluxpcb/tools/dcsolve.py"
+  },
+  "plane_cavity_resonance": {
+   "rule_id": "CAVITY.mode_overlap",
+   "severity": "P1",
+   "status": "confirmed",
    "assumption": "rectangular cavity of the board outline with uniform er and a declared dielectric height",
-   "doc": "fluxpcb/tools/cavity.py"},
-  "pdn_impedance_ac": {"rule_id": "PDN.z_target", "severity": "P1", "status": "confirmed",
+   "doc": "fluxpcb/tools/cavity.py"
+  },
+  "pdn_impedance_ac": {
+   "rule_id": "PDN.z_target",
+   "severity": "P1",
+   "status": "confirmed",
    "assumption": "lumped plane L/C and the decap plan in the spec; no plane EM extraction",
-   "doc": "fluxpcb/tools/pdn_ac.py"},
-  "return_path": {"rule_id": "RETURNPATH.concentration", "severity": "P2", "status": "estimate",
+   "doc": "fluxpcb/tools/pdn_ac.py"
+  },
+  "return_path": {
+   "rule_id": "RETURNPATH.concentration",
+   "severity": "P2",
+   "status": "estimate",
    "assumption": "analytic return-current concentration J(d)=I/(pi*h)/(1+(d/h)^2), no slot geometry",
-   "doc": "fluxpcb/tools/returnpath.py"},
-  "em_field_analysis": {"rule_id": "EMF.field", "severity": "P1", "status": "confirmed",
+   "doc": "fluxpcb/tools/returnpath.py"
+  },
+  "em_field_analysis": {
+   "rule_id": "EMF.field",
+   "severity": "P1",
+   "status": "confirmed",
    "assumption": "the openEMS case generated here is the geometry of interest and the mesh resolves the trace",
-   "doc": "fluxpcb/tools/em_adapters.py"},
-  "thermal_cfd": {"rule_id": "THERMAL.cfd", "severity": "P1", "status": "unknown",
+   "doc": "fluxpcb/tools/em_adapters.py"
+  },
+  "thermal_cfd": {
+   "rule_id": "THERMAL.cfd",
+   "severity": "P1",
+   "status": "unknown",
    "assumption": "a CFD case must run for a verdict; the solver being installed is not a verdict",
-   "doc": "fluxpcb/tools/em_adapters.py"},
-  "routing_completeness": {"rule_id": "ROUTE.opens", "severity": "P0", "status": "confirmed",
+   "doc": "fluxpcb/tools/em_adapters.py"
+  },
+  "routing_completeness": {
+   "rule_id": "ROUTE.opens",
+   "severity": "P0",
+   "status": "confirmed",
    "assumption": "KiCad's own ratsnest after a zone refill is the connectivity truth",
-   "doc": "KNOWHOW.md#K7"},
-  "fabrication_netlist": {"rule_id": "FAB.netlist", "severity": "P0", "status": "confirmed",
+   "doc": "KNOWHOW.md#K7"
+  },
+  "fabrication_netlist": {
+   "rule_id": "FAB.netlist",
+   "severity": "P0",
+   "status": "confirmed",
    "assumption": "IPC-D-356 off the board and the schematic netlist describe the same design",
-   "doc": "KNOWHOW.md#K26"},
-  "em_susceptibility": {"rule_id": "EMF.susceptibility", "severity": "P2", "status": "estimate",
+   "doc": "KNOWHOW.md#K26"
+  },
+  "em_susceptibility": {
+   "rule_id": "EMF.susceptibility",
+   "severity": "P2",
+   "status": "estimate",
    "assumption": "loop area from the polyline, 1/d^2 coupling, no current spectrum; openEMS upgrades this to a field solve",
-   "doc": "fluxpcb/tools/susceptibility.py"},
-  "pre_route_estimate": {"rule_id": "PREROUTE.estimate", "severity": "P1", "status": "estimate",
+   "doc": "fluxpcb/tools/susceptibility.py"
+  },
+  "pre_route_estimate": {
+   "rule_id": "PREROUTE.estimate",
+   "severity": "P1",
+   "status": "estimate",
    "assumption": "capacity, impedance and net classes before copper exists; nothing here is a measurement",
-   "doc": "fluxpcb/design_agent/capacity.py"}
+   "doc": "fluxpcb/design_agent/capacity.py"
+  }
  },
  "rules": {
-  "IPC2221.min_clearance": {"title": "IPC-2221 minimum conductor spacing", "source": "IPC-2221B table 6-1", "doc": "fluxpcb/kicadgen/ipc2221_dfm.py"},
-  "IPC2221.min_track_width": {"title": "IPC-2221 minimum conductor width", "source": "IPC-2221B", "doc": "fluxpcb/kicadgen/ipc2221_dfm.py"},
-  "IPC2221.min_annular_ring": {"title": "IPC-2221 annular ring", "source": "IPC-2221B", "doc": "fluxpcb/kicadgen/ipc2221_dfm.py"},
-  "IPC2221.min_hole_to_hole": {"title": "IPC-2221 hole-to-hole spacing", "source": "IPC-2221B", "doc": "fluxpcb/kicadgen/ipc2221_dfm.py"},
-  "IPC2221.min_copper_edge": {"title": "IPC-2221 copper-to-board-edge", "source": "IPC-2221B", "doc": "fluxpcb/kicadgen/ipc2221_dfm.py"},
-  "JLC.jlc-2026-11-25": {"title": "JLC capability profile, retrieved 2026-11-25", "source": "https://jlc.com/portal/vtechnology.html", "doc": "fluxpcb/mfg/data/jlc_2026-11-25.json"},
-  "DRC.report": {"title": "KiCad DRC, error severity", "source": "kicad-cli pcb drc", "doc": "fluxpcb/verifiers/txn.py"},
-  "DRC.clearance": {"title": "KiCad DRC clearance finding", "source": "kicad-cli pcb drc", "doc": "fluxpcb/verifiers/txn.py"},
-  "DRC.track_width": {"title": "KiCad DRC minimum width finding", "source": "kicad-cli pcb drc", "doc": "fluxpcb/verifiers/txn.py"},
-  "DRC.unconnected": {"title": "KiCad DRC unconnected items", "source": "kicad-cli pcb drc", "doc": "fluxpcb/verifiers/txn.py"},
-  "RETURNPATH.concentration": {"title": "Return-current concentration within h of the trace", "source": "Johnson & Graham, High-Speed Digital Design", "doc": "fluxpcb/tools/returnpath.py"},
-  "PDN.z_target": {"title": "PDN impedance against the target curve", "source": "Smith & Bogatin, PDN design", "doc": "fluxpcb/tools/pdn_ac.py"},
-  "CAVITY.mode_overlap": {"title": "First plane-cavity mode below the band limit", "source": "rectangular cavity modes", "doc": "fluxpcb/tools/cavity.py"},
-  "THERMAL.tj": {"title": "Junction temperature against the part limit", "source": "2-D conduction", "doc": "fluxpcb/tools/fdm.py"},
-  "THERMAL.cfd": {"title": "Conjugate heat transfer (CFD) case", "source": "OpenFOAM chtMultiRegionFoam", "doc": "fluxpcb/tools/em_adapters.py"},
-  "DCCURRENT.j_limit": {"title": "Current density against the IPC-2221 limit", "source": "IPC-2221B", "doc": "fluxpcb/tools/dcsolve.py"},
-  "EMF.susceptibility": {"title": "Per-net susceptibility index", "source": "loop-area x 1/d^2 proxy", "doc": "fluxpcb/tools/susceptibility.py"},
-  "EMF.field": {"title": "Field solve (openEMS) for return current / radiation", "source": "openEMS FDTD", "doc": "fluxpcb/tools/em_adapters.py"},
-  "CAPACITY.channel": {"title": "Traces per channel between ball rings", "source": "fluxpcb/design_agent/capacity.py", "doc": "fluxpcb/design_agent/capacity.py"},
-  "IMPEDANCE.z0_dev": {"title": "Impedance deviation from target", "source": "IPC-2141", "doc": "fluxpcb/tools/ipc2141.py"},
-  "PREROUTE.estimate": {"title": "Pre-route estimate (capacity, impedance, net classes)", "source": "plan before copper", "doc": "fluxpcb/design_agent/capacity.py"}
+  "IPC2221.min_clearance": {
+   "title": "IPC-2221 minimum conductor spacing",
+   "source": "IPC-2221B table 6-1",
+   "doc": "fluxpcb/kicadgen/ipc2221_dfm.py"
+  },
+  "IPC2221.min_track_width": {
+   "title": "IPC-2221 minimum conductor width",
+   "source": "IPC-2221B",
+   "doc": "fluxpcb/kicadgen/ipc2221_dfm.py"
+  },
+  "IPC2221.min_annular_ring": {
+   "title": "IPC-2221 annular ring",
+   "source": "IPC-2221B",
+   "doc": "fluxpcb/kicadgen/ipc2221_dfm.py"
+  },
+  "IPC2221.min_hole_to_hole": {
+   "title": "IPC-2221 hole-to-hole spacing",
+   "source": "IPC-2221B",
+   "doc": "fluxpcb/kicadgen/ipc2221_dfm.py"
+  },
+  "IPC2221.min_copper_edge": {
+   "title": "IPC-2221 copper-to-board-edge",
+   "source": "IPC-2221B",
+   "doc": "fluxpcb/kicadgen/ipc2221_dfm.py"
+  },
+  "JLC.jlc-2026-11-25": {
+   "title": "JLC capability profile, retrieved 2026-11-25",
+   "source": "https://jlc.com/portal/vtechnology.html",
+   "doc": "fluxpcb/mfg/data/jlc_2026-11-25.json"
+  },
+  "DRC.report": {
+   "title": "KiCad DRC, error severity",
+   "source": "kicad-cli pcb drc",
+   "doc": "fluxpcb/verifiers/txn.py"
+  },
+  "DRC.clearance": {
+   "title": "KiCad DRC clearance finding",
+   "source": "kicad-cli pcb drc",
+   "doc": "fluxpcb/verifiers/txn.py"
+  },
+  "DRC.track_width": {
+   "title": "KiCad DRC minimum width finding",
+   "source": "kicad-cli pcb drc",
+   "doc": "fluxpcb/verifiers/txn.py"
+  },
+  "DRC.unconnected": {
+   "title": "KiCad DRC unconnected items",
+   "source": "kicad-cli pcb drc",
+   "doc": "fluxpcb/verifiers/txn.py"
+  },
+  "RETURNPATH.concentration": {
+   "title": "Return-current concentration within h of the trace",
+   "source": "Johnson & Graham, High-Speed Digital Design",
+   "doc": "fluxpcb/tools/returnpath.py"
+  },
+  "PDN.z_target": {
+   "title": "PDN impedance against the target curve",
+   "source": "Smith & Bogatin, PDN design",
+   "doc": "fluxpcb/tools/pdn_ac.py"
+  },
+  "CAVITY.mode_overlap": {
+   "title": "First plane-cavity mode below the band limit",
+   "source": "rectangular cavity modes",
+   "doc": "fluxpcb/tools/cavity.py"
+  },
+  "THERMAL.tj": {
+   "title": "Junction temperature against the part limit",
+   "source": "2-D conduction",
+   "doc": "fluxpcb/tools/fdm.py"
+  },
+  "THERMAL.cfd": {
+   "title": "Conjugate heat transfer (CFD) case",
+   "source": "OpenFOAM chtMultiRegionFoam",
+   "doc": "fluxpcb/tools/em_adapters.py"
+  },
+  "DCCURRENT.j_limit": {
+   "title": "Current density against the IPC-2221 limit",
+   "source": "IPC-2221B",
+   "doc": "fluxpcb/tools/dcsolve.py"
+  },
+  "EMF.susceptibility": {
+   "title": "Per-net susceptibility index",
+   "source": "loop-area x 1/d^2 proxy",
+   "doc": "fluxpcb/tools/susceptibility.py"
+  },
+  "EMF.field": {
+   "title": "Field solve (openEMS) for return current / radiation",
+   "source": "openEMS FDTD",
+   "doc": "fluxpcb/tools/em_adapters.py"
+  },
+  "CAPACITY.channel": {
+   "title": "Traces per channel between ball rings",
+   "source": "fluxpcb/design_agent/capacity.py",
+   "doc": "fluxpcb/design_agent/capacity.py"
+  },
+  "IMPEDANCE.z0_dev": {
+   "title": "Impedance deviation from target",
+   "source": "IPC-2141",
+   "doc": "fluxpcb/tools/ipc2141.py"
+  },
+  "PREROUTE.estimate": {
+   "title": "Pre-route estimate (capacity, impedance, net classes)",
+   "source": "plan before copper",
+   "doc": "fluxpcb/design_agent/capacity.py"
+  },
+  "PHYS.j_density": {
+   "title": "Current density on the real copper",
+   "source": "copper field solve J = sigma|grad V|, 2 mm-smoothed max",
+   "doc": "fluxpcb/tools/copper_graph.py"
+  },
+  "PHYS.drop": {
+   "title": "Rail drop from the source pad to the loads",
+   "source": "copper field solve",
+   "doc": "fluxpcb/tools/copper_graph.py"
+  },
+  "PHYS.via_current": {
+   "title": "Current through one via or plated barrel",
+   "source": "via link in the copper graph",
+   "doc": "fluxpcb/tools/copper_graph.py"
+  },
+  "RETURN.availability": {
+   "title": "GND copper within 3h of the signal route",
+   "source": "image-current availability on the filled pour",
+   "doc": "fluxpcb/tools/return_audit.py"
+  },
+  "RETURN.gnd_resistance": {
+   "title": "DC ground resistance between driver and load",
+   "source": "GND solve between the two footprints' ground pads",
+   "doc": "fluxpcb/tools/return_audit.py"
+  },
+  "RETURN.plane_coverage": {
+   "title": "Pour coverage and interior voids",
+   "source": "zone filled polygons vs the board outline",
+   "doc": "fluxpcb/tools/return_audit.py"
+  },
+  "CAVITY.mode": {
+   "title": "Neumann modes of the real pour vs emitter harmonics",
+   "source": "sparse eigenproblem on the coverage mask",
+   "doc": "fluxpcb/tools/cavity_audit.py"
+  },
+  "THERMAL.heatsink_delta": {
+   "title": "Junction temperature drop from a heatsink",
+   "source": "two board solves + the theta chain",
+   "doc": "fluxpcb/tools/thermal_audit.py"
+  },
+  "THERMAL.coupling": {
+   "title": "Part heated by its neighbours through the board",
+   "source": "lumped theta chain vs the board field",
+   "doc": "fluxpcb/tools/thermal_audit.py"
+  },
+  "EMI.susceptibility": {
+   "title": "Victim coupling level from the named aggressors",
+   "source": "r0^2/(r0^2+r^2) near / 1/r far, plane and shield dB",
+   "doc": "fluxpcb/tools/em_map.py"
+  }
  }
 }
