@@ -92,6 +92,13 @@ def _table(rows, head, cls=''):
             f'<tbody>{"".join(body)}</tbody></table>')
 
 
+def _stack(st):
+    if not st:
+        return 'not declared'
+    return (f"{st.get('thickness_mm')} mm, {st.get('copper_mm')} mm copper, "
+            f"er={st.get('er')} — {st.get('source')}")
+
+
 def _chips(counts):
     return ' '.join(f'<span class="chip" style="background:{SEV_COLOR.get(k, "#666")}">'
                     f'{k} {v}</span>' for k, v in sorted(counts.items()))
@@ -107,9 +114,10 @@ def render(audit_json, html_out):
 <h1>Physical audit — {os.path.basename(d.get('board', ''))}</h1>
 <p class="sub">mode <b>{d.get('mode')}</b> · board <code>{d.get('board')}</code> ·
 fingerprint <code>{bm.get('fp')}</code> · {bm.get('size_mm')} mm ·
-{bm.get('board_area_mm2')} mm² · {bm.get('nets')} nets · {bm.get('layers')} ·
-{bm.get('segments')} track segments · {bm.get('zones')} zones</p>
-<p class="sub">stackup: {d.get('stackup')}</p>
+{bm.get('board_area_mm2')} mm² · {bm.get('nets')} nets · {'/'.join(bm.get('layers') or [])} ·
+{bm.get('segments')} track segments · {bm.get('zones')} zones
+({'poured on the audit copy' if (d.get('pour') or {{}}).get('status') == 'ok' else 'as routed'})</p>
+<p class="sub">stackup: {_stack(d.get('stackup') or {})}</p>
 <p>{_chips(s.get('counts', {}))}</p>
 </header>''')
 
@@ -117,7 +125,9 @@ fingerprint <code>{bm.get('fp')}</code> · {bm.get('size_mm')} mm ·
     run = d.get('run') or {}
     parts.append('<section><h2>What ran, what was assumed, what is missing</h2><div class="three">')
     for title, items in (('ran', run.get('what') or []),
-                         ('assumed (inputs)', [f"{i['kind']}: {i['what']} {i.get('value')} — {i['source']}"
+                         ('assumed (inputs)', [f"{i['kind']}: {i['what']} "
+                                               + ' '.join(f'{k}={v}' for k, v in (i.get('value') or {}).items())
+                                               + f" — {i['source']}"
                                                for i in (d.get('inputs') or [])]),
                          ('missing (needed_information)', run.get('missing') or [])):
         lis = ''.join(f'<li>{x}</li>' for x in items) or '<li class="dim">none</li>'

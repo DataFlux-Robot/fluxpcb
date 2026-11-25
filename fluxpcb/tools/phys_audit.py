@@ -249,7 +249,7 @@ def run(board_path, spec_path, mode='fast', out_dir=None, runs_drc=3):
             row['drop_geom_pct'] = (round(100 * i_a * r_ohm / v_rail, 4)
                                     if v_rail else None)
             row['length_mm'] = round(length_m * 1e3, 1)
-        has_plane = any(z['net'] == net for z in base.zones)
+        has_plane = any(z['net'] == net for z in (poured or base).zones)
         if full and poured is not None:
             solved_net = net
             sol = cg.solve(poured, solved_net, i_a, v_rail=max(v_rail, 1e-9),
