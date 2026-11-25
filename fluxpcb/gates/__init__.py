@@ -745,13 +745,37 @@ def placement_quality(project_dir: Path, outputs: list[str], cfg: dict) -> GateR
         details[pcb.name] = {"footprints": len(refs), "overlaps": len(overlaps),
                              "decap_far": decap_far, "conn_far": conn_far,
                              "density": density, "board_mm": [W, H]}
-    if findings:
+        # sharper checks on the real copper: decap at the pin, MST detour,
+        # switching loop, return via.  Advisory (P2) unless placement_strict.
+        try:
+            from fluxpcb.tools import copper_graph as _cg
+            from fluxpcb.tools import netnames as _nn
+            from fluxpcb.kicadgen import placement_checks as _pc
+            cop = _cg.extract(pcb, cell_mm=0.5)
+            gnd = _nn.detect_ground(cop).get('net')
+            pr = _pc.run(cop, cfg, gnd_net=gnd)
+            if cfg.get('placement_strict'):
+                for f in pr['findings']:
+                    f['severity'] = 'P1'
+            findings += pr['findings']
+            details[pcb.name]['placement_checks'] = pr['details']
+        except Exception as e:
+            details[pcb.name]['placement_checks'] = {
+                'error': f'{type(e).__name__}: {e}'}
+    # legacy findings (no severity) block; the new ones are advisory P2/P3
+    blocking = [f for f in findings
+                if str(f.get('severity', 'P1')) in ('P0', 'P1')]
+    advisory = [f for f in findings if f not in blocking]
+    if blocking:
         return GateResult("placement_quality", GateStatus.FAIL,
-                          f"{len(findings)} 项布局质量问题", findings=findings,
-                          details=details)
+                          f"{len(blocking)} 项布局质量问题"
+                          + (f"（另有 {len(advisory)} 条建议）" if advisory else ''),
+                          findings=findings, details=details)
     return GateResult("placement_quality", GateStatus.PASS,
-                      "布局质量: 0重叠/去耦就近/连接器贴边",
-                      details=details)
+                      "布局质量: 0阻断问题"
+                      + (f"，{len(advisory)} 条建议" if advisory else
+                         "（0重叠/去耦就近/连接器贴边）"),
+                      findings=findings, details=details)
 
 
 # ---------------------------------------------------------------- firmware regression
@@ -1377,3 +1401,7 @@ def fabrication_netlist(project_dir: Path, outputs: list[str],
                           findings=findings, details=details)
     return GateResult("fabrication_netlist", GateStatus.PASS,
                       "铜几何网表与原理图一致(fab真值)", details=details)
+
+# the power-budget gate lives in its own module; importing it here
+# registers it with @gate at package load
+from . import power as _power  # noqa: E402,F401

@@ -28,7 +28,7 @@ stages:
     inputs: [schematic/, bom.json]
     outputs: [pcb/, stackup.yaml]
     gates: [pre_route_estimate, drc_zero, impedance_si, placement_quality,
-            plane_integrity, routing_completeness]
+            plane_integrity, routing_completeness, fabrication_netlist]
 
   acceptance_sim:
     title: 验收仿真
@@ -38,7 +38,7 @@ stages:
     gates: [irdrop, thermal, emc_precompliance, spice_functional,
             dc_irdrop_geom, dc_current_density, plane_cavity_resonance,
             pdn_impedance_ac, return_path, em_field_analysis, thermal_cfd,
-            em_susceptibility]
+            em_susceptibility, power_budget]
 
   firmware:
     title: 固件开发
@@ -52,7 +52,9 @@ gate_policy:
   # optional enhancement gates: external solvers (openEMS/CFD) — blocked
   # becomes skipped-with-note when the solver is absent; core physics
   # gates above remain strictly blocking
-  optional: [em_field_analysis, thermal_cfd]
+  optional: [em_field_analysis, thermal_cfd, power_budget]
+  # power_budget is optional only while no budget is declared (BLOCKED ->
+  # skipped); once spec.yaml power.budget exists its FAIL blocks release
 retry:
   max_iterations: 3      # bounded regeneration loop on gate failure
 audit:

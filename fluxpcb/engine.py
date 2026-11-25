@@ -120,7 +120,7 @@ def run_pipeline(project_dir: Path, pipeline_path: Path | None = None,
     # 发布判定(复审修复): 导出在 run_end 之前, 判定含导出校验;
     # 局部运行(only_stages)缺必需阶段时 released 恒 False
     if report.released:
-        report.fab_export = _export_fab(project_dir)
+        report.fab_export = _export_fab(project_dir, report)
         out = report.save(project_dir)   # 导出结果入档
     check = report.release_check(_input_hash(project_dir))
     emit_event(project_dir, "run_end", released=check["released"],
@@ -151,7 +151,7 @@ def _required_stages(stages_cfg: dict) -> list:
             if not (cfg or {}).get("optional")]
 
 
-def _export_fab(project_dir: Path) -> dict:
+def _export_fab(project_dir: Path, run=None) -> dict:
     """RELEASED -> Gerber/drill/positions fab package (K13: this used to
     be a hand-run command outside the pipeline; the one-sentence goal
     requires the chain to end at manufacturable files).
@@ -159,7 +159,7 @@ def _export_fab(project_dir: Path) -> dict:
     不再静默吞(rc 不查=假发布)。"""
     import shutil
     import subprocess
-    result = {"ok": False, "files": 0, "errors": []}
+    result = {"ok": False, "files": 0, "errors": [], "warnings": []}
     cli = shutil.which("kicad-cli")
     if not cli:
         result["errors"].append("kicad-cli 缺席")
@@ -186,12 +186,63 @@ def _export_fab(project_dir: Path) -> dict:
                 result["errors"].append(
                     "%s rc=%d: %s" % (args[1:3], r.returncode,
                                       (r.stderr or b"")[-80:]))
+        # BOM -> fab/bom.csv, assembly set -> cpl.csv (SMT only) + assembly.json
+        import json as _json
+        bom = []
+        bj = project_dir / "bom.json"
+        if bj.exists():
+            try:
+                bom = _json.loads(bj.read_text(encoding="utf-8"))
+                import csv as _csv
+                from fluxpcb.stages import BOM_FIELDS as _BF
+                with open(fab / "bom.csv", "w", encoding="utf-8", newline="") as fh:
+                    w = _csv.DictWriter(fh, fieldnames=_BF, extrasaction="ignore")
+                    w.writeheader()
+                    for row in bom:
+                        w.writerow({k: row.get(k, "") for k in _BF})
+            except Exception as e:
+                result["warnings"].append(f"bom.csv: {e}")
+        else:
+            result["warnings"].append("bom.json 缺席: 无 bom.csv/cpl.csv")
+        if bom:
+            try:
+                import yaml as _yaml
+                from fluxpcb.mfg import assembly as _as
+                spec = {}
+                sy = project_dir / "spec.yaml"
+                if sy.exists():
+                    spec = _yaml.safe_load(sy.read_text(encoding="utf-8")) or {}
+                a = _as.write(project_dir, str(fab), bom, spec,
+                              positions_csv=str(fab / "positions.csv"))
+                if a["status"] != "ok":
+                    result["warnings"].append(
+                        "assembly: " + "; ".join(a["missing"][:5]))
+            except Exception as e:
+                result["warnings"].append(f"assembly: {e}")
+        # 3-D STEP: a package the factory can drop into a mechanical check
+        try:
+            r = subprocess.run([cli, "pcb", "export", "step", "-o",
+                                str(fab / "board.step"), str(pcb)],
+                               capture_output=True, timeout=900)
+            if r.returncode != 0:
+                result["warnings"].append(
+                    "step rc=%d: %s" % (r.returncode, (r.stderr or b"")[-60:]))
+        except Exception as e:
+            result["warnings"].append(f"step: {e}")
         n = len([f for f in fab.glob("*") if f.is_file()
                  and f.stat().st_size > 0])
         result["files"] += n
         if n == 0:
             result["errors"].append("%s: 导出物为空" % pcb.name)
         emit_event(project_dir, "fab_exported", pcb=pcb.name, files=n)
+    # a single freeze manifest over the whole package, hashed into the report
+    try:
+        from fluxpcb.mfg import release_manifest as _rm
+        result["manifest"] = _rm.stamp(project_dir, run=run,
+                                       unresolved=result["warnings"])
+        result["files"] += 1
+    except Exception as e:
+        result["errors"].append(f"release manifest: {e}")
     result["ok"] = not result["errors"]
     return result
 

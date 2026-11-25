@@ -87,7 +87,7 @@ class ManufacturingInspector:
         )
 
     def _check_footprints(self, state: BoardState) -> list[dict]:
-        """Check IPC-7351 footprint compliance."""
+        """IPC-7351: land pattern against the nominal, plus the pad floor."""
         violations = []
 
         if not state.board:
@@ -96,7 +96,6 @@ class ManufacturingInspector:
         try:
             for fp in state.board.GetFootprints():
                 for pad in fp.Pads():
-                    # Check pad size
                     size = pad.GetSize()
                     if size.x < 0.2 * 1e6 or size.y < 0.2 * 1e6:
                         violations.append({
@@ -106,6 +105,22 @@ class ManufacturingInspector:
                         })
         except Exception:
             pass
+
+        try:
+            from . import ipc7351
+            r = ipc7351.check_board(state.board)
+            for f in r['findings']:
+                violations.append({
+                    'rule': f['rule'], 'severity': f['severity'],
+                    'description': f['description'],
+                    'ref': f['ref'], 'package': f['package'],
+                })
+            self._ipc7351_checked = r['checked']
+            self._ipc7351_skipped = r['skipped']
+        except Exception as e:
+            violations.append({'rule': 'ipc7351_error',
+                               'severity': 'warning',
+                               'description': str(e)})
 
         return violations
 
@@ -158,13 +173,30 @@ class ManufacturingInspector:
         return violations
 
     def _panelize(self, state: BoardState) -> dict:
-        """Panelize the board."""
-        if self.panelizer:
-            # Simple panelization
-            return {
-                'status': 'panelized',
-                'copies': 1,
-                'fiducials': 3,
-                'tooling_holes': 3,
-            }
-        return {'status': 'not_panelized'}
+        """Panelize for real: a .kicad_pcb with N copies, frame and fiducials.
+
+        `panel_copies` defaults to 1 (no panel): a one-up "panel" is not a
+        manufacturing artefact.  The copies are placed by the existing
+        guillotine packer and written next to the board as `panel.kicad_pcb`.
+        """
+        copies = int(getattr(self, 'panel_copies', 1) or 1)
+        if not self.panelizer:
+            return {'status': 'not_panelized'}
+        if copies <= 1:
+            return {'status': 'not_requested', 'copies': 1,
+                    'why': 'panel_copies <= 1'}
+        path = getattr(state, 'board_path', '') or ''
+        if not path:
+            return {'status': 'error', 'error': 'no board path'}
+        try:
+            import pcbnew
+            b = state.board or pcbnew.LoadBoard(str(path))
+            bb = b.GetBoardEdgesBoundingBox()
+            w, h = bb.GetWidth() / 1e6, bb.GetHeight() / 1e6
+            panel = self.panelizer.panelize([(w, h, path)] * copies)
+            out = str(path).replace('.kicad_pcb', '_panel.kicad_pcb')
+            r = self.panelizer.generate_kicad_panel(panel, out, src_path=path)
+            r['copies'] = len(panel.boards)
+            return r
+        except Exception as e:
+            return {'status': 'error', 'error': f'{type(e).__name__}: {e}'}

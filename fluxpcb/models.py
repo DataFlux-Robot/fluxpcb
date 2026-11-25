@@ -116,6 +116,10 @@ class RunReport:
             return False
         if self.fab_export and not self.fab_export.get("ok"):
             return False
+        # a fab package without its freeze manifest is not a release: the
+        # files and the description of what they are must travel together
+        if self.fab_export and not self.fab_export.get("manifest"):
+            return False
         return True
 
     def release_check(self, current_input_hash: str = "") -> dict:
@@ -133,11 +137,16 @@ class RunReport:
         if self.fab_export and not self.fab_export.get("ok"):
             reasons.append("加工导出未通过: %s"
                            % (self.fab_export.get("errors") or ["?"]))
+        manifest_ok = bool(not self.fab_export
+                           or self.fab_export.get("manifest"))
+        if self.fab_export and not manifest_ok:
+            reasons.append("加工包缺发布清单(fab/release_manifest.json)")
         return {"released": self.released and not stale,
                 "required": list(self.required_stages),
                 "ran": sorted(by),
                 "missing_stages": missing,
                 "input_hash_ok": not stale,
+                "manifest_ok": manifest_ok,
                 "fab_export": self.fab_export,
                 "reasons": reasons}
 

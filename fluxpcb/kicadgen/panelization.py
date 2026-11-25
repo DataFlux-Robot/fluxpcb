@@ -61,6 +61,89 @@ class Panel:
     total_height: float = 0.0
 
 
+def _items(board):
+    """Every board item that must be copied per panel position."""
+    for t in board.GetTracks():
+        yield t
+    for f in board.GetFootprints():
+        yield f
+    for z in board.Zones():
+        yield z
+    for d in board.GetDrawings():
+        yield d
+
+
+def _dup(item):
+    """Duplicate across pcbnew versions (footprints want a bool argument)."""
+    for args in ((), (False,)):
+        try:
+            return item.Duplicate(*args)
+        except TypeError:
+            continue
+        except Exception:
+            return None
+    return None
+
+
+def _clear(board):
+    """Empty a file-loaded board.
+
+    `BOARD.Remove` on an item that came from a loaded file fails on KiCad 10
+    ("SwigPyObject has no attribute thisown"); `Delete` is the call for
+    file-loaded items.  Every item is dropped the first way it succeeds.
+    """
+    for coll in (board.GetTracks(), board.GetFootprints(), board.Zones(),
+                 board.GetDrawings()):
+        for item in list(coll):
+            try:
+                board.Delete(item)
+            except Exception:
+                try:
+                    board.Remove(item)
+                except Exception:
+                    pass
+
+
+def _frame(board, panel):
+    """Panel outline + 3 fiducials + 4 NPTH tooling holes."""
+    import pcbnew
+    w = pcbnew.FromMM(panel.total_width)
+    h = pcbnew.FromMM(panel.total_height)
+    pts = [(0, 0), (w, 0), (w, h), (0, h)]
+    for i in range(4):
+        seg = pcbnew.PCB_SHAPE(board)
+        seg.SetShape(pcbnew.SHAPE_T_SEGMENT)
+        seg.SetStart(pcbnew.VECTOR2I(*pts[i]))
+        seg.SetEnd(pcbnew.VECTOR2I(*pts[(i + 1) % 4]))
+        seg.SetLayer(pcbnew.Edge_Cuts)
+        seg.SetWidth(pcbnew.FromMM(0.15))
+        board.Add(seg)
+    for (x, y) in panel.fiducials:
+        c = pcbnew.PCB_SHAPE(board)
+        c.SetShape(pcbnew.SHAPE_T_CIRCLE)
+        c.SetCenter(pcbnew.VECTOR2I(pcbnew.FromMM(x), pcbnew.FromMM(y)))
+        c.SetRadius(pcbnew.FromMM(panel.spec.fiducial_size / 2))
+        c.SetLayer(pcbnew.F_Cu)
+        c.SetFilled(True)
+        board.Add(c)
+    for i, (x, y) in enumerate(panel.tooling_holes):
+        fp = pcbnew.FOOTPRINT(board)
+        fp.SetReference(f'H{i + 1}')
+        fp.SetValue('TOOLING')
+        pos = pcbnew.VECTOR2I(pcbnew.FromMM(x), pcbnew.FromMM(y))
+        fp.SetPosition(pos)
+        pad = pcbnew.PAD(fp)
+        pad.SetNumber('')
+        pad.SetAttribute(pcbnew.PAD_ATTRIB_NPTH)
+        pad.SetShape(pcbnew.PAD_SHAPE_CIRCLE)
+        d = pcbnew.FromMM(panel.spec.tooling_hole)
+        pad.SetSize(pcbnew.VECTOR2I(d, d))
+        pad.SetDrillSize(pcbnew.VECTOR2I(d, d))
+        pad.SetPosition(pos)
+        fp.Add(pad)
+        board.Add(fp)
+
+
 class Panelizer:
     """PCB panelizer using Guillotine bin packing."""
 
@@ -172,25 +255,74 @@ class Panelizer:
             holes.append(corner)
         return holes
 
-    def generate_kicad_panel(self, panel, output_path):
-        """Generate KiCad panel file from panel layout."""
-        # This would generate a .kicad_pcb with all boards arranged
-        # For now, return a description
-        return {
+    def generate_kicad_panel(self, panel, output_path, src_path=None):
+        """Write a real .kicad_pcb with the panel layout.
+
+        Each placement duplicates the source board's tracks, footprints,
+        zones and drawings at an offset, then the frame, three fiducials and
+        four NPTH tooling holes are added.  References repeat across copies
+        (a production panel would rename them); the summary says so.
+
+        Returns a dict, and writes the file when `src_path` is given and
+        pcbnew is available.
+        """
+        summary = {
             'panel_width': panel.total_width,
             'panel_height': panel.total_height,
             'board_count': len(panel.boards),
             'fiducial_count': len(panel.fiducials),
             'tooling_hole_count': len(panel.tooling_holes),
-            'boards': [
-                {
-                    'name': b.board_path,
-                    'x': b.x, 'y': b.y,
-                    'width': b.width, 'height': b.height,
-                }
-                for b in panel.boards
-            ],
+            'boards': [{'name': b.board_path, 'x': b.x, 'y': b.y,
+                        'width': b.width, 'height': b.height}
+                       for b in panel.boards],
+            'refs_repeat': True,
         }
+        src = src_path or (panel.boards[0].board_path if panel.boards else None)
+        if not src or not str(src).endswith('.kicad_pcb'):
+            summary['status'] = 'no_source'
+            return summary
+        try:
+            import pcbnew
+        except Exception as e:
+            summary['status'] = 'no_pcbnew'
+            summary['error'] = str(e)
+            return summary
+        try:
+            base = pcbnew.LoadBoard(str(src))
+            bb = base.GetBoardEdgesBoundingBox()
+            x0, y0 = bb.GetLeft(), bb.GetTop()
+            # start from an empty board carrying the source's net table:
+            # load the source once, then delete every item
+            out = pcbnew.LoadBoard(str(src))
+            _clear(out)
+            keep = []
+            for k, b in enumerate(panel.boards):
+                if k == 0:
+                    items_src = base
+                else:
+                    items_src = pcbnew.LoadBoard(str(src))
+                dx = pcbnew.FromMM(b.x) - x0
+                dy = pcbnew.FromMM(b.y) - y0
+                for item in _items(items_src):
+                    dup = _dup(item)
+                    if dup is None:
+                        continue
+                    dup.Move(pcbnew.VECTOR2I(int(dx), int(dy)))
+                    keep.append(dup)          # SWIG ownership: keep alive
+                    out.Add(dup)
+            _frame(out, panel)
+            try:
+                pcbnew.ZONE_FILLER(out).Fill(out.Zones())
+            except Exception:
+                pass
+            pcbnew.SaveBoard(str(output_path), out)
+            summary['status'] = 'ok'
+            summary['path'] = str(output_path)
+            summary['bytes'] = __import__('os').path.getsize(str(output_path))
+        except Exception as e:
+            summary['status'] = 'error'
+            summary['error'] = f'{type(e).__name__}: {e}'
+        return summary
 
     def check_dfm(self, panel):
         """Check panel DFM compliance (JLC rules)."""

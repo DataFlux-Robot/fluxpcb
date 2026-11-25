@@ -123,7 +123,9 @@ class TestReleaseSemantics:
         rep = RunReport(project="t", required_stages=["a", "b"],
                         input_hash="h1")
         rep.stages = [self._ok_stage("a"), self._ok_stage("b")]
-        rep.fab_export = {"ok": True, "files": 12, "errors": []}
+        rep.fab_export = {"ok": True, "files": 12, "errors": [],
+                          "manifest": {"path": "pcb/fab/release_manifest.json",
+                                       "sha256": "x"}}
         assert rep.released is True
         assert rep.release_check("h1")["released"] is True
 

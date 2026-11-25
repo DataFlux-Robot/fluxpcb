@@ -595,3 +595,17 @@ GNDPWR）。全部 full 跑通、0 崩溃。细节见 `AUDIT_GENERALITY_2026-11-
 没泛化的：自动 spec 读不出自动命名网的功能（0376 的 SPI 时钟是 `Net-(U3-Pad13)`，
 EM 只能兜底）；热对比仍只在 0376 的手写 spec 上成立；"无接地网"与"多层层栈"只由
 单测与两块定向板覆盖。测试 **296 passed**（291 + 5 条 auto-spec）。
+
+### 6.16 四份参考的落地（2026-11-25）
+
+评估了 multigram/hardware-design-to-order、donghuixin/low-power-iot-hardware-design、
+FLUXPCB设计.md、OpenPE，把四个确认的缺口落地（细节见 `REFERENCES_2026-11-25.md`）：
+
+- 功耗预算：`power_budget` 门（lphd 公式），无预算 BLOCKED/optional，声明后不达标 FAIL。
+- 冻结清单 + 装配集：`fab/release_manifest.json`（源哈希+工具版本+每文件 sha256+豁免）、
+  `cpl.csv`（只含 SMT，DNP/THT 不进）、panel/piece/set 消歧；缺清单不算发布。
+- 放置/EMC 四条 advisory（去耦 3 mm、走线 ≤1.3×MST+2 mm、环路 ≤20 mm²、参考过孔）
+  + OpenPE 的部分电感公式（每轨 `l_nh`；0376：+9V 10.7 nH）。
+- 工艺包：拼板真出 `.kicad_pcb`（0023 2×2 重载 16 fp/24 track）、STEP 进包、
+  IPC-7351 land pattern、`fabrication_netlist` 接进 `flux.yaml`。
+- 测试：+24（power 7、manifest 5、placement 8、manufacturing 4），全套 321。

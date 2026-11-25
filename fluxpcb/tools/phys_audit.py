@@ -296,6 +296,8 @@ def run(board_path, spec_path, mode='fast', out_dir=None, runs_drc=3):
                 row['field']['j_map'] = _thin(jm, 4)
                 row['field']['j_map_cell_mm'] = base.cell_mm * 4
                 row['r_mohm'] = round(1e3 * sol['drop_v'] / i_a, 3)
+                row['l_nh'] = cg.route_inductance_nh(poured, net,
+                                                     t_board)['l_nh']
                 row['j_per_a'] = round(sol['j_robust_a_mm2'] / i_a, 3)
                 row['via_current_max_a'] = (sol['via_currents'][0]['current_a']
                                             if sol['via_currents'] else 0.0)
@@ -318,6 +320,14 @@ def run(board_path, spec_path, mode='fast', out_dir=None, runs_drc=3):
                     finding(**_drop_finding(net, row, v_rail, lim,
                                             estimate=is_probe))
                 finding(**_res_finding(net, row, estimate=is_probe))
+                if row.get('l_nh') is not None:
+                    finding(rule_id='PHYS.route_inductance', where=net,
+                            measured=row['l_nh'], limit=None, units='nH',
+                            severity='P3', status='estimate',
+                            assumption=('segment self-terms + 0.4 nH/mm per via; '
+                                        'no mutual coupling, no return-path '
+                                        'inductance'),
+                            needed_information=[])
                 if row.get('open_sink_pads'):
                     finding(rule_id='PHYS.rail_open', where=net,
                             measured=len(row['open_sink_pads']), limit=0,

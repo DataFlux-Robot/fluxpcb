@@ -203,6 +203,13 @@
    "status": "estimate",
    "assumption": "capacity, impedance and net classes before copper exists; nothing here is a measurement",
    "doc": "fluxpcb/design_agent/capacity.py"
+  },
+  "power_budget": {
+   "rule_id": "POWER.budget",
+   "severity": "P1",
+   "status": "estimate",
+   "assumption": "declared battery capacity, duty cycle and minimum operating voltage; no temperature or ageing model",
+   "doc": "fluxpcb/tools/power_budget.py"
   }
  },
  "rules": {
@@ -370,6 +377,46 @@
    "title": "Sink pads that share no copper with the rail source",
    "source": "connected components of the copper graph",
    "doc": "fluxpcb/tools/copper_graph.py"
+  },
+  "POWER.life": {
+   "title": "Battery life against the declared target",
+   "source": "duty-cycle average current (lphd MIT skill)",
+   "doc": "fluxpcb/tools/power_budget.py"
+  },
+  "POWER.droop": {
+   "title": "Rail minimum voltage at peak current",
+   "source": "V_eol - I_peak*(R_batt+R_path)",
+   "doc": "fluxpcb/tools/power_budget.py"
+  },
+  "POWER.bulk_cap": {
+   "title": "Bulk capacitance needed for a declared load step",
+   "source": "C = I*dt/dV",
+   "doc": "fluxpcb/tools/power_budget.py"
+  },
+  "PHYS.route_inductance": {
+   "title": "Self-inductance along a routed net",
+   "source": "OpenPE partial-inductance self term (Apache-2.0) + via approximation",
+   "doc": "fluxpcb/tools/copper_graph.py"
+  },
+  "PLACEMENT.decap_distance": {
+   "title": "Decoupling cap to the pin it serves",
+   "source": "low-power-iot-hardware-design VF-05 (MIT)",
+   "doc": "fluxpcb/kicadgen/placement_checks.py"
+  },
+  "PLACEMENT.trace_length": {
+   "title": "Routed length against the pad MST",
+   "source": "reference skill: routed <= 1.3 x MST + 2 mm",
+   "doc": "fluxpcb/kicadgen/placement_checks.py"
+  },
+  "PLACEMENT.loop_area": {
+   "title": "C_in-IC-C_out switching loop area",
+   "source": "low-power-iot-hardware-design VF-04 (MIT)",
+   "doc": "fluxpcb/kicadgen/placement_checks.py"
+  },
+  "PLACEMENT.reference_via": {
+   "title": "Signal via to nearest ground via",
+   "source": "geometric return-via proximity",
+   "doc": "fluxpcb/kicadgen/placement_checks.py"
   }
  }
 }

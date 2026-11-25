@@ -180,6 +180,7 @@ def extract(board_path, cell_mm: float = 0.2) -> Copper:
             sz = pad.GetSize()
             pads.setdefault(nc, []).append({
                 'ref': fp_.GetReference(), 'pad': pad.GetNumber(),
+                'value': fp_.GetValue(),
                 'x': p.x / 1e6, 'y': p.y / 1e6,
                 'w': sz.x / 1e6, 'h': sz.y / 1e6,
                 'rot': pad.GetOrientation().AsDegrees(),
@@ -281,6 +282,49 @@ def net_cover(copper: Copper, net: str, lid_name=None):
     if lid_name is not None:
         return _raster(copper, lid_name, net)
     return [_raster(copper, l, net) for l in copper.layers]
+
+
+def segment_inductance_nh(p, q, width_mm):
+    """Partial self-inductance of one straight trace segment, in nH.
+
+    The closed form is the one OpenPE uses (Apache-2.0,
+    lib/pcb-partial-inductance.ts): for length L and radius r, in mm,
+
+        L_p = 0.1 * 2 * (L*asinh(L/r) - L^2/(hypot(L,r)+r))   [nH]
+
+    with r = width/2 (an equivalent round conductor; a rectangular trace's
+    corner current is not modelled).  Mutual terms between segments are not
+    summed: the route value is a self-term series, said so in the result.
+    """
+    L = math.hypot(q[0] - p[0], q[1] - p[1])
+    if L <= 0:
+        return 0.0
+    r = max(float(width_mm) / 2.0, 0.01)
+    return 0.1 * 2.0 * (L * math.asinh(L / r)
+                        - L * L / (math.hypot(L, r) + r))
+
+
+def route_inductance_nh(copper: Copper, net: str, t_board_mm: float = 1.6):
+    """Self-inductance along one net's route: segments plus vias.
+
+    A via is taken as 0.4 nH per mm of board thickness (a declared
+    approximation, not a field solve).  The result names its limits: no
+    mutual coupling between parallel segments, no return-path inductance
+    (that needs the plane geometry, which the audit reports separately).
+    """
+    nc = net_by_name(copper, net)
+    if nc is None:
+        return {'l_nh': None, 'error': f'net {net!r} not on this board'}
+    total = 0.0
+    n = 0
+    for (x1, y1, x2, y2, w, _layer) in copper.segs.get(nc, []):
+        total += segment_inductance_nh((x1, y1), (x2, y2), w)
+        n += 1
+    nv = sum(1 for v in copper.vias if v.get('net') == net)
+    total += nv * 0.4 * float(t_board_mm)
+    return {'l_nh': round(total, 2), 'n_segments': n, 'n_vias': nv,
+            'assumption': ('segment self-terms + 0.4 nH/mm per via; no mutual '
+                           'coupling and no return-path inductance')}
 
 
 def net_by_name(copper: Copper, name: str):
