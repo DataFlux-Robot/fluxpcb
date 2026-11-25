@@ -154,14 +154,22 @@ def default_corpus() -> list:
         os.path.abspath(__file__))))]  # flux-neurotransmitter
     out = []
     for root in roots:
-        for rel in ('KNOWHOW.md', 'fluxpcb/research',
-                    '.agents/skills'):
+        for rel in ('KNOWHOW.md', 'fluxpcb/research', '.agents/skills'):
             p = os.path.join(root, rel)
-            if os.path.isdir(p):
-                out += [os.path.join(p, f) for f in sorted(os.listdir(p))
-                        if f.endswith('.md')]
-            elif os.path.exists(p):
-                out.append(p)
+            if not os.path.isdir(p):
+                if os.path.exists(p):
+                    out.append(p)
+                continue
+            # one level deep as well: LITREVIEW_2026-11-25/*.md and
+            # .agents/skills/<name>/SKILL.md were invisible before
+            for name in sorted(os.listdir(p)):
+                full = os.path.join(p, name)
+                if os.path.isfile(full) and name.endswith('.md'):
+                    out.append(full)
+                elif os.path.isdir(full):
+                    for sub_name in sorted(os.listdir(full)):
+                        if sub_name.endswith('.md'):
+                            out.append(os.path.join(full, sub_name))
     bench = 'E:/DATA/vscode/ZCODE/autorouter-bench'
     if os.path.isdir(bench):
         for rel in ('.litrev', '.litreview', 'work/lit',

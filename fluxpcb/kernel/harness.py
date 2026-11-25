@@ -59,6 +59,12 @@ def research_context(knowhow: Path, grind_data: dict,
     except (OSError, ValueError):
         pass    # ok-silent: 语料缺失=规划器少证据不失败
     fails = (grind_data or {}).get("failed_branches") or []
+    docs_index = ''
+    try:
+        from fluxpcb.knowledge import docs as _docs
+        docs_index = _docs.index_text(12)
+    except Exception:
+        docs_index = ''      # ok-silent: 文档索引缺失=规划器少线索不失败
     battery = []
     if battery_path:
         try:
@@ -94,8 +100,12 @@ def research_context(knowhow: Path, grind_data: dict,
             "literature": [str(x)[:160] for x in (literature or [])][:8],
             "skills": skills,
             "experience_cards": cards[-12:],
+            # 编号文档索引: 需要细节时按 id 取(knowledge.docs.load),
+            # 不把全文塞进上下文
+            "docs_index": docs_index,
             "note": "语料是证据, 不是预设路线(落点仍由证据推导); "
-                    "提案可引用 skill:<name> 消费已验证机制"}
+                    "提案可引用 skill:<name> 消费已验证机制; "
+                    "引用文档时写 docs:<id>"}
 
 
 def experience_cards(cards_dir: str = "",

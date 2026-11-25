@@ -30,11 +30,16 @@ class GateResult:
     summary: str = ""
     details: dict[str, Any] = field(default_factory=dict)
     findings: list[dict[str, Any]] = field(default_factory=list)
+    # what a gate could not decide, in words: a BLOCKED gate lists its
+    # missing tool or input here (a verdict of "not known" is a result)
+    needed_information: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
             "name": self.name, "status": self.status.value,
-            "summary": self.summary, "details": self.details, "findings": self.findings,
+            "summary": self.summary, "details": self.details,
+            "findings": self.findings,
+            "needed_information": self.needed_information,
         }
 
 

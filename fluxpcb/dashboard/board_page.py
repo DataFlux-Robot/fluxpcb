@@ -144,6 +144,81 @@ def findings(cert):
     return groups
 
 
+# ------------------------------------------------- the parts a reader asks for
+def open_connections(cert) -> list:
+    """The connections the board is missing, with their nets and items.
+
+    Read from the certificate only: an `unconnected` finding, or a claim
+    that says so.  An empty list with `claims_after.n_unconnected > 0`
+    means the certificate does not say WHICH connections — the page then
+    says that instead of showing an empty table.
+    """
+    out = []
+    for entry in (cert.get('failures') or []):
+        if not isinstance(entry, dict):
+            continue
+        item = entry.get('item') or {}
+        if str(item.get('type') or '') != 'unconnected':
+            continue
+        out.append({'net': item.get('net', '?'),
+                    'outcome': entry.get('outcome'),
+                    'items': [str(i.get('description') or '')[:80]
+                              for i in (item.get('items') or [])
+                              if isinstance(i, dict)],
+                    'pos': item.get('pos')})
+    return out
+
+
+def blocking_pads(cert) -> list:
+    """Pads that stood in the way, named by the attempt that hit them."""
+    out = []
+    for op, rows in findings(cert).items():
+        for row in rows:
+            why = row.get('why') or ''
+            if 'pad' not in why.lower():
+                continue
+            out.append({'operator': op, 'net': row.get('net'),
+                        'why': why, 'outcome': row.get('outcome')})
+    return out
+
+
+def via_sites(cert) -> list:
+    """The via sites an attempt tried, when it recorded them."""
+    out = []
+    for entry in (cert.get('failures') or []):
+        if not isinstance(entry, dict):
+            continue
+        sites = ((entry.get('why_not') or {}).get('via_sites')
+                 or (entry.get('attempt') or {}).get('via_sites'))
+        if sites:
+            out.append({'operator': entry.get('op') or entry.get('operator'),
+                        'sites': sites})
+    return out
+
+
+def needed_information(cert) -> list:
+    """What the cell could not decide, deduplicated, with who needed it."""
+    out = []
+    def add(text, src):
+        if text and all(text != t for t, _s in out):
+            out.append((text, src))
+    for entry in (cert.get('failures') or []):
+        if not isinstance(entry, dict):
+            continue
+        for m in entry.get('needed_information') or []:
+            add(str(m), entry.get('op') or entry.get('operator') or '?')
+        for m in (entry.get('why_not') or {}).get('needed_information') or []:
+            add(str(m), entry.get('op') or entry.get('operator') or '?')
+    for st in cert.get('repair') or []:
+        for m in st.get('needed_information') or []:
+            add(str(m), st.get('stage') or '?')
+        for e in st.get('log') or []:
+            if isinstance(e, dict):
+                for m in (e.get('action') or {}).get('needed_information') or []:
+                    add(str(m), st.get('stage') or '?')
+    return [{'text': t, 'from': s} for t, s in out]
+
+
 # ------------------------------------------------------------- the copper
 def copper_svg(board_path, centre, half=5.0, colour=(), marks=(), lines=(),
                size=360):
@@ -340,6 +415,48 @@ def render(cert, board_path=None, problems=()):
                            f'<td>{e(row["net"])}</td><td>{e(row["why"])}</td><td>{tried}</td></tr>')
             out.append('</table>')
 
+    opens = open_connections(cert)
+    claimed = (cert.get('claims_after') or {}).get('n_unconnected') or 0
+    if opens or claimed:
+        out.append('<h2>Open connections</h2>')
+        if opens:
+            out.append('<table><tr><th>net</th><th>attempt</th><th>items</th></tr>')
+            for r in opens:
+                out.append(f'<tr><td>{e(str(r["net"]))}</td>'
+                           f'<td>{e(str(r["outcome"]))}</td>'
+                           f'<td>{e(" / ".join(r["items"]))}</td></tr>')
+            out.append('</table>')
+        else:
+            out.append(f'<div class="problems">{int(claimed)} open connection(s) '
+                       f'claimed, but the certificate does not say which: '
+                       f'needed information.</div>')
+
+    pads = blocking_pads(cert)
+    if pads:
+        out.append('<h2>Pads in the way</h2><table><tr><th>operator</th>'
+                   '<th>net</th><th>outcome</th><th>blocker</th></tr>')
+        for r in pads:
+            out.append(f'<tr><td><code>{e(str(r["operator"]))}</code></td>'
+                       f'<td>{e(str(r["net"]))}</td><td>{e(str(r["outcome"]))}</td>'
+                       f'<td>{e(r["why"])}</td></tr>')
+        out.append('</table>')
+
+    sites = via_sites(cert)
+    if sites:
+        out.append('<h2>Via sites tried</h2><table><tr><th>operator</th>'
+                   '<th>sites</th></tr>')
+        for r in sites:
+            out.append(f'<tr><td><code>{e(str(r["operator"]))}</code></td>'
+                       f'<td>{e(json.dumps(r["sites"], ensure_ascii=False, default=str)[:600])}</td></tr>')
+        out.append('</table>')
+
+    missing = needed_information(cert)
+    if missing:
+        out.append('<h2>Needed information</h2><ul>')
+        for m in missing:
+            out.append(f'<li>{e(m["text"])} <span class="warn">— {e(m["from"])}</span></li>')
+        out.append('</ul>')
+
     residue = cert.get('residue') or {}
     if residue:
         out.append('<h2>Left on the board</h2><pre>' + e(json.dumps(residue, ensure_ascii=False, indent=1)[:3000]) + '</pre>')
@@ -347,14 +464,106 @@ def render(cert, board_path=None, problems=()):
     return '\n'.join(out)
 
 
+def render_dir(certs_dir, boards_dir=None, out_dir=None, limit=0,
+               index_name='index.html') -> dict:
+    """Every certificate in a directory -> one self-contained page each.
+
+    A certificate that does not load is listed on the index with its
+    problems and gets no page: the index is a product of the data too.
+    `boards_dir` is searched by file name for the board a certificate
+    refers to (the copper windows); without it the pages are text-only.
+    """
+    import glob
+
+    certs = sorted(glob.glob(os.path.join(str(certs_dir), '*.json')))
+    if limit:
+        certs = certs[:limit]
+    out_dir = str(out_dir or os.path.join(str(certs_dir), 'pages'))
+    os.makedirs(out_dir, exist_ok=True)
+    boards = {}
+    if boards_dir:
+        for f in glob.glob(os.path.join(str(boards_dir), '**', '*.kicad_pcb'),
+                           recursive=True):
+            boards[os.path.basename(f)] = f
+    rows, made = [], 0
+    for path in certs:
+        cert, problems = load_cert(path)
+        name = os.path.basename(path)
+        if cert is None:
+            # a bench cell record points at its certificate; follow it
+            try:
+                with open(path, encoding='utf-8') as fh:
+                    cell = json.load(fh)
+            except (OSError, ValueError):
+                cell = None
+            rel = (cell or {}).get('cert') if isinstance(cell, dict) else None
+            if rel:
+                base = os.path.dirname(os.path.dirname(os.path.abspath(path)))
+                cand = os.path.join(base, rel)
+                if os.path.exists(cand):
+                    cert, problems = load_cert(cand)
+        if cert is None:
+            rows.append({'cert': name, 'board': '', 'ok': False,
+                         'problems': problems, 'page': ''})
+            continue
+        board = boards.get(os.path.basename(str(cert.get('board') or '')))
+        page = render(cert, board, problems)
+        fname = os.path.splitext(name)[0] + '.html'
+        with open(os.path.join(out_dir, fname), 'w', encoding='utf-8') as fh:
+            fh.write(page)
+        made += 1
+        claims = cert.get('claims_after') or {}
+        rows.append({'cert': name, 'board': str(cert.get('board') or ''),
+                     'ok': True, 'problems': [],
+                     'page': fname,
+                     'verdict': ('clean' if claims.get('total') == 0
+                                 else f'{claims.get("n_errors", "?")} error(s)'),
+                     'needed': len(needed_information(cert))})
+    e = html.escape
+    parts = ['<!doctype html><html lang="en"><head><meta charset="utf-8">',
+             '<title>fluxpcb — board pages</title>',
+             '<style>body{font:13px/1.45 -apple-system,Segoe UI,Roboto,sans-serif;'
+             'margin:20px;color:#222}table{border-collapse:collapse}'
+             'td,th{border:1px solid #ddd;padding:3px 7px;font-size:12px;text-align:left}'
+             'th{background:#f3f3ef}.ok{color:#1a7f37}.bad{color:#b42318}</style>'
+             '</head><body>',
+             f'<h1>{len(rows)} certificates, {made} pages</h1>',
+             '<table><tr><th>certificate</th><th>board</th><th>verdict</th>'
+             '<th>needed information</th><th>page</th></tr>']
+    for r in rows:
+        if not r['ok']:
+            parts.append(f'<tr><td>{e(r["cert"])}</td><td>—</td>'
+                         f'<td class="bad">{e("; ".join(r["problems"]))}</td>'
+                         f'<td>—</td><td>—</td></tr>')
+        else:
+            cls = 'ok' if r['verdict'] == 'clean' else 'bad'
+            parts.append(f'<tr><td>{e(r["cert"])}</td><td>{e(r["board"])}</td>'
+                         f'<td class="{cls}">{e(r["verdict"])}</td>'
+                         f'<td>{r["needed"]}</td>'
+                         f'<td><a href="{e(r["page"])}">{e(r["page"])}</a></td></tr>')
+    parts.append('</table></body></html>')
+    idx = os.path.join(out_dir, index_name)
+    with open(idx, 'w', encoding='utf-8') as fh:
+        fh.write('\n'.join(parts))
+    return {'pages': made, 'index': idx, 'rows': rows, 'out_dir': out_dir}
+
+
 def main(argv=None):
     import argparse
 
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    ap.add_argument('cert')
-    ap.add_argument('board', nargs='?')
+    ap.add_argument('cert', help='a cert.json, or a directory of them')
+    ap.add_argument('board', nargs='?', help='the .kicad_pcb for the copper windows')
     ap.add_argument('-o', '--out', default=None)
+    ap.add_argument('--boards', default=None,
+                    help='directory searched by name for the boards (batch mode)')
+    ap.add_argument('--limit', type=int, default=0)
     args = ap.parse_args(argv)
+    if os.path.isdir(args.cert):
+        res = render_dir(args.cert, args.boards or args.board, args.out or None,
+                         limit=args.limit)
+        print(res['index'])
+        return 0
     cert, problems = load_cert(args.cert)
     if cert is None:
         print('\n'.join(problems), file=sys.stderr)

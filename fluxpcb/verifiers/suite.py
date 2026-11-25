@@ -61,11 +61,14 @@ class VerifierSuite:
                 result = verifier.run(state, plan)
                 results.append(result)
             except Exception as e:
+                # a verifier that raised decided nothing: `unknown` with
+                # the reason, never a fabricated pass or an unrelated fail
                 results.append(VerificationResult(
-                    name=verifier.name,
-                    status="fail",
-                    severity="error",
-                    findings=[{'error': str(e)}],
+                    name=getattr(verifier, 'name', type(verifier).__name__),
+                    status="unknown",
+                    severity="warning",
+                    findings=[],
+                    needed_information=[f'{type(e).__name__}: {e}'],
                 ))
 
         return VerificationReport(

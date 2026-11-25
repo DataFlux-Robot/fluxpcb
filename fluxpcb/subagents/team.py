@@ -64,10 +64,14 @@ class SubagentTeam:
             specialist = self.specialists.get(task.cls)
             if specialist:
                 action = specialist.propose({'net': task.net})
-                task._specialist_action = action  # Attach for downstream use
+                # declared fields: an attribute the dataclass does not
+                # list is dropped by contracts.to_json (it was)
+                task.specialist = (f"{getattr(action, 'action_type', '')}"
+                                   f"@{task.cls.value}")
+                task.specialist_rationale = getattr(action, 'rationale', '') or ''
 
             # Step 5: Select repair operator by signal class (skill package)
-            task._repair_operator = self.select_repair_operator(task)
+            task.repair_operator = self.select_repair_operator(task)
 
         return classification, ordered_tasks
 

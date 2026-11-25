@@ -276,11 +276,21 @@ class TxnReport:
                 'log': self.log[-40:], 'final': self.final}
 
 
+def board_fingerprint(board_path: str) -> str:
+    """The bytes-hash of the board file (16 hex): what a number was measured on."""
+    try:
+        with open(board_path, 'rb') as fh:
+            return hashlib.sha256(fh.read()).hexdigest()[:16]
+    except OSError:
+        return ''
+
+
 def transactional_repair(board_path: str, action_fn, eval_fn,
                          max_rounds: int = 3, log=None,
                          initial: Claims = None,
                          hook=None, kind: str = 'repair',
-                         stop_on_rollback: bool = True) -> TxnReport:
+                         stop_on_rollback: bool = True,
+                         decider: dict = None, board_fp: str = None) -> TxnReport:
     """Run ``action_fn`` in a transaction until it stops helping.
 
     Args:
@@ -301,6 +311,11 @@ def transactional_repair(board_path: str, action_fn, eval_fn,
     """
     say = log or (lambda *a, **k: None)
     rep = TxnReport()
+    # who decided this round, and which board state it was measured on.
+    # The board hash is taken once, before any round: a hash that changes
+    # with every round cannot be compared across the log.
+    who = dict(decider or {'kind': 'rule', 'id': kind})
+    fp = board_fingerprint(board_path) if board_fp is None else board_fp
     before = initial if initial is not None else eval_fn(board_path)
     rep.final = before.as_dict()
     rep.last = before
@@ -315,7 +330,8 @@ def transactional_repair(board_path: str, action_fn, eval_fn,
                 rep.denied += 1
                 rep.log.append({'round': r, 'decision': 'denied',
                                 'stage': kind, 'why': why,
-                                'before': before.as_dict()})
+                                'before': before.as_dict(),
+                                'decider': who, 'board_fp': fp})
                 break
         snap = snapshot(board_path)
         try:
@@ -331,7 +347,8 @@ def transactional_repair(board_path: str, action_fn, eval_fn,
                 rep.log.append({'round': r, 'decision': 'action_error',
                                 'stage': kind,
                                 'why': str(stats.get('error'))[:400],
-                                'before': before.as_dict(), 'action': stats})
+                                'before': before.as_dict(), 'action': stats,
+                                'decider': who, 'board_fp': fp})
                 say(f'round {r}: action error ({stats.get("error")}); restored')
                 break
             if stats.get('no_op'):
@@ -347,7 +364,8 @@ def transactional_repair(board_path: str, action_fn, eval_fn,
                     rep.log.append({'round': r, 'decision': 'denied',
                                     'stage': kind, 'why': why_ops,
                                     'before': before.as_dict(),
-                                    'action': stats})
+                                    'action': stats,
+                                    'decider': who, 'board_fp': fp})
                     break
         except Exception as e:
             restore_snapshot(snap)
@@ -369,7 +387,7 @@ def transactional_repair(board_path: str, action_fn, eval_fn,
             rep.log.append({'round': r, 'decision': 'commit', 'why': why,
                             'stage': kind,
                             'before': before.as_dict(), 'after': after.as_dict(),
-                            'action': stats})
+                            'action': stats, 'decider': who, 'board_fp': fp})
             say(f'round {r}: commit ({why})')
             before = after
             rep.final = after.as_dict()
@@ -381,7 +399,7 @@ def transactional_repair(board_path: str, action_fn, eval_fn,
             rep.log.append({'round': r, 'decision': 'rollback', 'why': why,
                             'stage': kind,
                             'before': before.as_dict(), 'after': after.as_dict(),
-                            'action': stats})
+                            'action': stats, 'decider': who, 'board_fp': fp})
             say(f'round {r}: rollback ({why})')
             if stop_on_rollback:
                 break

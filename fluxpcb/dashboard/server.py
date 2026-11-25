@@ -7,6 +7,8 @@ Serves a self-contained HTML page plus a small JSON API over the repo:
   GET /api/report?p=<name>  latest.json of a project
   GET /api/events?p=<name>&after=N   events.jsonl entries after line N
   GET /api/grounding?p=<name>        requirement -> gate -> artifact evidence map
+  GET /api/pages?d=<dir>             board pages generated from certificates
+  GET /board_page?d=<dir>&f=<file>   one generated page (path-safe)
 
 Binds 127.0.0.1 only; no external dependencies, no CDN (works offline).
 """
@@ -140,6 +142,16 @@ class _Handler(BaseHTTPRequestHandler):
         d = (self.projects_root / name) if name else self.projects_root
         return d
 
+    def _page_dirs(self) -> list:
+        """Directories that hold generated board pages (certificates -> html)."""
+        out = []
+        for run in sorted(self.projects_root.parent.glob("**/pages")):
+            if run.is_dir() and (run / "index.html").exists():
+                out.append(str(run))
+                if len(out) >= 40:
+                    break
+        return out
+
     def do_GET(self):
         u = urlparse(self.path)
         qs = parse_qs(u.query)
@@ -178,6 +190,35 @@ class _Handler(BaseHTTPRequestHandler):
 
         if u.path == "/api/grounding":
             self._json(_grounding(self._project_dir(qs)))
+            return
+
+        if u.path == "/api/pages":
+            # pages produced by `flux pages` (a product of the certificates)
+            d = (qs.get("d") or [""])[0]
+            out = []
+            for base in self._page_dirs():
+                if d and d not in base:
+                    continue
+                idx = Path(base) / "index.html"
+                if idx.is_file():
+                    out.append({"dir": base, "index": str(idx),
+                                "pages": sorted(p.name for p in Path(base).glob("*.html")
+                                                if p.name != "index.html")[:400]})
+            self._json({"dirs": out})
+            return
+
+        if u.path == "/board_page":
+            d = (qs.get("d") or [""])[0]
+            f = (qs.get("f") or [""])[0]
+            for base in self._page_dirs():
+                if d and Path(base) != Path(d):
+                    continue
+                target = (Path(base) / f).resolve()
+                if (str(target).startswith(str(Path(base).resolve()))
+                        and target.suffix == ".html" and target.is_file()):
+                    self._send(200, target.read_bytes(), "text/html; charset=utf-8")
+                    return
+            self._send(404, b"not found", "text/plain")
             return
 
         if u.path == "/api/render":

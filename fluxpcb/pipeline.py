@@ -268,7 +268,12 @@ class RoutePipeline:
             self.meta_loop = MetaDevLoop(
                 store=StrategyStore(),
             )
-            meta_result = self.meta_loop.run(budget_s=min(300, int(timeout_s * 0.1)))
+            # Hand the loop what it can read: this board's rounds as
+            # packets.  Before this it was called with packets=None and
+            # returned status='no_data' on every board.
+            meta_result = self.meta_loop.run(
+                budget_s=min(300, int(timeout_s * 0.1)),
+                packets=_packets_of(dev_result))
             self._active_components.add(1)
         except Exception as e:
             meta_result = {'error': str(e)}
@@ -277,8 +282,14 @@ class RoutePipeline:
         from .meta.meta_loop import MetaMetaLoop
         try:
             self.meta_meta = MetaMetaLoop()
-            trajectories = [dev_result.trajectory] if dev_result.trajectory else []
-            harness_diff = self.meta_meta.improve(trajectories)
+            # a generation it can read; the Trajectory object it used to
+            # get has no as_dict and was silently dropped
+            gens = []
+            if isinstance(meta_result, dict) and meta_result.get('status'):
+                gens.append({'results': [meta_result],
+                             'proposals': meta_result.get('proposals') or [],
+                             'diagnosis': meta_result.get('diagnosis') or {}})
+            harness_diff = self.meta_meta.improve(gens)
             self._active_components.add(2)
         except Exception as e:
             harness_diff = {'error': str(e)}
@@ -318,6 +329,40 @@ class RoutePipeline:
             'dev_loop_converged': dev_result.converged,
             'grounding_map': grounding_path,
         }
+
+
+def _packets_of(dev_result) -> list:
+    """The loop's rounds as packets the meta loop can read.
+
+    A FailurePacket wants rounds with decision/why/operators and a board
+    fingerprint; `DevRouteLoop.run` now records exactly that per round in
+    its trajectory events.  Returns None when there is nothing (the meta
+    loop then says no_data, which is the truth).
+    """
+    if dev_result is None or not getattr(dev_result, 'trajectory', None):
+        return None
+    out = []
+    for ev in dev_result.trajectory.events:
+        act = (ev.action if hasattr(ev, 'action') else
+               (ev.get('action') if isinstance(ev, dict) else {})) or {}
+        plans = act.get('plans') or {}
+        out.append({
+            'board': getattr(dev_result, 'board_path', '') or '',
+            'outcome': 'clean' if getattr(dev_result, 'converged', False) else 'fail',
+            'rounds': [{'stage': 'route', 'mode': 'devloop',
+                        'round': act.get('iteration'),
+                        'decision': 'commit' if getattr(dev_result, 'converged', False)
+                        else 'rollback',
+                        'why': str((act.get('verification') or {}).get('passed')),
+                        'operators': sorted(plans),
+                        'decider': (plans.get('*') or {}).get('decider')
+                        if isinstance(plans, dict) else None,
+                        'board_fp': act.get('fingerprint') or ''}],
+            'operator_trace': [],
+            'instrument_ok': True,
+            'wall_seconds': getattr(dev_result, 'seconds', None),
+        })
+    return out
 
 
 def route_board(board_path: str, timeout_s: int = 300) -> dict:

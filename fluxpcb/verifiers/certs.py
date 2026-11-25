@@ -28,8 +28,17 @@ OUTCOMES = (OK, NO_PATH, VERIFY_REJECTED, SEALED, BUDGET, REFUSED,
 
 
 def cert_entry(op, item, outcome, why_not=None, attempt=None,
-               requirement=None, board=None) -> dict:
-    """One attempt's certificate, with everything the error model reads."""
+               requirement=None, board=None, decider=None, alternatives=None,
+               needed_information=None, board_fp='') -> dict:
+    """One attempt's certificate, with everything the error model reads.
+
+    Attribution is part of the record: `decider` says who decided (a rule
+    id, or an LLM with its model and prompt digest), `alternatives` what
+    else was tried and why it lost, `board_fp` the bytes-hash of the
+    board the numbers were measured on, and `needed_information` what the
+    attempt would have needed to go further.  A rule operator is its own
+    decider by default; nothing here guesses an LLM.
+    """
     if outcome not in OUTCOMES:
         raise ValueError(f'unknown outcome {outcome!r}')
     entry = {
@@ -41,6 +50,10 @@ def cert_entry(op, item, outcome, why_not=None, attempt=None,
         'attempt': dict(attempt or {}),
         'requirement': dict(requirement or {}),
         'board': board,
+        'decider': dict(decider or {'kind': 'rule', 'id': op}),
+        'alternatives': list(alternatives or ()),
+        'needed_information': list(needed_information or ()),
+        'board_fp': board_fp or '',
     }
     entry['cert_id'] = digest(entry)
     return entry

@@ -29,17 +29,31 @@ class LLMAdapter:
         return True
 
     def complete(self, system: str, prompt: str, schema: Optional[dict] = None) -> dict:
-        """Return {"ok": bool, "text": str, "error": str}. Never raises."""
+        """Return {"ok","text","error","provider","model","prompt_digest"}.
+
+        The working principles (knowledge/principles.py) go in front of
+        every system text here, once, so no call site can forget them.
+        The who/what of the call comes back with the answer: a decider
+        that cannot name its model is not attributable.
+        """
+        import hashlib
+        from .knowledge.principles import with_principles
+        meta = {"provider": self.provider, "model": self.model or "",
+                "prompt_digest": hashlib.sha256(
+                    (prompt or '').encode('utf-8')).hexdigest()[:16]}
         if not self.online:
-            return {"ok": False, "text": "", "error": "LLM offline(未配置provider)"}
+            return {"ok": False, "text": "", "error": "LLM offline(未配置provider)",
+                    **meta}
         try:
+            system = with_principles(system or '')
             if self.provider == "openai":
-                return self._openai(system, prompt, schema)
+                return {**self._openai(system, prompt, schema), **meta}
             if self.provider == "anthropic":
-                return self._anthropic(system, prompt)
-            return {"ok": False, "text": "", "error": f"未知provider: {self.provider}"}
+                return {**self._anthropic(system, prompt), **meta}
+            return {"ok": False, "text": "", "error": f"未知provider: {self.provider}",
+                    **meta}
         except Exception as e:
-            return {"ok": False, "text": "", "error": str(e)}
+            return {"ok": False, "text": "", "error": str(e), **meta}
 
     def _openai(self, system: str, prompt: str, schema: Optional[dict]) -> dict:
         import urllib.request

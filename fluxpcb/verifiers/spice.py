@@ -1,37 +1,30 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""spice — SPICE Verifier (Component 10).
+"""spice — SPICE Functional Verifier (Component 10).
 
-Verifies functional simulation, circuit behavior.
-Wraps existing tools: spice.py
+ngspice Monte-Carlo on the testbench the acceptance stage wrote, read back
+from sim/spice_mc.json (`spice_functional`).  The finding names the assumption
+that the testbench represents the load.
+
+The verdict is the gates' verdict: `spice_functional`.  Nothing here is re-computed;
+a gate that cannot decide yields `unknown` with the missing information,
+not a pass.
 """
 from __future__ import annotations
 
-from typing import Any
-
 from ..contracts import BoardDesignPlan, BoardState, VerificationResult
+from .from_gates import run_verifier
+from .policy import PhysicsPolicy
 
 
 class SpiceVerifier:
-    """SPICE functional verifier."""
+    """SPICE functional verifier"""
 
     name = "spice_functional"
     severity = "error"
 
+    def __init__(self, policy: PhysicsPolicy = None):
+        self.policy = policy
+
     def run(self, state: BoardState, plan: BoardDesignPlan) -> VerificationResult:
-        """Run SPICE functional verification."""
-        findings = []
-
-        # Check for simulation-ready design
-        findings.append({
-            'check': 'circuit_functionality',
-            'status': 'pass',
-            'note': 'Circuit topology validated',
-        })
-
-        return VerificationResult(
-            name=self.name,
-            status="pass",
-            severity=self.severity,
-            findings=findings,
-        )
+        return run_verifier(self.name, state, plan, self.policy)

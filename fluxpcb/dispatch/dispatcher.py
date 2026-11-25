@@ -108,12 +108,25 @@ Return JSON with fields:
 - bga_fanout_style: "dogbone"|"inline"|"via_in_pad"|"staggered"
 """
 
-            response = self.llm.complete(prompt)
-            if response:
-                plan = self._parse_llm_response(task, response)
+            # complete(system, prompt): the call used to pass one
+            # argument, raise TypeError, and be swallowed — the LLM mode
+            # had never run once
+            response = self.llm.complete(
+                "You are a PCB routing parameter planner. Answer with JSON "
+                "only, and state nothing you cannot justify from the task.",
+                prompt)
+            if response and response.get('ok'):
+                plan = self._parse_llm_response(task, response.get('text') or '')
                 if self._validate_plan(plan):
                     plan.planner = Planner.LLM
                     plan.rationale = "LLM decision"
+                    plan.decider = {
+                        'kind': 'llm',
+                        'id': 'dispatch',
+                        'model': response.get('model') or '',
+                        'provider': response.get('provider') or '',
+                        'prompt_digest': response.get('prompt_digest') or '',
+                    }
                     return plan
         except Exception:
             pass
@@ -177,6 +190,8 @@ Return JSON with fields:
             plan.bga_fanout_style = BGAFanoutStyle.DOGBONE
             plan.escape_strategy = "dogbone_diagonal"
 
+        plan.decider = {'kind': 'rule', 'id': 'dispatch_rules',
+                        'because': plan.rationale}
         return plan
 
     def _baseline_dispatch(self, task: NetTask) -> DispatchPlan:
@@ -190,6 +205,7 @@ Return JSON with fields:
             bga_fanout_style=BGAFanoutStyle.DOGBONE,
             planner=Planner.BASELINE,
             rationale="Baseline defaults",
+            decider={'kind': 'rule', 'id': 'dispatch_baseline'},
         )
 
     def _is_bga_net(self, task: NetTask) -> bool:

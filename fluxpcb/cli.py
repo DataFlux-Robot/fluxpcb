@@ -98,6 +98,15 @@ def main(argv=None):
     p_ver.add_argument("dir", type=Path)
     p_ver.add_argument("--pipeline", type=Path, default=None)
 
+    p_pages = sub.add_parser("pages", help="把证书生成本地离线每板页面(数据产物)")
+    p_pages.add_argument("certs", type=Path,
+                         help="证书目录(批次目录的 cells/ 或一个 run)")
+    p_pages.add_argument("--boards", type=Path, default=None,
+                         help="按文件名查找 .kicad_pcb 的目录(画出局部铜皮)")
+    p_pages.add_argument("-o", "--out", type=Path, default=None,
+                         help="输出目录(默认 <certs>/pages)")
+    p_pages.add_argument("--limit", type=int, default=0)
+
     p_dash = sub.add_parser("dashboard", help="启动本地Grounding Map可视化面板")
     p_dash.add_argument("dir", type=Path, nargs="?", default=ROOT / "projects",
                         help="projects根目录或单个项目目录")
@@ -207,6 +216,13 @@ def main(argv=None):
         report = verify_only(args.dir, pipeline)
         print(report.markdown())
         return 0 if report.released else 1
+
+    if args.cmd == "pages":
+        from fluxpcb.dashboard.board_page import render_dir
+        res = render_dir(args.certs, args.boards, args.out, limit=args.limit)
+        print(res["index"])
+        print(f"{res['pages']} page(s) in {res['out_dir']}")
+        return 0
 
     if args.cmd == "dashboard":
         from fluxpcb.dashboard import serve

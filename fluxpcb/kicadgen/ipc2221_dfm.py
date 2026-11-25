@@ -59,12 +59,61 @@ class DFMViolation:
 
 @dataclass
 class DFMReport:
-    """DFM compliance report."""
+    """DFM compliance report.
+
+    `unevaluated` names every rule this checker has no measurement for,
+    with the reason.  A rule that was not measured is not a pass.
+    """
     board_path: str = ""
     rules_checked: int = 0
     violations: list = field(default_factory=list)
     passed: bool = True
     summary: dict = field(default_factory=dict)
+    unevaluated: list = field(default_factory=list)
+
+
+def _min_hole_gap(holes):
+    """Closest edge-to-edge gap between two holes, by a 1 mm bin index."""
+    if len(holes) < 2:
+        return None, 'fewer than two holes'
+    bins = {}
+    for i, (x, y, d) in enumerate(holes):
+        bins.setdefault((int(x), int(y)), []).append(i)
+    best = None
+    for (bx, by), ids in bins.items():
+        near = []
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                near.extend(bins.get((bx + dx, by + dy), ()))
+        for i in ids:
+            xi, yi, di = holes[i]
+            for j in near:
+                if j <= i:
+                    continue
+                xj, yj, dj = holes[j]
+                gap = ((xi - xj) ** 2 + (yi - yj) ** 2) ** 0.5 - (di + dj) / 2.0
+                if best is None or gap < best:
+                    best = gap
+    if best is None:
+        return None, 'no two holes share a bin neighbourhood'
+    return max(0.0, best), 'closest hole-to-hole gap'
+
+
+def _min_copper_edge(props):
+    """Closest approach of any track to the board edge (tracks only)."""
+    edge = props.get('board_edge') or {}
+    tracks = props.get('tracks') or []
+    if not edge or not tracks:
+        return None, 'no board edge or no tracks'
+    x0, y0 = edge['x'], edge['y']
+    x1, y1 = x0 + edge['width'], y0 + edge['height']
+    best = None
+    for t in tracks:
+        for (x, y) in ((t['x1'], t['y1']), (t['x2'], t['y2'])):
+            d = min(x - x0, x1 - x, y - y0, y1 - y)
+            if best is None or d < best:
+                best = d
+    return max(0.0, best), 'track end nearest the board edge'
 
 
 class IPC2221DFM:
@@ -152,10 +201,12 @@ class IPC2221DFM:
             board_path: path to .kicad_pcb file
 
         Returns:
-            DFMReport with violations
+            DFMReport with violations and, for the rules this checker
+            cannot measure, `unevaluated`.
         """
         report = DFMReport(board_path=str(board_path))
         report.rules_checked = len(self.rules)
+        self._unevaluated = []
 
         try:
             import pcbnew
@@ -182,11 +233,13 @@ class IPC2221DFM:
             ))
 
         report.passed = len([v for v in report.violations if v.severity == "error"]) == 0
+        report.unevaluated = list(getattr(self, '_unevaluated', []))
         report.summary = {
             'total_rules': report.rules_checked,
             'violations': len(report.violations),
             'errors': len([v for v in report.violations if v.severity == "error"]),
             'warnings': len([v for v in report.violations if v.severity == "warning"]),
+            'unevaluated': len(report.unevaluated),
         }
 
         return report
@@ -253,37 +306,84 @@ class IPC2221DFM:
         return props
 
     def _check_rule(self, rule, props):
-        """Check a single DFM rule."""
-        # This is a simplified check — full implementation would
-        # extract actual values from the board
-        return None  # No violations by default
+        """Check one DFM rule against the values the board yields.
 
-    def check_jlc(self, board_path):
-        """Check against JLC manufacturing rules.
-
-        Args:
-            board_path: path to .kicad_pcb file
-
-        Returns:
-            DFMReport with JLC-specific rules
+        Only rules with a real measurement here are judged; the rest go to
+        `_unevaluated` with the reason, so a caller can tell "clean" from
+        "not measured".  Clearance between arbitrary items is the DRC's
+        job (it has the geometry), not this text-level checker's.
         """
-        report = self.check(board_path)
+        name = rule.name
+        measured, where = None, None
 
-        # JLC-specific rules
-        jlc_rules = {
-            'min_track_width': 0.127,  # 5mil
-            'min_clearance': 0.127,    # 5mil
-            'min_drill': 0.2,          # 8mil
-            'min_via_diameter': 0.4,   # 16mil
-            'min_hole_to_hole': 0.25,  # 10mil
-            'min_copper_edge': 0.3,    # 12mil
-        }
+        if name == 'min_track_width':
+            widths = [t['width'] for t in props.get('tracks') or []
+                      if t.get('width')]
+            if widths:
+                measured = min(widths)
+                where = 'narrowest track on the board'
+        elif name == 'min_drill' or name == 'max_drill':
+            drills = [h[2] for h in props.get('holes') or [] if h[2]]
+            if drills:
+                measured = min(drills) if name == 'min_drill' else max(drills)
+                where = 'via/PTH drills'
+        elif name == 'min_board_thickness':
+            measured = props.get('board_thickness')
+            where = 'board thickness'
+        elif name == 'max_board_thickness':
+            measured = props.get('board_thickness')
+            where = 'board thickness'
+        elif name == 'min_hole_to_hole':
+            measured, where = _min_hole_gap(props.get('holes') or [])
+        elif name == 'min_copper_edge':
+            measured, where = _min_copper_edge(props)
+        if measured is None:
+            self._unevaluated.append({
+                'rule': name, 'category': rule.category,
+                'why': 'no measurement extracted from the board text',
+                'needed_information': [
+                    f'a measurement of {name} (or the DRC, which has the '
+                    f'geometry)']})
+            return None
+        bad = False
+        if name.startswith('max_'):
+            bad = measured > rule.max_value
+        else:
+            bad = measured < rule.min_value
+        if not bad:
+            return None
+        req = rule.min_value if not name.startswith('max_') else rule.max_value
+        return DFMViolation(rule_name=name, category=rule.category,
+                            actual_value=round(float(measured), 4),
+                            required_value=round(float(req), 4),
+                            severity=rule.severity,
+                            description=(f'{name}: {measured:.4g} mm '
+                                         f'{"over" if name.startswith("max_") else "under"} '
+                                         f'{req:.4g} mm ({where})'))
 
-        # Override with JLC rules
+    def apply_limits(self, limits: dict) -> list:
+        """Set rule minima from a fab profile before measuring.
+
+        The old `check_jlc` wrote the JLC numbers into the rules AFTER
+        `check()` had already run, so the override never reached a
+        verdict.  This applies them first and returns the names it set.
+        """
+        applied = []
         for rule in self.rules:
-            if rule.name in jlc_rules:
-                rule.min_value = jlc_rules[rule.name]
+            if rule.name in limits and limits[rule.name] is not None:
+                rule.min_value = float(limits[rule.name])
+                applied.append(rule.name)
+        return applied
 
+    def check_jlc(self, board_path, profile=None):
+        """Check against the dated JLC profile (default: the packaged one)."""
+        from fluxpcb.mfg.fab_profile import active_profile
+        prof = profile or active_profile()
+        applied = self.apply_limits(prof.dfm_limits())
+        report = self.check(board_path)
+        report.summary['profile'] = prof.profile_id
+        report.summary['profile_retrieved'] = prof.retrieved
+        report.summary['limits_applied'] = applied
         return report
 
 

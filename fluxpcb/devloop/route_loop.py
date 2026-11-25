@@ -121,10 +121,36 @@ class DevRouteLoop:
             # Step 4: Verify (Component 10)
             verification = self.verifiers.run_all(self.board_state, self.design_plan)
 
-            # Step 5: Feedback (Component 8)
+            # Step 5: Feedback (Component 8) — with the decisions of this
+            # iteration attached: who planned each net and why, what the
+            # verification said, and which board state it was measured on
+            fp = ''
+            try:
+                fp = getattr(self.comm.get_fingerprint(), 'board_hash', '') or ''
+            except Exception:
+                fp = ''
             feedback_event = self.feedback.observe(
-                action={'iteration': i, 'route': route_result},
+                action={
+                    'iteration': i,
+                    'route': route_result,
+                    'fingerprint': fp,
+                    'classification': {k: getattr(v, 'value', str(v))
+                                       for k, v in (classification or {}).items()},
+                    'plans': {net: {'planner': str(getattr(p, 'planner', '')),
+                                    'rationale': getattr(p, 'rationale', ''),
+                                    'decider': getattr(p, 'decider', {})}
+                              for net, p in (dispatch_plans or {}).items()},
+                    'tasks': {t.net: {'class': getattr(t.cls, 'value', ''),
+                                      'specialist': getattr(t, 'specialist', ''),
+                                      'repair_operator': getattr(t, 'repair_operator', '')}
+                              for t in (tasks or [])},
+                    'verification': {'passed': getattr(verification, 'passed', None),
+                                     'unknown': list(getattr(verification, 'unknown', []) or []),
+                                     'needed_information': list(
+                                         getattr(verification, 'needed_information', []) or [])},
+                },
                 result=route_result,
+                verification=verification,
             )
             trajectory.events.append(feedback_event)
 

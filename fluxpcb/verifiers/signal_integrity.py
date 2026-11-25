@@ -2,45 +2,30 @@
 # -*- coding: utf-8 -*-
 """signal_integrity — Signal Integrity Verifier (Component 10).
 
-Verifies crosstalk, length matching, eye diagram, impedance.
+IPC-2141 closed-form impedance of the declared stackup against the plan's targets
+(`impedance_si`), and length matching where netclasses.json carries measured
+lengths.  It is an estimate of the geometry, not a measurement of the routed
+copper — and the finding says so.
+
+The verdict is the gates' verdict: `impedance_si`.  Nothing here is re-computed;
+a gate that cannot decide yields `unknown` with the missing information,
+not a pass.
 """
 from __future__ import annotations
 
-from typing import Any
-
 from ..contracts import BoardDesignPlan, BoardState, VerificationResult
+from .from_gates import run_verifier
+from .policy import PhysicsPolicy
 
 
 class SignalIntegrityVerifier:
-    """Signal integrity verifier."""
+    """Signal integrity verifier"""
 
     name = "signal_integrity"
     severity = "warning"
 
+    def __init__(self, policy: PhysicsPolicy = None):
+        self.policy = policy
+
     def run(self, state: BoardState, plan: BoardDesignPlan) -> VerificationResult:
-        """Run signal integrity verification."""
-        findings = []
-
-        # Check impedance targets
-        if plan.stackup.impedance_targets:
-            for target in plan.stackup.impedance_targets:
-                findings.append({
-                    'check': 'impedance',
-                    'status': 'pass',
-                    'target': target.get('target_ohms'),
-                    'note': 'Impedance target defined',
-                })
-
-        # Check differential pairs
-        findings.append({
-            'check': 'diff_pair_routing',
-            'status': 'pass',
-            'note': 'Differential pairs routed with coupling',
-        })
-
-        return VerificationResult(
-            name=self.name,
-            status="pass",
-            severity=self.severity,
-            findings=findings,
-        )
+        return run_verifier(self.name, state, plan, self.policy)

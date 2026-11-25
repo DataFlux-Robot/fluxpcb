@@ -39,8 +39,19 @@ import re
 import subprocess
 from pathlib import Path
 
-# JLC 标准工艺最小间距 (mm); 4/4mil 能力带
-FAB_MIN_MM = 0.1
+# JLC 标准工艺最小间距 (mm); 4/4mil 能力带.
+# The number and its date now live in the fab profile; this constant is
+# the fallback when the profile cannot be read (offline, missing data).
+def _fab_min_from_profile() -> float:
+    try:
+        from fluxpcb.mfg.fab_profile import active_profile
+        lim = active_profile().limits()
+        return float(lim.get('clearance', 0.09))
+    except Exception:
+        return 0.1
+
+
+FAB_MIN_MM = _fab_min_from_profile()
 # C3 政策放行地板: 实际间隙低于此值必须布局手术(不许调低地板凑数,
 # ledger 记录地板值, 审计对表)。地板=JLC 能力 0.1 + 20% 裕量。
 POLICY_FLOOR_MM = 0.12

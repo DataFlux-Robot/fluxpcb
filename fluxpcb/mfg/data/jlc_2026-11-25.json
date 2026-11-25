@@ -1,0 +1,45 @@
+{
+ "profile_id": "jlc-1oz-2to4l-2026-11-25",
+ "vendor": "JLC (嘉立创)",
+ "retrieved": "2026-11-25",
+ "sources": [
+  {
+   "url": "https://jlc.com/portal/vtechnology.html",
+   "quote": "PCB 工艺能力页：最小线宽/线距、过孔孔径与焊盘、板厚、孔到孔；按档位给出免费档与加价档",
+   "checked": "2026-11-25"
+  },
+  {
+   "url": "https://jlcpcb.com/hk/help/article/bga-design-guidelines---pcb-layout-recommendations-for-bga-packages",
+   "quote": "BGA 设计指南：BGA 封装下的过孔与走线规则、孔环、孔到孔",
+   "checked": "2026-11-25"
+  }
+ ],
+ "assumption": "1 oz 外层 / 0.5 oz 内层、绿油、喷锡、2–4 层、无阻抗控制要求的常规档；HDI、厚铜、阻抗控制与盲埋孔未覆盖，遇到时必须另取数据而不是套用本档",
+ "parameters": {
+  "clearance": {"limit_mm": 0.09, "recommended_mm": 0.26, "cost_trigger_mm": 0.09,
+                "note": "低于 0.26 仍可做；不要按 0.25 判（≈9.84 mil 会假报/真违例）"},
+  "track_width": {"limit_mm": 0.127, "recommended_mm": 0.254, "cost_trigger_mm": 0.09},
+  "via_drill": {"limit_mm": 0.2, "recommended_mm": 0.3, "cost_trigger_mm": 0.15},
+  "via_diameter": {"limit_mm": 0.4, "recommended_mm": 0.6, "cost_trigger_mm": 0.3},
+  "annular_ring": {"limit_mm": 0.075, "recommended_mm": 0.15, "cost_trigger_mm": 0.075},
+  "hole_to_hole": {"limit_mm": 0.25, "recommended_mm": 0.5, "cost_trigger_mm": 0.25},
+  "copper_edge": {"limit_mm": 0.3, "recommended_mm": 0.5, "cost_trigger_mm": 0.3},
+  "board_thickness_mm": {"limit_mm": 0.6, "recommended_mm": 1.6, "cost_trigger_mm": 0.6},
+  "panel_mm": {"width_mm": 250.0, "height_mm": 350.0,
+               "frame_mm": 5.0, "gap_mm": 2.0}
+ },
+ "tiers": [
+  {"name": "standard", "price": "目录价",
+   "when": "所有参数 ≥ recommended_mm"},
+  {"name": "advanced", "price": "加价档（以报价页为准）",
+   "when": "有参数落在 limit_mm 与 recommended_mm 之间"},
+  {"name": "not_manufacturable", "price": "不做",
+   "when": "任何参数 < limit_mm"}
+ ],
+ "decides_tier": ["clearance", "track_width", "via_drill", "via_diameter",
+                  "annular_ring", "hole_to_hole"],
+ "notes": [
+  "本档案只回答“能不能做/哪一档”，不回答单价：单价随面积、层数、数量、工艺组合变化，需要报价接口",
+  "改档建议由 drop_tier_advice() 计算：把限定的那个参数抬到 recommended_mm 即从 advanced 回到 standard"
+ ]
+}

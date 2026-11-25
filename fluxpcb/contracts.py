@@ -137,6 +137,11 @@ class NetTask:
     cls: SignalClass = SignalClass.NORMAL
     priority: float = 0.0
     corridor: Optional[Corridor] = None
+    # attribution (declared fields: a private attribute is lost on any
+    # serialisation round-trip, which is how this was silently dropped)
+    specialist: str = ""
+    repair_operator: str = ""
+    specialist_rationale: str = ""
 
 
 @dataclass
@@ -195,6 +200,7 @@ class DispatchPlan:
     bga_fanout_style: BGAFanoutStyle = BGAFanoutStyle.DOGBONE
     escape_strategy: str = ""
     planner: Planner = Planner.RULE
+    decider: dict = field(default_factory=dict)
     rationale: str = ""
 
 
@@ -215,12 +221,17 @@ class RouteResult:
 
 @dataclass
 class VerificationResult:
-    """Single verification result (Component 10 output)."""
+    """Single verification result (Component 10 output).
+
+    `status='unknown'` is a result: the check could not decide, and
+    `needed_information` says what is missing.  It is never a pass.
+    """
     name: str = ""
-    status: str = "unknown"  # "pass", "fail", "warning", "skip"
+    status: str = "unknown"  # "pass", "fail", "warning", "skip", "unknown"
     severity: str = "error"  # "error", "warning", "info"
     findings: list[dict] = field(default_factory=list)
     evidence: dict = field(default_factory=dict)
+    needed_information: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -232,6 +243,20 @@ class VerificationReport:
 
     def __post_init__(self):
         self.passed = all(r.status in ("pass", "skip") for r in self.results)
+
+    @property
+    def needed_information(self) -> list:
+        """What the checks could not decide, deduplicated."""
+        out = []
+        for r in self.results:
+            for m in r.needed_information:
+                if m and m not in out:
+                    out.append(m)
+        return out
+
+    @property
+    def unknown(self) -> list:
+        return [r.name for r in self.results if r.status == "unknown"]
 
 
 @dataclass

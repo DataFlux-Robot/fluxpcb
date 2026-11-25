@@ -109,12 +109,28 @@ class ManufacturingInspector:
 
         return violations
 
+    def _profile(self, state):
+        """The dated fab profile this board is judged against."""
+        from .fab_profile import active_profile
+        proj = None
+        path = getattr(state, 'board_path', '') or ''
+        if path:
+            from pathlib import Path
+            p = Path(path)
+            for d in (p.parent, p.parent.parent, p.parent.parent.parent):
+                if (d / 'spec.yaml').exists() or (d / 'project.yaml').exists():
+                    proj = d
+                    break
+        return active_profile(proj)
+
     def _check_dfm(self, state: BoardState, plan: BoardDesignPlan) -> list[dict]:
-        """Check DFM compliance (JLC rules)."""
+        """Check DFM compliance against the fab profile."""
         violations = []
+        prof = self._profile(state)
+        lim = prof.dfm_limits()
 
         # Check track width
-        min_track = 0.09  # JLC minimum
+        min_track = lim.get('min_track_width', 0.09)
         if plan.net_class_rules.widths:
             for cls, width in plan.net_class_rules.widths.items():
                 if width < min_track:
@@ -122,10 +138,12 @@ class ManufacturingInspector:
                         'rule': 'dfm_track_width',
                         'severity': 'error',
                         'description': f'Track width {width}mm < {min_track}mm for {cls}',
+                        'profile': prof.profile_id,
+                        'retrieved': prof.retrieved,
                     })
 
         # Check clearance
-        min_clearance = 0.09  # JLC minimum
+        min_clearance = lim.get('min_clearance', 0.09)
         if plan.net_class_rules.clearances:
             for cls, clearance in plan.net_class_rules.clearances.items():
                 if clearance < min_clearance:
@@ -133,6 +151,8 @@ class ManufacturingInspector:
                         'rule': 'dfm_clearance',
                         'severity': 'error',
                         'description': f'Clearance {clearance}mm < {min_clearance}mm for {cls}',
+                        'profile': prof.profile_id,
+                        'retrieved': prof.retrieved,
                     })
 
         return violations

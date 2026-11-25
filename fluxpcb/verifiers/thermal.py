@@ -2,50 +2,29 @@
 # -*- coding: utf-8 -*-
 """thermal — Thermal Verifier (Component 10).
 
-Verifies temperature, heat dissipation, thermal reliefs.
-Wraps existing tools: fdm.py
+Junction temperature from the conduction solve (`thermal`, an estimate on
+declared geometry) and, when a CFD run has actually happened, `thermal_cfd`.
+A CFD solver installed but not run is `unknown`, not a pass.
+
+The verdict is the gates' verdict: `thermal` and `thermal_cfd`.  Nothing here is re-computed;
+a gate that cannot decide yields `unknown` with the missing information,
+not a pass.
 """
 from __future__ import annotations
 
-from typing import Any
-
 from ..contracts import BoardDesignPlan, BoardState, VerificationResult
+from .from_gates import run_verifier
+from .policy import PhysicsPolicy
 
 
 class ThermalVerifier:
-    """Thermal verifier."""
+    """Thermal verifier"""
 
     name = "thermal"
     severity = "warning"
 
+    def __init__(self, policy: PhysicsPolicy = None):
+        self.policy = policy
+
     def run(self, state: BoardState, plan: BoardDesignPlan) -> VerificationResult:
-        """Run thermal verification."""
-        findings = []
-
-        # Check for thermal reliefs on power nets
-        findings.append({
-            'check': 'thermal_relief',
-            'status': 'pass',
-            'note': 'Thermal reliefs configured for power nets',
-        })
-
-        # Check copper pour for heat dissipation
-        if plan.stackup.layers >= 4:
-            findings.append({
-                'check': 'heat_dissipation',
-                'status': 'pass',
-                'note': 'Multi-layer board with copper pour',
-            })
-        else:
-            findings.append({
-                'check': 'heat_dissipation',
-                'status': 'warning',
-                'note': '2-layer board may have limited heat dissipation',
-            })
-
-        return VerificationResult(
-            name=self.name,
-            status="pass",
-            severity=self.severity,
-            findings=findings,
-        )
+        return run_verifier(self.name, state, plan, self.policy)

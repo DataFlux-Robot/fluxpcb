@@ -187,7 +187,7 @@ for idx in (0, -1):
                     _pick = 'escape'      # 已处理, 跳过原位回落
                     break
                 except Exception:
-                    continue
+                    continue  # ok-silent: 单个候选的 via 逃逸失败, 试下一个
         if _pick is None:
             _pick = (x, y)  # ④也灭 -> 诚实交终验证拒(不假成功)
         if _pick == 'escape':

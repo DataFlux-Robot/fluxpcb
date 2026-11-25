@@ -506,7 +506,7 @@ def _digest(path):
 def repair_stepwise(board_path: str, drc_json: str, evaluate,
                     allowed_ops=None, classes=None, params=None,
                     kind: str = 'repair', rule_congruent: bool = True,
-                    initial=None) -> dict:
+                    initial=None, decider: dict = None) -> dict:
     """One repair round as a chain of small transactions, one per operator.
 
     A round used to be one transaction: every operator's copper went in
@@ -579,8 +579,10 @@ def repair_stepwise(board_path: str, drc_json: str, evaluate,
                 stats['no_op'] = True
             return stats
 
-        step = transactional_repair(board_path, one, evaluate, max_rounds=1,
-                                    initial=claims, kind=f'{kind}:{name}')
+        step = transactional_repair(
+            board_path, one, evaluate, max_rounds=1, initial=claims,
+            kind=f'{kind}:{name}',
+            decider=decider or {'kind': 'rule', 'id': name})
         acted = [e for e in step.log if isinstance(e, dict)]
         stats = (acted[0].get('action') or {}) if acted else {}
         entry = {'operator': name, 'stage': kind}
@@ -611,7 +613,8 @@ def repair_stepwise(board_path: str, drc_json: str, evaluate,
 def repair_rounds(board_path: str, drc_json: str, evaluate, rounds: int = 3,
                   allowed_ops=None, classes=None, params=None, initial=None,
                   hook=None, rule_congruent: bool = True,
-                  kind: str = 'repair', stepwise: bool = True):
+                  kind: str = 'repair', stepwise: bool = True,
+                  decider: dict = None):
     """The repair stage of route-and-repair: transactional rounds of
     operator passes until the board is clean, a round does not improve
     it, or `rounds` is used.  What ``flux run`` and the benchmark both
@@ -633,7 +636,7 @@ def repair_rounds(board_path: str, drc_json: str, evaluate, rounds: int = 3,
 
     return transactional_repair(board_path, action, evaluate, max_rounds=rounds,
                                 initial=initial, hook=hook, kind=kind,
-                                stop_on_rollback=True)
+                                stop_on_rollback=True, decider=decider)
 
 
 # what the DRC calls a track or via nothing is connected to at one end

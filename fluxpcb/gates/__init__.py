@@ -33,11 +33,59 @@ def run_gate(name: str, project_dir: Path, stage_outputs: list[str],
              config: dict | None = None) -> GateResult:
     fn = get_gate(name)
     if fn is None:
-        return GateResult(name, GateStatus.BLOCKED, summary=f"unknown gate: {name}")
+        return GateResult(name, GateStatus.BLOCKED,
+                          summary=f"unknown gate: {name}",
+                          needed_information=["the gate name is not in this build"])
     try:
-        return fn(project_dir, stage_outputs, config or {})
+        res = fn(project_dir, stage_outputs, config or {})
     except Exception as e:  # gates must not crash the pipeline
-        return GateResult(name, GateStatus.BLOCKED, summary=f"gate error: {e}")
+        return GateResult(name, GateStatus.BLOCKED, summary=f"gate error: {e}",
+                          needed_information=[f"the gate raised "
+                                              f"{type(e).__name__}: {e}"])
+    return finalise(res, project_dir)
+
+
+def _project_board_fp(project_dir: Path) -> str:
+    """sha256 of the board this verdict was reached on (bytes, not counts)."""
+    try:
+        import hashlib
+        pcbs = sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+        if not pcbs:
+            return ""
+        return hashlib.sha256(pcbs[0].read_bytes()).hexdigest()[:16]
+    except Exception:
+        return ""
+
+
+def finalise(res: GateResult, project_dir: Path) -> GateResult:
+    """Give every finding of a gate the shared vocabulary.
+
+    A gate may emit a full finding dict (with `rule_id`) and keep control;
+    anything else gets its gate's rule id, severity, status and the
+    assumption it rests on from knowledge/rules_index.json.  The board's
+    byte fingerprint and the time go on every finding, so a number can
+    never be read against a different board state.
+    """
+    from fluxpcb.knowledge import rules as _rules
+    from fluxpcb.findings import now_iso
+
+    if (not res.findings and not res.needed_information
+            and res.status != GateStatus.BLOCKED):
+        return res
+    fp = _project_board_fp(project_dir)
+    src = {"solver": "gate:" + res.name, "version": _rules.version(),
+           "at": now_iso()}
+    phase = "pre_route" if res.name == "pre_route_estimate" else "post_route"
+    res.findings = _rules.normalise(res.findings, res.name, board_fp=fp,
+                                    source=src, phase=phase)
+    said = [i for f in res.findings for i in (f.get("needed_information") or [])]
+    for m in res.needed_information:
+        if m and m not in said:
+            said.append(m)
+    if res.status == GateStatus.BLOCKED and not said and res.summary:
+        said.append(res.summary)
+    res.needed_information = said
+    return res
 
 
 def _read_yaml(p: Path):
@@ -1046,15 +1094,171 @@ def thermal_cfd(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
     from fluxpcb.tools import em_adapters
     avail = em_adapters.probe()
     case = em_adapters.generate_thermal_case(project_dir)
-    for k in ("openfoam", "elmer"):
-        if avail.get(k):
-            return GateResult("thermal_cfd", GateStatus.PASS,
-                              f"{k}可用 — 用例位于 {case} (chtMultiRegionFoam/Elmer)",
-                              details={"available": avail, "case": case})
-    return GateResult("thermal_cfd", GateStatus.BLOCKED,
-                      "OpenFOAM/Elmer未安装 — CHT用例已生成于 "
-                      f"{case}, FDM传导解(thermal门禁)继续作为保底",
-                      details={"available": avail, "case": case})
+    import json as _json
+    ev = project_dir / "sim" / "thermal_cfd.json"
+    if ev.exists():
+        d = _json.loads(ev.read_text(encoding="utf-8"))
+        t_max, lim = d.get("t_max_c"), d.get("tj_limit_c")
+        if t_max is not None and lim is not None:
+            ok = t_max <= lim
+            return GateResult(
+                "thermal_cfd", GateStatus.PASS if ok else GateStatus.FAIL,
+                f"CFD 最高结温 {t_max:.1f}℃ vs {lim}℃ ({d.get('solver', '?')})",
+                details=d,
+                findings=[] if ok else [{
+                    "rule_id": "THERMAL.cfd", "measured": float(t_max),
+                    "limit": float(lim), "units": "degC", "status": "confirmed",
+                    "severity": "P0", "where": {},
+                    "assumption": d.get("assumption") or
+                    "the CFD case is the geometry of interest"}])
+    run = [k for k in ("openfoam", "elmer") if avail.get(k)]
+    return GateResult(
+        "thermal_cfd", GateStatus.BLOCKED,
+        ("CFD 未运行 — " + (f"{run[0]} 已安装，" if run else "OpenFOAM/Elmer 未安装，")
+         + f"用例位于 {case}；传导解见 thermal 门禁"),
+        details={"available": avail, "case": case, "ran": False},
+        findings=[{"rule_id": "THERMAL.cfd", "status": "unknown",
+                   "issue": "CFD 未运行：求解器存在不等于结论",
+                   "needed_information": [
+                       "run one CFD case (sim/thermal_cfd.json) or accept "
+                       "the FDM conduction result as the thermal verdict"]}])
+
+
+# ------------------------------------- susceptibility map and pre-route estimate
+@gate("em_susceptibility")
+def em_susceptibility(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
+    """Per-net susceptibility to switching neighbours (proxy, an estimate).
+
+    Loop area x 1/d^2 coupling with relative aggressor weights; no field
+    solve.  Every finding it emits is status=estimate (capped at P1) and
+    names the assumption.  openEMS (em_field_analysis) is the upgrade.
+    """
+    import json
+    from fluxpcb.tools import susceptibility as _sus
+    threshold = float((cfg or {}).get("susceptibility_threshold", 60.0))
+    r = _sus.run(project_dir, threshold=threshold)
+    if r.get("status") != "ok":
+        return GateResult("em_susceptibility", GateStatus.BLOCKED,
+                          f"受扰图不可用: {r.get('why')}",
+                          needed_information=[str(r.get('why') or 'no copper')],
+                          findings=[{"rule_id": "EMF.susceptibility",
+                                     "status": "unknown",
+                                     "needed_information": [str(r.get('why'))]}])
+    try:
+        (project_dir / "sim").mkdir(exist_ok=True)
+        (project_dir / "sim" / "em_susceptibility.json").write_text(
+            json.dumps(r, ensure_ascii=False, indent=1), encoding="utf-8")
+    except Exception:
+        pass
+    over = r.get("over") or []
+    findings = []
+    for row in over:
+        worst = row.get("worst") or {}
+        findings.append({
+            "rule_id": "EMF.susceptibility",
+            "where": {"net": row["net"], "aggressor": worst.get("aggressor"),
+                      "layer": ",".join(row.get("layers") or [])},
+            "measured": float(row["index"]), "limit": threshold, "units": "",
+            "severity": "P2", "status": "estimate",
+            "assumption": r["assumption"],
+            "net": row["net"],
+        })
+    details = {"h_mm": r["h_mm"], "h_from": r["h_from"],
+               "threshold": threshold, "worst":
+               [{"net": x["net"], "index": x["index"]} for x in over[:5]],
+               "assumption": r["assumption"]}
+    # an estimate at P2 is advice: it is shown, it does not fail a gate
+    if findings:
+        return GateResult("em_susceptibility", GateStatus.PASS,
+                          f"受扰指数超过阈值: {len(findings)} 网 "
+                          f"(估计算法, 建议项, 阈值 {threshold})",
+                          details=details, findings=findings)
+    return GateResult("em_susceptibility", GateStatus.PASS,
+                      f"受扰指数均在阈值内 (估计算法, {r['h_from']})",
+                      details=details, findings=[
+                          {"rule_id": "EMF.susceptibility", "status": "estimate",
+                           "measured": 0.0, "limit": threshold, "units": "",
+                           "severity": "P3", "assumption": r["assumption"],
+                           "where": {}}])
+
+
+@gate("pre_route_estimate")
+def pre_route_estimate(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
+    """What can be said before any copper exists — labelled as an estimate.
+
+    Capacity (nets vs signal layers), the impedance target's presence and
+    width deviation, and the fab margin against the profile.  Every
+    finding is `status=estimate`, `phase=pre_route`, severity capped at
+    P1: none of it is a measurement of a board.
+    """
+    import json
+    from pathlib import Path as _P
+    findings = []
+    spec = _read_yaml(project_dir / "spec.yaml") or {}
+    stack = _read_yaml(project_dir / "stackup.yaml") or {}
+    nets = 0
+    pcbs = sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+    if pcbs:
+        import re
+        txt = pcbs[0].read_text(encoding="utf-8", errors="replace")
+        nets = len(set(re.findall(r'\(net \d+ "([^"]+)"', txt)))
+    layers = int(stack.get("layers") or 2)
+    signal = max(1, layers - 2) if layers >= 4 else 2
+    per_layer = nets / signal if nets else 0.0
+    limit_per_layer = float((cfg or {}).get("nets_per_signal_layer",
+                                            40.0))
+    if nets and per_layer > limit_per_layer:
+        findings.append({
+            "rule_id": "CAPACITY.channel", "measured": round(per_layer, 1),
+            "limit": limit_per_layer, "units": "nets/layer",
+            "severity": "P1", "status": "estimate", "phase": "pre_route",
+            "assumption": "board area and escape room not modelled; a "
+                          "count of nets per signal layer is the whole test",
+            "where": {}})
+    targets = stack.get("impedance_targets") or spec.get("impedance")
+    if not targets and spec.get("interfaces"):
+        findings.append({
+            "rule_id": "IMPEDANCE.z0_dev", "status": "unknown",
+            "phase": "pre_route", "where": {},
+            "assumption": "none",
+            "needed_information": ["no impedance target in stackup.yaml or "
+                                   "spec; controlled-impedance nets cannot be "
+                                   "sized before routing"]})
+    # fab margin against the dated profile
+    try:
+        from fluxpcb.mfg.fab_profile import active_profile
+        prof = active_profile(project_dir)
+        for key, default in (("clearance", 0.15), ("track_width", 0.2)):
+            v = float((cfg or {}).get(f"min_{key}_mm", default))
+            tier = prof.tier_for(key, v)
+            if tier.get("below_limit"):
+                findings.append({
+                    "rule_id": "PREROUTE.estimate", "measured": v,
+                    "limit": tier["limit_mm"], "units": "mm",
+                    "severity": "P1", "status": "estimate",
+                    "phase": "pre_route", "where": {},
+                    "assumption": prof.assumption + "; the design intent "
+                                  "value, not the routed copper"})
+    except Exception:
+        pass
+    if findings:
+        # estimates are advice, not verdicts: shown, never blocking
+        return GateResult("pre_route_estimate", GateStatus.PASS,
+                          f"布线前估计: {len(findings)} 项需要关注 "
+                          f"(估计, 封顶 P1, 建议项)",
+                          details={"nets": nets, "layers": layers,
+                                   "nets_per_signal_layer": round(per_layer, 1)},
+                          findings=findings)
+    return GateResult("pre_route_estimate", GateStatus.PASS,
+                      "布线前估计: 无异常 (估计, 封顶 P1)",
+                      details={"nets": nets, "layers": layers},
+                      findings=[{"rule_id": "PREROUTE.estimate",
+                                 "status": "estimate", "severity": "P3",
+                                 "measured": round(per_layer, 1),
+                                 "limit": limit_per_layer,
+                                 "units": "nets/layer", "phase": "pre_route",
+                                 "assumption": "same count test as the fail "
+                                               "path", "where": {}}])
 
 
 # ------------------------------------------------------------- connectivity
