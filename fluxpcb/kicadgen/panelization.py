@@ -200,8 +200,10 @@ class Panelizer:
 
             # Try all free rectangles
             for i, (rx, ry, rw, rh) in enumerate(free_rects):
-                # Check if board fits (with gap)
-                if w + self.spec.gap <= rw and h + self.spec.gap <= rh:
+                # The free rectangle already starts one gap away from the
+                # placed board, so the board itself only has to fit: adding
+                # the gap again here made a 2x2 of 87 mm boards place one.
+                if w <= rw and h <= rh:
                     # Score: waste = free_rect_area - board_area
                     waste = rw * rh - w * h
                     if waste < best_fit:

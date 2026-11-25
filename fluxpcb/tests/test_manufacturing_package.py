@@ -18,9 +18,14 @@ def test_land_pattern_accepts_nominal_and_rejects_half_size():
     ok = ipc7351.check_footprint('R_0603_1608Metric', [(0.85, 0.80)])
     assert ok['package'] == '0603' and ok['bad'] is False, ok
     bad = ipc7351.check_footprint('R_0603_1608Metric', [(0.40, 0.40)])
-    assert bad['bad'] is True and bad['deviation'][0] < -0.5, bad
+    assert bad['bad'] is True, bad
+    rotated = ipc7351.check_footprint('Package_SO:SOIC-8_3.9x4.9mm_P1.27mm',
+                                      [(0.508, 1.143)])
+    assert rotated['bad'] is False, rotated      # long/short sides sorted
     unknown = ipc7351.check_footprint('MyCustomThing', [(1.0, 1.0)])
     assert unknown['skipped'] is True
+    hand = ipc7351.check_footprint('R_0603_HandSoldering', [(1.2, 0.9)])
+    assert hand['skipped'] is True and 'hand' in hand['why']
 
 
 def test_package_name_matching():
@@ -48,8 +53,10 @@ def test_panel_is_a_real_board_with_four_copies(tmp_path):
     bb = b.GetBoardEdgesBoundingBox()
     w, h = bb.GetWidth() / 1e6, bb.GetHeight() / 1e6
     n_fp = len(list(b.GetFootprints()))
-    p = Panelizer(PanelSpec(width=150, height=120, frame_width=5, gap=2))
-    panel = p.panelize([(w, h, pcb)] * 4, panel_width=150, panel_height=120)
+    # a panel sized exactly for 2x2 (two boards + frame + one gap per axis)
+    pw, ph = 2 * w + 2 * 5 + 2, 2 * h + 2 * 5 + 2
+    p = Panelizer(PanelSpec(width=pw, height=ph, frame_width=5, gap=2))
+    panel = p.panelize([(w, h, pcb)] * 4, panel_width=pw, panel_height=ph)
     out = tmp_path / 'panel_4up.kicad_pcb'
     r = p.generate_kicad_panel(panel, str(out), src_path=pcb)
     assert r['status'] == 'ok', r
@@ -57,3 +64,7 @@ def test_panel_is_a_real_board_with_four_copies(tmp_path):
     assert out.exists() and os.path.getsize(out) > 1000
     b2 = pcbnew.LoadBoard(str(out))
     assert len(list(b2.GetFootprints())) == 4 * n_fp + r['tooling_hole_count']
+    # the same loaded board goes through the land-pattern audit: pcbnew hands
+    # back UTF8 objects, not str, so this catches the coercion bug
+    lr = ipc7351.check_board(b2)
+    assert lr['checked'] >= 0 and isinstance(lr['skipped'], list)

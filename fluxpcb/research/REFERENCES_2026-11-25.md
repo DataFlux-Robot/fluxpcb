@@ -84,3 +84,43 @@ KiCad 库是 CC BY-SA（再分发要同许可）。代码里的引用已写在�
 - IPC-7351 只覆盖常见封装；拼板只做矩形阵列、拷贝间**参考标号重复**（生产拼板
   需改名，摘要里写明 `refs_repeat`）。
 - 部分电感与 VF 阈值来自参考项目，出处写在模块 docstring 与规则索引的 `source`。
+
+## 6. 有效性验证：118 个任务的随机 3 块（2026-11-25）
+
+从基准的 118 任务清单（`autorouter-bench/pcbworld/manifests/boards_full.json`，
+无 0473）用种子 **20261125** 抽 3 块：
+
+| 板 | 集合 | 规模 | 为什么有意义 |
+|---|---|---|---|
+| 0376_cat-trainer_teensy_base_pcb | D3-B | 26 网 / 98 焊盘，全 THT | 中板；SMT 为 0，正好测 CPL 空集 |
+| 0626_TOBS_HybridChargeController | D3-C | **91 网 / 358 焊盘**，89 SMD | 最密板；CPL/IPC/拼板的压力测试 |
+| 0002_rufs_simple_kicad_schema_and_pcb_v1 | D3-A | 3 网 / 6 焊盘 | 最小板；全 THT、无已知封装 |
+
+做法：为每块板合成一个最小项目（`pcb/<board>.kicad_pcb` + `.kicad_pro`、
+从焊盘钻径生成的 `bom.json`、固定测试预算的 `spec.yaml`），跑四条新链。
+
+| 板 | 导出 | 清单 | CPL | 功耗 | 放置 | 拼板 | IPC-7351 | 用时 |
+|---|---|---|---|---|---|---|---|---|
+| 0376 | ok，17 文件，0 warning | 18 件，kicad-cli 10.0.6 | 0（24 THT + 4 DNP） | PASS 33.3/30 天 | FAIL（2 阻断=既有重叠；4 建议） | 4-up，重载 60 fp | 0 检 / 28 跳过 | 3.6 s |
+| 0626 | ok，17 文件，0 warning | 18 件 | **89**（89 SMT，14 THT 不入） | PASS | FAIL（12 阻断=既有重叠/连接器；**18 建议**） | 4-up，重载 412 fp | 11 检 / **0** 超差 / 92 跳过 | 3.6 s |
+| 0002 | ok，17 文件，0 warning | 18 件 | 0（3 THT） | PASS | PASS（0/0） | 4-up，重载 16 fp | 0 检 / 3 跳过 | 2.5 s |
+
+四条链在三块板上都成立：导出含 `bom.csv/cpl.csv/positions.csv/board.step` 与
+`release_manifest.json`；CPL 只含 SMT（0376/0002 正确为空）；拼板都是 4 份拷贝；
+功耗门在固定测试预算下给出同一答案（33.3 天）；放置的新检查只在有几何可查时出建议
+（0376 去耦 6.4/3.5 mm、环路 23.6 mm²；0626 参考过孔 49/54 个远于 3 mm），且**不改变
+阻断判定**（阻断仍来自既有的封装重叠/连接器规则）。
+
+### 验证抓到并修掉的两个缺陷
+
+1. **拼板装箱把间隙算了两遍**：`_guillotine_pack` 在已偏移一个 gap 的自由矩形上又要求
+   `w+gap <= rw`，导致 87×87 mm 的 0626 在 2×2 面板里只放 1 块、0376 只放 2 块。改为
+   `w <= rw and h <= rh`（间隙由偏移保证）后，三块都 4-up。
+2. **IPC-7351 把每个库封装都判超差**：① 用单一标称值而不是 IPC 的 A–C 区间，SOIC-8-N
+   的 1.14 mm 焊盘对 1.55 mm 标称永远 −26%；② 焊盘长/宽没按长边/短边排序，旋转封装
+   被读反（0.508×1.143 当成"长 0.508"）；③ 手焊封装（`*_HandSoldering`）的焊盘本就更
+   大。改为**区间 + 长/短边排序 + 手焊跳过**后，0626 从 78/78 全红变成 11 检 0 超差。
+   两处另有 pcbnew 返回 `UTF8` 而非 `str` 的强制转换（`ipc7351.check_board`、
+   `copper_graph.extract` 的 pad value），也一并修掉。
+
+复现：`z_lab/fp/verify_pkg_3.py`（仓库外），结果 `z_lab/fp/pkg_verify_3/results.json`。

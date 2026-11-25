@@ -179,8 +179,8 @@ def extract(board_path, cell_mm: float = 0.2) -> Copper:
             p = pad.GetPosition()
             sz = pad.GetSize()
             pads.setdefault(nc, []).append({
-                'ref': fp_.GetReference(), 'pad': pad.GetNumber(),
-                'value': fp_.GetValue(),
+                'ref': str(fp_.GetReference()), 'pad': str(pad.GetNumber()),
+                'value': str(fp_.GetValue()),
                 'x': p.x / 1e6, 'y': p.y / 1e6,
                 'w': sz.x / 1e6, 'h': sz.y / 1e6,
                 'rot': pad.GetOrientation().AsDegrees(),
