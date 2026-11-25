@@ -105,7 +105,7 @@ def test_without_the_plane_the_return_gap_explodes(board, tmp_path):
     assert plain['status'] == 'ok', plain
     assert plain['max_gap_mm'] > 3 * 1.6, plain['max_gap_mm']
     poured_path = os.path.join(str(tmp_path), 'poured.kicad_pcb')
-    pr = pa.pour_plane(board, poured_path)
+    pr = pa.pour_plane(board, poured_path, net='GND')
     assert pr['status'] == 'ok', pr
     poured = cg.extract(poured_path, cell_mm=0.2)
     withp = ra.availability(poured, 'Net-(U3-Pad13)', h_mm=1.6)
@@ -133,7 +133,7 @@ def test_the_heatsink_lowers_tj_and_keeps_the_balance(board, spec):
 
 def test_an_emitter_on_a_mode_becomes_a_risk(board, tmp_path):
     poured_path = os.path.join(str(tmp_path), 'poured2.kicad_pcb')
-    pr = pa.pour_plane(board, poured_path)
+    pr = pa.pour_plane(board, poured_path, net='GND')
     assert pr['status'] == 'ok', pr
     cop = cg.extract(poured_path, cell_mm=0.2)
     first = ca.run(cop, {'plane_pair': True, 'emitters': []}, er=4.4)
@@ -156,3 +156,26 @@ def test_an_emitter_on_a_mode_becomes_a_risk(board, tmp_path):
                                        'harmonics': 1, 'at': at}]}, er=4.4)
     assert third['status'] == 'ok'
     assert not third['pairs'], third['pairs']
+
+
+def test_auto_spec_runs_on_a_fixture(tmp_path):
+    """No hand-written spec: derive one and run fast on a real fixture."""
+    from fluxpcb.tests import boards_local as F
+    from fluxpcb.tools import audit_spec
+
+    pcb = F.board('0023', tmp_path)
+    cop = cg.extract(pcb, cell_mm=0.2)
+    spec = audit_spec.derive(cop, pcb)
+    assert spec['gnd_net'], spec['ground']
+    sp = audit_spec.write(spec, str(tmp_path / 'audit'))
+    out = pa.run(pcb, sp, mode='fast', out_dir=str(tmp_path / 'audit'))
+    assert out['board_meta']['gnd_net'] == spec['gnd_net']
+    assert out.get('page'), out.get('page_error')
+    assert out['checks']
+    for c in out['checks']:
+        assert c.get('rule_id') and c.get('status'), c
+    # fast mode is geometry only: nothing on a board without declared inputs
+    # may claim to be a measurement
+    assert out['summary']['confirmed'] == 0, out['summary']
+    assert out['summary']['estimate'] + out['summary']['unknown'] == \
+        len(out['checks'])

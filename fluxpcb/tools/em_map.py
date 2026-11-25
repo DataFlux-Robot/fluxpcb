@@ -67,8 +67,15 @@ def run(copper, spec=None, cell_mm=0.5, gnd_net='GND'):
         domain[:] = True
     plane_layers = {z['layer'] for z in copper.zones if z['net'] == gnd_net}
     emitters = [e for e in spec.get('emitters', []) if e.get('net')]
+    fallback = False
     if not emitters:
-        return {'status': 'error', 'error': 'no emitters in spec'}
+        # net names can carry no function (Net-(U3-Pad13)): fall back to the
+        # longest copper runs, at a declared low level, and say so
+        emitters = [e for e in spec.get('emitter_fallback', []) if e.get('net')]
+        fallback = bool(emitters)
+    if not emitters:
+        return {'status': 'skipped',
+                'error': 'no net names read as an emitter and no fallback'}
     total = np.zeros((ny, nx), np.float64)
     per = {}
     for em in emitters:
@@ -140,9 +147,13 @@ def run(copper, spec=None, cell_mm=0.5, gnd_net='GND'):
                           'f_hz': e.get('f_hz')} for e in emitters],
             'victims': victims, 'shield_db': shell_db,
             'plane_layers': sorted(plane_layers),
+            'fallback_emitters': fallback,
             'status_caveat': 'estimate',
             'assumption': ('coupling kernel r0^2/(r0^2+r^2) near, 1/r far '
                            f'(r0={R0_MM} mm); -30 dB per plane layer between '
                            'emitter and victim; -20 dB if a shield exists; '
                            'relative dB (0 = strongest coupling on the board), '
-                           'not an absolute field')}
+                           'not an absolute field'
+                           + ('; emitters are a FALLBACK (longest nets, function '
+                              'unknown, -10 dB), not named sources' if fallback
+                              else ''))}

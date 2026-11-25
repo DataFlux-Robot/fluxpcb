@@ -234,13 +234,24 @@ def tj(part, t_board, t_amb, sink=False):
     return out
 
 
+def _declared(spec):
+    parts = spec.get('parts', []) if spec else []
+    powered = [p for p in parts if p.get('power_w')]
+    if not powered:
+        return None, [{'ref': p.get('ref'), 'power_w': None,
+                       'tjmax_c': p.get('tjmax_c')} for p in parts[:6]]
+    return powered, []
+
+
 def lumped_only(spec):
     """Fast mode: the theta chain, no board solve.  Everything is an estimate."""
     spec = spec or {}
     t_amb = float(spec.get('t_amb_c', 25.0))
-    parts = [p for p in spec.get('parts', []) if p.get('power_w', 0)]
-    if not parts:
-        return {'status': 'error', 'error': 'no parts with power_w in spec'}
+    parts, missing = _declared(spec)
+    if parts is None:
+        return {'status': 'skipped', 'reason': 'no part power declared',
+                'parts': missing,
+                'assumption': 'nothing to solve: the thermal input is absent'}
     rows = []
     for p in parts:
         for k_ in ('theta_ja', 'theta_jc', 'theta_cs', 'theta_sa'):
@@ -262,9 +273,11 @@ def run(copper, spec):
     t_amb = float(spec.get('t_amb_c', 25.0))
     h = float(spec.get('h_w_m2k', 10.0))
     cell = float(spec.get('cell_mm', 0.5))
-    parts = [p for p in spec.get('parts', []) if p.get('power_w', 0)]
-    if not parts:
-        return {'status': 'error', 'error': 'no parts with power_w in spec'}
+    parts, missing = _declared(spec)
+    if parts is None:
+        return {'status': 'skipped', 'reason': 'no part power declared',
+                'parts': missing,
+                'assumption': 'nothing to solve: the thermal input is absent'}
     base = solve_board(copper, parts, h_w_m2k=h, t_amb_c=t_amb, cell_mm=cell)
     if base['status'] != 'ok':
         return base

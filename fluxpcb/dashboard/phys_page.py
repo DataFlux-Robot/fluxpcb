@@ -109,6 +109,8 @@ def render(audit_json, html_out):
         d = json.load(f)
     bm = d.get('board_meta') or {}
     s = d.get('summary') or {}
+    has_pour = (d.get('pour') or {}).get('status') == 'ok'
+    board_state = 'poured on the audit copy' if has_pour else 'as routed'
     parts = []
     parts.append(f'''<header>
 <h1>Physical audit — {os.path.basename(d.get('board', ''))}</h1>
@@ -116,7 +118,7 @@ def render(audit_json, html_out):
 fingerprint <code>{bm.get('fp')}</code> · {bm.get('size_mm')} mm ·
 {bm.get('board_area_mm2')} mm² · {bm.get('nets')} nets · {'/'.join(bm.get('layers') or [])} ·
 {bm.get('segments')} track segments · {bm.get('zones')} zones
-({'poured on the audit copy' if (d.get('pour') or {{}}).get('status') == 'ok' else 'as routed'})</p>
+({board_state})</p>
 <p class="sub">stackup: {_stack(d.get('stackup') or {})}</p>
 <p>{_chips(s.get('counts', {}))}</p>
 </header>''')
@@ -271,6 +273,14 @@ fingerprint <code>{bm.get('fp')}</code> · {bm.get('size_mm')} mm ·
 
     # ---------------------------------------------------------------- thermal
     th = d.get('thermal') or {}
+    if th.get('status') == 'skipped':
+        rows = [[_f(p.get('ref')), '—', _f(p.get('tjmax_c'), 1)]
+                for p in (th.get('parts') or [])]
+        parts.append('<section><h2>Thermal</h2>'
+                     + _table(rows, ['part', 'P (W)', 'Tjmax (°C)'])
+                     + '<p class="note">No part power is declared, so no thermal '
+                       'field was solved and no junction temperature is claimed. '
+                       'This is a missing input, not a pass.</p></section>')
     if th.get('status') == 'ok':
         base, sink = th.get('base') or {}, th.get('with_sink') or {}
         figs = []

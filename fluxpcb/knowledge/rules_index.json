@@ -360,6 +360,16 @@
    "title": "Victim coupling level from the named aggressors",
    "source": "r0^2/(r0^2+r^2) near / 1/r far, plane and shield dB",
    "doc": "fluxpcb/tools/em_map.py"
+  },
+  "PHYS.rail_resistance": {
+   "title": "Rail resistance from source pad to the loads",
+   "source": "field drop / probe current on the real copper",
+   "doc": "fluxpcb/tools/copper_graph.py"
+  },
+  "PHYS.rail_open": {
+   "title": "Sink pads that share no copper with the rail source",
+   "source": "connected components of the copper graph",
+   "doc": "fluxpcb/tools/copper_graph.py"
   }
  }
 }

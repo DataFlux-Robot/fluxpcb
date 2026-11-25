@@ -432,15 +432,31 @@ def solve(copper: Copper, net: str, current_a: float, v_rail: float = 1.0,
         best = min(rev, key=lambda t: (t[1] - j) ** 2 + (t[2] - i) ** 2)
         return [ids[best]]
 
-    src_nodes, sink_nodes = [], []
-    for (x, y) in sources:
-        src_nodes += near(x, y)
+    # a sink pad on an island must NOT be snapped to the nearest copper cell
+    # of the main component (that invents a connection): classify the pad
+    # cells by connected component and name the pads that are open.
+    from scipy.sparse.csgraph import connected_components
+    ncomp, lab = connected_components(A, directed=False)
+    src_cells = [(x, y, near(x, y)) for (x, y) in sources]
+    src_all = [k for _x, _y, cells in src_cells for k in cells]
+    if not src_all:
+        return {'status': 'error', 'error': 'no source cells on copper'}
+    comps = [int(lab[k]) for k in src_all]
+    src_comp = max(set(comps), key=comps.count)
+    src_nodes = sorted({k for k in src_all if lab[k] == src_comp})
+    sink_nodes, open_sinks = [], []
     for (x, y) in sinks:
-        sink_nodes += near(x, y)
-    src_nodes = sorted(set(src_nodes))
+        good = [k for k in near(x, y) if lab[k] == src_comp]
+        if good:
+            sink_nodes += good
+        else:
+            open_sinks.append((round(float(x), 2), round(float(y), 2)))
     sink_nodes = [k for k in dict.fromkeys(sink_nodes) if k not in set(src_nodes)]
     if not sink_nodes:
-        return {'status': 'error', 'error': 'no sink cells on copper'}
+        return {'status': 'error', 'open': True,
+                'error': ('net is open: no sink pad shares copper with the '
+                          'source'), 'components': int(ncomp),
+                'open_sinks': open_sinks}
 
     free = np.ones(n, bool)
     free[src_nodes] = False
@@ -552,14 +568,16 @@ def solve(copper: Copper, net: str, current_a: float, v_rail: float = 1.0,
         vias_out.append({'x': round(x_, 2), 'y': round(y_, 2),
                          'current_a': round(abs((x[k1] - x[k2]) / r_via_ohm), 4)})
     return {'status': 'ok', 'net': net, 'current_a': current_a,
-            'v_rail': v_rail,
+            'v_rail': v_rail, 'open_sinks': open_sinks,
+            'components': int(ncomp),
             'drop_v': round(drop, 6),
             'drop_pct': round(100.0 * drop / v_rail, 3) if v_rail else None,
             'j_max_a_mm2': round(jmax, 2),
-            'j_at': (round(j_at[0], 2), round(j_at[1], 2)) if j_at else None,
+            'j_at': (float(round(j_at[0], 2)), float(round(j_at[1], 2))) if j_at else None,
             'j_layer': j_layer,
             'j_robust_a_mm2': round(j_robust, 2),
-            'j_robust_at': (round(jr_at[0], 2), round(jr_at[1], 2)) if jr_at else None,
+            'j_robust_at': (float(round(jr_at[0], 2)),
+                            float(round(jr_at[1], 2))) if jr_at else None,
             'j_p95_a_mm2': round(j_p95, 2),
             'j_smooth': jrob,
             'v': v, 'j_by_layer': jmag, 'cell_mm': copper.cell_mm,
