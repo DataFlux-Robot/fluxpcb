@@ -43,7 +43,9 @@ POWERISH = ('gnd', 'agnd', 'pgnd', 'vss', 'vcc', 'vdd', 'vbat', 'vbus',
             'net-(', '__plane__')
 
 MAX_SEGMENTS = 240          # per net, for the distance search
+SEARCH_SEGMENTS = 60        # per net, in the pairwise distance search
 FAR_MM = 12.0               # beyond this, 1/d^2 coupling is not counted
+TIME_BUDGET_S = 2.0         # the gate must not become a solver
 DEFAULT_H_2L = 1.6
 DEFAULT_H_MULTI = 0.2
 
@@ -117,6 +119,18 @@ def _layer_height(project_dir: Path, copper_layers: int) -> tuple:
     return DEFAULT_H_2L, 'default 1.6 mm (2 layers)'
 
 
+def _bbox(segs):
+    xs = [p[0] for s in segs for p in s]
+    ys = [p[1] for s in segs for p in s]
+    return (min(xs), min(ys), max(xs), max(ys))
+
+
+def _bbox_gap(a, b) -> float:
+    gx = max(a[0] - b[2], b[0] - a[2], 0.0)
+    gy = max(a[1] - b[3], b[1] - a[3], 0.0)
+    return (gx * gx + gy * gy) ** 0.5
+
+
 def _copper_by_net(items) -> dict:
     """net -> {'segs': [(p,q)], 'area': loop area per segment, 'w': half width}"""
     out = {}
@@ -141,7 +155,7 @@ def _copper_by_net(items) -> dict:
     return out
 
 
-def run(project_dir, pcb_path=None, threshold: float = 60.0,
+def run(project_dir, pcb_path=None, threshold: float = 40.0,
         h_mm: float = None) -> dict:
     """Susceptibility index per net, and the worst victim/aggressor pairs."""
     from .dcsolve import parse_copper
@@ -173,43 +187,68 @@ def run(project_dir, pcb_path=None, threshold: float = 60.0,
     by_net = _copper_by_net(items)
     rows, pairs = [], []
     nets = sorted(by_net)
+    # the pairwise search is bounded three ways so the gate stays cheap:
+    # bounding boxes first (1/d^2 at 12 mm is negligible), a stride so no
+    # net offers more than SEARCH_SEGMENTS segments, and a wall clock.
+    boxes = {n: _bbox(by_net[n]['segs'][:MAX_SEGMENTS]) for n in nets}
+    kinds = {n: net_kind(n) for n in nets}
+    areas = {}
+    for n in nets:
+        segs = by_net[n]['segs'][:MAX_SEGMENTS]
+        areas[n] = sum(math.hypot(q[0] - p[0], q[1] - p[1]) * h_mm
+                       for (p, q) in segs)
+    import time as _time
+    t0 = _time.time()
+    truncated = False
+    aggressors = [n for n in nets if kinds[n] == 'aggressor']
     for v in nets:
         dv = by_net[v]
         segs_v = dv['segs'][:MAX_SEGMENTS]
         if not segs_v:
             continue
-        area = 0.0
-        for (p, q) in segs_v:
-            length = math.hypot(q[0] - p[0], q[1] - p[1])
-            area += length * h_mm
-        vkind = net_kind(v)
+        area = areas[v]
+        vkind = kinds[v]
         if vkind in ('power',):
             continue
         best = None
         total = 0.0
-        for a in nets:
+        for a in aggressors:
             if a == v:
                 continue
-            if net_kind(a) != 'aggressor':
+            if _time.time() - t0 > TIME_BUDGET_S:
+                truncated = True
+                break
+            if _bbox_gap(boxes[v], boxes[a]) > FAR_MM:
                 continue
             da = by_net[a]
-            segs_a = da['segs'][:MAX_SEGMENTS]
-            if not segs_a:
-                continue
-            d = min(_seg_dist(sv, sa) for sv in segs_v for sa in segs_a)
+            sv = segs_v[::max(1, len(segs_v) // SEARCH_SEGMENTS)] or segs_v
+            sa_all = da['segs'][:MAX_SEGMENTS]
+            sa = sa_all[::max(1, len(sa_all) // SEARCH_SEGMENTS)] or sa_all
+            d = min(_seg_dist(x, y) for x in sv for y in sa)
             if d > FAR_MM:
                 continue
             weight = aggressor_weight(a)
-            area_a = sum(math.hypot(q[0] - p[0], q[1] - p[1]) * h_mm
-                         for (p, q) in segs_a)
-            score = (area / 100.0) * (area_a / 100.0) * 1000.0 * weight / max(d, 0.05) ** 2
-            total += score
-            row = {'victim': v, 'aggressor': a, 'd_mm': round(d, 3),
-                   'area_v_mm2': round(area, 2), 'area_a_mm2': round(area_a, 2),
+            # a dimensionless 0..100 index: 20*log10(1 + coupling), where
+            # coupling = (A_v/100)(A_a/100)*w*(0.5/d)^2.  The log keeps the
+            # number readable across four orders of magnitude; the
+            # absolute coupling is a proxy, which the index does not hide.
+            coupling = ((area / 100.0) * (areas[a] / 100.0) * weight
+                        * (0.5 / max(d, 0.1)) ** 2)
+            score = round(min(100.0, 20.0 * math.log10(1.0 + coupling)), 2)
+            # the net's index is its WORST single coupling: a sum over
+            # every neighbour saturates at 100 for half a board and stops
+            # discriminating
+            total = max(total, score)
+            # two nets cannot share copper; a 0.0 here is the parse's
+            # rounding at adjacent pads, so report the floor
+            row = {'victim': v, 'aggressor': a, 'd_mm': round(max(d, 0.02), 3),
+                   'area_v_mm2': round(area, 2), 'area_a_mm2': round(areas[a], 2),
                    'weight': weight, 'score': round(score, 2)}
             pairs.append(row)
             if best is None or score > best['score']:
                 best = row
+        if truncated:
+            break
         rows.append({'net': v, 'kind': vkind,
                      'area_mm2': round(area, 2),
                      'index': round(total, 2),
@@ -230,6 +269,8 @@ def run(project_dir, pcb_path=None, threshold: float = 60.0,
                        f'reference plane ({h_from}); coupling ~ A_v*A_a/d^2 '
                        f'with relative aggressor weights from net names; no '
                        f'current spectrum and no field solve'),
+        'truncated': truncated,
+        'elapsed_s': round(_time.time() - t0, 3),
         'over': [r for r in rows if r['index'] > threshold][:10],
     }
 

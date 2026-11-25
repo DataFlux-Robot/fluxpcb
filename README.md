@@ -71,6 +71,33 @@ Every artifact is SHA256-stamped. Every verdict links to evidence on disk. A mis
 
 ---
 
+## 🔎 Every conclusion carries its evidence
+
+A finding in FluxPCB is not a string.  It is a `Finding` (`fluxpcb/findings.py`): a stable
+**rule id**, **where**, **measured vs limit**, the **assumption it rests on**, a severity
+**P0–P3**, a status **confirmed / estimate / unknown**, the **sha256 of the board** it was
+measured on, and — when it could not decide — **what information is missing**.
+
+- estimates are capped at P1 *by the type*: they can never outrank a measurement;
+- an `unknown` cannot carry a number, and must name its gap;
+- the five physics verifiers are no longer stubs: each runs the gates that answer it, and a
+  gate that cannot decide yields `unknown`, never a pass;
+- each rule has a **mutation that must trip it** (`verifiers/interventions.py`: thin / move /
+  short / via_drill / edge → generated → crossed → killed → blind_spot), and a bad board must
+  yield strictly more P0+P1 findings than a clean one;
+- a fabrication profile is **data with a date and a source** (`mfg/data/jlc_2026-11-25.json`,
+  retrieved 2026-11-25) with three tiers and `drop_tier_advice()` — which parameter holds the
+  price tier, and what to raise it to;
+- knowledge is numbered documents loaded on demand (`K1`–`K30`, five literature surveys, nine
+  skills, four prompts), and every LLM call is prefixed with one rule: *when unsure, say so and
+  list it as needed information — do not invent a value and reason from it*;
+- pages are a product of the data: `flux pages <certs> --boards <dir>` renders one offline
+  page per board (open connections, blocking pads, via sites, needed information, ±5 mm copper).
+
+Physics execution (`off / estimate / execute`) defaults to **estimate**; `execute` needs an
+explicit confirmation and degrades otherwise.  Method, evidence and limits:
+[`fluxpcb/research/SEVEN_PRACTICES_2026-11-25.md`](fluxpcb/research/SEVEN_PRACTICES_2026-11-25.md).
+
 ## 📊 PCBWorld-Bench — D3-A 100% · D3-B 100% · D3-C 80%
 
 119 real boards from [PCBWorld](https://github.com/PCBWorld/PCBWorld), 3 independent

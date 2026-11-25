@@ -1135,7 +1135,7 @@ def em_susceptibility(project_dir: Path, outputs: list[str], cfg: dict) -> GateR
     """
     import json
     from fluxpcb.tools import susceptibility as _sus
-    threshold = float((cfg or {}).get("susceptibility_threshold", 60.0))
+    threshold = float((cfg or {}).get("susceptibility_threshold", 40.0))
     r = _sus.run(project_dir, threshold=threshold)
     if r.get("status") != "ok":
         return GateResult("em_susceptibility", GateStatus.BLOCKED,
