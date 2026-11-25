@@ -381,3 +381,53 @@ D3-C 平均 341 秒（最长 1023 秒，是 0496 撞预算）。路由器重试�
 | 每板时间上限 | 未披露 | 900 秒（另加 120 秒给收尾） |
 | 判据 | error 级违规 + 零未连接 | 同 |
 | 重复 | 每板 1 次 | 每板 3 次 |
+
+### 6.11 七项做法接入十二个组件（f40e173，a32cd5e）
+
+按 `FLUXPCB设计.md` 的组件位置，把参考项目的七项做法**完整搭建并接入**；按用户要求，
+基准过程中不执行任何新东西（`test_the_repair_path_imports_none_of_the_new_physics`
+把它钉成不变量：导入基准要用的 `repair_drc/operators/conflict_reroute/txn` 之后，
+`sys.modules` 里不出现 gates、verifiers.suite、from_gates、tools.susceptibility、mfg）。
+真物理仿真三档 `off/estimate/execute`，默认 estimate；画 H7 飞控时会先问用户再开 execute。
+
+详情见 `fluxpcb/research/SEVEN_PRACTICES_2026-11-25.md`，这里只记结果与踩到的坑：
+
+**结论统一成一个类型**（`fluxpcb/findings.py`）。四条规则在 `__post_init__` 里强制：
+估计封顶 P1、未知不许带数字、未知必须说缺什么、每条结论必须有假设。26 个门 + 2 个新门
+经 `knowledge/rules_index.json` 包装，旧键（issue/type/actual/required/location/items）
+同时输出，`engine` 的重试反馈、`stages` 的布线前预检、`suite._extract_violations` 都不用改。
+
+**五个 verifier 不再是桩**：改成跑回答它的门（`verifiers/from_gates.py`）。踩到的坑：
+`verifiers/__init__.py` 一导入就拉全部 verifier，于是基准路径也被拖进 gates——改成
+PEP 562 懒加载后不变量测试才过（这也解释了为什么之前"验证器层"从没在基准里跑过）。
+
+**干预验证**（`verifiers/interventions.py`）踩了四个坑，都值得记：
+1. "往焊盘挪"挪错了方向——挪的是整条线沿自身方向，间距没变；改成沿垂线朝焊盘。
+2. 判据用了包围盒中心距，忽略了焊盘自身尺寸与所在层：先按焊盘边到线段的距离，
+   并只取与走线同层的焊盘。
+3. 板的 `min_clearance` 是 0（0023），而 DRC 用的是 netclass 的 0.2032；"
+   留 10 µm 间隙"才是稳的变异（任何正间距规则都违反），不再猜 DRC 会套哪张表。
+4. 过孔钻孔改小，KiCad 的 DRC 在这块板上不报；改由 **IPC-2221 检查器 + 带日期的档案**判定，
+   这才是"这条规则的验证器"。
+最终 4/5 变异翻转；`mutation:edge` 在 0023 上**无法生成**（该板把铜边间距设为 0），
+如实报"无法生成"而不是算通过。校准：好板 P0=0，坏板 P0+P1 严格更多。
+
+**制造档案**（`mfg/data/jlc_2026-11-25.json`）带检索日与来源链接、三档与 `drop_tier_advice()`。
+顺带发现并修掉 `ipc2221_dfm` 两个真 bug：`_check_rule` 是 `return None`（所有规则永远通过）、
+`check_jlc` 在检查**之后**才改限值（覆盖从未生效）。现在实现了走线宽度/钻孔/孔到孔/板厚/
+铜边五项的真实测量，其余进 `report.unevaluated` 并说明为什么没测。
+
+**知识组织**：运行时从文档本身生成 65 条编号（K1–K30 共 39 节、L1–L5、S_×9、P01–P04、R01–R07）；
+KNOWHOW 里重复的 K14/K21/K33 自动变 K14.2 等，两个小节都还能取到。
+原则在 `llm.complete()` 统一前置（一处覆盖全部调用点）。
+
+**归因**：证书带 decider/alternatives/needed_information/board_fp；事务每轮带 decider 与板哈希。
+四个缺陷一并修：dispatcher 调 LLM 少参数（LLM 下发从未运行过）、thermal_cfd 装了就 PASS、
+subagent 归因写在非字段属性上（序列化即丢）、元循环收到的是 None 与不可读的 Trajectory。
+
+**受扰图**：第一版把每对网的线段两两比距离，H743 上要几分钟（把顶层测试挂住了）；
+加了包围盒预筛、每网步长抽样与 2 秒预算后 1.3 秒；指数从"求和"改成"最差单对"的 0..100 对数刻度，
+否则半块板都顶到 100，失去区分度。
+
+**验证**：`fluxpcb/tests` 全量 **277 passed**（含板级）；新增 29 条（词汇/规则表/档案/文档/策略 19、
+归因 7、板级干预 3）。
