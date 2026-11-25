@@ -1166,13 +1166,21 @@ def em_susceptibility(project_dir: Path, outputs: list[str], cfg: dict) -> GateR
     details = {"h_mm": r["h_mm"], "h_from": r["h_from"],
                "threshold": threshold, "worst":
                [{"net": x["net"], "index": x["index"]} for x in over[:5]],
-               "assumption": r["assumption"]}
+               "assumption": r["assumption"],
+               "truncated": r.get("truncated"), "elapsed_s": r.get("elapsed_s")}
+    if r.get("truncated"):
+        # a cut-short search is not a clean board: say so
+        details["needed_information"] = [
+            "the pairwise coupling search hit its time budget; nets after "
+            "the cut were not examined"]
     # an estimate at P2 is advice: it is shown, it does not fail a gate
     if findings:
         return GateResult("em_susceptibility", GateStatus.PASS,
                           f"受扰指数超过阈值: {len(findings)} 网 "
-                          f"(估计算法, 建议项, 阈值 {threshold})",
-                          details=details, findings=findings)
+                          f"(估计算法, 建议项, 阈值 {threshold})"
+                          + (" [搜索被时间预算截断]" if r.get("truncated") else ""),
+                          details=details, findings=findings,
+                          needed_information=details.get("needed_information") or [])
     return GateResult("em_susceptibility", GateStatus.PASS,
                       f"受扰指数均在阈值内 (估计算法, {r['h_from']})",
                       details=details, findings=[

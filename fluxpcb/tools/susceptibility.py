@@ -45,7 +45,7 @@ POWERISH = ('gnd', 'agnd', 'pgnd', 'vss', 'vcc', 'vdd', 'vbat', 'vbus',
 MAX_SEGMENTS = 240          # per net, for the distance search
 SEARCH_SEGMENTS = 60        # per net, in the pairwise distance search
 FAR_MM = 12.0               # beyond this, 1/d^2 coupling is not counted
-TIME_BUDGET_S = 2.0         # the gate must not become a solver
+TIME_BUDGET_S = 5.0         # the gate must not become a solver
 DEFAULT_H_2L = 1.6
 DEFAULT_H_MULTI = 0.2
 
@@ -175,8 +175,10 @@ def run(project_dir, pcb_path=None, threshold: float = 40.0,
     try:
         import re
         txt = pcb.read_text(encoding='utf-8', errors='replace')
-        m = re.search(r'\(layers?\s+(\d+)\s+', txt)
-        copper_layers = int(m.group(1)) if m else 0
+        # count the copper layer names the file declares (F.Cu, B.Cu, In*.Cu);
+        # a board's stackup height depends on it, and a wrong count would
+        # silently change every loop area
+        copper_layers = len(set(re.findall(r'"((?:F|B|In\d+)\.Cu)"', txt)))
     except Exception:
         copper_layers = 0
     if h_mm is None:

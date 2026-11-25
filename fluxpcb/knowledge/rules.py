@@ -67,10 +67,11 @@ def normalise(findings, gate_name: str, **shared) -> list:
     d = gate_defaults(gate_name)
     out = []
     for i, f in enumerate(findings or []):
-        if isinstance(f, dict) and f.get('rule_id'):
-            out.append(f)
-            continue
         body = f if isinstance(f, dict) else {'issue': str(f)}
+        # A gate may name its own rule; it still gets the full vocabulary,
+        # because a partial dict leaking out is how a finding ends up with
+        # no severity and an `issue` a consumer has to parse.
+        own_rule = str(body.get('rule_id') or '')
         where = body.get('where')
         if not where:
             loc = body.get('location') or body.get('pos')
@@ -92,9 +93,10 @@ def normalise(findings, gate_name: str, **shared) -> list:
         unknown = status == 'unknown'
         missing = body.get('needed_information') or (
             [str(body.get('issue') or 'measurement missing')] if unknown else [])
+        rule_meta = rule_entry(own_rule) if own_rule else {}
         try:
             fd = Finding(
-                rule_id=d.get('rule_id') or f'{gate_name}.{i}',
+                rule_id=own_rule or d.get('rule_id') or f'{gate_name}.{i}',
                 rule_version=body.get('rule_version') or version(),
                 where=dict(where or {}),
                 measured=None if unknown else measured,
@@ -104,8 +106,9 @@ def normalise(findings, gate_name: str, **shared) -> list:
                 severity=body.get('severity') or d.get('severity', 'P1'),
                 status=status,
                 phase=body.get('phase') or shared.get('phase') or 'post_route',
-                assumption=body.get('assumption') or d.get('assumption')
-                or NO_ASSUMPTION,
+                assumption=(body.get('assumption')
+                            or rule_meta.get('assumption')
+                            or d.get('assumption') or NO_ASSUMPTION),
                 needed_information=tuple(missing),
                 source=body.get('source') or shared.get('source') or {},
                 board_fp=body.get('board_fp') or shared.get('board_fp') or '',
