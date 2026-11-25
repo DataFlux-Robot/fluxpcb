@@ -74,7 +74,11 @@ SCHEMA = {
     'router_retry_scale': _float(1.0, 6.0),
     # take dangling stubs off at the end (the bench loop)
     'trim_dangling': {'kind': 'bool'},
-    # the repair round as one transaction per operator (the bench loop)
+    # the repair round as one transaction per operator (the bench loop).
+    # OFF by default: measured on 0088/0232, per-operator transactions
+    # turned 5/5 and 5/5 clean into 2/5 and 1/5 (a short moved by one
+    # operator alone never improves the round, while the same operator in
+    # the batch transaction did), and gave nothing back elsewhere.
     'stepwise_repair': {'kind': 'bool'},
     'width_cascade': _num_tuple(0.05, 0.5, 1, 8),
     'signal_floor_mm': _float(0.05, 0.3),
@@ -171,7 +175,7 @@ class OperatorParams:
     router_retry_threads: int = 8
     router_retry_scale: float = 2.5
     trim_dangling: bool = True
-    stepwise_repair: bool = True
+    stepwise_repair: bool = False
     width_cascade: tuple = (0.2, 0.15, 0.127, 0.11)
     signal_floor_mm: float = 0.11
     power_floor_mm: float = 0.15
