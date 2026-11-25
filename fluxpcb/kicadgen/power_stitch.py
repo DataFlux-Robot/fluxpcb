@@ -20,16 +20,17 @@ import pcbnew
 
 MM = 1000000
 # 候选扩展(FC_L13 诊断: skip=10 的焊盘被 0.25 过孔+稀疏偏移挡死):
-# 更小过孔(JLC 最小 0.3/0.15)+更密偏移环
+# 更密偏移环。过孔下限 = 板自己的规则(0.4/0.2,环形 0.1),不是 JLC 的工艺
+# 极限 0.3/0.15 — 0.3/0.15 在这块板上会被 via_diameter/drill/annular
+# 三项判死(H743 实测 4 孔 = 12 条 DRC),非法过孔不算缝合。
 OFFSETS = [(0.0, 0.0), (0.3, 0.0), (-0.3, 0.0), (0.0, 0.3), (0.0, -0.3),
            (0.6, 0.0), (-0.6, 0.0), (0.0, 0.6), (0.0, -0.6),
            (0.9, 0.0), (-0.9, 0.0), (0.0, 0.9), (0.0, -0.9)]
 STUB_W = 0.2
-VIA_SIZES = [(0.25, 0.125), (0.2, 0.1), (0.15, 0.075)]  # 大->小试
-
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import geomir                                        # noqa: E402
 import routegrid as rg                               # noqa: E402
+from stitch_params import VIA_SIZES                  # noqa: E402  大->小;下限 0.4/0.2
 
 pcb_path = Path(sys.argv[1])
 net_names = [x for x in (sys.argv[2] if len(sys.argv) > 2 else "")

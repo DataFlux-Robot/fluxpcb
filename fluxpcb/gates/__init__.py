@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fluxpcb.models import GateResult, GateStatus
+from fluxpcb import board_files
 
 _REGISTRY: dict[str, callable] = {}
 
@@ -49,7 +50,7 @@ def _project_board_fp(project_dir: Path) -> str:
     """sha256 of the board this verdict was reached on (bytes, not counts)."""
     try:
         import hashlib
-        pcbs = sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+        pcbs = board_files.gate_boards(project_dir)
         if not pcbs:
             return ""
         return hashlib.sha256(pcbs[0].read_bytes()).hexdigest()[:16]
@@ -307,7 +308,7 @@ def netlist_topology(project_dir: Path, outputs: list[str], cfg: dict) -> GateRe
 def drc_zero(project_dir: Path, outputs: list[str], cfg: dict) -> GateResult:
     from fluxpcb.tools.adapters import kicad_cli
     pcb_dir = project_dir / "pcb"
-    pcbs = sorted(pcb_dir.rglob("*.kicad_pcb")) if pcb_dir.exists() else []
+    pcbs = board_files.gate_boards(project_dir)
     internal = pcb_dir / "drc_report.json" if pcb_dir.exists() else None
     if kicad_cli.available() and pcbs:
         total, details = 0, {}
@@ -677,7 +678,7 @@ def placement_quality(project_dir: Path, outputs: list[str], cfg: dict) -> GateR
     import json
     import re as _re
     pcb_dir = project_dir / "pcb"
-    pcbs = sorted(pcb_dir.rglob("*.kicad_pcb")) if pcb_dir.exists() else []
+    pcbs = board_files.gate_boards(project_dir)
     if not pcbs:
         return GateResult("placement_quality", GateStatus.BLOCKED, "无PCB文件")
     findings, details = [], {}
@@ -871,7 +872,7 @@ def plane_integrity(project_dir: Path, outputs: list[str], cfg: dict) -> GateRes
     passes DRC with zero violations — this gate reads the board copper,
     not the stackup declaration."""
     import re
-    pcbs = [p for p in sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+    pcbs = [p for p in board_files.gate_boards(project_dir)
      if ".ckpt" not in p.parts]   # kernel snapshots are checkpoints
     if not pcbs:
         return GateResult("plane_integrity", GateStatus.BLOCKED, "无PCB文件")
@@ -941,7 +942,7 @@ def _dc_solve_lazy(project_dir: Path) -> None:
     acceptance_sim stage having run first (verify-only flows, retries)."""
     if (project_dir / "sim" / "dc_irdrop_geom.json").exists():
         return
-    pcbs = [p for p in sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+    pcbs = [p for p in board_files.gate_boards(project_dir)
      if ".ckpt" not in p.parts]   # kernel snapshots are checkpoints
     if not pcbs:
         return
@@ -1229,7 +1230,7 @@ def pre_route_estimate(project_dir: Path, outputs: list[str], cfg: dict) -> Gate
     spec = _read_yaml(project_dir / "spec.yaml") or {}
     stack = _read_yaml(project_dir / "stackup.yaml") or {}
     nets = 0
-    pcbs = sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+    pcbs = board_files.gate_boards(project_dir)
     if pcbs:
         import re
         txt = pcbs[0].read_text(encoding="utf-8", errors="replace")
@@ -1308,7 +1309,7 @@ def routing_completeness(project_dir: Path, outputs: list[str], cfg: dict) -> Ga
     _cand = Path(r"C:/Users/zhang/AppData/Local/Programs/KiCad/10.0/bin/python.exe")
     if _cand.exists():
         kipy = str(_cand)
-    pcbs = [p for p in sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+    pcbs = [p for p in board_files.gate_boards(project_dir)
      if ".ckpt" not in p.parts]   # kernel snapshots are checkpoints
     if not pcbs:
         return GateResult("routing_completeness", GateStatus.BLOCKED, "无PCB文件")
@@ -1364,7 +1365,7 @@ def fabrication_netlist(project_dir: Path, outputs: list[str],
     if not kicad_cli:
         return GateResult("fabrication_netlist", GateStatus.BLOCKED,
                           "kicad-cli 不可用")
-    pcbs = [p for p in sorted((project_dir / "pcb").rglob("*.kicad_pcb"))
+    pcbs = [p for p in board_files.gate_boards(project_dir)
      if ".ckpt" not in p.parts]   # kernel snapshots are checkpoints
     if not pcbs:
         return GateResult("fabrication_netlist", GateStatus.BLOCKED,

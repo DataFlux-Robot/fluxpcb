@@ -259,6 +259,17 @@ def stage_schematic(ctx: StageContext) -> None:
 
 
 # ---------------------------------------------------------------- stage: pcb_layout
+def _canonical_boards(pdir: Path, project: str) -> tuple[list, list]:
+    """The boards this stage owns, and the past-run artefacts it must not re-route.
+
+    `pcb/**` also holds the outputs of earlier runs (`*_p4_routed`,
+    `placed`, `unrouted`, panels).  Routing every one of them made the H743
+    stage spend ~4x the wall clock on backups that are inputs of nothing.
+    """
+    from fluxpcb import board_files
+    return board_files.canonical(pdir.parent, project)
+
+
 @runner("pcb_layout")
 def stage_pcb_layout(ctx: StageContext) -> None:
     """Phase A: stackup synthesis + impedance solve (IPC-2141) + evidence files."""
@@ -359,7 +370,10 @@ def stage_pcb_layout(ctx: StageContext) -> None:
     # visible via calibrated severities instead of being faked away.
     try:
         from fluxpcb.routing import auto_route
-        for pcb in sorted((d / "pcb").rglob("*.kicad_pcb")):
+        to_route, backups = _canonical_boards(pdir, d.name)
+        if backups:
+            ctx.note("跳过非本轮板文件: " + ", ".join(p.name for p in backups))
+        for pcb in to_route:
             res = auto_route(pcb, max_iterations=3, log=lambda s: None)
             if "error" in res:
                 ctx.note(f"自动布线跳过({pcb.name}): {res['error']}")

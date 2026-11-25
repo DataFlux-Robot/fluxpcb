@@ -609,3 +609,19 @@ FLUXPCB设计.md、OpenPE，把四个确认的缺口落地（细节见 `REFERENC
 - 工艺包：拼板真出 `.kicad_pcb`（0023 2×2 重载 16 fp/24 track）、STEP 进包、
   IPC-7351 land pattern、`fabrication_netlist` 接进 `flux.yaml`。
 - 测试：+24（power 7、manifest 5、placement 8、manufacturing 4），全套 321。
+
+### 6.17 H743 飞控：复杂场景实测（2026-11-26）
+
+`flux run` 在 H743（TFBGA240，50×50，6 层，75 网）的副本上跑：requirements 0 s、
+selection 21.5 s、schematic 1 s、**pcb_layout 第 1 轮 54 min 未收敛**
+（A* 12 min → FR 19 min → FR 21 min → direct_link），43 开路、17 DRC
+（4 个 0.3/0.15 非法过孔贡献 12 条）。11-22 的独立 bench_runner 是 951.6 s、
+0 开路、9 clearance。结论：独立 FR 路径在这块板上快 3.4×且闭合全部开路；
+流水线内 auto_route 把 A* 结果回滚后靠 opens-only FR 收尾。详见
+`H743_PERF_2026-11-26.md`。
+
+实测抓到两个缺陷并修掉：
+1. 6 个门 + pcb_layout 用 `rglob` 把 `*_p4_routed`/`placed`/`unrouted` 等历史产物
+   当输入（"4 块板"、plane 误报、4× 布线）→ 新增 `board_files.py` 统一筛选。
+2. `power_stitch` 最小过孔 0.3/0.15 低于板规则 0.4/0.2 → `stitch_params.py` 收到下限。
+测试 326 全绿（+5）。
