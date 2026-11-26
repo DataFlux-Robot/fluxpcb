@@ -31,6 +31,10 @@ structure State where
   items : Array Item
   rules : List (String × Int)
   netPads : List (String × Array String)
+  /-- ref -> pad ids.  Not needed for connectivity, but footprint identity is
+      what module contracts split on, so it must be inside the digest and the
+      frame: renaming a ref changes the boundary without moving any copper. -/
+  footprints : List (String × Array String)
   digest : String
 deriving Inhabited
 
@@ -103,8 +107,11 @@ def stateOf (j : Json) : Except String State := do
   let rules ← rulesOf rulesJ
   let netsJ ← j.getObjVal? "netPads"
   let netPads ← netPadsOf netsJ
+  let fps ← match j.getObjVal? "footprints" with
+    | .ok v => netPadsOf v
+    | .error _ => pure []
   let digest ← jStr j "digest"
-  pure { schema, board, layers, items, rules, netPads, digest }
+  pure { schema, board, layers, items, rules, netPads, footprints := fps, digest }
 
 def shapeStr : Shape → String
   | .seg x1 y1 x2 y2 w => s!"seg:{x1},{y1},{x2},{y2},{w}"
@@ -115,11 +122,13 @@ def canonical (s : State) : String :=
   let items := s.items.toList.mergeSort (fun a b => (compare a.id b.id).isLT)
   let rules := s.rules.mergeSort (fun a b => (compare a.1 b.1).isLT)
   let nets := s.netPads.mergeSort (fun a b => (compare a.1 b.1).isLT)
+  let fps := s.footprints.mergeSort (fun a b => (compare a.1 b.1).isLT)
   String.intercalate "\n" <|
-    ["v1", s.schema, s.board, String.intercalate "," s.layers] ++
+    ["v2", s.schema, s.board, String.intercalate "," s.layers] ++
     items.map (fun i => s!"i|{i.id}|{i.net}|{String.intercalate "," i.layers}|{shapeStr i.shape}") ++
     rules.map (fun (k, v) => s!"r|{k}={v}") ++
-    nets.map (fun (n, ids) => s!"n|{n}:{String.intercalate "," ids.toList}")
+    nets.map (fun (n, ids) => s!"n|{n}:{String.intercalate "," ids.toList}") ++
+    fps.map (fun (n, ids) => s!"f|{n}:{String.intercalate "," ids.toList}")
 
 def fnv1a (s : String) : UInt64 :=
   let b := s.toUTF8

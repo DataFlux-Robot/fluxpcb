@@ -17,9 +17,17 @@ def sameOutside (before after : State) (touched : Array String) : Bool :=
 def scopeDisjoint (scope touched : Array String) : Bool :=
   scope.all (fun x => !touched.contains x)
 
+/-- Rules, layers and the ref→pad map are not items: a change in any of them
+    changes what every claim means, so no proof can be carried across it. -/
+def contextSame (before after : State) : Bool :=
+  before.rules == after.rules &&
+  before.layers == after.layers &&
+  before.footprints == after.footprints
+
 def frameOk (before after : State) (touched : Array String)
     (carried : Array (String × Array String)) : Bool :=
   sameOutside before after touched &&
+  contextSame before after &&
   carried.all (fun (_, scope) => scopeDisjoint scope touched)
 
 end Fluxpcb

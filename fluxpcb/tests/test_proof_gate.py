@@ -216,3 +216,180 @@ def test_same_footprint_pads_are_exempt_from_clearance():
     rep = fab.check(st, [{'id': 'FAB:CLEARANCE', 'pred': 'clearance',
                           'scope': ['p1', 'p2'], 'rule': 200000}], st['rules'])
     assert rep['claims'][0]['status'] == 'refuted', rep['claims'][0]
+
+
+def test_pred_pinning_rejects_a_misspelled_predicate():
+    _needs_lean()
+    st = _clean()
+    cl = claims.bench_claims(st)
+    for c in cl:
+        if c['id'] == 'FAB:CLEARANCE':
+            c['pred'] = 'clearanceX'
+    want = gate.required_claims(st)
+    r = gate.verify(st, cl, certs.connectivity_certs(st), obligations=want)
+    assert not r['ok']
+    assert any('pred' in x and 'FAB:CLEARANCE' in x for x in r['reasons']), r['reasons']
+    with pytest.raises(gate.GateDenied):
+        gate.commit_step(st, st, [], cl, certs.connectivity_certs(st))
+
+
+def test_obligation_coverage_is_kernel_checked():
+    _needs_lean()
+    st = _clean()
+    cl = [c for c in claims.bench_claims(st) if c['id'] != 'NETLIST']
+    want = gate.required_claims(st)
+    r = gate.verify(st, cl, certs.connectivity_certs(st), obligations=want)
+    assert not r['ok']
+    assert r['lean']['coverage_ok'] is False
+    assert 'NETLIST' in r['lean']['uncovered']
+
+
+def test_carried_claim_is_proven_without_a_certificate():
+    _needs_lean()
+    st = _clean()
+    cl = claims.bench_claims(st)
+    cs = [c for c in certs.connectivity_certs(st) if c['claim'] != 'CONN:N']
+    scope = next(c['scope'] for c in cl if c['id'] == 'CONN:N')
+    r = gate.verify(st, cl, cs, carried=[('CONN:N', list(scope))],
+                    obligations=gate.required_claims(st))
+    assert r['ok'], r['reasons']
+    by = {c['id']: c for c in r['lean']['claims']}
+    assert by['CONN:N']['status'] == 'carried'
+
+
+def test_carried_scope_must_equal_the_claim_scope():
+    _needs_lean()
+    st = _clean()
+    cl = claims.bench_claims(st)
+    cs = [c for c in certs.connectivity_certs(st) if c['claim'] != 'CONN:N']
+    r = gate.verify(st, cl, cs, carried=[('CONN:N', ['pa'])])
+    by = {c['id']: c for c in r['lean']['claims']}
+    assert by['CONN:N']['status'] == 'unknown'
+    assert not r['ok']
+
+
+def test_before_digest_is_checked():
+    _needs_lean()
+    st = _clean()
+    before = copy.deepcopy(st)
+    before['digest'] = '123'
+    r = gate.verify(st, claims.bench_claims(st), certs.connectivity_certs(st),
+                    before=before, touched=[], carried=[])
+    assert r['lean']['drift_before'] is True
+    assert not r['ok']
+
+
+def test_rule_change_breaks_the_frame():
+    _needs_lean()
+    before = _clean()
+    after = copy.deepcopy(before)
+    after['rules'] = {'clearance': 160000, 'track_min': 150000}
+    after = st_mod.freeze(after)
+    r = gate.verify(after, claims.bench_claims(after),
+                    certs.connectivity_certs(after), before=before, touched=[])
+    assert r['lean']['frame_ok'] is False
+    assert not r['ok']
+
+
+def test_footprint_change_breaks_the_frame():
+    _needs_lean()
+    before = _clean()
+    after = copy.deepcopy(before)
+    after['footprints'] = {'U1': ['pa', 'pb']}
+    after = st_mod.freeze(after)
+    r = gate.verify(after, claims.bench_claims(after),
+                    certs.connectivity_certs(after), before=before, touched=[])
+    assert r['lean']['frame_ok'] is False
+
+
+def test_duplicate_claim_ids_are_rejected():
+    _needs_lean()
+    st = _clean()
+    cl = claims.bench_claims(st) + [claims.bench_claims(st)[0]]
+    r = gate.verify(st, cl, certs.connectivity_certs(st))
+    assert r['lean']['duplicate_ids'] is True
+    assert not r['ok']
+
+
+def _two_net_state(connect_m):
+    items = [_pad('pa', 0, 0, 600000, 600000),
+             _seg('t1', 300000, 300000, 5000000, 300000),
+             _pad('pb', 4700000, 0, 5300000, 600000),
+             _pad('pc', 0, 2000000, 600000, 2600000, net='M'),
+             _pad('pd', 4700000, 2000000, 5300000, 2600000, net='M')]
+    if connect_m:
+        items.append(_seg('t2', 300000, 2300000, 5000000, 2300000, net='M'))
+    st = {'board': 'two', 'layers': ['F.Cu'], 'items': items,
+          'rules': {'clearance': 150000, 'track_min': 150000},
+          'netPads': {'N': ['pa', 'pb'], 'M': ['pc', 'pd']}}
+    return st_mod.freeze(st)
+
+
+def test_preserve_keeps_proven_claims_and_denies_a_lost_proof():
+    _needs_lean()
+    from fluxpcb.proof import step
+    before = _two_net_state(False)
+    after = _two_net_state(True)
+    ok = step.preserve(before, after, before['rules'])
+    assert ok['ok'], ok['reasons']
+    assert 'CONN:N' in ok['carried']
+    assert 'CONN:M' not in ok['carried']
+    # now the reverse: a proof that existed is lost
+    bad = step.preserve(after, before, before['rules'])
+    assert not bad['ok']
+    assert any('CONN:M' in x for x in bad['reasons']), bad['reasons']
+    assert 'CONN:N' in bad['carried']
+
+
+def test_publish_requires_every_claim():
+    _needs_lean()
+    from fluxpcb.proof import step
+    assert step.publish(_two_net_state(True), {'clearance': 150000,
+                                              'track_min': 150000})['ok']
+    r = step.publish(_two_net_state(False), {'clearance': 150000,
+                                            'track_min': 150000})
+    assert not r['ok']
+    assert any('CONN:M' in x for x in r['reasons'])
+
+
+def test_store_is_fresh_only_while_the_scope_is_unchanged(tmp_path):
+    from fluxpcb.proof import store as store_mod
+    st = _clean()
+    s = store_mod.Store(tmp_path / 'proofs.json')
+    c = next(c for c in claims.bench_claims(st) if c['id'] == 'CONN:N')
+    s.put(c, 'proven', '', st)
+    assert s.get(c, st) is not None
+    moved = copy.deepcopy(st)
+    moved['items'][1]['shape']['y1'] += 1
+    moved = st_mod.freeze(moved)
+    assert s.get(c, moved) is None
+    rule_changed = copy.deepcopy(st)
+    rule_changed['rules'] = {'clearance': 160000, 'track_min': 150000}
+    rule_changed = st_mod.freeze(rule_changed)
+    assert s.get(c, rule_changed) is None
+
+
+def test_maintain_reuses_untouched_claims(tmp_path):
+    _needs_lean()
+    from fluxpcb.proof import framework
+    st = _clean()
+    r = gate.verify(st, claims.bench_claims(st), certs.connectivity_certs(st),
+                    obligations=gate.required_claims(st))
+    prior = {'schema': 'fluxpcb-cert-2', 'rules': dict(st['rules']),
+             'claims': [{'id': c['id'], 'kernel': 'lean',
+                         'status': c['status']} for c in r['lean']['claims']],
+             'items': st_mod.item_hashes(st)}
+    prior['claims'] += [{'id': c['id'], 'kernel': 'fab', 'status': c['status']}
+                        for c in r['fab']['claims']]
+    # untouched: everything carried, fab re-proven
+    m = framework.maintain(state=st, prior=prior)
+    assert m['ok'], m['reasons']
+    assert 'CONN:N' in m['carried'] and 'NETLIST' in m['carried']
+    # touched: moving the track changes CONN:N's scope -> it is re-proven
+    moved = copy.deepcopy(st)
+    moved['items'][1]['shape']['y1'] += 1
+    moved = st_mod.freeze(moved)
+    m2 = framework.maintain(state=moved, prior=prior)
+    assert m2['ok'], m2['reasons']
+    assert 'CONN:N' not in m2['carried']
+    assert 'CONN:N' in {c['id'] for c in m2['claims'] if c['status'] == 'proven'}

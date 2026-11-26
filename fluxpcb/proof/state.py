@@ -15,7 +15,7 @@ import hashlib
 import json
 from pathlib import Path
 
-SCHEMA = 'fluxpcb-state-1'
+SCHEMA = 'fluxpcb-state-2'
 
 
 def board_rules(board_path, defaults=None):
@@ -73,12 +73,21 @@ def canonical(st):
     items = sorted(st['items'], key=lambda i: i['id'])
     rules = sorted(st['rules'].items())
     nets = sorted(st['netPads'].items())
-    lines = ['v1', st['schema'], st['board'], ','.join(st['layers'])]
+    fps = sorted((st.get('footprints') or {}).items())
+    lines = ['v2', st['schema'], st['board'], ','.join(st['layers'])]
     lines += [f"i|{i['id']}|{i['net']}|{','.join(i['layers'])}|{shape_str(i['shape'])}"
               for i in items]
     lines += [f"r|{k}={v}" for k, v in rules]
     lines += [f"n|{n}:{','.join(ids)}" for n, ids in nets]
+    lines += [f"f|{r}:{','.join(ids)}" for r, ids in fps]
     return '\n'.join(lines)
+
+
+def item_hashes(st):
+    """id -> hash of that item's canonical line (for proof-store freshness)."""
+    return {i['id']: hashlib.sha256(
+        f"i|{i['id']}|{i['net']}|{','.join(i['layers'])}|{shape_str(i['shape'])}"
+        .encode('utf-8')).hexdigest()[:16] for i in st['items']}
 
 
 def fnv1a(s):
@@ -189,8 +198,9 @@ def extract(board_path, rules=None):
                           'shape': {'kind': 'seg', 'x1': int(s.x), 'y1': int(s.y),
                                     'x2': int(e.x), 'y2': int(e.y),
                                     'w': int(t.GetWidth())}})
-    net_pads = {}
+    net_pads, footprints = {}, {}
     for fp in b.GetFootprints():
+        ref = str(fp.GetReference())
         for pad in fp.Pads():
             nc = pad.GetNetCode()
             if not nc:
@@ -205,12 +215,13 @@ def extract(board_path, rules=None):
                 continue
             lid0 = next((l for l in lids if pad.IsOnLayer(l)), None)
             items.append({'id': uid, 'net': net, 'layers': layers,
-                          'ref': str(fp.GetReference()),
-                          'shape': _pad_shape(pad, lid0)})
+                          'ref': ref, 'shape': _pad_shape(pad, lid0)})
             net_pads.setdefault(net, set()).add(uid)
+            footprints.setdefault(ref, set()).add(uid)
     st = {'schema': SCHEMA, 'board': str(board_path), 'layers': list(names),
           'items': items, 'rules': dict(rules or {}),
-          'netPads': {n: sorted(v) for n, v in sorted(net_pads.items())}}
+          'netPads': {n: sorted(v) for n, v in sorted(net_pads.items())},
+          'footprints': {r: sorted(v) for r, v in sorted(footprints.items())}}
     return freeze(st)
 
 

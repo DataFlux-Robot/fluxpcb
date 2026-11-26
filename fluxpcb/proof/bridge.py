@@ -43,11 +43,13 @@ def build(timeout=900):
     return EXE
 
 
-def request(state, claims, certs, before=None, touched=(), carried=()):
+def request(state, claims, certs, before=None, touched=(), carried=(),
+            obligations=()):
     req = {'state': state, 'claims': claims,
            'certs': [{'claim': c['claim'], 'kind': c.get('kind', 'tree'),
                       'edges': c.get('edges', [])} for c in certs],
            'touched': list(touched),
+           'obligations': list(obligations),
            'carried': [{'id': i, 'scope': s} for (i, s) in carried]}
     if before is not None:
         req['before'] = before

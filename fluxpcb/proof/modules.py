@@ -117,7 +117,8 @@ def prove(board, contract, rules):
     cl = module_claims(mst, contract)
     cs = [c for c in certs.connectivity_certs(mst)
           if c['claim'].split(':', 1)[1] in set(contract.internal)]
-    r = gate.verify(mst, cl, cs)
+    r = gate.verify(mst, cl, cs,
+                    obligations={c['id']: c['pred'] for c in cl})
     return {'module': contract.name, 'contract': contract.as_dict(),
             'board': str(board), 'digest': mst['digest'],
             'ok': r['ok'], 'summary': gate.report_summary(r),
@@ -168,7 +169,8 @@ def merge(board, contract_paths, rules, proofs=None):
                        'scope': sorted(i['id'] for i in st['items'] if i['net'] == net)})
     cl += claim_mod.bench_claims(st, include_fab=True)[-3:]
     cs = certs.connectivity_certs(st)
-    r = gate.verify(st, cl, cs)
+    r = gate.verify(st, cl, cs,
+                    obligations={c['id']: c['pred'] for c in cl})
     reasons = check_boundary(st, proofs, contracts)
     return {'ok': r['ok'] and not reasons, 'reasons': r['reasons'] + reasons,
             'boundary': {n: sum(len(p['pads'].get(n, [])) for p in proofs)
