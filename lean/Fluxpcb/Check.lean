@@ -71,6 +71,13 @@ def statusOf (s : State) (c : Claim) (cert? : Option Cert) : String × String :=
       match checkNetlist s c with
       | none => ("proven", "")
       | some w => ("refuted", w)
+  | "pads" =>
+      let missing := c.pads.filter (fun p =>
+        match itemById s p with
+        | some i => i.net != c.net
+        | none => true)
+      if missing.isEmpty then ("proven", "")
+      else ("refuted", s!"pads missing or on another net: {String.intercalate "," missing.toList}")
   | other => ("foreign", s!"checked by the {other} domain kernel")
 
 end Fluxpcb

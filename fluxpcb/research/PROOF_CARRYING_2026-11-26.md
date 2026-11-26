@@ -93,3 +93,36 @@ rules/netPads），Python 与 Lean 各自 FNV-1a 64，不一致即 `drift: true`
   电源/处理器模块；模块库骨架。
 - **K3**：0344 的 S0–S3 性能对比（整板重布 vs 局部重证 vs 并行 vs 拼接）。
 - **K4**：118×3 的 lean+fab 对账。
+
+## 八、K2：模块契约、并行证明与 Merge
+
+### 切分（由契约从位号自动推导）
+| 模块 | 位号 | 内部网 | 边界网 |
+|---|---|---|---|
+| **power** | U2, F1, D6, C2, C3, C4, R5, R6 | 0 | VPP, +5V, +3V3, GND, ADC 采样 |
+| **mcu** | U1, P1, P2, P3, D1–D4, R1–R4, R7–R11, SW1, W1–W9 | 15（UART/GPIO/CH_PD/LED/按键） | 同 5 条 |
+
+契约只写位号，`derive()` 从焊盘的 `ref` 推内部/边界：**内部网 = 所有焊盘都在模块内**；边界网 = 两边都有。推导结果与手写预期一致（不是手填的）。
+
+### 并行证明（两个 agent 同时跑）
+| 模块 | 证明内容 | 结果 | 用时 |
+|---|---|---|---|
+| power | 5 条 PADS + 2 条 FAB | 7 proven | 0.29 s |
+| mcu | 15 条 CONN + 5 条 PADS + 2 条 FAB | 22 proven | 1.52 s |
+
+两个 agent 各自只读板子、写自己的 `mod_*.json`；Lean 内核 + fab 内核各自裁决。
+
+### Merge（组合义务）
+- 边界：两侧 PADS 必须**不重不漏**地等于整板该网的焊盘；
+- 共享网（VPP/+5V/+3V3/GND/ADC）在整板上证一次（CONN）；
+- 整板净表 + 全局 fab（clearance/width）。
+- 结果：**33 proven**（20 CONN + 10 PADS + NETLIST + 2 FAB），3.85 s；边界计数 VPP 4、+3V3 10、+5V 7、GND 17、ADC 3。
+- 负控：从 mcu 证明里删掉一个 +3V3 焊盘 → Merge 拒绝：`+3V3: boundary pads != board pads (missing 1)`。
+
+### 模块库骨架
+`modules/power_ap7361_3v3/module.json`、`modules/esp12e_core/module.json`：功能、边界/内部角色、
+claim 类型、已证实例（0344 的契约与用时）。新板"选模块 → 实例化契约 → 只证差异"。
+
+### 诚实边界
+K2 证明的是**已有布线结果**的模块化分解与并行**证明**，不是并行**布线**。真正的并行设计
+（从 placed 板各自布模块再 Merge）是 K3/S2；K2 先把上下接口与 Merge 义务固定下来。

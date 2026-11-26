@@ -1,0 +1,5 @@
+{
+ "name": "power",
+ "refs": ["U2", "F1", "D6", "C2", "C3", "C4", "R5", "R6"],
+ "note": "0344 AP7361 3V3 LDO + fuse/clamp/bulk/divider; every net is a boundary net (VPP, +5V, +3V3, GND, ADC sense)"
+}

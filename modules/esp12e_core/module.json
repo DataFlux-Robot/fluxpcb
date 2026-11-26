@@ -1,0 +1,13 @@
+{
+ "module_id": "core.esp12e",
+ "function": "ESP-12E core with its headers (DF13 Pixhawk, UART, programming), UART protection, boot button and test points",
+ "boundary_roles": ["VIN_5V", "VOUT_3V3", "GND", "VIN_RAW", "ADC_SENSE"],
+ "internal_roles": ["UART_TX", "UART_RX", "DBG_TX", "CH_PD", "GPIO0", "GPIO12..16", "boot button", "LED nets"],
+ "claims": ["CONN:<net> for every internal net", "PADS:<net> for every boundary net", "FAB within the module scope"],
+ "note": "the 15 internal nets are board-specific; the library entry names the roles and points at the proven instance",
+ "proven_instances": [
+  {"board": "0344_mavbridge", "contract": "projects/audit/0344/modules/mcu.json",
+   "refs": ["U1", "P1", "P2", "P3", "D1-D4", "R1-R4", "R7-R11", "SW1", "W1-W9"],
+   "proof": "22 proven (15 CONN + 5 PADS + 2 FAB), 1.52 s"}
+ ]
+}

@@ -163,6 +163,7 @@ def extract(board_path, rules=None):
                 continue
             lid0 = next((l for l in lids if pad.IsOnLayer(l)), None)
             items.append({'id': uid, 'net': net, 'layers': layers,
+                          'ref': str(fp.GetReference()),
                           'shape': _pad_shape(pad, lid0)})
             net_pads.setdefault(net, set()).add(uid)
     st = {'schema': SCHEMA, 'board': str(board_path), 'layers': list(names),
