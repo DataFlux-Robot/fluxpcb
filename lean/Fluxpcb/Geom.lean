@@ -47,6 +47,13 @@ def ptSegLe (p a b : Pt) (r2 : Int) : Bool :=
   let (num, den) := ptSegD2 p a b
   num ≤ r2 * den
 
+/-- Distance-to-copper test: the point's distance to the segment is at most
+    half of `s`, where `s` is the sum of the two full widths/diameters.
+    (ptSegLe takes a squared radius; widths are full widths, hence 4·num.) -/
+def ptSegTouch (p a b : Pt) (s : Int) : Bool :=
+  let (num, den) := ptSegD2 p a b
+  4 * num ≤ s * s * den
+
 /-- Even-odd point in polygon. -/
 def ptInPoly (p : Pt) (pts : Array Pt) : Bool :=
   let n := pts.size
@@ -84,24 +91,24 @@ def circleCircle (c1 c2 : Int × Int × Int) : Bool :=
 
 def circleSeg (c : Int × Int × Int) (a b : Pt) (w : Int) : Bool :=
   let (cx, cy, r) := c
-  ptSegLe (cx, cy) a b ((2 * r + w) * (2 * r + w))
+  ptSegTouch (cx, cy) a b (2 * r + w)
 
 def circlePoly (c : Int × Int × Int) (pts : Array Pt) : Bool :=
   let (cx, cy, r) := c
   if ptInPoly (cx, cy) pts then true
-  else anyEdge pts (fun a b => ptSegLe (cx, cy) a b (4 * r * r))
+  else anyEdge pts (fun a b => ptSegTouch (cx, cy) a b (2 * r))
 
 def segSeg (a b : Pt) (w1 : Int) (c d : Pt) (w2 : Int) : Bool :=
   if segsIntersect a b c d then true
   else
     let s := w1 + w2
-    ptSegLe a c d (s * s) || ptSegLe b c d (s * s) ||
-    ptSegLe c a b (s * s) || ptSegLe d a b (s * s)
+    ptSegTouch a c d s || ptSegTouch b c d s ||
+    ptSegTouch c a b s || ptSegTouch d a b s
 
 def segPoly (a b : Pt) (w : Int) (pts : Array Pt) : Bool :=
   if ptInPoly a pts || ptInPoly b pts then true
   else if anyEdge pts (fun c d => segsIntersect a b c d) then true
-  else anyEdge pts (fun c _ => ptSegLe c a b (w * w))
+  else anyEdge pts (fun c _ => ptSegTouch c a b w)
 
 def polyPoly (p q : Array Pt) : Bool :=
   if anyEdge p (fun a b => anyEdge q (fun c d => segsIntersect a b c d)) then true

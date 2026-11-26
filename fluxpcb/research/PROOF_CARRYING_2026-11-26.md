@@ -1,4 +1,4 @@
-# 证明携带的 PCB 设计：K1 最小闭环（2026-11-26）
+# 证明携带的 PCB 设计：K1–K4（2026-11-26）
 
 按 8 点要求落地的第一段：**需求 → 猜想**、**subagent → 定理**、**布线器 → 引理**、
 **Lean 逻辑内核 + 并列的领域内核**、**无旁路 Step 门**。K1 只做"能跑、能拒、能复算"
@@ -161,3 +161,72 @@ K2 证明的是**已有布线结果**的模块化分解与并行**证明**，不
   已经支持 incremental，K3 用它拿到 55 s；把它接进 Step 门作为 router lemma）。
 - 那 1 处 0.174 mm：用 direct_link/加宽闭合，再走一次 Step 门（门已经给出精确的两项）。
 - K4：118×3 的 lean+fab 对账。
+
+## 十、K4：框架收口、两个真 bug、118 抽 2 个中档任务的实测（2026-11-26）
+
+### 10.1 框架（代码）
+
+| 模块 | 作用 |
+|---|---|
+| `kernels/derive.py` | 领域推导：`power_drop`（R=ρL/(wt)）、`thermal_tj`（Tj=Ta+Pθ）、`z0_microstrip`（IPC-2141）。结果只能是 `derived`/`unknown`，evidence 带模型 id、版本、输入、输入哈希；缺输入 → `unknown` + `needed_information`。 |
+| `kernels/profile.py` | profile：`lean+fab`（118/日常）与 `full`（+power/thermal/signal）。关掉的核 → `disabled`（带原因），不静默丢弃；超限 → `refuted`。 |
+| `proof/conjectures.py` | 需求 → 猜想：rail 的 `length_mm/width_mm` 从**当前状态的实际铜**读（总长、最窄宽），所以同一条猜想在未布线时是 `unknown`、布线后变 `derived`；无法形式化的需求进 `unformalized` 列表。 |
+| `proof/router.py` | router lemma：在工作副本里只撕开声明网的铜，增量 FR 把其余铜 fix-mark（默认最多 2 轮，无开路即停），然后**一个 Step**：`touched` = 删除项 ∪ 新增项，`carried` = scope 与 touched 不相交且此前已证的 claim，最后过 `commit_step`。被撕开的工作副本不是设计状态，永不提交。 |
+| `proof/framework.py` + `fluxpcb.proof.cli certify` | 每板一张 `fluxpcb-cert-1` 证书：digest、profile、规则及来源、每条 claim 的 status/witness、route Step、耗时。 |
+| `gate.py` | `verify(profile=, domain_claims=)`：disabled 跳过但记录；`unknown`/`refuted`/超限都使 Step 被拒。 |
+
+### 10.2 抽中的两个中档任务（D3-B）
+
+抽签：`random.Random(20261126).sample(sorted(d3b − 0344), 2)`，池 9 个，抽到
+**0316_kicad-workshop_fancyboard** 与 **0376_cat-trainer_teensy_base_pcb**。同一 arm
+（`gate+ripup~full4r0`）、同一 bench 协议（900 s/格，DRC error + 0 unconnected）：
+
+| 板 | 布通 | wall | route | DRC error | unconnected | 证书 |
+|---|---|---|---|---|---|---|
+| 0316 | 是 | 46.6 s | 19.3 s | 0 | 0 | 25 proven（0.2032 mm 网类间距 / 0.2 mm 线宽）2.7 s |
+| 0376 | 是 | 35.6 s | 10.5 s | 0（repair 阶段修掉 14 个 track_width） | 0 | 29 proven（0.1524 mm 网类）3.8 s |
+
+两证书 `ok=true`，`foreign: 2` 是 fab 谓词在 Lean 侧的如实标注（不声称 proven）。
+
+### 10.3 两个真 bug（由这 2 个板子暴露）
+
+1. **接触判据的半宽约定错误（可靠性 bug，已修）**。Lean `Geom.lean` 与 Python
+   `proof/geom.py` 的 `segSeg/segPoly/circlePoly/circleSeg` 把“全宽之和”当半径：
+   两条 0.2 mm 宽、中心线相距 0.25 mm 的同网走线（铜间隙 0.05 mm）会被判为相接，
+   于是 `CONN` 可能被伪证。修复：新增 `ptSegTouch`（`4·num ≤ s²·den`，s = 全宽之和），
+   四个判据统一走它；`circleCircle` 本就正确。回归：
+   `test_two_tracks_with_a_copper_gap_are_not_connected`、
+   `test_kernel_rejects_a_certificate_edge_across_a_copper_gap`。
+   **0344 的 clean 23 证明、模块 7/22、Merge 33 在修复后全部复现**（见 10.4）。
+2. **fab 规则硬编码**。之前一律 0.2/0.15 mm；0376 的网类是 0.1524 mm，硬编码 0.2
+   会把 KiCad 认可的 0.1526 mm 间距伪证为违规。现在 `state.board_rules` 从
+   `.kicad_pro` 的 `net_settings.classes` 取 `max(min_clearance, min(class))`
+   （单条全局规则只能取“任意一对的最小要求”，更严会伪证），证书记录 provenance。
+
+### 10.4 0344 在修复后的内核上复跑
+
+| 项 | 结果 |
+|---|---|
+| clean 全板 | 23 proven，3.4 s，digest 13554797222594226126 |
+| 模块 | power 7 proven（0.15 s）、mcu 22 proven（1.46 s） |
+| Merge | 33 proven，5.06 s；边界 5 网 +3V3 10 / +5V 7 / GND 17 / ADC 3 / VPP 4 |
+| 作用域重布 4 条电源网 | 23 proven，89 s；touched 315（撕 154、增 161），**16 条信号网证明 carried** |
+| K3 的 S1 五网（U2 平移） | 两轮 FR 后 **23 proven，51.1 s**；touched 173，carried 16，**0 开路、无间距违规** |
+
+`full` profile 演示（同一 0344，负载是**声明假设** 3V3 0.3 A / 5 V 0.2 A，不是从设计读出的）：
+`POWER:DROP:3V3` 46.0 mV @0.3 A、`POWER:DROP:5V` 12.5 mV @0.2 A，均 `derived`；
+两条无法形式化的需求（叠层、外壳）进 `unformalized`，证书 `ok`。领域结论只到 `derived`，
+evidence 带模型、版本、输入与哈希。
+
+K3 里那处 0.174 mm 间距在新内核、新 FR 采样下没有复现；同一场景现在给出的是
+“两轮 FR → 51 s 全证”。这不是把旧数字抹掉，而是同一实验在新内核上的独立结果；
+旧结果（以及它被 Step 门拒绝这件事）留在第九节。
+
+### 10.5 边界
+
+- `full` profile 的领域结论仍是 `derived`：模型 + 声明输入 + 哈希，不是定理；
+  抽中的两板没有声明电流/热参数，所以用 `lean+fab` 出证书（这正是 118 的 profile）。
+- 作用域路由器仍受 FR 的随机性影响：同一五网 scope 的单轮运行曾留下 1 个开路
+  （门正确地拒绝），两轮即闭合。
+- 拼接（S3）与并行布线（S2 的真正版本）仍未做；K2/K3 只固定了接口和义务。
+

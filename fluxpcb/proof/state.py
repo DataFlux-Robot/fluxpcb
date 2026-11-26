@@ -12,8 +12,50 @@ rather than a silent pass.
 from __future__ import annotations
 
 import hashlib
+import json
+from pathlib import Path
 
 SCHEMA = 'fluxpcb-state-1'
+
+
+def board_rules(board_path, defaults=None):
+    """The fab rules for a board, from its project file, with provenance.
+
+    KiCad enforces ``max(design_settings.rules.min_clearance, netclass
+    clearance)`` per pair.  One global fab rule can only be the *least*
+    requirement any pair faces — ``max(global, min(class))`` — because a
+    stricter rule would refute pairs the board's own DRC accepts.  A zero
+    (KiCad's "unconstrained") falls back to the default netclass.
+    """
+    rules = dict(defaults or {'clearance': 200000, 'track_min': 150000})
+    src = {'clearance': 'default 0.2 mm (project declares none)',
+           'track_min': 'default 0.15 mm (project declares none)'}
+    pro = Path(board_path).with_suffix('.kicad_pro')
+    data = {}
+    if pro.exists():
+        try:
+            data = json.loads(pro.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            data = {}
+    board = data.get('board') or {}
+    ds = board.get('design_settings') or {}
+    r = ds.get('rules') or {}
+    ns = data.get('net_settings') or board.get('net_settings') or {}
+    classes = [float(c['clearance']) for c in ns.get('classes', [])
+               if c.get('clearance')]
+    c = r.get('min_clearance') or 0.0
+    if classes or c:
+        val = max(float(c), min(classes)) if classes else float(c)
+        rules['clearance'] = int(round(val * 1e6))
+        src['clearance'] = (f'netclass clearance min {min(classes)} mm'
+                            if classes else f'project min_clearance {c} mm')
+        if classes and c:
+            src['clearance'] += f' (board floor {c} mm)'
+    w = r.get('min_track_width')
+    if w:
+        rules['track_min'] = int(round(float(w) * 1e6))
+        src['track_min'] = f'project min_track_width {w} mm'
+    return rules, src
 
 
 def shape_str(sh):

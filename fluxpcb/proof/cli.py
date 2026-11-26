@@ -6,7 +6,7 @@ import json
 import os
 import sys
 
-from . import modules, state as S
+from . import framework, modules, state as S
 
 
 def _rules(path):
@@ -35,6 +35,15 @@ def main(argv=None):
     m.add_argument('--rules')
     m.add_argument('--proofs', nargs='*')
     m.add_argument('--out', required=True)
+    z = sub.add_parser('certify')
+    z.add_argument('--board', required=True)
+    z.add_argument('--rules')
+    z.add_argument('--profile', default='lean+fab')
+    z.add_argument('--domain', help='JSON list of domain claims')
+    z.add_argument('--spec', help='requirements JSON (compiled to conjectures)')
+    z.add_argument('--route-nets', help='comma-separated nets to re-route')
+    z.add_argument('--workdir')
+    z.add_argument('--out', required=True)
     a = ap.parse_args(argv)
     rules = _rules(a.rules)
     if a.cmd == 'contract':
@@ -61,6 +70,30 @@ def main(argv=None):
         with open(a.out, 'w', encoding='utf-8') as f:
             json.dump(r, f, indent=1, ensure_ascii=False)
         print(json.dumps(r, indent=1, ensure_ascii=False))
+        return 0 if r['ok'] else 3
+    if a.cmd == 'certify':
+        crules = rules if a.rules else None
+        dom = []
+        if a.domain:
+            with open(a.domain, encoding='utf-8') as f:
+                dom = json.load(f)
+        nets = [n for n in (a.route_nets or '').split(',') if n]
+        spec = None
+        if a.spec:
+            with open(a.spec, encoding='utf-8') as f:
+                spec = json.load(f)
+        r = framework.certify(a.board, crules, profile=a.profile,
+                              domain_claims=dom,
+                              route_nets=nets or None,
+                              workdir=a.workdir, spec=spec)
+        framework.write(r, a.out)
+        print(json.dumps({'ok': r['ok'], 'digest': r.get('digest'),
+                          'profile': r.get('profile'),
+                          'summary': r.get('summary'),
+                          'reasons': r.get('reasons', [])[:6],
+                          'unformalized': len(r.get('unformalized', [])),
+                          'seconds': r.get('seconds')},
+                         ensure_ascii=False))
         return 0 if r['ok'] else 3
     return 1
 

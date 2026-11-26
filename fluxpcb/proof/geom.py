@@ -84,24 +84,30 @@ def circle_circle(c1, c2):
     return dx * dx + dy * dy <= (r1 + r2) ** 2
 
 
+def pt_seg_touch(p, a, b, s):
+    """Distance from p to segment a-b is at most half of s (a full-width sum)."""
+    num, den = pt_seg_d2(p, a, b)
+    return 4 * num <= s * s * den
+
+
 def circle_seg(c, a, b, w):
     cx, cy, r = c
-    return pt_seg_le((cx, cy), a, b, (2 * r + w) ** 2)
+    return pt_seg_touch((cx, cy), a, b, 2 * r + w)
 
 
 def circle_poly(c, pts):
     cx, cy, r = c
     if pt_in_poly((cx, cy), pts):
         return True
-    return any_edge(pts, lambda a, b: pt_seg_le((cx, cy), a, b, 4 * r * r))
+    return any_edge(pts, lambda a, b: pt_seg_touch((cx, cy), a, b, 2 * r))
 
 
 def seg_seg(a, b, w1, c, d, w2):
     if segs_intersect(a, b, c, d):
         return True
     s = w1 + w2
-    return (pt_seg_le(a, c, d, s * s) or pt_seg_le(b, c, d, s * s)
-            or pt_seg_le(c, a, b, s * s) or pt_seg_le(d, a, b, s * s))
+    return (pt_seg_touch(a, c, d, s) or pt_seg_touch(b, c, d, s)
+            or pt_seg_touch(c, a, b, s) or pt_seg_touch(d, a, b, s))
 
 
 def seg_poly(a, b, w, pts):
@@ -109,7 +115,7 @@ def seg_poly(a, b, w, pts):
         return True
     if any_edge(pts, lambda c, d: segs_intersect(a, b, c, d)):
         return True
-    return any_edge(pts, lambda c, _d: pt_seg_le(c, a, b, w * w))
+    return any_edge(pts, lambda c, _d: pt_seg_touch(c, a, b, w))
 
 
 def poly_poly(p, q):

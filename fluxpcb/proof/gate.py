@@ -8,7 +8,7 @@ legacy pipeline keeps its old path, but proof mode has no bypass.
 """
 from __future__ import annotations
 
-from ..kernels import fab
+from ..kernels import fab, profile as profile_mod
 from . import bridge
 
 
@@ -16,11 +16,14 @@ class GateDenied(RuntimeError):
     """The step's proof obligations are not met."""
 
 
-def verify(st, claims, certs, before=None, touched=(), carried=(), rules=None):
+def verify(st, claims, certs, before=None, touched=(), carried=(), rules=None,
+           profile='lean+fab', domain_claims=()):
     lean = bridge.run(bridge.request(st, claims, certs, before=before,
                                      touched=touched, carried=carried))
     fab_claims = [c for c in claims if c['pred'] in fab.PREDS]
     fab_report = fab.check(st, fab_claims, rules or st.get('rules', {}))
+    prof = profile_mod.parse(profile) if isinstance(profile, str) else profile
+    domain_report = profile_mod.run_domain(domain_claims, prof, st)
     reasons = []
     if lean.get('drift'):
         reasons.append('translation drift: the kernel rebuilt a different digest')
@@ -35,8 +38,15 @@ def verify(st, claims, certs, before=None, touched=(), carried=(), rules=None):
     for c in fab_report['claims']:
         if c['status'] != 'proven':
             reasons.append(f"{c['id']}: {c['status']} {c['witness']}".strip())
+    for c in domain_report['claims']:
+        if c['status'] == 'disabled':
+            continue
+        if c['status'] not in ('derived', 'proven') or c.get('ok') is False:
+            why = c.get('needed_information') or c.get('witness') or ''
+            reasons.append(f"{c['id']}: {c['status']} {why}".strip())
     return {'ok': not reasons, 'reasons': reasons, 'lean': lean,
-            'fab': fab_report, 'digest': st.get('digest')}
+            'fab': fab_report, 'domain': domain_report,
+            'profile': prof.name, 'digest': st.get('digest')}
 
 
 def required_claims(st):
@@ -52,23 +62,27 @@ def required_claims(st):
     return out
 
 
-def commit_step(before, after, touched, claims, certs, carried=(), rules=None):
+def commit_step(before, after, touched, claims, certs, carried=(), rules=None,
+                profile='lean+fab', domain_claims=()):
     missing = required_claims(after) - {c['id'] for c in claims}
     if missing:
         raise GateDenied('missing proof obligations: ' + ','.join(sorted(missing)))
     r = verify(after, claims, certs, before=before, touched=touched,
-               carried=carried, rules=rules)
+               carried=carried, rules=rules, profile=profile,
+               domain_claims=domain_claims)
     if not r['ok']:
         raise GateDenied('; '.join(r['reasons'][:6]))
     return r
 
 
 def report_summary(r):
-    """(proven, derived, unknown, refuted) counts over both kernels."""
+    """Status counts over the Lean, fab, and domain kernels."""
     counts = {'proven': 0, 'derived': 0, 'unknown': 0, 'refuted': 0, 'invalid': 0,
-              'foreign': 0}
+              'foreign': 0, 'disabled': 0}
     for c in r['lean'].get('claims', []):
         counts[c['status']] = counts.get(c['status'], 0) + 1
     for c in r['fab']['claims']:
+        counts[c['status']] = counts.get(c['status'], 0) + 1
+    for c in r.get('domain', {}).get('claims', []):
         counts[c['status']] = counts.get(c['status'], 0) + 1
     return counts

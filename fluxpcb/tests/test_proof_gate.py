@@ -133,3 +133,62 @@ def test_bypass_is_denied():
     st = _clean()
     with pytest.raises(gate.GateDenied):
         gate.commit_step(st, st, [], [], [])
+
+
+def _gap_state():
+    st = {'board': 'gap', 'layers': ['F.Cu'],
+          'items': [_pad('pa', -600000, -100000, 0, 100000),
+                    _seg('s1', 0, 0, 1000000, 0),
+                    _seg('s2', 1250000, 0, 2000000, 0),
+                    _pad('pb', 2000000, -100000, 2600000, 100000)],
+          'rules': {'clearance': 150000, 'track_min': 150000},
+          'netPads': {'N': ['pa', 'pb']}}
+    return st_mod.freeze(st)
+
+
+def test_two_tracks_with_a_copper_gap_are_not_connected():
+    # 0.2 mm wide, centre lines 0.25 mm apart -> 0.05 mm copper gap.
+    # A full-width radius (0.4 mm) would have bridged them; half-widths do not.
+    _needs_lean()
+    st = _gap_state()
+    cl = claims.bench_claims(st)
+    cs = certs.connectivity_certs(st)
+    edge_ids = {tuple(sorted(e)) for c in cs for e in c['edges']}
+    assert ('s1', 's2') not in edge_ids
+    r = gate.verify(st, cl, cs)
+    by = {c['id']: c for c in r['lean']['claims']}
+    assert by['CONN:N']['status'] == 'unknown', by['CONN:N']
+    assert not r['ok']
+
+
+def test_kernel_rejects_a_certificate_edge_across_a_copper_gap():
+    _needs_lean()
+    st = _gap_state()
+    cl = claims.bench_claims(st)
+    bad = [{'claim': 'CONN:N', 'kind': 'tree',
+            'edges': [['pa', 's1'], ['s1', 's2'], ['s2', 'pb']]}]
+    r = gate.verify(st, cl, bad)
+    by = {c['id']: c for c in r['lean']['claims']}
+    assert by['CONN:N']['status'] == 'invalid', by['CONN:N']
+    assert not r['ok']
+
+
+def test_board_rules_come_from_the_netclasses(tmp_path):
+    import json
+    pro = tmp_path / 'b.kicad_pro'
+    pro.write_text(json.dumps({
+        'board': {'design_settings': {'rules': {
+            'min_clearance': 0.0, 'min_track_width': 0.1524}}},
+        'net_settings': {'classes': [
+            {'name': 'Default', 'clearance': 0.1524},
+            {'name': 'Power', 'clearance': 0.254}]}}), encoding='utf-8')
+    rules, src = st_mod.board_rules(tmp_path / 'b.kicad_pcb')
+    assert rules['clearance'] == 152400
+    assert rules['track_min'] == 152400
+    assert 'netclass' in src['clearance']
+    pro.write_text(json.dumps({
+        'board': {'design_settings': {'rules': {'min_clearance': 0.3}}},
+        'net_settings': {'classes': [{'clearance': 0.1524}]}}),
+        encoding='utf-8')
+    rules, _ = st_mod.board_rules(tmp_path / 'b.kicad_pcb')
+    assert rules['clearance'] == 300000  # the board floor wins
