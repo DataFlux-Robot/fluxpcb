@@ -1,0 +1,9 @@
+name = "fluxpcb"
+defaultTargets = ["flux-kernel"]
+
+[[lean_lib]]
+name = "Fluxpcb"
+
+[[lean_exe]]
+name = "flux-kernel"
+root = "Main"
