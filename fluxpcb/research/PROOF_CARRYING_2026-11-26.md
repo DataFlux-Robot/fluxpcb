@@ -542,8 +542,10 @@ F1 供 U2/D6/C3/R5；+3V3 由 U2 供 U1/C2/C4/R2/R3/R9/R10；VPP 与 +5V、+5V �
 ## 十七、基础补强：下降测度、库假设、匿名网（2026-11-26）
 
 - **下降测度进日志**：`step.preserve` 返回 `obligations`/`measure`；`transactional_repair`
-  在每次提交后记 `proof_measure`（义务数 + 负余量元组）。这是第三枪的“终止论证”的
-  可观测形式——还没强制，但每次提交都能被审计是否严格下降。
+  把它附在 **commit 条目**的 `proof_measure` 字段（义务数 + 负余量元组）。这是第三枪的
+  “终止论证”的可观测形式——还没强制，但每次提交都能被审计是否严格下降。
+  （曾把 measure 记成独立日志条目，`repair_stepwise` 取第一条日志的 action，读到的是
+  measure 而不是算子 → 单测立刻抓到；已改为附在 commit 条目上。）
 - **库假设（theorem schema 的适用条件）**：entry 增加 `hypotheses`（nets/parts/
   min_pads/clearance_min_nm）；`instantiate` 先检查假设，类外直接拒绝。
   power 条目要求 VPP/+5V/+3V3/GND、U2/F1、U2≥4 pad、clearance≥150 µm；

@@ -405,6 +405,7 @@ def transactional_repair(board_path: str, action_fn, eval_fn,
             break
         ok, why = accept(before, after)
         proof_blocked = False
+        proof_measure = None
         if ok and proof_mode != 'off':
             try:
                 from fluxpcb.proof import state as _S, step as _step
@@ -437,12 +438,8 @@ def transactional_repair(board_path: str, action_fn, eval_fn,
                                         'proof': pr['summary'],
                                         'decider': who, 'board_fp': fp})
                 if ok:
-                    if 'measure' in pr:
-                        rep.log.append({'round': r, 'decision': 'proof_measure',
-                                        'stage': kind,
-                                        'measure': list(pr['measure'][0:1]) +
-                                        [list(pr['measure'][1])],
-                                        'carried': pr.get('carried', [])[:8]})
+                    proof_measure = (list(pr['measure'][0:1]) +
+                                     [list(pr['measure'][1])])                         if 'measure' in pr else None
                     pctx = {'state': st_after, 'report': pr['report'],
                             'fp': board_fingerprint(board_path)}
             except Exception as e:
@@ -460,10 +457,13 @@ def transactional_repair(board_path: str, action_fn, eval_fn,
             continue
         if ok:
             rep.committed += 1
-            rep.log.append({'round': r, 'decision': 'commit', 'why': why,
-                            'stage': kind,
-                            'before': before.as_dict(), 'after': after.as_dict(),
-                            'action': stats, 'decider': who, 'board_fp': fp})
+            entry = {'round': r, 'decision': 'commit', 'why': why,
+                     'stage': kind,
+                     'before': before.as_dict(), 'after': after.as_dict(),
+                     'action': stats, 'decider': who, 'board_fp': fp}
+            if proof_measure is not None:
+                entry['proof_measure'] = proof_measure
+            rep.log.append(entry)
             say(f'round {r}: commit ({why})')
             before = after
             rep.final = after.as_dict()
