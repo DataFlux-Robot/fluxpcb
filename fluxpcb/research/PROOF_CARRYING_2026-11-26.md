@@ -340,3 +340,34 @@ K3 里那处 0.174 mm 间距在新内核、新 FR 采样下没有复现；同一
 - 领域结论仍只到 `derived`（模型+输入+哈希）；库里 `find` 是启发式候选，内核复核。
 - 每步门的开销在 2–4 s/次提交；小板相对更贵，大板摊销。
 - `carried` 的可靠性依赖 frame：rules/layers/footprints 任一变化都会作废全部 carried。
+
+## 十三、118 个工况的完整测试（enforce，2026-11-26）
+
+**设置**：118 个任务（`boards_full.json` 去掉 0473，与 118 任务清单一致），分成 6 片
+（20/20/20/20/19/19）并行；同一 arm（`gate+ripup~full4r0`）、同一 bench 协议
+（900 s/格，error DRC + 0 unconnected）；`FLUXPCB_PROOF=enforce` 且
+`FLUXPCB_PROOF_PUBLISH=enforce`——每一步事务过 `preserve`，最终板过 `publish`。
+
+| 项 | 结果 |
+|---|---|
+| 处理 | 118 / 118 |
+| clean（0 error / 0 unconnected） | **116** |
+| 被证明门拒绝 | **2**：`0496_kitspace_f-91w`、`0599_RGBMatrixPanelCPLD-PhotonBackpack`（publish 报未覆盖的 CONN 义务；同一 `claims_after` 为空是因为拒绝先于打分） |
+| 与基线（full4 同一 118 板） | 基线 117/119 clean（含 0473）；去掉 0473 后正是 **116/118**，逐板相同 |
+| clean 格的 publish 证明 | **116 / 116 全部 `ok`**；共 **1459** 条 claim proven |
+| 每步 `proof_denied` | 0（只有两格的最终 publish 拒绝） |
+| wall | 均值 **58.7 s**、中位 37.5 s、max 629.4 s；route 均值 19.4 s（基线均值 69.2 s，同一量级，单次重复，不作加速声明） |
+
+**独立离线复核**：对 118 块保存的最终板重新按各自的网类规则跑 lean+fab，并写出一板
+一张 `certificate.json`（`k6_full/offline/`）：
+
+- 判定与 bench 行 **118 / 118 一致**（116 ok；2 个 dirty 板如实 unknown/refuted）；
+- 证书合计 **1537 proven / 29 unknown / 3 refuted**；
+- 耗时中位 **0.66 s**、p95 17.6 s、max 46.2 s，单核合计 304 s，6 进程墙钟 66 s。
+
+**结论**：在“每一步工艺验证 + 最终全板发布证明”都打开的情况下，118 个工况的分数与
+基线逐板一致；没有一块 clean 的板是“无证”的；两块本来就不 clean 的板现在先在证明门
+被拒，而不是靠最终 DRC 才发现。证书与 bench 判据在离线复核中完全对齐。
+
+**边界**：这是 1 次重复（基线是 3 次重复的并集）；118 不含 0473；两块 dirty 板的
+`claims_after` 为空是 publish 异常先于打分的结果，不是 DRC 没跑。
