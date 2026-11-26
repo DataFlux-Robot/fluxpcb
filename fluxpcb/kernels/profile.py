@@ -13,9 +13,9 @@ from dataclasses import dataclass, field
 from . import derive
 
 DOMAIN_PREDS = {
-    'power': ('power.drop', 'power.j'),
+    'power': ('power.drop', 'power.drop_path', 'power.j'),
     'thermal': ('thermal.tj',),
-    'signal': ('signal.z0',),
+    'signal': ('signal.z0', 'signal.skew'),
 }
 PROFILES = {
     'lean+fab': ('lean', 'fab'),
@@ -45,10 +45,18 @@ def _domain_of(pred):
     return None
 
 
-def _run_one(c):
+def _run_one(c, st=None):
     pred = c['pred']
     p = dict(c.get('params') or {})
-    if pred == 'power.drop':
+    if pred == 'power.drop_path':
+        if st is None:
+            d = {'status': 'unknown', 'needed_information': ['board state']}
+        else:
+            d = derive.power_drop_path(
+                st, p.get('net'), p.get('current_a'), p.get('v_rail'),
+                source=p.get('source'), sinks=p.get('sinks'),
+                t_mm=p.get('t_mm', 0.035))
+    elif pred == 'power.drop':
         d = derive.power_drop(p.get('current_a'), p.get('length_mm'),
                               p.get('width_mm'), p.get('t_mm', 0.035),
                               p.get('v_rail'))
@@ -69,19 +77,35 @@ def _run_one(c):
                               'inputs_hash': f'{cur}-{w}-{t}',
                               'result': round(j, 6)}}
     elif pred == 'thermal.tj':
+        theta_via = p.get('theta_via')
+        if theta_via is None and p.get('n_vias') and p.get('via_drill_mm'):
+            v = derive.via_array_theta(p['n_vias'], p['via_drill_mm'],
+                                       p.get('length_mm', 1.6))
+            theta_via = v.get('measured') if v['status'] == 'derived' else None
         d = derive.thermal_tj(p.get('power_w'), p.get('theta_ja'),
                               p.get('theta_jc'), p.get('theta_cs'),
                               p.get('theta_sa'), p.get('t_amb', 25.0),
-                              p.get('sink', False))
+                              p.get('sink', False), theta_via=theta_via)
+        if theta_via is not None and d.get('status') == 'derived':
+            d['evidence']['inputs']['theta_via'] = theta_via
     elif pred == 'signal.z0':
-        d = derive.z0_microstrip(p.get('width_mm'), p.get('h_mm'),
-                                 p.get('er'), p.get('t_mm', 0.035))
+        if p.get('kind') == 'stripline':
+            d = derive.z0_stripline(p.get('width_mm'), p.get('h_mm'),
+                                    p.get('er'), p.get('t_mm', 0.035))
+        else:
+            d = derive.z0_microstrip(p.get('width_mm'), p.get('h_mm'),
+                                     p.get('er'), p.get('t_mm', 0.035))
         target = p.get('target_ohm')
         if d['status'] == 'derived' and target:
             tol = p.get('tol_pct', 10.0)
             d['limit'] = target
             d['dev_pct'] = round(100 * (d['measured'] - target) / target, 2)
             d['ok'] = abs(d['dev_pct']) <= tol
+    elif pred == 'signal.skew':
+        if st is None:
+            d = {'status': 'unknown', 'needed_information': ['board state']}
+        else:
+            d = derive.diff_skew(st, p.get('p_net'), p.get('n_net'))
     else:
         d = {'status': 'unknown', 'needed_information': [f'no derivation for {pred}']}
     limit = c.get('limit') if c.get('limit') is not None else p.get('limit')
@@ -109,7 +133,7 @@ def run_domain(claims, profile, state=None):
                          'status': 'disabled', 'measured': None, 'units': '',
                          'witness': f'{dom} kernel disabled by profile {profile.name}'})
             continue
-        r = _run_one(c)
+        r = _run_one(c, state)
         rows.append(r)
         if r['status'] not in ('derived', 'proven') or \
                 (r.get('ok') is False):

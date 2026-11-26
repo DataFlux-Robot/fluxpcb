@@ -22,11 +22,39 @@ def bench_claims(st, ref_nets=None, include_fab=True):
                    'scope': sorted(i['id'] for i in st['items'])})
     if include_fab:
         allids = sorted(i['id'] for i in st['items'])
+        rules = st['rules']
         claims.append({'id': 'FAB:CLEARANCE', 'pred': 'clearance',
-                       'scope': allids, 'rule': st['rules'].get('clearance')})
+                       'scope': allids, 'rule': rules.get('clearance')})
         claims.append({'id': 'FAB:WIDTH', 'pred': 'width',
-                       'scope': allids, 'rule': st['rules'].get('track_min')})
+                       'scope': allids, 'rule': rules.get('track_min')})
+        # the remaining process predicates are obligations only when the
+        # board's project declares a rule for them (0.0 = unconstrained).
+        extra = [('FAB:ANNULAR', 'annular', 'annular'),
+                 ('FAB:DRILL', 'drill', 'drill_min'),
+                 ('FAB:HOLE', 'hole', 'hole_to_hole'),
+                 ('FAB:EDGE', 'edge', 'edge')]
+        for cid, pred, key in extra:
+            rule = rules.get(key)
+            if rule:
+                claims.append({'id': cid, 'pred': pred, 'scope': allids,
+                               'rule': rule})
     return claims
+
+
+def process_claims(st, profile='jlc'):
+    """The fab profile's own limits, as extra process obligations."""
+    from . import state as _S
+    rules = _S.process_rules(profile)
+    allids = sorted(i['id'] for i in st['items'])
+    out = []
+    for cid, pred, key in (('PROC:ANNULAR', 'annular', 'annular'),
+                           ('PROC:HOLE', 'hole', 'hole_to_hole'),
+                           ('PROC:EDGE', 'edge', 'edge'),
+                           ('PROC:DRILL', 'drill', 'drill_min')):
+        if rules.get(key):
+            out.append({'id': cid, 'pred': pred, 'scope': allids,
+                        'rule': rules[key]})
+    return out
 
 
 def conjecture_table(st, ref_nets=None):

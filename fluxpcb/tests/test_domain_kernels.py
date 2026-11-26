@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from fluxpcb.kernels import derive, profile
+from fluxpcb.kernels import derive, fab, profile
 from fluxpcb.proof import bridge, certs, claims, gate, state as st_mod
 
 
@@ -136,3 +136,131 @@ def test_conjecture_on_an_unrouted_net_is_unknown():
     r = profile.run_domain(claims_, profile.parse('full'))
     assert r['claims'][0]['status'] == 'unknown'
     assert 'length_mm' in r['claims'][0]['needed_information']
+
+
+def _chain_state():
+    st = {'board': 'chain', 'layers': ['F.Cu'],
+          'items': [_pad('pa', 0, 0, 600000, 600000),
+                    _seg('t1', 300000, 300000, 10300000, 300000),
+                    _pad('pb', 10000000, 0, 10600000, 600000)],
+          'rules': {'clearance': 150000, 'track_min': 150000},
+          'netPads': {'N': ['pa', 'pb']}}
+    return st_mod.freeze(st)
+
+
+def test_worst_path_drop_matches_one_segment():
+    st = _chain_state()
+    d = derive.power_drop_path(st, 'N', 1.0)
+    # 10 mm, 0.2 mm wide, 35 um copper: R = 24.6 mOhm -> 24.6 mV
+    assert d['status'] == 'derived'
+    assert abs(d['measured'] - 24.63) < 0.1, d
+    assert d['min_width_mm'] == 0.2
+    assert abs(d['current_density'] - 1.0 / (0.2 * 0.035)) < 0.1
+
+
+def test_unrouted_rail_is_unknown_not_derived():
+    st = _chain_state()
+    st = dict(st, items=[i for i in st['items'] if i['id'] != 't1'])
+    st = st_mod.freeze(st)
+    d = derive.power_drop_path(st, 'N', 1.0)
+    assert d['status'] == 'unknown'
+
+
+def test_via_theta_stripline_and_skew_math():
+    v = derive.via_array_theta(9, 0.3)
+    assert v['status'] == 'derived' and 0 < v['measured'] < 20
+    z = derive.z0_stripline(0.2, 0.2, 4.2)
+    assert 35 < z['measured'] < 45
+    st = {'board': 'pair', 'layers': ['F.Cu'],
+          'items': [_seg('p1', 0, 0, 10000000, 0, net='P'),
+                    _seg('n1', 0, 1000000, 10500000, 1000000, net='N')],
+          'rules': {}, 'netPads': {'P': [], 'N': []}}
+    st = st_mod.freeze(st)
+    s = derive.diff_skew(st, 'P', 'N')
+    assert s['status'] == 'derived' and abs(s['measured'] - 0.5) < 1e-6
+
+
+def test_via_array_lowers_the_junction_temperature():
+    base = derive.thermal_tj(1.0, theta_ja=60.0)
+    with_vias = derive.thermal_tj(1.0, theta_ja=60.0, theta_via=10.0)
+    assert with_vias['measured'] < base['measured']
+
+
+def test_profile_dispatches_path_skew_and_stripline():
+    st = _chain_state()
+    cl = [{'id': 'P', 'pred': 'power.drop_path',
+           'params': {'net': 'N', 'current_a': 1.0}}]
+    r = profile.run_domain(cl, profile.parse('full'), st)
+    assert r['claims'][0]['status'] == 'derived'
+    cl = [{'id': 'S', 'pred': 'signal.skew',
+           'params': {'p_net': 'P', 'n_net': 'N'}}]
+    st2 = {'board': 'pair', 'layers': ['F.Cu'],
+           'items': [_seg('p1', 0, 0, 10000000, 0, net='P'),
+                     _seg('n1', 0, 1000000, 10000000, 1000000, net='N')],
+           'rules': {}, 'netPads': {}}
+    r = profile.run_domain(cl, profile.parse('full'), st_mod.freeze(st2))
+    assert r['claims'][0]['status'] == 'derived'
+    cl = [{'id': 'Z', 'pred': 'signal.z0',
+           'params': {'kind': 'stripline', 'width_mm': 0.2, 'h_mm': 0.2,
+                      'er': 4.2}}]
+    r = profile.run_domain(cl, profile.parse('full'))
+    assert 35 < r['claims'][0]['measured'] < 45
+
+
+def _via(pid, x, y, r, drill):
+    return {'id': pid, 'net': 'N', 'layers': ['F.Cu', 'B.Cu'],
+            'drill': drill, 'span': 'F.Cu-B.Cu',
+            'shape': {'kind': 'circle', 'cx': x, 'cy': y, 'r': r}}
+
+
+def test_fab_annular_drill_hole_and_edge():
+    st = {'board': 'holes', 'layers': ['F.Cu', 'B.Cu'],
+          'items': [_via('v1', 1000000, 1000000, 300000, 400000),
+                    _via('v2', 1500000, 1000000, 300000, 400000),
+                    _via('v3', 6000000, 1000000, 200000, 400000)],
+          'rules': {'annular': 75000, 'drill_min': 200000,
+                    'hole_to_hole': 250000},
+          'netPads': {'N': []}}
+    st = st_mod.freeze(st)
+    rep = fab.check(st, [{'id': 'A', 'pred': 'annular', 'scope': None,
+                          'rule': 75000}], st['rules'])
+    assert rep['claims'][0]['status'] == 'refuted'
+    assert 'v3' in rep['claims'][0]['witness']
+    rep = fab.check(st, [{'id': 'H', 'pred': 'hole', 'scope': None,
+                          'rule': 250000}], st['rules'])
+    assert rep['claims'][0]['status'] == 'refuted'
+    rep = fab.check(st, [{'id': 'D', 'pred': 'drill', 'scope': None,
+                          'rule': 500000}], st['rules'])
+    assert rep['claims'][0]['status'] == 'refuted'
+    # edge: a track 0.1 mm inside the outline is refuted at 0.3 mm, 0.5 is ok
+    st2 = {'board': 'edge', 'layers': ['F.Cu'],
+           'items': [_seg('t', 300000, 5000000, 9700000, 5000000)],
+           'rules': {}, 'netPads': {},
+           'outline': [[0, 0], [10000000, 0], [10000000, 10000000],
+                       [0, 10000000]]}
+    st2 = st_mod.freeze(st2)
+    rep = fab.check(st2, [{'id': 'E', 'pred': 'edge', 'scope': None,
+                            'rule': 300000}], st2['rules'])
+    assert rep['claims'][0]['status'] == 'refuted'
+    rep = fab.check(st2, [{'id': 'E', 'pred': 'edge', 'scope': None,
+                            'rule': 200000}], st2['rules'])
+    assert rep['claims'][0]['status'] == 'proven', rep['claims'][0]
+
+
+def test_zones_make_clearance_unknown_not_silent():
+    st = {'board': 'z', 'layers': ['F.Cu'], 'items': [], 'rules': {},
+          'netPads': {}, 'zones': 1}
+    st = st_mod.freeze(st)
+    rep = fab.check(st, [{'id': 'C', 'pred': 'clearance', 'scope': None,
+                          'rule': 150000}], st['rules'])
+    assert rep['claims'][0]['status'] == 'unknown'
+    assert 'zone' in rep['claims'][0]['witness']
+
+
+def test_process_claims_come_from_the_fab_profile():
+    from fluxpcb.proof import claims as C
+    st = {'board': 'p', 'layers': ['F.Cu'], 'items': [], 'rules': {},
+          'netPads': {}}
+    st = st_mod.freeze(st)
+    ids = {c['id'] for c in C.process_claims(st, 'jlc-1oz-2to4l-2026-11-25')}
+    assert ids == {'PROC:ANNULAR', 'PROC:HOLE', 'PROC:EDGE', 'PROC:DRILL'}

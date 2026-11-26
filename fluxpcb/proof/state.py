@@ -55,7 +55,47 @@ def board_rules(board_path, defaults=None):
     if w:
         rules['track_min'] = int(round(float(w) * 1e6))
         src['track_min'] = f'project min_track_width {w} mm'
+    # these four only matter when the project's own DRC treats them as
+    # errors; a warning-level rule must not change the bench verdict.
+    sev = ds.get('rule_severities') or {}
+    for key, field, drc in (('annular', 'min_via_annular_width',
+                             'annular_width'),
+                            ('hole_to_hole', 'min_hole_to_hole', 'hole_to_hole'),
+                            ('edge', 'min_copper_edge_clearance',
+                             'copper_edge_clearance'),
+                            ('drill_min', 'min_through_hole_diameter',
+                             'drill_out_of_range')):
+        v = r.get(field)
+        if v and sev.get(drc) == 'error':
+            rules[key] = int(round(float(v) * 1e6))
+            src[key] = f'project {field} {v} mm (severity error)'
     return rules, src
+
+
+def process_rules(profile='jlc-1oz-2to4l-2026-11-25'):
+    """Manufacturability limits from the fab profile (nm), as extra rules."""
+    d = Path(__file__).resolve().parent.parent / 'mfg' / 'data'
+    files = sorted(d.glob('jlc_*.json'))
+    data = None
+    for f in files:
+        try:
+            cand = json.loads(f.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        if cand.get('profile_id') == profile or profile in ('jlc', 'jlc-1oz'):
+            data = cand
+            break
+    if data is None:
+        return {}
+    p = data.get('parameters') or {}
+    out = {}
+    for key, field in (('annular', 'annular_ring'), ('hole_to_hole',
+                                                     'hole_to_hole'),
+                       ('edge', 'copper_edge'), ('drill_min', 'via_drill')):
+        v = (p.get(field) or {}).get('limit_mm')
+        if v:
+            out[key] = int(round(float(v) * 1e6))
+    return out
 
 
 def shape_str(sh):
@@ -69,25 +109,36 @@ def shape_str(sh):
     raise ValueError(f'shape {k}')
 
 
+def item_line(i):
+    line = f"i|{i['id']}|{i['net']}|{','.join(i['layers'])}|{shape_str(i['shape'])}"
+    if i.get('drill') is not None and i['drill'] >= 0:
+        line += f"|d={i['drill']}"
+    if i.get('span'):
+        line += f"|s={i['span']}"
+    return line
+
+
 def canonical(st):
     items = sorted(st['items'], key=lambda i: i['id'])
     rules = sorted(st['rules'].items())
     nets = sorted(st['netPads'].items())
     fps = sorted((st.get('footprints') or {}).items())
     lines = ['v2', st['schema'], st['board'], ','.join(st['layers'])]
-    lines += [f"i|{i['id']}|{i['net']}|{','.join(i['layers'])}|{shape_str(i['shape'])}"
-              for i in items]
+    lines += [item_line(i) for i in items]
     lines += [f"r|{k}={v}" for k, v in rules]
     lines += [f"n|{n}:{','.join(ids)}" for n, ids in nets]
     lines += [f"f|{r}:{','.join(ids)}" for r, ids in fps]
+    lines += [f"z|{st.get('zones', 0)}"]
+    ol = st.get('outline') or []
+    if ol:
+        lines += ['o|' + ';'.join(f"{x},{y}" for x, y in ol)]
     return '\n'.join(lines)
 
 
 def item_hashes(st):
     """id -> hash of that item's canonical line (for proof-store freshness)."""
-    return {i['id']: hashlib.sha256(
-        f"i|{i['id']}|{i['net']}|{','.join(i['layers'])}|{shape_str(i['shape'])}"
-        .encode('utf-8')).hexdigest()[:16] for i in st['items']}
+    return {i['id']: hashlib.sha256(item_line(i).encode('utf-8')).hexdigest()[:16]
+            for i in st['items']}
 
 
 def fnv1a(s):
@@ -187,7 +238,11 @@ def extract(board_path, rules=None):
         uid = _uuid(t)
         if t.Type() == pcbnew.PCB_VIA_T:
             q = t.GetPosition()
+            top = b.GetLayerName(t.GetLayer())
+            bot = b.GetLayerName(t.BottomLayer())
             items.append({'id': uid, 'net': net, 'layers': list(names),
+                          'drill': int(t.GetDrillValue()),
+                          'span': f'{top}-{bot}',
                           'shape': {'kind': 'circle', 'cx': int(q.x),
                                     'cy': int(q.y),
                                     'r': int(t.GetWidth(pcbnew.F_Cu) // 2)}})
@@ -214,14 +269,27 @@ def extract(board_path, rules=None):
             if not layers:
                 continue
             lid0 = next((l for l in lids if pad.IsOnLayer(l)), None)
+            ds = pad.GetDrillSize()
+            drill = int(max(ds.x, ds.y)) if (ds.x or ds.y) else -1
             items.append({'id': uid, 'net': net, 'layers': layers,
-                          'ref': ref, 'shape': _pad_shape(pad, lid0)})
+                          'ref': ref, 'drill': drill,
+                          'shape': _pad_shape(pad, lid0)})
             net_pads.setdefault(net, set()).add(uid)
             footprints.setdefault(ref, set()).add(uid)
+    outline = []
+    try:
+        poly = pcbnew.SHAPE_POLY_SET()
+        if b.GetBoardPolygonOutlines(poly, True) and poly.OutlineCount() > 0:
+            ch = poly.Outline(0)
+            outline = [[int(ch.CPoint(k).x), int(ch.CPoint(k).y)]
+                       for k in range(ch.PointCount())]
+    except Exception:
+        outline = []
     st = {'schema': SCHEMA, 'board': str(board_path), 'layers': list(names),
           'items': items, 'rules': dict(rules or {}),
           'netPads': {n: sorted(v) for n, v in sorted(net_pads.items())},
-          'footprints': {r: sorted(v) for r, v in sorted(footprints.items())}}
+          'footprints': {r: sorted(v) for r, v in sorted(footprints.items())},
+          'zones': int(b.GetAreaCount()), 'outline': outline}
     return freeze(st)
 
 

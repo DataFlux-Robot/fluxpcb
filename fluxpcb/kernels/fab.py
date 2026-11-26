@@ -14,7 +14,7 @@ import math
 
 from ..proof import geom
 
-PREDS = ('clearance', 'width')
+PREDS = ('clearance', 'width', 'annular', 'drill', 'hole', 'edge')
 
 
 def _frac_lt(n1, d1, n2, d2):
@@ -170,21 +170,142 @@ def width_worst(st, scope, rule):
     return f"{worst[1]}: width {worst[0] / 1000:.3f} mm < {rule / 1000:.3f} mm"
 
 
+def annular_worst(st, scope, rule):
+    ids = set(scope) if scope is not None else None
+    worst = None
+    for i in st['items']:
+        if ids is not None and i['id'] not in ids:
+            continue
+        drill = i.get('drill', -1)
+        if drill is None or drill < 0:
+            continue
+        sh = i['shape']
+        if sh['kind'] == 'circle':
+            r = sh['r']
+        else:
+            xs = [p[0] for p in sh['pts']]
+            ys = [p[1] for p in sh['pts']]
+            r = min(max(xs) - min(xs), max(ys) - min(ys)) // 2
+        ann = r - drill // 2
+        if ann < rule and (worst is None or ann < worst[0]):
+            worst = (ann, i['id'])
+    if worst is None:
+        return None
+    return f'{worst[1]}: annular {worst[0] / 1000:.3f} mm < {rule / 1000:.3f} mm'
+
+
+def drill_worst(st, scope, rule, rule_max=None):
+    ids = set(scope) if scope is not None else None
+    worst = None
+    for i in st['items']:
+        if ids is not None and i['id'] not in ids:
+            continue
+        drill = i.get('drill', -1)
+        if drill is None or drill < 0:
+            continue
+        bad = drill < rule or (rule_max is not None and drill > rule_max)
+        if bad and (worst is None or drill < worst[0]):
+            worst = (drill, i['id'])
+    if worst is None:
+        return None
+    return f'{worst[1]}: drill {worst[0] / 1000:.3f} mm outside the process range'
+
+
+def hole_to_hole_worst(st, scope, rule):
+    ids = set(scope) if scope is not None else None
+    holes = [i for i in st['items']
+             if (i.get('drill') or -1) >= 0 and (ids is None or i['id'] in ids)]
+    worst = None
+    for a in range(len(holes)):
+        for b in range(a + 1, len(holes)):
+            i, j = holes[a], holes[b]
+            si, sj = i['shape'], j['shape']
+            ci = (si['cx'], si['cy']) if si['kind'] == 'circle' else (
+                (min(p[0] for p in si['pts']) + max(p[0] for p in si['pts'])) // 2,
+                (min(p[1] for p in si['pts']) + max(p[1] for p in si['pts'])) // 2)
+            cj = (sj['cx'], sj['cy']) if sj['kind'] == 'circle' else (
+                (min(p[0] for p in sj['pts']) + max(p[0] for p in sj['pts'])) // 2,
+                (min(p[1] for p in sj['pts']) + max(p[1] for p in sj['pts'])) // 2)
+            dx, dy = ci[0] - cj[0], ci[1] - cj[1]
+            # edge-to-edge: centre distance minus the two drill radii
+            import math
+            gap = math.isqrt(dx * dx + dy * dy) - (i['drill'] + j['drill']) // 2
+            if gap < rule and (worst is None or gap < worst[0]):
+                worst = (gap, i['id'], j['id'])
+    if worst is None:
+        return None
+    return (f'{worst[1]} vs {worst[2]}: hole gap {worst[0] / 1000:.3f} mm '
+            f'< {rule / 1000:.3f} mm')
+
+
+def edge_worst(st, scope, rule):
+    outline = st.get('outline') or []
+    if len(outline) < 3:
+        return None
+    edges = list(zip(outline, outline[1:] + outline[:1]))
+    ids = set(scope) if scope is not None else None
+    worst = None
+    for i in st['items']:
+        if ids is not None and i['id'] not in ids:
+            continue
+        sh = i['shape']
+        if sh['kind'] == 'seg':
+            pts = [(sh['x1'], sh['y1']), (sh['x2'], sh['y2'])]
+            hw = sh['w'] // 2
+        elif sh['kind'] == 'circle':
+            pts = [(sh['cx'], sh['cy'])]
+            hw = sh['r']
+        else:
+            pts = [(p[0], p[1]) for p in sh['pts']]
+            hw = 0
+        for p in pts:
+            for a, b in edges:
+                num, den = geom.pt_seg_d2(p, a, b)
+                dist = math.isqrt(num // den) if den else 0
+                gap = dist - hw
+                if gap < rule and (worst is None or gap < worst[0]):
+                    worst = (gap, i['id'])
+    if worst is None:
+        return None
+    return (f'{worst[1]}: copper {worst[0] / 1000:.3f} mm from the edge '
+            f'< {rule / 1000:.3f} mm')
+
+
 def check(st, claims, rules):
     out = []
     for c in claims:
         pred = c['pred']
         rule = c.get('rule')
         if rule is None:
-            rule = rules.get('clearance' if pred == 'clearance' else 'track_min')
+            key = {'clearance': 'clearance', 'width': 'track_min',
+                   'annular': 'annular', 'drill': 'drill_min',
+                   'hole': 'hole_to_hole', 'edge': 'edge'}[pred]
+            rule = rules.get(key)
         if rule is None:
             out.append({'id': c['id'], 'pred': pred, 'status': 'unknown',
                         'witness': f'{pred} rule not declared',
                         'kernel': 'fab'})
             continue
+        if pred in ('clearance', 'edge') and st.get('zones', 0) > 0:
+            out.append({'id': c['id'], 'pred': pred, 'status': 'unknown',
+                        'witness': 'zone copper is not extracted',
+                        'kernel': 'fab'})
+            continue
         rule = int(rule)
-        w = (clearance_worst(st, c.get('scope'), rule) if pred == 'clearance'
-             else width_worst(st, c.get('scope'), rule))
+        if pred == 'clearance':
+            w = clearance_worst(st, c.get('scope'), rule)
+        elif pred == 'width':
+            w = width_worst(st, c.get('scope'), rule)
+        elif pred == 'annular':
+            w = annular_worst(st, c.get('scope'), rule)
+        elif pred == 'drill':
+            w = drill_worst(st, c.get('scope'), rule)
+        elif pred == 'hole':
+            w = hole_to_hole_worst(st, c.get('scope'), rule)
+        elif pred == 'edge':
+            w = edge_worst(st, c.get('scope'), rule)
+        else:
+            w = None
         out.append({'id': c['id'], 'pred': pred,
                     'status': 'refuted' if w else 'proven',
                     'witness': w or '', 'kernel': 'fab'})

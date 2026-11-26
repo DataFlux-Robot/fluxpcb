@@ -37,7 +37,8 @@ def _rows(r):
 
 
 def certify(board, rules=None, profile='lean+fab', domain_claims=(),
-            route_nets=None, workdir=None, spec=None, store=None, log=print):
+            route_nets=None, workdir=None, spec=None, store=None,
+            process=None, log=print):
     t0 = time.time()
     board = Path(board)
     if rules is None:
@@ -76,11 +77,12 @@ def certify(board, rules=None, profile='lean+fab', domain_claims=(),
             carried.append((c['id'], list(c.get('scope') or [])))
         else:
             check.append(c)
-    cl = check + dom
+    proc = claim_mod.process_claims(st, process) if process else []
+    cl = check + dom + proc
     cs = [c for c in certs.connectivity_certs(st)
           if c['claim'] in {x['id'] for x in check}]
     t1 = time.time()
-    obligations = {c['id']: c['pred'] for c in bench}
+    obligations = {c['id']: c['pred'] for c in bench + proc}
     r = gate.verify(st, cl, cs, carried=carried, rules=rules, profile=profile,
                     domain_claims=dom, obligations=obligations)
     verify_seconds = round(time.time() - t1, 2)
@@ -96,6 +98,7 @@ def certify(board, rules=None, profile='lean+fab', domain_claims=(),
     return {'schema': SCHEMA, 'board': str(board),
             'digest': st['digest'], 'profile': profile,
             'rules': dict(rules), 'rule_source': rule_src,
+            'process': process,
             'ok': r['ok'], 'reasons': r['reasons'],
             'summary': gate.report_summary(r),
             'claims': _rows(r), 'route': None, 'unformalized': unformalized,

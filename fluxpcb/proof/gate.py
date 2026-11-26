@@ -43,7 +43,8 @@ def _pin_problems(claims, obligations, carried=()):
 
 
 def verify(st, claims, certs, before=None, touched=(), carried=(), rules=None,
-           profile='lean+fab', domain_claims=(), obligations=None):
+           profile='lean+fab', domain_claims=(), obligations=None,
+           allow_unknown=False):
     """One verification pass.  `obligations` pins id -> predicate."""
     dom_preds = {p for ps in profile_mod.DOMAIN_PREDS.values() for p in ps}
     lean_obligations = {cid: pred for cid, pred in (obligations or {}).items()
@@ -74,6 +75,8 @@ def verify(st, claims, certs, before=None, touched=(), carried=(), rules=None,
         reasons.append('uncovered obligations: ' + ','.join(lean.get('uncovered', [])))
     for c in lean.get('claims', []):
         if c['status'] not in ('proven', 'carried', 'foreign'):
+            if allow_unknown and c['status'] == 'unknown':
+                continue
             reasons.append(f"{c['id']}: {c['status']} {c['witness']}".strip())
     for c in fab_report['claims']:
         if c['status'] != 'proven':

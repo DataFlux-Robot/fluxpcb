@@ -45,9 +45,17 @@ def from_spec(spec, st):
     for r in spec.get('rails', []) or []:
         net = r.get('net') or r['name']
         length_mm, width_mm = net_geometry(st, net)
-        params = {'current_a': r.get('current_a'), 'v_rail': r.get('v_rail'),
-                  'length_mm': length_mm, 'width_mm': width_mm}
-        c = {'id': f"POWER:DROP:{r['name']}", 'pred': 'power.drop',
+        if r.get('path'):
+            params = {'net': net, 'current_a': r.get('current_a'),
+                      'v_rail': r.get('v_rail'), 'source': r.get('source'),
+                      'sinks': r.get('sinks')}
+            pred = 'power.drop_path'
+        else:
+            params = {'current_a': r.get('current_a'),
+                      'v_rail': r.get('v_rail'),
+                      'length_mm': length_mm, 'width_mm': width_mm}
+            pred = 'power.drop'
+        c = {'id': f"POWER:DROP:{r['name']}", 'pred': pred,
              'net': net, 'params': params}
         if r.get('drop_limit_mv') is not None:
             c['limit'] = r['drop_limit_mv']
@@ -57,7 +65,10 @@ def from_spec(spec, st):
         params = {'power_w': f.get('power_w'), 'theta_ja': f.get('theta_ja'),
                   'theta_jc': f.get('theta_jc'), 'theta_cs': f.get('theta_cs'),
                   'theta_sa': f.get('theta_sa'), 't_amb': f.get('t_amb', 25.0),
-                  'sink': f.get('sink', False)}
+                  'sink': f.get('sink', False),
+                  'n_vias': f.get('n_vias'),
+                  'via_drill_mm': f.get('via_drill_mm'),
+                  'length_mm': f.get('length_mm', 1.6)}
         c = {'id': f"THERMAL:TJ:{f['ref']}", 'pred': 'thermal.tj',
              'ref': f['ref'], 'params': params}
         if f.get('tj_max') is not None:
@@ -65,7 +76,8 @@ def from_spec(spec, st):
         claims.append(c)
     for i in spec.get('interfaces', []) or []:
         length_mm, width_mm = net_geometry(st, i.get('net') or '')
-        params = {'width_mm': i.get('width_mm') or width_mm,
+        params = {'kind': i.get('kind', 'microstrip'),
+                  'width_mm': i.get('width_mm') or width_mm,
                   'h_mm': i.get('h_mm') or stack.get('h_mm'),
                   'er': i.get('er') or stack.get('er'),
                   't_mm': i.get('t_mm') or stack.get('t_mm', 0.035),
@@ -73,6 +85,12 @@ def from_spec(spec, st):
                   'tol_pct': i.get('tol_pct', 10.0)}
         claims.append({'id': f"SIGNAL:Z0:{i['name']}", 'pred': 'signal.z0',
                        'net': i.get('net'), 'params': params})
+    for pr in spec.get('pairs', []) or []:
+        c = {'id': f"SIGNAL:SKEW:{pr['name']}", 'pred': 'signal.skew',
+             'params': {'p_net': pr.get('p'), 'n_net': pr.get('n')}}
+        if pr.get('max_skew_mm') is not None:
+            c['limit'] = pr['max_skew_mm']
+        claims.append(c)
     for r in spec.get('requirements', []) or []:
         unformalized.append({'id': r.get('id'), 'text': r.get('text'),
                              'why': r.get('why') or

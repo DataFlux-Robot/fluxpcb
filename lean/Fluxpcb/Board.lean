@@ -22,6 +22,10 @@ structure Item where
   net : String
   layers : List String
   shape : Shape
+  /-- Drill diameter in nm (-1 = no hole).  Vias and PTH pads carry one. -/
+  drill : Int := -1
+  /-- Via span as "Top-Bottom" layer names ("" for pads/tracks). -/
+  span : String := ""
 deriving Repr, Inhabited, BEq
 
 structure State where
@@ -35,6 +39,11 @@ structure State where
       what module contracts split on, so it must be inside the digest and the
       frame: renaming a ref changes the boundary without moving any copper. -/
   footprints : List (String × Array String)
+  /-- Filled zone count: zone copper is not extracted, so a board with zones
+      cannot claim clearance/edge coverage. -/
+  zones : Int := 0
+  /-- Board outline polygon (Edge.Cuts), nm. -/
+  outline : Array (Int × Int) := #[]
   digest : String
 deriving Inhabited
 
@@ -81,7 +90,14 @@ def itemOf (j : Json) : Except String Item := do
   let net ← jStr j "net"
   let layers ← (j.getObjVal? "layers") >>= strList
   let sh ← (j.getObjVal? "shape") >>= shapeOf
-  pure { id := id, net := net, layers := layers, shape := sh }
+  let drill ← match j.getObjVal? "drill" with
+    | .ok v => pure ((Json.getInt? v).toOption.getD (-1))
+    | .error _ => pure (-1)
+  let span ← match j.getObjVal? "span" with
+    | .ok v => pure ((Json.getStr? v).toOption.getD "")
+    | .error _ => pure ""
+  pure { id := id, net := net, layers := layers, shape := sh,
+         drill := drill, span := span }
 
 def jsonInt (v : Json) : Int :=
   (Json.getInt? v).toOption.getD 0
@@ -110,8 +126,22 @@ def stateOf (j : Json) : Except String State := do
   let fps ← match j.getObjVal? "footprints" with
     | .ok v => netPadsOf v
     | .error _ => pure []
+  let zones ← match j.getObjVal? "zones" with
+    | .ok v => pure ((Json.getInt? v).toOption.getD 0)
+    | .error _ => pure 0
+  let outline ← match j.getObjVal? "outline" with
+    | .ok v => do
+        let a ← Json.getArr? v
+        a.mapM (fun p => do
+          let q ← Json.getArr? p
+          if q.size != 2 then throw "outline point needs 2 numbers"
+          let x ← Json.getInt? (q[0]!)
+          let y ← Json.getInt? (q[1]!)
+          pure (x, y))
+    | .error _ => pure #[]
   let digest ← jStr j "digest"
-  pure { schema, board, layers, items, rules, netPads, footprints := fps, digest }
+  pure { schema, board, layers, items, rules, netPads, footprints := fps,
+         zones := zones, outline := outline, digest }
 
 def shapeStr : Shape → String
   | .seg x1 y1 x2 y2 w => s!"seg:{x1},{y1},{x2},{y2},{w}"
@@ -125,10 +155,16 @@ def canonical (s : State) : String :=
   let fps := s.footprints.mergeSort (fun a b => (compare a.1 b.1).isLT)
   String.intercalate "\n" <|
     ["v2", s.schema, s.board, String.intercalate "," s.layers] ++
-    items.map (fun i => s!"i|{i.id}|{i.net}|{String.intercalate "," i.layers}|{shapeStr i.shape}") ++
+    items.map (fun i =>
+      s!"i|{i.id}|{i.net}|{String.intercalate "," i.layers}|{shapeStr i.shape}" ++
+      (if i.drill >= 0 then s!"|d={i.drill}" else "") ++
+      (if i.span != "" then s!"|s={i.span}" else "")) ++
     rules.map (fun (k, v) => s!"r|{k}={v}") ++
     nets.map (fun (n, ids) => s!"n|{n}:{String.intercalate "," ids.toList}") ++
-    fps.map (fun (n, ids) => s!"f|{n}:{String.intercalate "," ids.toList}")
+    fps.map (fun (n, ids) => s!"f|{n}:{String.intercalate "," ids.toList}") ++
+    [s!"z|{s.zones}"] ++
+    (if s.outline.isEmpty then []
+     else ["o|" ++ String.intercalate ";" (s.outline.toList.map (fun (x, y) => s!"{x},{y}"))])
 
 def fnv1a (s : String) : UInt64 :=
   let b := s.toUTF8
