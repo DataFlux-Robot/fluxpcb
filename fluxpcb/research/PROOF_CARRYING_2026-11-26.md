@@ -619,3 +619,11 @@ PCB 侧读 (ref, pad 号) → net，证明两者的**分区等价**——不比�
 
 边界：网表导出依赖 kicad-cli（受信工具）；符号无 footprint 时无法验 identity；netlist
 version E 的字段解析只覆盖 comps/nets/nodes；重复 UUID 现在被拒绝而不是“取第一个”。
+
+### 19.1 K5 抓到的一次 canonical 回归
+
+给 NPTH 加 `|npth` 时，Lean 的 `Item` 解析了 `npth`，但 `canonical` 的字符串拼接**漏了
+这一项**：board state 的 Python 摘要含 `|npth`，Lean 重算的不含。K5 复跑立刻从 355/355
+掉到 289/66（66 格 `translation drift`），全部是有 NPTH 的板。补上拼接后 `lake build`
+重跑，**355/355** 恢复。这是 K5 作为“内核回归测试”的价值：它不只看 bench 判据，还看
+Python/Lean 两个 canonical 是否逐字节一致。

@@ -170,7 +170,8 @@ def canonical (s : State) : String :=
       (if i.drill >= 0 then
         s!"|d={i.drill}" ++ (if i.drillY >= 0 then s!",{i.drillY}" else "")
        else "") ++
-      (if i.span != "" then s!"|s={i.span}" else "")) ++
+      (if i.span != "" then s!"|s={i.span}" else "") ++
+      (if i.npth then "|npth" else "")) ++
     rules.map (fun (k, v) => s!"r|{k}={v}") ++
     nets.map (fun (n, ids) => s!"n|{n}:{String.intercalate "," ids.toList}") ++
     fps.map (fun (n, ids) => s!"f|{n}:{String.intercalate "," ids.toList}") ++
