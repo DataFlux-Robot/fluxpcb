@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from pathlib import Path
 
 SCHEMA = 'fluxpcb-state-2'
@@ -292,9 +293,15 @@ def extract(board_path, rules=None):
                 item['shape'] = {'kind': 'circle', 'cx': int(pos.x),
                                  'cy': int(pos.y), 'r': max(drill, 1) // 2}
             if ds.x and ds.y and ds.x != ds.y:
-                # a slot: both axes matter for the annular ring
-                item['drill'] = int(ds.x)
-                item['drill_y'] = int(ds.y)
+                # a slot: both axes matter for the annular ring, and the
+                # drill's local axes must be rotated into board axes by the
+                # pad orientation (J10 on H7 is a 90-degree rotated slot)
+                ang = math.radians(pad.GetOrientation().AsDegrees())
+                c, sn = abs(math.cos(ang)), abs(math.sin(ang))
+                ex = int(round(abs(ds.x) * c + abs(ds.y) * sn))
+                ey = int(round(abs(ds.x) * sn + abs(ds.y) * c))
+                item['drill'] = ex
+                item['drill_y'] = ey
             items.append(item)
             if not anon:
                 net_pads.setdefault(net, set()).add(uid)

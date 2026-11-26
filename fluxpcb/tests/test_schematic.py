@@ -68,3 +68,39 @@ def test_an_unannotated_netted_footprint_is_identity_failure():
     ids = {o['id']: o for o in obl}
     assert not ids['EXTRA:REF**']['ok']
     assert 'LGA14' in ids['EXTRA:REF**']['witness']
+
+
+def test_alias_binds_an_unannotated_ref_without_hiding_identity():
+    pins = {('REF**', '1'): 'A', ('REF**', '2'): 'B',
+            ('R1', '1'): 'A', ('R1', '2'): 'B'}
+    refs = {'REF**', 'R1'}
+    obl, extra = schematic.refine_tables(COMPS, NETS, refs, pins, VALUES, FPS,
+                                         {'U1': 'REF**'})
+    ids = {o['id']: o for o in obl}
+    assert ids['COMP:U1']['ok'] and ids['ALIAS:U1']['ok']
+    assert ids['SCH:N1']['ok'] and ids['SCH:N2']['ok']
+    assert not any(o['id'] == 'EXTRA:REF**' for o in obl)
+    # identity is still the schematic's: the symbol has a declared footprint
+    # in COMPS, so only the alias is needed; without it U1 would be missing.
+
+
+def test_declared_no_connects_are_not_unplaced_pins():
+    nets = NETS + [{'name': 'unconnected-(U1-NC-PadZ)',
+                    'nodes': [('U1', 'Z')]}]
+    obl, _ = schematic.refine_tables(COMPS, nets, {'U1', 'R1'}, PINS,
+                                     VALUES, FPS)
+    ids = {o['id']: o for o in obl}
+    assert ids['SCH:unconnected-(U1-NC-PadZ)']['ok']
+    assert ids['SCH:unconnected-(U1-NC-PadZ)']['kind'] == 'nc'
+    assert not any(o['id'] == 'PIN:U1:Z' for o in obl)
+
+
+def test_value_may_match_the_footprint_id():
+    comps = {'U1': {'value': 'ICM-42688-P', 'footprint': 'ICM-42688-P'},
+             'R1': {'value': '1k', 'footprint': 'R_0603'}}
+    obl, _ = schematic.refine_tables(comps, NETS, {'U1', 'R1'}, PINS,
+                                     values={'U1': 'LGA14', 'R1': '1k'},
+                                     fps={'U1': 'ICM-42688-P',
+                                          'R1': 'R_0603'})
+    assert all(o['ok'] for o in obl if o['kind'] == 'identity'), \
+        [o for o in obl if o['kind'] == 'identity' and not o['ok']]

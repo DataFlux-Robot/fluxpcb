@@ -96,39 +96,58 @@ def _norm(v):
     return (v or '').strip().lower().replace(' ', '')
 
 
-def refine_tables(comps, nets, refs, pins, values=None, fps=None):
-    """The partition proof; pure, so it is testable without pcbnew."""
+def refine_tables(comps, nets, refs, pins, values=None, fps=None,
+                  aliases=None):
+    """The partition proof; pure, so it is testable without pcbnew.
+
+    `aliases` maps a schematic ref to a board ref when the board is
+    unannotated (a `REF**` footprint).  The alias is a *declaration*: it is
+    recorded in the theorem and never inferred from geometry.
+    """
     obligations = []
     values, fps = values or {}, fps or {}
+    aliases = dict(aliases or {})
     active = {r for n in nets for (r, p) in n['nodes']}
     for ref in sorted(active):
-        ok = ref in refs
+        bref = aliases.get(ref, ref)
+        ok = bref in refs
         obligations.append({'id': f'COMP:{ref}', 'kind': 'component',
                             'ok': ok,
-                            'witness': '' if ok else 'component not on the board'})
+                            'witness': '' if ok else
+                            f'component not on the board (looked for {bref})'})
+        if ref in aliases and ok:
+            obligations.append({'id': f'ALIAS:{ref}', 'kind': 'alias',
+                                'ok': True, 'witness': f'{ref} -> {bref}'})
         if ok:
             sv = (comps.get(ref) or {}).get('value')
-            bv = values.get(ref)
-            if sv and bv and _norm(sv) != _norm(bv):
+            bv, bf = values.get(bref), fps.get(bref)
+            if sv and bv and _norm(sv) not in (_norm(bv), _norm(bf)):
                 obligations.append({
                     'id': f'VALUE:{ref}', 'kind': 'identity', 'ok': False,
-                    'witness': f'schematic value {sv!r} != board value {bv!r}'})
+                    'witness': f'schematic value {sv!r} != board value {bv!r} '
+                               f'/ fp {bf!r}'})
         if not (comps.get(ref) or {}).get('footprint'):
             obligations.append({
                 'id': f'FOOTPRINT:{ref}', 'kind': 'identity', 'ok': False,
                 'witness': 'schematic symbol has no footprint assigned'})
     sch_of = {}
     for n in nets:
-        for p in n['nodes']:
-            sch_of[p] = n['name']
+        for r, p in n['nodes']:
+            sch_of[(aliases.get(r, r), p)] = n['name']
     for n in nets:
         nodes = n['nodes']
-        missing = [p for p in nodes if p not in pins]
+        if str(n['name']).startswith('unconnected-'):
+            # KiCad's declared no-connects: a pin with no required copper
+            obligations.append({'id': f"SCH:{n['name']}", 'kind': 'nc',
+                                'ok': True, 'witness': 'declared no-connect'})
+            continue
+        missing = [p for p in nodes
+                   if (aliases.get(p[0], p[0]), p[1]) not in pins]
         if missing:
             obligations.append({
                 'id': f"SCH:{n['name']}", 'kind': 'schematic', 'ok': False,
-                'witness': 'unplaced pins: ' + ','.join(f'{r}.{p}'
-                                                        for r, p in missing[:6])})
+                'witness': 'unplaced pins: ' + ','.join(
+                    f'{aliases.get(r, r)}.{p}' for r, p in missing[:6])})
             for r, p in missing:
                 obligations.append({'id': f'PIN:{r}:{p}', 'kind': 'pin',
                                     'ok': False,
@@ -136,8 +155,9 @@ def refine_tables(comps, nets, refs, pins, values=None, fps=None):
             continue
         if len(nodes) < 2:
             continue                  # a single-pin net says nothing about glue
-        present = [p for p in nodes if pins.get(p) is not None]
-        pcbnets = {pins[p] for p in present}
+        present = [p for p in nodes
+                   if pins.get((aliases.get(p[0], p[0]), p[1])) is not None]
+        pcbnets = {pins[(aliases.get(r, r), p)] for r, p in present}
         ok = len(pcbnets) == 1 and len(present) == len(nodes)
         obligations.append({
             'id': f"SCH:{n['name']}", 'kind': 'schematic', 'ok': ok,
@@ -153,7 +173,8 @@ def refine_tables(comps, nets, refs, pins, values=None, fps=None):
         if (r, p) in sch_of:
             pcb_to_sch[net].add(sch_of[(r, p)])
     netted = {r for (r, p), net in pins.items() if net is not None}
-    for ref in sorted(refs - set(comps)):
+    alias_targets = set(aliases.values())
+    for ref in sorted(refs - set(comps) - alias_targets):
         if ref in netted:
             obligations.append({
                 'id': f'EXTRA:{ref}', 'kind': 'identity', 'ok': False,
@@ -173,17 +194,19 @@ def refine_tables(comps, nets, refs, pins, values=None, fps=None):
     return obligations, extra_pads
 
 
-def refine(netlist_path, board_path):
+def refine(netlist_path, board_path, aliases=None):
     comps, nets = load_netlist(netlist_path)
     refs, pins, values, fps = pcb_pins(board_path)
+    aliases = dict(aliases or {})
     obligations, extra_pads = refine_tables(comps, nets, refs, pins,
-                                            values, fps)
+                                            values, fps, aliases)
     bad = [o for o in obligations if not o['ok']]
     part_bad = [o for o in bad if o['kind'] in ('component', 'schematic',
                                                 'pin', 'board')]
     ident_bad = [o for o in bad if o['kind'] == 'identity']
     payload = {'netlist': Path(netlist_path).name,
                'comps': len(comps), 'nets': len(nets),
+               'aliases': aliases,
                'claims': [o['id'] for o in obligations],
                'extra_pads': len(extra_pads)}
     dig = hashlib.sha256(json.dumps(payload, sort_keys=True)
@@ -200,7 +223,7 @@ def refine(netlist_path, board_path):
             'obligations': obligations, 'extra_pads': extra_pads[:40],
             'counts': counts,
             'theorem': {'id': 'SCH:refinement', 'kernel': 'schematic',
-                        'version': '1',
+                        'version': '1', 'aliases': aliases,
                         'claims': ['pin partition: schematic == PCB'],
                         'ok': not bad, 'digest': dig}}
 

@@ -40,7 +40,7 @@ def certify(board, rules=None, profile='lean+fab', domain_claims=(),
             route_nets=None, workdir=None, spec=None, store=None,
             process=None, robust=None, assembly=False,
             assembly_strict=False, trust=False, trust_strict=False,
-            schematic=None, log=print):
+            schematic=None, schematic_aliases=None, log=print):
     t0 = time.time()
     board = Path(board)
     if rules is None:
@@ -72,7 +72,8 @@ def certify(board, rules=None, profile='lean+fab', domain_claims=(),
             netlist = schematic
             if str(schematic).endswith('.kicad_sch'):
                 netlist = sch_mod.export_netlist(schematic)
-            sch = sch_mod.refine(netlist, board)
+            sch = sch_mod.refine(netlist, board,
+                                 aliases=schematic_aliases)
             extra['schematic'] = sch
             if not sch['ok']:
                 reasons += [f"schematic: {x}" for x in sch['reasons'][:6]]
@@ -142,7 +143,7 @@ def certify(board, rules=None, profile='lean+fab', domain_claims=(),
         netlist = schematic
         if str(schematic).endswith('.kicad_sch'):
             netlist = sch_mod.export_netlist(schematic)
-        sch = sch_mod.refine(netlist, board)
+        sch = sch_mod.refine(netlist, board, aliases=schematic_aliases)
         if not sch['ok']:
             r['ok'] = False
             r['reasons'] = list(r['reasons']) + [

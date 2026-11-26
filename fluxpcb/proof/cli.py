@@ -53,6 +53,7 @@ def main(argv=None):
                    help='deny chord-approximated arcs')
     z.add_argument('--schematic',
                    help='schematic (.kicad_sch) or exported netlist (.net) to refine against')
+    z.add_argument('--alias', help='declared ref aliases, e.g. U3=REF**')
     z.add_argument('--route-nets', help='comma-separated nets to re-route')
     z.add_argument('--workdir')
     z.add_argument('--out', required=True)
@@ -159,7 +160,11 @@ def main(argv=None):
                               assembly=a.assembly,
                               assembly_strict=a.assembly_strict,
                               trust=a.trust, trust_strict=a.trust_strict,
-                              schematic=a.schematic)
+                              schematic=a.schematic,
+                              schematic_aliases={
+                                  k: v for k, v in
+                                  (x.split('=', 1) for x in
+                                   (a.alias or '').split(',') if '=' in x)})
         framework.write(r, a.out)
         print(json.dumps({'ok': r['ok'], 'digest': r.get('digest'),
                           'profile': r.get('profile'),

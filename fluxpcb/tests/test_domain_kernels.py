@@ -264,3 +264,19 @@ def test_process_claims_come_from_the_fab_profile():
     st = st_mod.freeze(st)
     ids = {c['id'] for c in C.process_claims(st, 'jlc-1oz-2to4l-2026-11-25')}
     assert ids == {'PROC:ANNULAR', 'PROC:HOLE', 'PROC:EDGE', 'PROC:DRILL'}
+
+
+def test_a_milled_slot_that_exceeds_the_pad_is_unmodelled():
+    st = {'board': 'slot', 'layers': ['F.Cu'],
+          'items': [{'id': 'p', 'net': 'N', 'layers': ['F.Cu'],
+                     'drill': 1700000, 'drill_y': 600000,
+                     'shape': {'kind': 'poly', 'pts': [
+                         [0, 0], [1000000, 0], [1000000, 900000],
+                         [0, 900000]]}}],
+          'rules': {'annular': 100000}, 'netPads': {'N': ['p']}}
+    st = st_mod.freeze(st)
+    rep = fab.check(st, [{'id': 'A', 'pred': 'annular', 'scope': None,
+                          'rule': 100000}], st['rules'])
+    assert rep['claims'][0]['status'] == 'unknown'
+    assert 'UNMODELLED' in rep['claims'][0]['witness']
+    assert fab.annular_min_value(st) is None

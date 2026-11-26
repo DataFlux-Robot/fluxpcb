@@ -170,9 +170,16 @@ def width_worst(st, scope, rule):
     return f"{worst[1]}: width {worst[0] / 1000:.3f} mm < {rule / 1000:.3f} mm"
 
 
+def _slot_exceeds(sh, drill, dy):
+    xs = [p[0] for p in sh['pts']]
+    ys = [p[1] for p in sh['pts']]
+    return drill > max(xs) - min(xs) or dy > max(ys) - min(ys)
+
+
 def annular_worst(st, scope, rule):
     ids = set(scope) if scope is not None else None
     worst = None
+    unmodelled = None
     for i in st['items']:
         if ids is not None and i['id'] not in ids:
             continue
@@ -182,6 +189,9 @@ def annular_worst(st, scope, rule):
         sh = i['shape']
         dy = i.get('drill_y')
         if dy is not None and dy >= 0 and sh['kind'] == 'poly':
+            if _slot_exceeds(sh, drill, dy):
+                unmodelled = i['id']
+                continue
             xs = [p[0] for p in sh['pts']]
             ys = [p[1] for p in sh['pts']]
             ann = min(max(xs) - min(xs) - drill,
@@ -196,6 +206,9 @@ def annular_worst(st, scope, rule):
             ann = r - drill // 2
         if ann < rule and (worst is None or ann < worst[0]):
             worst = (ann, i['id'])
+    if worst is None and unmodelled is not None:
+        return (f'UNMODELLED: {unmodelled}: a milled slot exceeds the pad '
+                f'bbox; annular is not the right predicate')
     if worst is None:
         return None
     return f'{worst[1]}: annular {worst[0] / 1000:.3f} um < {rule / 1000:.3f} um'
@@ -306,6 +319,10 @@ def check(st, claims, rules):
             w = width_worst(st, c.get('scope'), rule)
         elif pred == 'annular':
             w = annular_worst(st, c.get('scope'), rule)
+            if w and w.startswith('UNMODELLED'):
+                out.append({'id': c['id'], 'pred': pred, 'status': 'unknown',
+                            'witness': w, 'kernel': 'fab'})
+                continue
         elif pred == 'drill':
             w = drill_worst(st, c.get('scope'), rule)
         elif pred == 'hole':
@@ -362,6 +379,8 @@ def annular_min_value(st, scope=None):
         sh = i['shape']
         dy = i.get('drill_y')
         if dy is not None and dy >= 0 and sh['kind'] == 'poly':
+            if _slot_exceeds(sh, drill, dy):
+                continue
             xs = [p[0] for p in sh['pts']]
             ys = [p[1] for p in sh['pts']]
             ann = min(max(xs) - min(xs) - drill,

@@ -627,3 +627,37 @@ version E 的字段解析只覆盖 comps/nets/nodes；重复 UUID 现在被拒�
 掉到 289/66（66 格 `translation drift`），全部是有 NPTH 的板。补上拼接后 `lake build`
 重跑，**355/355** 恢复。这是 K5 作为“内核回归测试”的价值：它不只看 bench 判据，还看
 Python/Lean 两个 canonical 是否逐字节一致。
+
+## 二十、H7 修复实验：把“效果一般”拆成可修的项（2026-11-26）
+
+在 `z_lab/fp/h7fix/` 的副本上做了三件事（fixture 不进仓库）：
+
+1. 对 10 个重复 pad UUID 调 `ResetUuid()`；
+2. 把未标注的 `REF**` 改名为 `U3`；
+3. 不改原理图；用 `--alias U3=REF**`（声明式别名，写进 theorem）验证分区。
+
+修复后的状态可以提取（1147 项，digest 有效），信任三角 **0 mismatch**。
+
+| 层 | 结果 |
+|---|---|
+| schematic partition | **只剩 1 个缺陷**：`J10.S1` 屏蔽 pin 没有对应 pad（`SCH:GND` + `PIN:J10:S1`） |
+| schematic identity | 33 个符号仍无 footprint 指派；`VALUE:U3`：原理图 `ICM-45686` vs 板上 FPID `ICM-42688-P` —— **不同型号的 IMU** |
+| layout | **23 proven / 50 unknown / 1 refuted**：47 条 CONN 未证（不是“全连通”），1 条真实间距违规 |
+| fab 细节 | `FAB:CLEARANCE` 101.7 µm < 150 µm（`ground_copper` 上 3V3 走线 vs I2C1_SCL 过孔）；`FAB:ANNULAR` 因 **J10 的铣槽超出 pad bbox** 记 `unknown`（不是环宽违规） |
+
+这一轮又修了三个模型问题：
+
+- **声明式别名**：板材位号未标注时，`--alias U3=REF**` 把原理图 ref 绑到板 ref，别名进
+  theorem digest；identity 仍按原理图判定，不用别名掩盖“符号无 footprint”。
+- **声明式 no-connect**：KiCad 的 `unconnected-(U1-NC-PadE1)` 这类单 pin 网不再算
+  “未放置 pin”（H7 有 146 个 NC pin，之前会把分区失败数从 2 抬到 292）。
+- **铣槽的环形判定**：槽孔两轴先按 pad 方向旋到板轴；若槽本身超出 pad bbox（J10 的
+  1.7 mm 槽在 1.0 mm 宽的 pad 上），annular 不是正确的谓词，记 `unknown` 而不是
+  `refuted`。
+
+**结论**：H7 不是“再跑一次布线”的问题。要先修身份（footprint/型号/位号/UUID），
+再修 47 条未证连通与 1 条真实间距，才谈可加工。框架现在把这张清单逐条给出，并且
+拒绝把“模型看不见”当成“通过”。
+
+边界：h7fix 是副本，原理图仍无 footprint 字段；别名是声明不是推断；47 条 unknown 是
+“未证”而不是“已断”，需要 DRC/可视复核确认。
