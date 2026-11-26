@@ -518,3 +518,23 @@ F1 供 U2/D6/C3/R5；+3V3 由 U2 供 U1/C2/C4/R2/R3/R9/R10；VPP 与 +5V、+5V �
   证书记录 kernel/version/digest，和其他领域结论同级。
 - `unformalized` 逐条可见；C2 的 `refinement.ok=false` 会让整张证书 `ok=false`，
   不会用 layout 的 23 proven 掩盖意图层的失败。
+
+## 十六、第三枪之一：装配核（courtyard）（2026-11-26）
+
+一块板可以每根铜都合法、每张 Gerber 都一致，却**装不出来**。`proof/assembly.py` 是
+装配侧的领域核：
+
+- 读 F.CrtYd/B.CrtYd 的 courtyard 多边形；没有 courtyard 的封装记 `unknown`，
+  **不用 body bbox 冒充**（相邻器件的焊盘交错是常态，bbox 会造假违规）。
+- 只在**同一面**上比较 courtyard 相交；NPTH 安装孔不算被装配的器件。
+- 每个 courtyard 必须落在板框内。
+- 证书带 `n_footprints`、`overlaps`、`outside`、`unknown`、theorem digest；
+  `certify --assembly` 记录，`--assembly-strict` 在有任何 unknown 时拒绝。
+
+0344：**21 个封装有 courtyard，0 相交、0 出界；17 个封装没有 courtyard**（U1/P1/W1–W9 等
+来自没有 courtyard 的库封装）。所以这颗板能证的是“已有的 21 个 courtyard 不冲突”，
+不能证“整板可装配”——`complete=false`，strict 模式会拒。这正是把“unknown”与“pass”
+分开的意义：不是 34/38 通过，而是 21 条已证 + 17 条未知。
+
+边界：courtyard 只覆盖 2D 占位；高度/间距、paste 面积比、拼板可分离性与 ICT 探针可达
+仍未建模，是装配核的下一层。

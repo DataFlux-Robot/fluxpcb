@@ -43,6 +43,10 @@ def main(argv=None):
     z.add_argument('--spec', help='requirements JSON (compiled to conjectures)')
     z.add_argument('--process', help='fab profile (jlc) as extra obligations')
     z.add_argument('--robust', help='process box for margin proofs (jlc-1oz/tight)')
+    z.add_argument('--assembly', action='store_true',
+                   help='also prove courtyard overlap / containment')
+    z.add_argument('--assembly-strict', action='store_true',
+                   help='deny footprints without a courtyard')
     z.add_argument('--route-nets', help='comma-separated nets to re-route')
     z.add_argument('--workdir')
     z.add_argument('--out', required=True)
@@ -145,7 +149,9 @@ def main(argv=None):
                               domain_claims=dom,
                               route_nets=nets or None,
                               workdir=a.workdir, spec=spec,
-                              process=a.process, robust=a.robust)
+                              process=a.process, robust=a.robust,
+                              assembly=a.assembly,
+                              assembly_strict=a.assembly_strict)
         framework.write(r, a.out)
         print(json.dumps({'ok': r['ok'], 'digest': r.get('digest'),
                           'profile': r.get('profile'),

@@ -38,7 +38,8 @@ def _rows(r):
 
 def certify(board, rules=None, profile='lean+fab', domain_claims=(),
             route_nets=None, workdir=None, spec=None, store=None,
-            process=None, robust=None, log=print):
+            process=None, robust=None, assembly=False,
+            assembly_strict=False, log=print):
     t0 = time.time()
     board = Path(board)
     if rules is None:
@@ -109,6 +110,18 @@ def certify(board, rules=None, profile='lean+fab', domain_claims=(),
     obl = repair_mod.obligations(r)
     if margins:
         obl += repair_mod.margin_obligations(margins)
+    asm = None
+    if assembly:
+        from . import assembly as asm_mod
+        asm = asm_mod.check(board)
+        if not asm['ok']:
+            r['ok'] = False
+            r['reasons'] = list(r['reasons']) + asm['reasons']
+        elif assembly_strict and not asm.get('complete', True):
+            r['ok'] = False
+            r['reasons'] = list(r['reasons']) + [
+                'assembly: ' + ','.join(asm.get('unknown', [])[:6]) +
+                ' have no courtyard']
     refinement = None
     if spec:
         from . import spec as _spec
@@ -125,7 +138,7 @@ def certify(board, rules=None, profile='lean+fab', domain_claims=(),
     return {'schema': SCHEMA, 'board': str(board),
             'digest': st['digest'], 'profile': profile,
             'rules': dict(rules), 'rule_source': rule_src,
-            'process': process, 'margins': margins,
+            'process': process, 'margins': margins, 'assembly': asm,
             'refinement': refinement,
             'obligations': obl, 'measure': repair_mod.measure(obl),
             'ok': r['ok'], 'reasons': r['reasons'],
