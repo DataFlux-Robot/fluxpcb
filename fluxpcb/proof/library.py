@@ -59,6 +59,7 @@ class Entry:
     deps: list
     instances: list
     path: Path
+    hypotheses: dict = field(default_factory=dict)
     raw: dict = field(default_factory=dict)
 
     def refs(self):
@@ -72,8 +73,31 @@ class Entry:
                 'params': self.params, 'deps': self.deps,
                 'instances': self.instances}
 
+    def check_hypotheses(self, st):
+        """The entry is a theorem only inside its hypothesis class."""
+        bad = []
+        nets = st.get('netPads') or {}
+        fp = st.get('footprints') or {}
+        for n in self.hypotheses.get('nets') or []:
+            if n not in nets:
+                bad.append(f'net {n} is absent')
+        for r in self.hypotheses.get('parts') or []:
+            if r not in fp:
+                bad.append(f'ref {r} is absent')
+        for r, k in (self.hypotheses.get('min_pads') or {}).items():
+            if len(fp.get(r, [])) < k:
+                bad.append(f'{r} has {len(fp.get(r, []))} pads < {k}')
+        need = self.hypotheses.get('clearance_min_nm')
+        have = (st.get('rules') or {}).get('clearance')
+        if need and (not have or have < need):
+            bad.append(f'clearance rule {have} < {need} nm')
+        return bad
+
     def instantiate(self, st, role_refs=None):
         """Build the concrete module contract on a board state."""
+        bad = self.check_hypotheses(st)
+        if bad:
+            raise ValueError(f'{self.module_id}: hypotheses unmet: ' + '; '.join(bad))
         refs = []
         if role_refs:
             for role, got in role_refs.items():
@@ -104,7 +128,8 @@ class Entry:
                           'seconds': proof['seconds']},
                 'date': date or time.strftime('%Y-%m-%d')}
         self.instances = [i for i in self.instances
-                          if i.get('board_fp') != board_fp] + [inst]
+                          if i.get('board_fp') != board_fp
+                          and i.get('board') != str(board)] + [inst]
         return inst
 
 
@@ -137,7 +162,8 @@ class Library:
                      deps=list(d.get('deps') or []),
                      instances=list(d.get('instances') or
                                     d.get('proven_instances') or []),
-                     path=path, raw=d)
+                     path=path, hypotheses=dict(d.get('hypotheses') or {}),
+                     raw=d)
 
     def get(self, module_id):
         return self.entries[module_id]

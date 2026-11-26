@@ -154,7 +154,10 @@ def preserve(before, after, rules, profile='lean+fab', domain_claims=(),
                 store.put(by_id[c['id']], c['status'], '', after, ih)
     if board_path is not None and not missing:
         seed(board_path, after, report)
+    from . import repair as repair_mod
+    obl = repair_mod.obligations(report)
     return {'ok': ok, 'reasons': reasons,
+            'obligations': obl, 'measure': repair_mod.measure(obl),
             'before_digest': before['digest'], 'after_digest': after['digest'],
             'touched': sorted(touched), 'carried': [i for i, _ in carried],
             'summary': summary, 'report': report, 'fab': fab_after,

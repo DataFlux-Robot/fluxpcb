@@ -69,12 +69,12 @@
  "instances": [
   {
    "board": "E:/DATA/vscode/ZCODE/z_lab/fp/full4_run/runs/2e2020504a2c/0344_mavbridge_mavbridge/0344_mavbridge_mavbridge.kicad_pcb",
-   "board_fp": "b7b634f834a31fd0",
+   "board_fp": "7ad674ca76d8d6e4",
    "rules": {
     "clearance": 200000,
     "track_min": 150000
    },
-   "digest": "11550177177768094762",
+   "digest": "15370858862502269578",
    "refs": [
     "D1",
     "D2",
@@ -140,8 +140,8 @@
      "foreign": 0,
      "disabled": 0
     },
-    "digest": "f4c386b8dde5a4d5",
-    "seconds": 1.76
+    "digest": "f780089347ae6095",
+    "seconds": 2.33
    },
    "date": "2026-11-26"
   }

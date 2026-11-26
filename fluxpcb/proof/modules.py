@@ -42,7 +42,10 @@ def derive(st, name, refs, region=None):
         if 'ref' not in it:
             continue
         pads.setdefault(it['net'], []).append(it['ref'])
-    touched = sorted(n for n in pads if any(r in refs for r in pads[n]))
+    # anonymous no-net copper is not a net: it belongs to the module's fab
+    # scope, never to its boundary contract
+    touched = sorted(n for n in pads if n in st['netPads']
+                     and any(r in refs for r in pads[n]))
     internal, boundary = [], []
     for n in touched:
         if all(r in refs for r in pads[n]) and len(st['netPads'].get(n, [])) >= 1:

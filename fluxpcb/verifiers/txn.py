@@ -437,6 +437,12 @@ def transactional_repair(board_path: str, action_fn, eval_fn,
                                         'proof': pr['summary'],
                                         'decider': who, 'board_fp': fp})
                 if ok:
+                    if 'measure' in pr:
+                        rep.log.append({'round': r, 'decision': 'proof_measure',
+                                        'stage': kind,
+                                        'measure': list(pr['measure'][0:1]) +
+                                        [list(pr['measure'][1])],
+                                        'carried': pr.get('carried', [])[:8]})
                     pctx = {'state': st_after, 'report': pr['report'],
                             'fp': board_fingerprint(board_path)}
             except Exception as e:

@@ -8,11 +8,12 @@ import pytest
 from fluxpcb.proof import library, state as S
 
 
-def _entry(mid, roles, deps=(), params=None, expects=None):
+def _entry(mid, roles, deps=(), params=None, expects=None, hypotheses=None):
     return {'schema': 'fluxpcb-module-2', 'module_id': mid, 'version': '9',
             'function': mid, 'contract': {'roles': roles},
             'expects': expects or [], 'lemma_refs': ['connectivity'],
-            'params': params or {}, 'deps': list(deps), 'instances': []}
+            'params': params or {}, 'deps': list(deps), 'instances': [],
+            'hypotheses': hypotheses or {}}
 
 
 def _state():
@@ -93,3 +94,24 @@ def test_legacy_entry_still_loads(tmp_path):
     e = library.Library(root).get('legacy')
     assert e.refs() == ['D1', 'D2', 'D3', 'U1']
     assert e.instances[0]['board'] == 'x'
+
+
+def test_hypotheses_gate_instantiation(tmp_path):
+    root = tmp_path / 'lib'
+    _write(root, _entry('power.ldo', {'regulator': ['U2']},
+                        hypotheses={'nets': ['VPP'], 'parts': ['U2'],
+                                    'min_pads': {'U2': 1},
+                                    'clearance_min_nm': 150000}))
+    lib = library.Library(root)
+    st = _state()
+    with pytest.raises(ValueError):
+        lib.get('power.ldo').instantiate(st)      # rules {} -> no clearance
+    st2 = dict(st, rules={'clearance': 200000})
+    st2 = S.freeze(st2)
+    c = lib.get('power.ldo').instantiate(st2)
+    assert c.refs == ['U2']
+    _write(root, _entry('bad', {'regulator': ['U2']},
+                        hypotheses={'nets': ['NOPE']}))
+    lib = library.Library(root)
+    with pytest.raises(ValueError):
+        lib.get('bad').instantiate(st2)

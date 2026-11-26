@@ -538,3 +538,17 @@ F1 供 U2/D6/C3/R5；+3V3 由 U2 供 U1/C2/C4/R2/R3/R9/R10；VPP 与 +5V、+5V �
 
 边界：courtyard 只覆盖 2D 占位；高度/间距、paste 面积比、拼板可分离性与 ICT 探针可达
 仍未建模，是装配核的下一层。
+
+## 十七、基础补强：下降测度、库假设、匿名网（2026-11-26）
+
+- **下降测度进日志**：`step.preserve` 返回 `obligations`/`measure`；`transactional_repair`
+  在每次提交后记 `proof_measure`（义务数 + 负余量元组）。这是第三枪的“终止论证”的
+  可观测形式——还没强制，但每次提交都能被审计是否严格下降。
+- **库假设（theorem schema 的适用条件）**：entry 增加 `hypotheses`（nets/parts/
+  min_pads/clearance_min_nm）；`instantiate` 先检查假设，类外直接拒绝。
+  power 条目要求 VPP/+5V/+3V3/GND、U2/F1、U2≥4 pad、clearance≥150 µm；
+  core 条目要求 +3V3/GND、U1、U1≥20 pad。0344 上两个实例 **fresh**（7 / 22 proven）。
+- **匿名网不进模块边界**：no-net 铜以 `~uuid` 进入 state 后，`modules.derive` 曾把它们
+  当成 boundary 网，core 条目一度出现 19 个 PADS claim（5 真边界 + 14 匿名）。现在
+  匿名网不参与 boundary/internal；core 回到 22 proven，边界仍是 5 网。
+- `register` 按 (board, board_fp) 替换实例，旧板路径上的陈旧实例不再堆积。
