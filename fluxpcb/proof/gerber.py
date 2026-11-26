@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..kernels import fab
-from . import state as S
+from . import geom, state as S
 
 TOL = 1000          # nm: one micron, for segments/circles
 TOL_POLY = 10000    # nm: KiCad polygonises obrounds/roundrects, so the
@@ -374,8 +374,12 @@ def gerber_state(board_state, layers, drill_path, layer_files):
     tx, ty, tok = _transform(gout, sout)
     if not tok:
         return None, {'ok': False, 'reason': 'plot frame does not match the board outline'}
-    holes = parse_excellon(drill_path) if drill_path else []
+    # drill coordinates are in the plot frame too: map them once, so every
+    # consumer (flash drill, hole marks, hole-only items) uses board nm
+    holes = [(h[0] + tx, ty - h[1], h[2])
+             for h in (parse_excellon(drill_path) if drill_path else [])]
     items, used, extra = [], set(), []
+    unmatched = []
     for n, p in enumerate(prims):
         sh = dict(p.shape)
         for k in ('x1', 'x2', 'cx'):
@@ -401,13 +405,30 @@ def gerber_state(board_state, layers, drill_path, layer_files):
             if m.get('span'):
                 item['span'] = m['span']
         else:
-            extra.append(item['id'])
+            unmatched.append((len(items), sh, p.layer, bx, by))
             # a hole at an unmatched flash still has to be checked
             for hx, hy, drill in holes:
                 if abs(hx - bx) <= TOL and abs(hy - by) <= TOL:
                     item['drill'] = drill
                     break
         items.append(item)
+    # a small flash whose centre is a drill of the same size is the hole
+    # plotted on the copper layer, not copper; the drill file carries it
+    hole_marks, drop = 0, set()
+    for idx, sh, layer, bx, by in unmatched:
+        is_hole = False
+        if sh['kind'] == 'circle':
+            for hx, hy, drill in holes:
+                if abs(hx - bx) <= TOL and abs(hy - by) <= TOL and                         sh['r'] <= drill // 2 + TOL:
+                    is_hole = True
+                    break
+        if is_hole:
+            hole_marks += 1
+            drop.add(idx)
+        else:
+            extra.append(items[idx]['id'])
+    if drop:
+        items = [it for n, it in enumerate(items) if n not in drop]
     # every board copper item must be on the plot, on every layer it lives on
     missing = []
     for it in board_state['items']:
@@ -419,13 +440,12 @@ def gerber_state(board_state, layers, drill_path, layer_files):
     # non-plated holes exist only in the drill file: keep them as hole-only
     # items so drill/hole predicates run on the artifact too.
     for k, (hx, hy, dr) in enumerate(holes):
-        bx, by = hx + tx, ty - hy
-        if any(abs(bx - (p.gx + tx)) <= TOL and abs(by - (ty - p.gy)) <= TOL
+        if any(abs(hx - (p.gx + tx)) <= TOL and abs(hy - (ty - p.gy)) <= TOL
                for p in prims):
             continue
         items.append({'id': f'h{k}', 'net': f'~h{k}', 'layers': [],
                       'npth': True, 'drill': dr,
-                      'shape': {'kind': 'circle', 'cx': bx, 'cy': by,
+                      'shape': {'kind': 'circle', 'cx': hx, 'cy': hy,
                                 'r': max(dr, 1) // 2}})
     net_pads = {}
     refs = {}
@@ -442,6 +462,7 @@ def gerber_state(board_state, layers, drill_path, layer_files):
     equiv = {'ok': not extra and not missing and tok,
              'transform': {'tx': tx, 'ty': ty, 'ok': tok},
              'extra': extra[:20], 'missing': missing[:20],
+             'hole_marks': hole_marks,
              'n_extra': len(extra), 'n_missing': len(missing)}
     return gst, equiv
 

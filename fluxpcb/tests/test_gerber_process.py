@@ -281,3 +281,33 @@ def test_a_macro_flash_parses_as_one_pad(tmp_path):
     assert abs(min(xs) - (1000000 - 975000)) <= 2000
     # parse_gerber works in the plot frame, where the board's +y is negative
     assert abs(min(ys) - (-(1000000 + 850000))) <= 2000
+
+
+HOLE_GTL = """%FSLAX46Y46*%
+%MOMM*%
+%ADD10C,0.100000*%
+G01*
+D10*
+X1000000Y-1000000D03*
+M02*
+"""
+
+
+def test_a_hole_mark_is_not_copper(tmp_path):
+    from test_gerber_process import GM1
+    d = tmp_path / 'h'
+    d.mkdir()
+    (d / 'f.gtl').write_text(HOLE_GTL, encoding='utf-8')
+    (d / 'e.gm1').write_text(GM1, encoding='utf-8')
+    (d / 'b.drl').write_text('M48\nMETRIC\nT1C0.100\n%\nT1\nX1.0Y-1.0\nM30\n',
+                             encoding='utf-8')
+    st = {'board': 'h', 'layers': ['F.Cu'], 'items': [],
+          'rules': {'clearance': 100000, 'track_min': 100000},
+          'netPads': {}, 'outline': [[0, 0], [4000000, 0], [4000000, 4000000],
+                                     [0, 4000000]]}
+    st = S.freeze(st)
+    files = {'F.Cu': str(d / 'f.gtl'), 'Edge.Cuts': str(d / 'e.gm1')}
+    gst, ev = gerber.gerber_state(st, list(files), str(d / 'b.drl'), files)
+    assert ev['n_extra'] == 0 and ev['n_missing'] == 0
+    assert ev['hole_marks'] == 1
+    assert gst['items'] == []
