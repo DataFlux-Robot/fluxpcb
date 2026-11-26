@@ -162,7 +162,7 @@ def preserve(before, after, rules, profile='lean+fab', domain_claims=(),
 
 
 def publish(after, rules, profile='lean+fab', domain_claims=(), store=None,
-            board_path=None, process=None):
+            board_path=None, process=None, robust=None):
     """Full-board gate: every claim must hold."""
     cl = claim_mod.bench_claims(after)
     if process:
@@ -180,8 +180,26 @@ def publish(after, rules, profile='lean+fab', domain_claims=(), store=None,
     if board_path is not None:
         seed(board_path, after, {'lean': r['lean'], 'fab': r['fab'],
                                  'domain': r['domain']})
-    return {'ok': r['ok'], 'reasons': r['reasons'], 'digest': after['digest'],
-            'summary': gate.report_summary(r), 'report': r}
+    out = {'ok': r['ok'], 'reasons': list(r['reasons']),
+           'digest': after['digest'], 'summary': gate.report_summary(r),
+           'report': r}
+    if robust:
+        from . import process as proc
+        eff = dict(rules)
+        if process:
+            eff.update(S.process_rules(process))
+        pr = proc.margins(after, eff, robust)
+        out['margins'] = pr
+        if not pr['ok']:
+            out['ok'] = False
+            out['reasons'] += pr['reasons']
+    from . import repair as repair_mod
+    obl = repair_mod.obligations(r)
+    if robust:
+        obl += repair_mod.margin_obligations(out.get('margins'))
+    out['obligations'] = obl
+    out['measure'] = repair_mod.measure(obl)
+    return out
 
 
 def audit(after, rules, profile='lean+fab', domain_claims=(), board_path=None):
@@ -193,5 +211,23 @@ def audit(after, rules, profile='lean+fab', domain_claims=(), board_path=None):
     if board_path is not None:
         seed(board_path, after, {'lean': r['lean'], 'fab': r['fab'],
                                  'domain': r['domain']})
-    return {'ok': r['ok'], 'reasons': r['reasons'], 'digest': after['digest'],
-            'summary': gate.report_summary(r), 'report': r}
+    out = {'ok': r['ok'], 'reasons': list(r['reasons']),
+           'digest': after['digest'], 'summary': gate.report_summary(r),
+           'report': r}
+    if robust:
+        from . import process as proc
+        eff = dict(rules)
+        if process:
+            eff.update(S.process_rules(process))
+        pr = proc.margins(after, eff, robust)
+        out['margins'] = pr
+        if not pr['ok']:
+            out['ok'] = False
+            out['reasons'] += pr['reasons']
+    from . import repair as repair_mod
+    obl = repair_mod.obligations(r)
+    if robust:
+        obl += repair_mod.margin_obligations(out.get('margins'))
+    out['obligations'] = obl
+    out['measure'] = repair_mod.measure(obl)
+    return out

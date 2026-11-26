@@ -387,3 +387,92 @@ PCBRouteAgent 每板 1 次，本次也是 1 次，重复口径可比；形式化
 
 **边界**：这是 1 次重复（基线是 3 次重复的并集）；118 不含 0473；两块 dirty 板的
 `claims_after` 为空是 publish 异常先于打分的结果，不是 DRC 没跑。
+
+## 十四、第一枪：Gerber 内核 + 工艺窗口（2026-11-26）
+
+调参不是这里的工作。这一节把两个限定词换掉：**证在出厂文件上**（Gerber + Excellon，
+不是 `.kicad_pcb`），**证在一个工艺窗口里**（不是名义点）。
+
+### 14.1 Gerber 内核（`proof/gerber.py`）
+
+- 解析 KiCad 的 RS-274X 子集：C/R/O 光圈、D01/D02/D03、G36/G37 区域、G02/G03 圆弧
+  （按 5° 折线化）；Excellon 的 T 定义与 X/Y 孔；光圈宏（`%AM`）**尚不支持**，遇到
+  即 `unknown`，不冒充通过。
+- 坐标系：由 Edge.Cuts 的 Gerber 与 state 轮廓的 bbox 求 `x'=x+tx, y'=ty−y`；state
+  轮廓是内接多边形（比 Gerber 小 2–3 µm），残差在 10 µm 内时帧就是 0——这一点由
+  0008 的 2.5 µm 假偏移暴露并修正。
+- **双向包含**：每个 state 铜项必须在图上、每个图上铜要素必须是 state 项（线段 1 µm，
+  多边形 bbox 10 µm，容忍 KiCad 的椭圆/圆角多边形化）。no-net 铜、NPTH、槽孔都按
+  真实语义建模：no-net 铜以匿名网进入 state（否则被当作“同网”豁免），NPTH 是孔不是
+  铜，槽孔用两轴算环宽。
+- 网继承：图上要素按几何匹配拿回 state 项的 net/ref，然后**用同一组 fab 谓词**在图上
+  重跑（clearance/width/annular/drill/hole/edge），不需要重新相信网表。
+- **负控（0344）**：把 F.Cu 图整体 X 移 50 µm。board 核 23 proven 照过；Gerber 核
+  **349 extra / 349 missing**、clearance `gap −500 µm`，拒绝。这是不可伪造的判据：
+  翻译链上的偏移，模型看不见，工件看得见。
+
+### 14.2 工艺窗口（`proof/process.py`）
+
+每个谓词的扰动按物理机制分配，而不是统一加一个“安全系数”：
+
+| 谓词 | 扰动 | 余量 |
+|---|---|---|
+| clearance | 蚀刻使两侧边缘后退（间隙变大） | `gap + 2·etch − rule` |
+| width | 蚀刻使线宽变窄 | `w − 2·etch − rule` |
+| annular | 孔偏 + 层间套准 + 蚀刻 | `ann − rule − drill − reg − etch` |
+| hole_to_hole | 两个孔各自偏移 | `gap − rule − 2·drill` |
+| edge | 板框铣切位置误差 | `gap − rule − rout` |
+
+`jlc-1oz`：套准 75 µm、孔偏 50 µm、蚀刻 10 µm/边、铣切 50 µm；`tight` 是另一档。
+窗口是**声明模型**，证书里带 provenance，可换成实测能力数据而不改任何谓词。
+
+0344（`--process jlc --robust jlc-1oz`）：名义 27 proven 全过，余量
+**clearance +21.6 µm、width +10 µm、annular −110 µm、hole_to_hole +186 µm、edge −10.6 µm**
+→ 鲁棒拒绝。Gerber 核在同一窗口下给出**完全相同**的余量（图上工件与模型一致）。
+0316：width −20 µm、annular −10 µm；0376：width −20 µm。这不是“板子不合法”，
+而是“在声明的工艺窗口里不合法”——两者必须分开说。
+
+### 14.3 118 块出厂文件
+
+对 118 块保存的结果板导出 Gerber+Excellon（kicad-cli），逐块跑 Gerber 核 + JLC 工艺窗口：
+
+| 判定 | 数量 | 含义 |
+|---|---|---|
+| 全过 | **17** | 双向包含 + 板规则 + JLC 工艺 + 鲁棒余量 |
+| 仅鲁棒余量 < 0 | **49** | 工件与模型一致，但在 jlc-1oz 窗口下不鲁棒（多数是 0.2 mm 线宽被蚀刻扣掉 20 µm） |
+| 仅 JLC 工艺限值 | **27** | 板规则允许、JLC 最小能力不允许（环宽/边距） |
+| 双向包含失败 | **8** | 图的几何与 state 不能一一对应（多为旋转/异形 pad 的绘图子集） |
+| 板规则 fab | **1** | 0599（本来就不 clean） |
+| 光圈宏不支持 | **16** | 解析器 `unknown`，不冒充通过 |
+
+耗时：中位 **2.0 s**/板，p95 25.9 s，max 104.7 s；118 块 4 进程墙钟 **224 s**。
+
+### 14.4 抽取器被这一枪打出的三个问题（已修）
+
+1. **no-net 铜被静默丢弃**：0344 有 18 个无网 pad 的铜不在 state 里，clearance 对它们
+   完全不检查。现在以匿名网进入 state（`~<uuid>`），不参与连通/网表，但参与 fab；
+   K5 复跑仍 **355/355**。
+2. **NPTH 被当成铜**：0376 的 4 个安装孔让 Gerber 双向包含报 8 个 missing；现在 NPTH
+   是孔（参与 drill/hole），不是铜（不参与 clearance/annular/edge）。
+3. **槽孔只用一个轴**：0316 的 USB 座 1.15×0.5 mm 槽孔被当成 1.15 圆孔算环宽，
+   得到 −75 µm 的假违规；现在两轴分别算，环宽 200 µm。
+
+### 14.5 边界
+
+- 光圈宏（16 块）与 8 块的双向包含失败是解析器覆盖问题，不是“证过了”；证书里是
+  `unknown`/拒绝，不冒充。
+- 工艺窗口是声明模型，不是 JLC 的承诺；换实测数据只改 `BOXES`，不改谓词。
+- Gerber 的网继承来自 state 的几何匹配；网表本身的正确性仍是 spec→netlist 那一层的事
+  （下一枪）。
+- 判据仍是 1 次重复；鲁棒判定与 bench 判据是两件事，分开报告。
+
+### 14.6 第五、七枪的基础（已落地，未强制）
+
+- **Pareto 比较**（`proof/compare.py`）：两份证书按共享谓词的余量向量比较，
+  `a_dominates` / `b_dominates` / `incomparable` / `equal_on_common`，**没有权重**；
+  `fluxpcb.proof.cli compare --a --b`。谓词集合不同时只比交集并列出差异。
+- **反驳即义务**（`proof/repair.py`）：gate 报告里的每条未证 claim、以及每个负余量，
+  都转成 `{claim, kernel, status, targets, delta_nm}`；`measure = (义务数, 负余量元组)`
+  是良基字典序，`terminates(before, after)` 就是一次严格下降。publish/certify 的
+  返回已有 `obligations`/`measure`；repair 规划器与循环强制是下一步，不在这一枪里
+  假装已经完成。

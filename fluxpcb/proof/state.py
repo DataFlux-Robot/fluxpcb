@@ -113,8 +113,12 @@ def item_line(i):
     line = f"i|{i['id']}|{i['net']}|{','.join(i['layers'])}|{shape_str(i['shape'])}"
     if i.get('drill') is not None and i['drill'] >= 0:
         line += f"|d={i['drill']}"
+        if i.get('drill_y') is not None and i['drill_y'] >= 0:
+            line += f",{i['drill_y']}"
     if i.get('span'):
         line += f"|s={i['span']}"
+    if i.get('npth'):
+        line += "|npth"
     return line
 
 
@@ -236,6 +240,11 @@ def extract(board_path, rules=None):
         nm = b.FindNet(nc)
         net = nm.GetNetname() if nm else ''
         uid = _uuid(t)
+        if not net:
+            # no-net copper still exists on the plot and must be checked;
+            # a unique synthetic net keeps it from being exempted as "same
+            # net" against anything else.
+            net = f'~{uid}'
         if t.Type() == pcbnew.PCB_VIA_T:
             q = t.GetPosition()
             top = b.GetLayerName(t.GetLayer())
@@ -258,23 +267,37 @@ def extract(board_path, rules=None):
         ref = str(fp.GetReference())
         for pad in fp.Pads():
             nc = pad.GetNetCode()
-            if not nc:
-                continue
-            nm = b.FindNet(nc)
+            nm = b.FindNet(nc) if nc else None
             net = nm.GetNetname() if nm else ''
-            if not net:
-                continue
             uid = _uuid(pad)
+            anon = not net
+            if anon:
+                net = f'~{uid}'
             layers = [b.GetLayerName(l) for l in lids if pad.IsOnLayer(l)]
             if not layers:
                 continue
             lid0 = next((l for l in lids if pad.IsOnLayer(l)), None)
             ds = pad.GetDrillSize()
             drill = int(max(ds.x, ds.y)) if (ds.x or ds.y) else -1
-            items.append({'id': uid, 'net': net, 'layers': layers,
-                          'ref': ref, 'drill': drill,
-                          'shape': _pad_shape(pad, lid0)})
-            net_pads.setdefault(net, set()).add(uid)
+            npth = pad.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH
+            item = {'id': uid, 'net': net, 'layers': layers,
+                    'ref': ref, 'drill': drill,
+                    'shape': _pad_shape(pad, lid0)}
+            if npth:
+                # a non-plated hole is not copper: keep it for the hole
+                # predicates, but it has no layer to clear against
+                item['npth'] = True
+                item['layers'] = []
+                pos = pad.GetPosition()
+                item['shape'] = {'kind': 'circle', 'cx': int(pos.x),
+                                 'cy': int(pos.y), 'r': max(drill, 1) // 2}
+            if ds.x and ds.y and ds.x != ds.y:
+                # a slot: both axes matter for the annular ring
+                item['drill'] = int(ds.x)
+                item['drill_y'] = int(ds.y)
+            items.append(item)
+            if not anon:
+                net_pads.setdefault(net, set()).add(uid)
             footprints.setdefault(ref, set()).add(uid)
     outline = []
     try:

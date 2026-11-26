@@ -6,7 +6,7 @@ import json
 import os
 import sys
 
-from . import framework, library, modules, state as S
+from . import compare, framework, library, modules, state as S
 
 
 def _rules(path):
@@ -42,9 +42,13 @@ def main(argv=None):
     z.add_argument('--domain', help='JSON list of domain claims')
     z.add_argument('--spec', help='requirements JSON (compiled to conjectures)')
     z.add_argument('--process', help='fab profile (jlc) as extra obligations')
+    z.add_argument('--robust', help='process box for margin proofs (jlc-1oz/tight)')
     z.add_argument('--route-nets', help='comma-separated nets to re-route')
     z.add_argument('--workdir')
     z.add_argument('--out', required=True)
+    cp = sub.add_parser('compare')
+    cp.add_argument('--a', required=True)
+    cp.add_argument('--b', required=True)
     lp = sub.add_parser('library')
     lsub = lp.add_subparsers(dest='libcmd', required=True)
     ll = lsub.add_parser('list')
@@ -92,6 +96,10 @@ def main(argv=None):
             json.dump(r, f, indent=1, ensure_ascii=False)
         print(json.dumps(r, indent=1, ensure_ascii=False))
         return 0 if r['ok'] else 3
+    if a.cmd == 'compare':
+        print(json.dumps(compare.compare_files(a.a, a.b), indent=1,
+                         ensure_ascii=False))
+        return 0
     if a.cmd == 'library':
         lib = library.Library(a.root)
         if a.libcmd == 'list':
@@ -138,7 +146,7 @@ def main(argv=None):
                               domain_claims=dom,
                               route_nets=nets or None,
                               workdir=a.workdir, spec=spec,
-                              process=a.process)
+                              process=a.process, robust=a.robust)
         framework.write(r, a.out)
         print(json.dumps({'ok': r['ok'], 'digest': r.get('digest'),
                           'profile': r.get('profile'),

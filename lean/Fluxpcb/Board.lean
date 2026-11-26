@@ -24,8 +24,12 @@ structure Item where
   shape : Shape
   /-- Drill diameter in nm (-1 = no hole).  Vias and PTH pads carry one. -/
   drill : Int := -1
+  /-- Second drill axis for a slot (-1 = round hole). -/
+  drillY : Int := -1
   /-- Via span as "Top-Bottom" layer names ("" for pads/tracks). -/
   span : String := ""
+  /-- A non-plated hole: it is a hole, not copper. -/
+  npth : Bool := false
 deriving Repr, Inhabited, BEq
 
 structure State where
@@ -96,8 +100,14 @@ def itemOf (j : Json) : Except String Item := do
   let span ← match j.getObjVal? "span" with
     | .ok v => pure ((Json.getStr? v).toOption.getD "")
     | .error _ => pure ""
+  let drillY ← match j.getObjVal? "drill_y" with
+    | .ok v => pure ((Json.getInt? v).toOption.getD (-1))
+    | .error _ => pure (-1)
+  let npth ← match j.getObjVal? "npth" with
+    | .ok v => pure ((Json.getBool? v).toOption.getD false)
+    | .error _ => pure false
   pure { id := id, net := net, layers := layers, shape := sh,
-         drill := drill, span := span }
+         drill := drill, drillY := drillY, span := span, npth := npth }
 
 def jsonInt (v : Json) : Int :=
   (Json.getInt? v).toOption.getD 0
@@ -157,7 +167,9 @@ def canonical (s : State) : String :=
     ["v2", s.schema, s.board, String.intercalate "," s.layers] ++
     items.map (fun i =>
       s!"i|{i.id}|{i.net}|{String.intercalate "," i.layers}|{shapeStr i.shape}" ++
-      (if i.drill >= 0 then s!"|d={i.drill}" else "") ++
+      (if i.drill >= 0 then
+        s!"|d={i.drill}" ++ (if i.drillY >= 0 then s!",{i.drillY}" else "")
+       else "") ++
       (if i.span != "" then s!"|s={i.span}" else "")) ++
     rules.map (fun (k, v) => s!"r|{k}={v}") ++
     nets.map (fun (n, ids) => s!"n|{n}:{String.intercalate "," ids.toList}") ++

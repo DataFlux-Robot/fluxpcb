@@ -38,7 +38,7 @@ def _rows(r):
 
 def certify(board, rules=None, profile='lean+fab', domain_claims=(),
             route_nets=None, workdir=None, spec=None, store=None,
-            process=None, log=print):
+            process=None, robust=None, log=print):
     t0 = time.time()
     board = Path(board)
     if rules is None:
@@ -95,6 +95,20 @@ def certify(board, rules=None, profile='lean+fab', domain_claims=(),
             if stt == 'proven':
                 store.put(c, stt, '', st, ih)
         store.save()
+    margins = None
+    if robust:
+        from . import process as proc
+        eff = dict(rules)
+        if process:
+            eff.update(S.process_rules(process))
+        margins = proc.margins(st, eff, robust)
+        if not margins['ok']:
+            r['ok'] = False
+            r['reasons'] = list(r['reasons']) + margins['reasons']
+    from . import repair as repair_mod
+    obl = repair_mod.obligations(r)
+    if margins:
+        obl += repair_mod.margin_obligations(margins)
     rows = _rows(r) + [{'id': cid, 'kernel': 'lean', 'status': 'carried',
                         'witness': 'reused: scope untouched',
                         'measured': None, 'units': ''}
@@ -104,7 +118,8 @@ def certify(board, rules=None, profile='lean+fab', domain_claims=(),
     return {'schema': SCHEMA, 'board': str(board),
             'digest': st['digest'], 'profile': profile,
             'rules': dict(rules), 'rule_source': rule_src,
-            'process': process,
+            'process': process, 'margins': margins,
+            'obligations': obl, 'measure': repair_mod.measure(obl),
             'ok': r['ok'], 'reasons': r['reasons'],
             'summary': summary,
             'claims': rows, 'route': None, 'unformalized': unformalized,

@@ -177,21 +177,28 @@ def annular_worst(st, scope, rule):
         if ids is not None and i['id'] not in ids:
             continue
         drill = i.get('drill', -1)
-        if drill is None or drill < 0:
+        if drill is None or drill < 0 or i.get('npth'):
             continue
         sh = i['shape']
-        if sh['kind'] == 'circle':
-            r = sh['r']
-        else:
+        dy = i.get('drill_y')
+        if dy is not None and dy >= 0 and sh['kind'] == 'poly':
             xs = [p[0] for p in sh['pts']]
             ys = [p[1] for p in sh['pts']]
-            r = min(max(xs) - min(xs), max(ys) - min(ys)) // 2
-        ann = r - drill // 2
+            ann = min(max(xs) - min(xs) - drill,
+                      max(ys) - min(ys) - dy) // 2
+        else:
+            if sh['kind'] == 'circle':
+                r = sh['r']
+            else:
+                xs = [p[0] for p in sh['pts']]
+                ys = [p[1] for p in sh['pts']]
+                r = min(max(xs) - min(xs), max(ys) - min(ys)) // 2
+            ann = r - drill // 2
         if ann < rule and (worst is None or ann < worst[0]):
             worst = (ann, i['id'])
     if worst is None:
         return None
-    return f'{worst[1]}: annular {worst[0] / 1000:.3f} mm < {rule / 1000:.3f} mm'
+    return f'{worst[1]}: annular {worst[0] / 1000:.3f} um < {rule / 1000:.3f} um'
 
 
 def drill_worst(st, scope, rule, rule_max=None):
@@ -208,7 +215,7 @@ def drill_worst(st, scope, rule, rule_max=None):
             worst = (drill, i['id'])
     if worst is None:
         return None
-    return f'{worst[1]}: drill {worst[0] / 1000:.3f} mm outside the process range'
+    return f'{worst[1]}: drill {worst[0] / 1000:.3f} um outside the process range'
 
 
 def hole_to_hole_worst(st, scope, rule):
@@ -227,15 +234,16 @@ def hole_to_hole_worst(st, scope, rule):
                 (min(p[0] for p in sj['pts']) + max(p[0] for p in sj['pts'])) // 2,
                 (min(p[1] for p in sj['pts']) + max(p[1] for p in sj['pts'])) // 2)
             dx, dy = ci[0] - cj[0], ci[1] - cj[1]
+            if dx == 0 and dy == 0:
+                continue          # the same physical hole on two layers
             # edge-to-edge: centre distance minus the two drill radii
-            import math
             gap = math.isqrt(dx * dx + dy * dy) - (i['drill'] + j['drill']) // 2
             if gap < rule and (worst is None or gap < worst[0]):
                 worst = (gap, i['id'], j['id'])
     if worst is None:
         return None
-    return (f'{worst[1]} vs {worst[2]}: hole gap {worst[0] / 1000:.3f} mm '
-            f'< {rule / 1000:.3f} mm')
+    return (f'{worst[1]} vs {worst[2]}: hole gap {worst[0] / 1000:.3f} um '
+            f'< {rule / 1000:.3f} um')
 
 
 def edge_worst(st, scope, rule):
@@ -267,8 +275,8 @@ def edge_worst(st, scope, rule):
                     worst = (gap, i['id'])
     if worst is None:
         return None
-    return (f'{worst[1]}: copper {worst[0] / 1000:.3f} mm from the edge '
-            f'< {rule / 1000:.3f} mm')
+    return (f'{worst[1]}: copper {worst[0] / 1000:.3f} um from the edge '
+            f'< {rule / 1000:.3f} um')
 
 
 def check(st, claims, rules):
@@ -310,3 +318,116 @@ def check(st, claims, rules):
                     'status': 'refuted' if w else 'proven',
                     'witness': w or '', 'kernel': 'fab'})
     return {'claims': out, 'ok': all(x['status'] == 'proven' for x in out)}
+
+
+# ---------------------------------------------------------------- margins
+def clearance_min_gap(st, scope=None):
+    """The smallest different-net gap on the board, no rule involved."""
+    ids = set(scope) if scope is not None else None
+    items = [i for i in st['items'] if ids is None or i['id'] in ids]
+    best = None
+    for a in range(len(items)):
+        for b in range(a + 1, len(items)):
+            i, j = items[a], items[b]
+            if i['net'] == j['net'] or not _same_layer(i, j) or \
+                    _same_footprint(i, j):
+                continue
+            _ok, gap = _gap_ok(i, j, 0)
+            if best is None or gap < best[0]:
+                best = (gap, i['id'], j['id'])
+    return best
+
+
+def width_min_value(st, scope=None):
+    ids = set(scope) if scope is not None else None
+    best = None
+    for i in st['items']:
+        if ids is not None and i['id'] not in ids:
+            continue
+        sh = i['shape']
+        if sh['kind'] == 'seg' and (best is None or sh['w'] < best[0]):
+            best = (sh['w'], i['id'])
+    return best
+
+
+def annular_min_value(st, scope=None):
+    ids = set(scope) if scope is not None else None
+    best = None
+    for i in st['items']:
+        if ids is not None and i['id'] not in ids:
+            continue
+        drill = i.get('drill', -1)
+        if drill is None or drill < 0 or i.get('npth'):
+            continue
+        sh = i['shape']
+        dy = i.get('drill_y')
+        if dy is not None and dy >= 0 and sh['kind'] == 'poly':
+            xs = [p[0] for p in sh['pts']]
+            ys = [p[1] for p in sh['pts']]
+            ann = min(max(xs) - min(xs) - drill,
+                      max(ys) - min(ys) - dy) // 2
+        else:
+            if sh['kind'] == 'circle':
+                r = sh['r']
+            else:
+                xs = [p[0] for p in sh['pts']]
+                ys = [p[1] for p in sh['pts']]
+                r = min(max(xs) - min(xs), max(ys) - min(ys)) // 2
+            ann = r - drill // 2
+        if best is None or ann < best[0]:
+            best = (ann, i['id'])
+    return best
+
+
+def hole_min_gap(st, scope=None):
+    ids = set(scope) if scope is not None else None
+    holes = [i for i in st['items']
+             if (i.get('drill') or -1) >= 0 and (ids is None or i['id'] in ids)]
+    best = None
+    for a in range(len(holes)):
+        for b in range(a + 1, len(holes)):
+            i, j = holes[a], holes[b]
+            si, sj = i['shape'], j['shape']
+            def centre(s):
+                if s['kind'] == 'circle':
+                    return s['cx'], s['cy']
+                return ((min(p[0] for p in s['pts']) +
+                         max(p[0] for p in s['pts'])) // 2,
+                        (min(p[1] for p in s['pts']) +
+                         max(p[1] for p in s['pts'])) // 2)
+            ci, cj = centre(si), centre(sj)
+            dx, dy = ci[0] - cj[0], ci[1] - cj[1]
+            if dx == 0 and dy == 0:
+                continue          # the same physical hole on two layers
+            gap = math.isqrt(dx * dx + dy * dy) - (i['drill'] + j['drill']) // 2
+            if best is None or gap < best[0]:
+                best = (gap, i['id'], j['id'])
+    return best
+
+
+def edge_min_gap(st, scope=None):
+    outline = st.get('outline') or []
+    if len(outline) < 3:
+        return None
+    edges = list(zip(outline, outline[1:] + outline[:1]))
+    ids = set(scope) if scope is not None else None
+    best = None
+    for i in st['items']:
+        if ids is not None and i['id'] not in ids:
+            continue
+        sh = i['shape']
+        if i.get('npth'):
+            continue
+        if sh['kind'] == 'seg':
+            pts, hw = [(sh['x1'], sh['y1']), (sh['x2'], sh['y2'])], sh['w'] // 2
+        elif sh['kind'] == 'circle':
+            pts, hw = [(sh['cx'], sh['cy'])], sh['r']
+        else:
+            pts, hw = [(p[0], p[1]) for p in sh['pts']], 0
+        for p in pts:
+            for a, b in edges:
+                num, den = geom.pt_seg_d2(p, a, b)
+                gap = (math.isqrt(num // den) if den else 0) - hw
+                if best is None or gap < best[0]:
+                    best = (gap, i['id'])
+    return best
