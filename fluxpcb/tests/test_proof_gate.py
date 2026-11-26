@@ -192,3 +192,27 @@ def test_board_rules_come_from_the_netclasses(tmp_path):
         encoding='utf-8')
     rules, _ = st_mod.board_rules(tmp_path / 'b.kicad_pcb')
     assert rules['clearance'] == 300000  # the board floor wins
+
+
+def _jmp(ref1, ref2):
+    st = {'board': 'jmp', 'layers': ['F.Cu'],
+          'items': [{'id': 'p1', 'net': 'A', 'layers': ['F.Cu'], 'ref': ref1,
+                     'shape': {'kind': 'poly', 'pts': [[0, 0], [500000, 0],
+                                                       [500000, 500000], [0, 500000]]}},
+                    {'id': 'p2', 'net': 'B', 'layers': ['F.Cu'], 'ref': ref2,
+                     'shape': {'kind': 'poly', 'pts': [[0, 600000], [500000, 600000],
+                                                       [500000, 1100000], [0, 1100000]]}}],
+          'rules': {'clearance': 200000, 'track_min': 150000}, 'netPads': {}}
+    return st_mod.freeze(st)
+
+
+def test_same_footprint_pads_are_exempt_from_clearance():
+    # Solder-jumper / fine-pitch case: 0.1 mm between pads of one footprint.
+    st = _jmp('JMP1', 'JMP1')
+    rep = fab.check(st, [{'id': 'FAB:CLEARANCE', 'pred': 'clearance',
+                          'scope': ['p1', 'p2'], 'rule': 200000}], st['rules'])
+    assert rep['claims'][0]['status'] == 'proven', rep['claims'][0]
+    st = _jmp('JMP1', 'JMP2')
+    rep = fab.check(st, [{'id': 'FAB:CLEARANCE', 'pred': 'clearance',
+                          'scope': ['p1', 'p2'], 'rule': 200000}], st['rules'])
+    assert rep['claims'][0]['status'] == 'refuted', rep['claims'][0]

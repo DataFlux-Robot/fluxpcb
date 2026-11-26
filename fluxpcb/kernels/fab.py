@@ -120,6 +120,16 @@ def _same_layer(i, j):
     return any(l in j['layers'] for l in i['layers'])
 
 
+def _same_footprint(i, j):
+    """KiCad does not check clearance between pads of one footprint.
+
+    Solder jumpers, castellated pads and fine-pitch parts are drawn with
+    sub-rule pad gaps by design; a blanket rule would refute JMP1 on 0054
+    (0.10 mm between its two pads), which the board's own DRC accepts.
+    """
+    return bool(i.get('ref')) and i.get('ref') == j.get('ref')
+
+
 def clearance_worst(st, scope, rule):
     ids = set(scope) if scope is not None else None
     items = [i for i in st['items'] if ids is None or i['id'] in ids]
@@ -127,7 +137,8 @@ def clearance_worst(st, scope, rule):
     for a in range(len(items)):
         for b in range(a + 1, len(items)):
             i, j = items[a], items[b]
-            if i['net'] == j['net'] or not _same_layer(i, j):
+            if i['net'] == j['net'] or not _same_layer(i, j) or \
+                    _same_footprint(i, j):
                 continue
             bi, bj = geom.bbox(i['shape']), geom.bbox(j['shape'])
             gx = max(bi[0] - bj[2], bj[0] - bi[2], 0)

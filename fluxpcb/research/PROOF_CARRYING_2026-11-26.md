@@ -230,3 +230,34 @@ K3 里那处 0.174 mm 间距在新内核、新 FR 采样下没有复现；同一
   （门正确地拒绝），两轮即闭合。
 - 拼接（S3）与并行布线（S2 的真正版本）仍未做；K2/K3 只固定了接口和义务。
 
+
+## 十一、K5：355 格离线对账（2026-11-26）
+
+范围：`full4_run` 的 3 次重复 × 119 板；后两次运行缺 `0496_kitspace_f-91w` 一行
+（该板第一次就 fail，没有重跑），所以共 **355 格**。每格用保存的结果板、按该板自己的
+`.kicad_pro` 网类规则（`state.board_rules`），跑 lean+fab，再与 bench 行的
+`claims_after`（error DRC + unconnected）比对。
+
+| 项 | 结果 |
+|---|---|
+| 判定一致 | **355 / 355** |
+| 一致且 clean | 351 格（bench 0 error / 0 unconnected，我们 8–82 条 claim 全证） |
+| 一致且不 clean | 4 格：`0496` 一次（42 error / 13 unconnected）、`0599` 三次（36 track_width / 29 unconnected）；我们都给出 CONN unknown + fab refuted |
+| 每轮 | 117 clean / 117 ok，逐轮完全对齐 |
+| 验证耗时 | 中位 **0.52 s**，p95 17.0 s，max 57.2 s（0626，82 条 claim）；单核合计 861 s，6 进程墙钟 165 s |
+| 横跨重复的几何方差 | 119 块板中 **118 块三次 digest 不同**（路由器非确定性），只有 1 块三次完全相同——所以“三次并集”是必要的，对账必须按保存的具体几何做 |
+
+对账中发现并修掉第三个 fab 过严问题：**同一封装内的 pad 对不做间距检查**（KiCad 的
+规则；标准的跳线/细间距封装就是这样画的）。`0054_induction-hob_temperature-sensor`
+的 JMP1 两个跳线垫相距 0.10 mm，修复前 3 格全部“我们拒绝、bench clean”；加入
+`_same_footprint` 豁免后 355/355。回归：
+`test_same_footprint_pads_are_exempt_from_clearance`（同封装 0.1 mm → proven，
+跨封装同几何 → refuted）。
+
+### 诚实边界
+
+- “一致”是**连通 + 网表 + 间距 + 线宽**四个谓词与 bench 判据的一致，不是与全部
+  KiCad DRC 类型的一致：annular、hole、edge、courtyard 等不在证书里，4 个 dirty 格里
+  我们的 refuted 也只是其中一个 fab 谓词，没有复刻 bench 的 42/36 条。
+- 抽取器仍是信任桥：zones 未提取（本批板子为 0）；同封装豁免是按 KiCad 语义加的，
+  若某个封装故意用小于规则的 pad 间距且需要检查，应显式声明。
