@@ -1,0 +1,28 @@
+id: 0344_mavbridge
+# The intent, not the layout: which part must sit on which rail, which rails
+# may not touch, which interfaces must exist.  The netlist is the theorem of
+# this file; the board is the theorem of the netlist.
+power:
+  rails:
+    - name: VPP
+      net: VPP
+      source_ref: P1
+      sink_refs: [F1]
+    - name: 5V
+      net: +5V
+      source_ref: F1
+      sink_refs: [U2, D6, C3, R5]
+    - name: 3V3
+      net: +3V3
+      source_ref: U2
+      sink_refs: [U1, C2, C4, R2, R3, R9, R10]
+forbidden:
+  - [VPP, "+5V"]
+  - ["+5V", "+3V3"]
+parts: [U1, U2, F1, P1, P2, P3]
+interfaces:
+  - {name: UART_TX, net: TXD, type: single_ended}
+  - {name: UART_RX, net: RXD, type: single_ended}
+requirements:
+  - {id: R-STACK, text: "2-layer, 1.6 mm FR4"}
+  - {id: R-ENCL, text: "fits the enclosure"}

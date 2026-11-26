@@ -33,6 +33,7 @@ LEMMAS = {
     'fab.edge': 'every copper item is at least the rule from the board edge',
     'router.route_sound': 'a router proposal is a Step whose after-state verifies',
     'merge.boundary': 'module boundary pads partition the board pads per net',
+    'spec.refinement': 'the netlist implements the spec (parts, rails, separation)',
     'power.drop': 'a declared rail drop is derived from routed copper',
     'power.j': 'a declared current density is derived from routed copper',
     'thermal.tj': 'a junction temperature is derived from the theta chain',

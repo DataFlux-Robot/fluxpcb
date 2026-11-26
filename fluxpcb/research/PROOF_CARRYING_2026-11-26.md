@@ -476,3 +476,45 @@ PCBRouteAgent 每板 1 次，本次也是 1 次，重复口径可比；形式化
   是良基字典序，`terminates(before, after)` 就是一次严格下降。publish/certify 的
   返回已有 `obligations`/`measure`；repair 规划器与循环强制是下一步，不在这一枪里
   假装已经完成。
+
+## 十五、第二枪：spec → netlist → layout 的两级细化（2026-11-26）
+
+`NETLIST` 一直是“板子的网 == 给定的网表”。这句话对一张**可能错的网表**也成立——循环。
+这一节把顶层补上：spec 是 conjecture，netlist 是它的定理，layout 是 netlist 的定理。
+
+### 15.1 三个箭头，三个检查器
+
+| 层 | 文件 | 检查器 | 失败的样子 |
+|---|---|---|---|
+| spec → netlist | `proof/spec.py` | 领域核（本模块）：parts 存在、rail 的 source/sink 位号在该网、禁止网对不共享焊盘、接口网存在 | 一块每根铜都连通、DRC 全过的板，仍然“不符合意图” |
+| netlist → layout | `proof/claims.py` + Lean | `NETLIST`/`CONN` 证明板子实现了网表 | 开路/错连 |
+| layout → 工件 | `proof/gerber.py` | 双向包含 + 同组 fab 谓词 | 导出偏移/丢 pad |
+
+`framework.certify` 的证书现在带 `refinement` 块：`spec_ok`、`layout_ok`、`theorem`
+（spec 摘要 + state 摘要 + 义务 id 的哈希）、`unformalized`（无法形式化的需求逐条列出）。
+
+### 15.2 0344 的真实 spec
+
+`projects/audit/0344/spec.yaml` 写的是**意图**，不是布局：VPP 由 P1 输入、F1 熔断；+5V 由
+F1 供 U2/D6/C3/R5；+3V3 由 U2 供 U1/C2/C4/R2/R3/R9/R10；VPP 与 +5V、+5V 与 +3V3 禁止
+同网；UART 的 TXD/RXD 必须存在。结果：
+
+- spec 28 条义务全过，`layout` 23 proven，`refinement.ok=true`；2 条需求进
+  `unformalized`（叠层、外壳），不假装证过。
+- **负控**：把 spec 改成“P3 必须在 VPP 上”。布局仍然 23 proven、每根铜都合法；
+  refinement 失败：`RAIL:VPP:sink:P3: P3 has no pad on VPP`。这正是循环被打破的地方：
+  合法布线可以完美实现一张错误的网表，spec 层把它抓住。
+
+### 15.3 类型化网
+
+`interfaces[].type` 现在进入 spec 义务（接口必须存在），并继续由 `conjectures.from_spec`
+生成 domain claim：`single_ended`/`stripline` → Z0，`diff` 对 → Z0 + skew，rail →
+最坏路径压降/电流密度。类型不是注释，它决定该网要证什么。
+
+### 15.4 边界
+
+- spec 仍是每个项目手写的；从原理图自动抽取 contract 是下一层（M4 的 `find` 只做检索）。
+- spec 检查是**领域核**（peer kernel），不是 Lean：它是组合/成员关系，不需要几何内核；
+  证书记录 kernel/version/digest，和其他领域结论同级。
+- `unformalized` 逐条可见；C2 的 `refinement.ok=false` 会让整张证书 `ok=false`，
+  不会用 layout 的 23 proven 掩盖意图层的失败。

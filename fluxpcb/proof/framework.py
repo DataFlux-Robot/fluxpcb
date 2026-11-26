@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 
 from . import (certs, claims as claim_mod, conjectures, gate, router,
-               state as S)
+               spec as spec_mod, state as S)
 
 SCHEMA = 'fluxpcb-cert-2'
 
@@ -109,6 +109,13 @@ def certify(board, rules=None, profile='lean+fab', domain_claims=(),
     obl = repair_mod.obligations(r)
     if margins:
         obl += repair_mod.margin_obligations(margins)
+    refinement = None
+    if spec:
+        from . import spec as _spec
+        refinement = _spec.refine(_spec.load(spec), st, r['ok'])
+        if not refinement['ok']:
+            r['ok'] = False
+            r['reasons'] = list(r['reasons']) + refinement['reasons']
     rows = _rows(r) + [{'id': cid, 'kernel': 'lean', 'status': 'carried',
                         'witness': 'reused: scope untouched',
                         'measured': None, 'units': ''}
@@ -119,6 +126,7 @@ def certify(board, rules=None, profile='lean+fab', domain_claims=(),
             'digest': st['digest'], 'profile': profile,
             'rules': dict(rules), 'rule_source': rule_src,
             'process': process, 'margins': margins,
+            'refinement': refinement,
             'obligations': obl, 'measure': repair_mod.measure(obl),
             'ok': r['ok'], 'reasons': r['reasons'],
             'summary': summary,

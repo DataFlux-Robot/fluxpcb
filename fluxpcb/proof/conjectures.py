@@ -42,7 +42,10 @@ def net_geometry(st, net):
 def from_spec(spec, st):
     """Compile the spec into (claims, unformalized)."""
     claims, unformalized = [], []
-    for r in spec.get('rails', []) or []:
+    rails = spec.get('rails')
+    if not rails and isinstance(spec.get('power'), dict):
+        rails = spec['power'].get('rails')
+    for r in rails or []:
         net = r.get('net') or r['name']
         length_mm, width_mm = net_geometry(st, net)
         if r.get('path'):
@@ -62,6 +65,8 @@ def from_spec(spec, st):
         claims.append(c)
     stack = spec.get('stackup') or {}
     for f in spec.get('parts', []) or []:
+        if not isinstance(f, dict):
+            continue          # a bare ref is a presence obligation (spec.py)
         params = {'power_w': f.get('power_w'), 'theta_ja': f.get('theta_ja'),
                   'theta_jc': f.get('theta_jc'), 'theta_cs': f.get('theta_cs'),
                   'theta_sa': f.get('theta_sa'), 't_amb': f.get('t_amb', 25.0),

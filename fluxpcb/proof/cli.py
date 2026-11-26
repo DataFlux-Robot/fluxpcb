@@ -6,7 +6,7 @@ import json
 import os
 import sys
 
-from . import compare, framework, library, modules, state as S
+from . import compare, framework, library, modules, spec as spec_mod, state as S
 
 
 def _rules(path):
@@ -140,8 +140,7 @@ def main(argv=None):
         nets = [n for n in (a.route_nets or '').split(',') if n]
         spec = None
         if a.spec:
-            with open(a.spec, encoding='utf-8') as f:
-                spec = json.load(f)
+            spec = spec_mod.load(a.spec).raw
         r = framework.certify(a.board, crules, profile=a.profile,
                               domain_claims=dom,
                               route_nets=nets or None,
