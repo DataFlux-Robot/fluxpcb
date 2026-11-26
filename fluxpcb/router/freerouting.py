@@ -93,6 +93,9 @@ class FreeroutingResult:
     rule_congruence: bool = False
     rule_audit: dict = None
     patch: dict = None
+    # certificate of the candidate board (audit only: the router's output is a
+    # tactic result, not yet a committed design; the repair steps enforce).
+    proof: dict = None
 
 
 class FreeroutingBackend:
@@ -387,6 +390,14 @@ class FreeroutingBackend:
 
         result.routed = os.path.exists(out_path)
         result.seconds = round(time.time() - t0, 1)
+        if result.routed:
+            try:
+                from fluxpcb.proof import state as _S, step as _step
+                _rules = _S.board_rules(out_path)[0]
+                _st = _S.extract(out_path, _rules)
+                result.proof = _step.audit(_st, _rules, board_path=out_path)
+            except Exception as e:
+                result.proof = {'ok': None, 'error': str(e)[:200]}
         return result
 
 

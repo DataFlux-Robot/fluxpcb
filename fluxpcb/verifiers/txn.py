@@ -262,6 +262,7 @@ class TxnReport:
     rolled_back: int = 0
     denied: int = 0
     errors: int = 0
+    proof_denied: int = 0
     log: list = field(default_factory=list)
     final: dict = field(default_factory=dict)
     # the claims of the state the board was left in, as the object (not
@@ -273,6 +274,7 @@ class TxnReport:
     def as_dict(self) -> dict:
         return {'committed': self.committed, 'rolled_back': self.rolled_back,
                 'denied': self.denied, 'errors': self.errors,
+                'proof_denied': self.proof_denied,
                 'log': self.log[-40:], 'final': self.final}
 
 
@@ -290,7 +292,8 @@ def transactional_repair(board_path: str, action_fn, eval_fn,
                          initial: Claims = None,
                          hook=None, kind: str = 'repair',
                          stop_on_rollback: bool = True,
-                         decider: dict = None, board_fp: str = None) -> TxnReport:
+                         decider: dict = None, board_fp: str = None,
+                         proof_mode: str = None) -> TxnReport:
     """Run ``action_fn`` in a transaction until it stops helping.
 
     Args:
@@ -317,6 +320,25 @@ def transactional_repair(board_path: str, action_fn, eval_fn,
     who = dict(decider or {'kind': 'rule', 'id': kind})
     fp = board_fingerprint(board_path) if board_fp is None else board_fp
     before = initial if initial is not None else eval_fn(board_path)
+    # per-step proof gate: every committed mutation is verified; enforced only
+    # when FLUXPCB_PROOF=enforce (default audit records the certificate).
+    proof_mode = (os.environ.get('FLUXPCB_PROOF', 'audit')
+                  if proof_mode is None else proof_mode)
+    pctx = {'state': None, 'report': None, 'fp': None}
+    pf_rules = None
+    if proof_mode != 'off':
+        try:
+            from fluxpcb.proof import state as _S, step as _step
+            pf_rules = _S.board_rules(board_path)[0]
+            st0, rep0 = _step.cached(board_path)
+            if st0 is None:
+                st0 = _S.extract(board_path, pf_rules)
+                rep0 = _step.audit(st0, pf_rules,
+                                   board_path=board_path)['report']
+            pctx = {'state': st0, 'report': rep0, 'fp': fp}
+        except Exception as e:
+            say(f'proof: begin failed ({e}); proof gate off for this call')
+            proof_mode = 'off'
     rep.final = before.as_dict()
     rep.last = before
     for r in range(max_rounds):
@@ -382,6 +404,54 @@ def transactional_repair(board_path: str, action_fn, eval_fn,
             rep.rolled_back += 1
             break
         ok, why = accept(before, after)
+        proof_blocked = False
+        if ok and proof_mode != 'off':
+            try:
+                from fluxpcb.proof import state as _S, step as _step
+                st_after = _S.extract(board_path, pf_rules)
+                pr = _step.preserve(pctx['state'], st_after, pf_rules,
+                                    before_report=pctx['report'],
+                                    board_path=board_path)
+                if not pr['ok']:
+                    if proof_mode == 'enforce':
+                        restore_snapshot(snap)
+                        _remove_new_sidecars(board_path, snap)
+                        rep.proof_denied += 1
+                        rep.rolled_back += 1
+                        rep.log.append({'round': r, 'decision': 'proof_denied',
+                                        'stage': kind, 'why': pr['reasons'][:4],
+                                        'proof': pr['summary'],
+                                        'before': before.as_dict(),
+                                        'after': after.as_dict(),
+                                        'decider': who, 'board_fp': fp})
+                        say(f'round {r}: proof denied ({pr["reasons"][:2]}); restored')
+                        _step.seed(board_path, pctx['state'], pctx['report'])
+                        before = eval_fn(board_path)
+                        if stop_on_rollback:
+                            break
+                        ok = False
+                        proof_blocked = True
+                    else:
+                        rep.log.append({'round': r, 'decision': 'proof_audit_fail',
+                                        'stage': kind, 'why': pr['reasons'][:4],
+                                        'proof': pr['summary'],
+                                        'decider': who, 'board_fp': fp})
+                if ok:
+                    pctx = {'state': st_after, 'report': pr['report'],
+                            'fp': board_fingerprint(board_path)}
+            except Exception as e:
+                if proof_mode == 'enforce':
+                    restore_snapshot(snap)
+                    _remove_new_sidecars(board_path, snap)
+                    rep.errors += 1
+                    rep.log.append({'round': r, 'decision': 'proof_error',
+                                    'stage': kind, 'why': str(e)[:400],
+                                    'decider': who, 'board_fp': fp})
+                    say(f'round {r}: proof error ({e}); restored')
+                    break
+                say(f'round {r}: proof error ({e}); audit only')
+        if proof_blocked:
+            continue
         if ok:
             rep.committed += 1
             rep.log.append({'round': r, 'decision': 'commit', 'why': why,

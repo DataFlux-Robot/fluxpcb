@@ -170,6 +170,23 @@ def _export_fab(project_dir: Path, run=None) -> dict:
         return result
     for pcb in pcbs:
         fab = pcb.parent / "fab"
+        # publish gate: a board whose conjecture is not discharged does not
+        # become a fab package.  The certificate goes into the package.
+        try:
+            from fluxpcb.proof import framework as _pf, state as _PS, step as _PSt
+            _rules = _PS.board_rules(pcb)[0]
+            _pub = _PSt.publish(_PS.extract(pcb, _rules), _rules)
+            (fab / "certificate.json").write_text(
+                __import__("json").dumps(
+                    {'ok': _pub['ok'], 'summary': _pub['summary'],
+                     'reasons': _pub['reasons'], 'digest': _pub['digest']},
+                    indent=1), encoding="utf-8")
+            if not _pub['ok']:
+                result["errors"].append(
+                    "proof publish: " + "; ".join(_pub['reasons'][:3]))
+                continue
+        except Exception as e:
+            result["warnings"].append(f"proof publish: {e}")
         fab.mkdir(exist_ok=True)
         for args in (
             ["pcb", "export", "gerbers", "-o", str(fab) + "/",

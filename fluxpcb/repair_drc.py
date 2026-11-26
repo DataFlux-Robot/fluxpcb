@@ -678,7 +678,8 @@ def remove_items(board_path: str, uuids) -> int:
 
 
 def trim_dangling(board_path: str, drc_json: str, evaluate, initial=None,
-                  rounds: int = 8, restore_project=None) -> dict:
+                  rounds: int = 8, restore_project=None,
+                  proof_mode: str = None) -> dict:
     """Take dangling stubs off the board: leaves only, each round
     confirmed by the DRC.  One more error or one more open puts the
     stubs back.
@@ -691,12 +692,32 @@ def trim_dangling(board_path: str, drc_json: str, evaluate, initial=None,
     Returns the stage record: removed, rounds, committed, rolled_back
     and a log of the rounds.
     """
+    import os as _os
     import shutil
 
     from fluxpcb.verifiers.txn import claims_from_drc
 
     trim = {'stage': 'trim', 'mode': 'leaves', 'committed': 0, 'rolled_back': 0,
             'denied': 0, 'errors': 0, 'log': [], 'removed': 0, 'rounds': 0}
+    # per-step proof gate: a committed trim round must not lose a proof; the
+    # final board is published (full obligations) when the loop ends.
+    proof_mode = (_os.environ.get('FLUXPCB_PROOF', 'audit')
+                  if proof_mode is None else proof_mode)
+    pctx = {'state': None, 'report': None}
+    pf_rules = None
+    if proof_mode != 'off':
+        try:
+            from fluxpcb.proof import state as _S, step as _step
+            pf_rules = _S.board_rules(board_path)[0]
+            st0, rep0 = _step.cached(board_path)
+            if st0 is None:
+                st0 = _S.extract(board_path, pf_rules)
+                rep0 = _step.audit(st0, pf_rules,
+                                   board_path=board_path)['report']
+            pctx = {'state': st0, 'report': rep0}
+        except Exception as e:
+            trim['proof'] = {'ok': None, 'error': str(e)[:200]}
+            proof_mode = 'off'
 
     def read():
         with open(drc_json, encoding='utf-8') as f:
@@ -720,6 +741,35 @@ def trim_dangling(board_path: str, drc_json: str, evaluate, initial=None,
         if before is None:
             before = claims_from_drc(read())
         if after is not None and after.total <= before.total:
+            if proof_mode != 'off':
+                try:
+                    from fluxpcb.proof import state as _S, step as _step
+                    st_after = _S.extract(board_path, pf_rules)
+                    pr = _step.preserve(pctx['state'], st_after, pf_rules,
+                                        before_report=pctx['report'],
+                                        board_path=board_path)
+                    if not pr['ok'] and proof_mode == 'enforce':
+                        shutil.copyfile(backup, board_path)
+                        os.remove(backup)
+                        if restore_project is not None:
+                            restore_project()
+                        _step.seed(board_path, pctx['state'], pctx['report'])
+                        before = evaluate(board_path)
+                        trim['rolled_back'] += 1
+                        trim['log'].append({'round': trim['rounds'],
+                                            'decision': 'proof_denied',
+                                            'why': pr['reasons'][:4],
+                                            'proof': pr['summary']})
+                        break
+                    if not pr['ok']:
+                        trim['log'].append({'round': trim['rounds'],
+                                            'decision': 'proof_audit_fail',
+                                            'why': pr['reasons'][:4]})
+                    pctx = {'state': st_after, 'report': pr['report']}
+                except Exception as e:
+                    trim['log'].append({'round': trim['rounds'],
+                                        'decision': 'proof_error',
+                                        'why': str(e)[:200]})
             before = after
             trim['removed'] += gone
             trim['committed'] += 1
@@ -737,6 +787,16 @@ def trim_dangling(board_path: str, drc_json: str, evaluate, initial=None,
                                 'why': ('DRC failed' if after is None else
                                         f'total {before.total} -> {after.total}')})
             break
+    if proof_mode != 'off' and pctx['state'] is not None:
+        from fluxpcb.proof import step as _step
+        pub = _step.publish(pctx['state'], pf_rules, board_path=board_path)
+        trim['proof'] = {'ok': pub['ok'], 'summary': pub['summary'],
+                         'reasons': pub['reasons'][:4],
+                         'digest': pub['digest']}
+        if not pub['ok'] and _os.environ.get(
+                'FLUXPCB_PROOF_PUBLISH', 'enforce') == 'enforce':
+            from fluxpcb.proof.gate import GateDenied
+            raise GateDenied('publish: ' + '; '.join(pub['reasons'][:4]))
     return trim
 
 

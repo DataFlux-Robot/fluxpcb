@@ -382,6 +382,16 @@ def stage_pcb_layout(ctx: StageContext) -> None:
                          f"剩未连接{res['unconnected']}/短路{res['shorting']}"
                          + (" [全部闭合]" if res.get("clean") else ""))
                 _write_json(pcb.parent / "route_report.json", res)
+                try:
+                    from fluxpcb.proof import state as _PS, step as _PSt
+                    _rules = _PS.board_rules(pcb)[0]
+                    _aud = _PSt.audit(_PS.extract(pcb, _rules), _rules)
+                    _write_json(pcb.parent / "proof_layout.json", _aud)
+                    if not _aud["ok"]:
+                        ctx.note("布线证明审计未过: "
+                                 + "; ".join(_aud["reasons"][:2]))
+                except Exception as _e:
+                    ctx.note(f"布线证明审计不可用: {_e}")
     except Exception as e:
         ctx.note(f"自动布线不可用: {e}")
 
