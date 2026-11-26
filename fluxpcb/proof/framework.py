@@ -95,13 +95,19 @@ def certify(board, rules=None, profile='lean+fab', domain_claims=(),
             if stt == 'proven':
                 store.put(c, stt, '', st, ih)
         store.save()
+    rows = _rows(r) + [{'id': cid, 'kernel': 'lean', 'status': 'carried',
+                        'witness': 'reused: scope untouched',
+                        'measured': None, 'units': ''}
+                       for cid, _ in carried]
+    summary = gate.report_summary(r)
+    summary['carried'] = summary.get('carried', 0) + len(carried)
     return {'schema': SCHEMA, 'board': str(board),
             'digest': st['digest'], 'profile': profile,
             'rules': dict(rules), 'rule_source': rule_src,
             'process': process,
             'ok': r['ok'], 'reasons': r['reasons'],
-            'summary': gate.report_summary(r),
-            'claims': _rows(r), 'route': None, 'unformalized': unformalized,
+            'summary': summary,
+            'claims': rows, 'route': None, 'unformalized': unformalized,
             'items': S.item_hashes(st),
             'verify_seconds': verify_seconds,
             'seconds': round(time.time() - t0, 1)}

@@ -261,3 +261,82 @@ K3 里那处 0.174 mm 间距在新内核、新 FR 采样下没有复现；同一
   我们的 refuted 也只是其中一个 fab 谓词，没有复刻 bench 的 42/36 条。
 - 抽取器仍是信任桥：zones 未提取（本批板子为 0）；同封装豁免是按 KiCad 语义加的，
   若某个封装故意用小于规则的 pad 间距且需要检查，应显式声明。
+
+## 十二、M1–M5：从“proof 模式”到运行时的领域形式化（2026-11-26）
+
+这一轮把四个洞补上：门本身、bench/生产写板路径、猜想–定理–引理与库、领域核。
+提交：`64af594`（M1）、`377e1ab`（M2）、`b8a29c0`（M3/M4）、`0eaee72`（M5）。
+
+### 12.1 门硬化（M1）
+
+| 改动 | 效果 |
+|---|---|
+| `carried` 计入已证 | Lean 对命中 carried、scope 与 claim 一致且不碰 `touched` 的 claim 记 `carried`（不要求证书）；`framework.certify` 可回放 store 里的新鲜证明 |
+| `obligations` | 猜想要求的 id 集合进 Lean；`coverage_ok` + `uncovered` 由内核检查，不再只在 Python |
+| pred 钉死 | `required_claims` 返回 id→pred；id 对、pred 拼错（曾被当 `foreign` 放行）现在直接拒绝；重复 id 拒绝 |
+| before 状态 | 重算 `before.digest`（`drift_before`） |
+| frame 上下文 | rules / layers / ref→pad 映射必须相等；state 升 `fluxpcb-state-2`，canonical 增加 `f|ref:pads`（改名封装会作废 carried） |
+| 两级门 | `step.preserve`：每步跑全部 fab 谓词，已证不得丢、已干净不得变脏；`step.publish`：全板全证 |
+| proof store | 语句哈希 + scope 逐项哈希 + 上下文哈希；`framework.maintain` 只重证 scope 变化的 claim（0344：23 carried / 0 changed / 0.9 s） |
+
+### 12.2 bench/生产接线（M2）
+
+- `verifiers/txn.py` 的每个提交在写日志前过 `step.preserve`；拒绝则恢复快照并记 `proof_denied`。
+- `repair_drc.py:trim_dangling` 每轮同样过门，结束时 `publish`（全板）；`FLUXPCB_PROOF_PUBLISH=enforce` 下失败即抛，格子不能“无证 clean”。
+- `router/freerouting.py` 的产出带 audit 证书并预热状态缓存；`stages` 写 `proof_layout.json`；`engine._export_fab` 先发布再出包，证书进 fab 包。
+- 模式：`FLUXPCB_PROOF=off|audit|enforce`（默认 audit）。
+
+实测（`enforce`，同一 arm/协议）：
+
+| 板 | audit wall | enforce wall | 结果 | 发布证明 |
+|---|---|---|---|---|
+| 0316 | 46.6 s | **71.9 s** | 0 error / 0 unconnected | 25 proven |
+| 0376 | 35.6 s | **64.3 s** | 0 / 0 | 29 proven |
+| 0344 | — | **256.4 s** | 0 / 0 | 23 proven |
+
+没有触发一次 `proof_denied`（K5 预测为零）。代价是每次提交抽取+验证约 2–4 s；
+小板上相对开销明显（+25 s），0344 这种 4 分钟级板子上是摊销的。900 s/格预算内。
+
+### 12.3 猜想–定理–引理与库（M3/M4）
+
+- `Conjecture{claims, profile}` / `Theorem{claims, deps, lemmas, contract, digest}` /
+  `Lemma` 注册表（frame、connectivity、netlist、pads、fab.*、router.route_sound、
+  merge.boundary、power/thermal/signal）/ `Tactic`（router、repair operator）。
+- `discharge` 检查覆盖、依赖无环、未知引理，并在全板上做一次带 carried 的验证。
+- `modules.prove` 产出 theorem；`modules.merge` 校验每个 theorem 对当前模块状态的
+  digest/board_fp（陈旧即拒），并把模块内网 carried：0344 merge **18 proven + 15
+  carried**，不再重算那 15 条网的证书。
+- 库 `schema fluxpcb-module-2`：角色→位号、期望网、引理、依赖、实例（board_fp、
+  state digest、规则、proof digest、秒数）。API：`instantiate`（拒绝板上不存在的
+  位号）、`prove_instance`、`check`（fresh/stale，可重证）、`find`（按期望网、位号
+  前缀、pad 数打分）、`graph`（DAG+环）。CLI `library list|check|find|prove`。
+  两个旧条目已迁移；0344 的 power（7 proven）与 mcu（22 proven）实例 `fresh`。
+
+### 12.4 领域核（M5）
+
+- 抽取器（schema 2 扩展）：via 的 drill/span、pad 的 drill、板框多边形、zone 计数
+  进 canonical/digest/frame。
+- fab 新增整数谓词：**annular、drill 范围、hole-to-hole、copper-to-edge**；zone 未
+  建模时 clearance/edge 报 `unknown`（不再静默）。项目规则只在对应 DRC 严重度为
+  error 时加入；JLC 工艺档（`--process`）另加 `PROC:ANNULAR/HOLE/EDGE/DRILL`。
+- power：`power.drop_path` 在 rail 自己的铜图上做 Dijkstra（段电阻 + 过孔桶电阻），
+  报最坏路径压降、路径长度、最窄宽、电流密度。0344 声明 0.3 A/0.2 A：
+  **3V3 13.9 mV、5V 9.6 mV**（最坏路径，不是总长）。
+- thermal：过孔阵列 θ 与 θ_ja 并联（4 孔 0.3 mm）；0344 U2 0.5 W、θ_ja 60 K/W →
+  **37.7 °C**（无线时 55 °C）。
+- signal：带状线 Z0、差分对长度差 `signal.skew`；spec 增加 path/kind/pairs。
+- 0344 `--profile full --process jlc`：23 proven + 3 derived + 4 工艺谓词，`ok`。
+
+### 12.5 K5 复跑（新 schema）
+
+355 格（3 次重复 × 119 板，后两次缺 0496）在新抽取器/规则/谓词下重新对账：
+**355/355 一致**（351 clean 且全证；4 个 dirty 格我们同样拒绝）。中位 0.53 s/格。
+
+### 12.6 边界
+
+- zones 仍未提取：有 zone 的板子 clearance/edge 是 `unknown`，publish 会拒——
+  如实，不是通过。
+- 工艺档只在显式声明时加入（bench 不声明，保持与 DRC 判据一致）。
+- 领域结论仍只到 `derived`（模型+输入+哈希）；库里 `find` 是启发式候选，内核复核。
+- 每步门的开销在 2–4 s/次提交；小板相对更贵，大板摊销。
+- `carried` 的可靠性依赖 frame：rules/layers/footprints 任一变化都会作废全部 carried。
