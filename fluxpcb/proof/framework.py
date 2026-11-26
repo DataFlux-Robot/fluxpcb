@@ -39,7 +39,8 @@ def _rows(r):
 def certify(board, rules=None, profile='lean+fab', domain_claims=(),
             route_nets=None, workdir=None, spec=None, store=None,
             process=None, robust=None, assembly=False,
-            assembly_strict=False, log=print):
+            assembly_strict=False, trust=False, trust_strict=False,
+            log=print):
     t0 = time.time()
     board = Path(board)
     if rules is None:
@@ -110,6 +111,20 @@ def certify(board, rules=None, profile='lean+fab', domain_claims=(),
     obl = repair_mod.obligations(r)
     if margins:
         obl += repair_mod.margin_obligations(margins)
+    tr = None
+    if trust:
+        from . import kicad_text
+        tr = kicad_text.check(board)
+        if not tr['ok']:
+            r['ok'] = False
+            r['reasons'] = list(r['reasons']) + [
+                f"trust: {tr['n_mismatch']} mismatches, "
+                f"{tr['n_missing']} missing, {tr['n_extra']} extra"]
+        elif trust_strict and tr['arcs_approximated']:
+            r['ok'] = False
+            r['reasons'] = list(r['reasons']) + [
+                f"trust: {tr['arcs_approximated']} arcs are chord-approximated "
+                f"in the state"]
     asm = None
     if assembly:
         from . import assembly as asm_mod
@@ -139,6 +154,7 @@ def certify(board, rules=None, profile='lean+fab', domain_claims=(),
             'digest': st['digest'], 'profile': profile,
             'rules': dict(rules), 'rule_source': rule_src,
             'process': process, 'margins': margins, 'assembly': asm,
+            'trust': tr,
             'refinement': refinement,
             'obligations': obl, 'measure': repair_mod.measure(obl),
             'ok': r['ok'], 'reasons': r['reasons'],

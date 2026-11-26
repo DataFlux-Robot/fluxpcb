@@ -554,3 +554,28 @@ F1 供 U2/D6/C3/R5；+3V3 由 U2 供 U1/C2/C4/R2/R3/R9/R10；VPP 与 +5V、+5V �
   当成 boundary 网，core 条目一度出现 19 个 PADS claim（5 真边界 + 14 匿名）。现在
   匿名网不参与 boundary/internal；core 回到 22 proven，边界仍是 5 网。
 - `register` 按 (board, board_fp) 替换实例，旧板路径上的陈旧实例不再堆积。
+
+## 十八、信任三角：独立文本解析器（2026-11-26）
+
+extractor（pcbnew → state）一直是唯一的信任桥。`proof/kicad_text.py` 是第二条腿：
+自己读 `.kicad_pcb` 的 S-expression，按 uuid 重建线段/圆弧/过孔/焊盘，再与 pcbnew 的
+state 逐项对账。
+
+- 变换：footprint `(at x y rot)` + pad `(at dx dy)` → `anchor = fp + R(fp_rot)·(dx,dy)`；
+  有 `(drill (offset ox oy))` 时铜中心 = `anchor + R(pad_rot)·(ox,oy)`（Gerber 闪点证实）。
+- 比较：uuid 存在性、net、layer、端点/中心（1 µm）、线宽/孔径、drill（含槽孔两轴）、npth。
+  焊盘不比多边形（pcbnew 负责多边形化），只比中心/网/孔/层。
+- 圆弧单独标记：state 把弧存成弦，文本能看出弧；`--trust-strict` 在有圆弧时拒绝。
+- CLI `certify --trust` 把结果写进证书 `trust` 块；`--trust-strict` 把 chord 近似当拒绝。
+
+**118 块板实测：118/118 逐项一致**（0 mismatch / 0 missing / 0 extra；这批板没有圆弧）。
+过程中文本解析器自己先错了两处，被对账抓住并修正：
+
+1. 焊盘类型读错下标（`(pad "1" thru_hole oval …)` 的 type 是第 2 个 token，不是第 3 个），
+   把 20 块板的 NPTH 当成通孔铜；
+2. `(drill (offset 0 0.2))` 的铜中心没加偏置，0020 有 15 个焊盘差 0.2 mm——查 Gerber
+   闪点后确认 state 是对的（铜在 101.4，不在 anchor 101.6），文本解析器修正。
+
+所以这条腿的价值是双向的：它验证 state，也验证自己；两次错误都是“工具噪声”，不是
+“模型通过”。边界：只覆盖 KiCad 10 语法；zone 不解析；焊盘不比多边形；圆弧在 state 里
+仍是弦（strict 会拒）。
