@@ -226,3 +226,58 @@ def test_refutation_obligations_and_measure():
     assert repair.terminates(obl, [{'kernel': 'lean', 'delta_nm': None}])
     assert not repair.terminates([], obl)
     assert repair.measure([]) < repair.measure(obl)
+
+
+def test_macro_shapes_are_single_polygons_in_nm():
+    # RoundRect: radius 0.25, corners +/-0.725 x +/-0.6 -> outer 1.95 x 1.70
+    sh = gerber._macro_shape('RoundRect', [0.25, 0.725, -0.6, 0.725, 0.6,
+                                            -0.725, 0.6, -0.725, -0.6, 0],
+                             128525000, 112150000)
+    xs = [p[0] for p in sh['pts']]
+    ys = [p[1] for p in sh['pts']]
+    assert sh['kind'] == 'poly'
+    assert abs(min(xs) - (128525000 - 975000)) <= 2000
+    assert abs(max(xs) - (128525000 + 975000)) <= 2000
+    assert abs(min(ys) - (112150000 - 850000)) <= 2000
+    # RotRect: length 1.55, width 0.6, 90 degrees -> bbox 0.6 x 1.55
+    sh = gerber._macro_shape('RotRect', [1.55, 0.6, 90], 10000000, 10000000)
+    xs = [p[0] for p in sh['pts']]
+    ys = [p[1] for p in sh['pts']]
+    assert abs(max(xs) - min(xs) - 600000) <= 2000
+    assert abs(max(ys) - min(ys) - 1550000) <= 2000
+
+
+MACRO_GTL = """%FSLAX46Y46*%
+%MOMM*%
+%AMRoundRect*
+0 Rectangle with rounded corners*
+4,1,4,$2,$3,$4,$5,$6,$7,$8,$9,$2,$3,0*
+1,1,$1+$1,$2,$3*
+1,1,$1+$1,$4,$5*
+1,1,$1+$1,$6,$7*
+1,1,$1+$1,$8,$9*
+20,1,$1+$1,$2,$3,$4,$5,0*
+%
+%ADD10RoundRect,0.250000X0.725000X-0.600000X0.725000X0.600000X-0.725000X0.600000X-0.725000X-0.600000X0*%
+G01*
+D10*
+X1000000Y-1000000D03*
+M02*
+"""
+
+
+def test_a_macro_flash_parses_as_one_pad(tmp_path):
+    from test_gerber_process import GM1, DRL
+    d = tmp_path / 'm'
+    d.mkdir()
+    (d / 'f.gtl').write_text(MACRO_GTL, encoding='utf-8')
+    (d / 'e.gm1').write_text(GM1, encoding='utf-8')
+    (d / 'b.drl').write_text(DRL, encoding='utf-8')
+    prims = gerber.parse_gerber(str(d / 'f.gtl'), 'F.Cu')
+    assert len(prims) == 1
+    sh = prims[0].shape
+    xs = [p[0] for p in sh['pts']]
+    ys = [p[1] for p in sh['pts']]
+    assert abs(min(xs) - (1000000 - 975000)) <= 2000
+    # parse_gerber works in the plot frame, where the board's +y is negative
+    assert abs(min(ys) - (-(1000000 + 850000))) <= 2000

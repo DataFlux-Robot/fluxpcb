@@ -111,10 +111,56 @@ def _arc_points(x0, y0, x1, y1, i, j, cw, step_deg=5.0):
     return pts
 
 
+def _rot_pts(pts, deg):
+    c, sn = math.cos(math.radians(deg or 0)), math.sin(math.radians(deg or 0))
+    return [(x * c - y * sn, x * sn + y * c) for x, y in pts]
+
+
+def _rounded_rect(x0, y0, x1, y1, r, n=6):
+    r = max(0.0, min(r, (x1 - x0) / 2, (y1 - y0) / 2))
+    pts = []
+    for cx, cy, a0 in ((x1 - r, y0 + r, -90), (x1 - r, y1 - r, 0),
+                       (x0 + r, y1 - r, 90), (x0 + r, y0 + r, 180)):
+        for k in range(n + 1):
+            a = math.radians(a0 + 90 * k / n)
+            pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    return pts
+
+
+# KiCad's own aperture macros, synthesised as one polygon each (the plotted
+# primitive set is a union, but the board state has one pad; a single outline
+# keeps the bijection one-to-one).
+def _macro_shape(name, params, fx, fy):
+    def poly(pts):
+        # macro geometry is in mm; the flash anchor (fx, fy) is in nm
+        return {'kind': 'poly', 'pts': [[int(round(x * 1e6 + fx)),
+                                         int(round(y * 1e6 + fy))]
+                                        for x, y in pts]}
+    if name == 'RoundRect':
+        r = params[0]
+        corners = [(params[1 + 2 * i], params[2 + 2 * i]) for i in range(4)]
+        corners = _rot_pts(corners, params[9] if len(params) > 9 else 0)
+        xs = [p[0] for p in corners]
+        ys = [p[1] for p in corners]
+        pts = _rounded_rect(min(xs) - r, min(ys) - r,
+                            max(xs) + r, max(ys) + r, r)
+        return poly(pts)
+    if name == 'Outline4P':
+        pts = [(params[2 * i], params[1 + 2 * i]) for i in range(4)]
+        pts = _rot_pts(pts, params[8] if len(params) > 8 else 0)
+        return poly(pts)
+    if name == 'RotRect':
+        L, w, a = params[0], params[1], params[2]
+        pts = [(-L / 2, -w / 2), (L / 2, -w / 2), (L / 2, w / 2),
+               (-L / 2, w / 2)]
+        return poly(_rot_pts(pts, a))
+    raise ValueError(f'unsupported aperture macro {name}')
+
+
 def parse_gerber(path, layer):
     """Parse the subset KiCad plots: C/R/O apertures, draws, flashes, regions."""
     text = Path(path).read_text(encoding='utf-8', errors='replace')
-    apertures, prims = {}, []
+    apertures, prims, macros = {}, [], {}
     cur_ap = None
     x = y = 0
     mode = 'G01'
@@ -128,7 +174,10 @@ def parse_gerber(path, layer):
                 if mm:
                     apertures[mm.group(1)] = (mm.group(2), mm.group(3))
             elif b.startswith('AM'):
-                raise ValueError('aperture macros are not supported')
+                parts = [p.strip() for p in b.split('*')]
+                name = parts[0][2:]
+                macros[name] = [p for p in parts[1:]
+                                if p and not p.startswith('0')]
             elif b in ('LPC',):
                 raise ValueError('negative polarity is not supported')
             continue
@@ -186,6 +235,13 @@ def parse_gerber(path, layer):
                                   gx=nx, gy=ny, ap=kind))
         elif op == '3':
             kind, nums = _aperture(apertures.get(cur_ap, ('C', '0.1')))
+            if kind in macros:
+                params_mm = [n / 1e6 for n in nums]
+                prims.append(Prim('poly', layer,
+                                  _macro_shape(kind, params_mm, nx, ny),
+                                  gx=nx, gy=ny, ap=kind))
+                x, y = nx, ny
+                continue
             if kind == 'C':
                 r = (nums[0] if nums else 100000) // 2
                 sh = {'kind': 'circle', 'cx': nx, 'cy': ny, 'r': r}
