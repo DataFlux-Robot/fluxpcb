@@ -1810,6 +1810,9 @@ def _build_pipeline(kicad_cli: str, kipy: str, pcb_path: Path,
             "opens": qo.value, "pairs": len(pairs)}
 
 
+_CLEAR_FB: list = []   # clearance-measurement degradations (alarm)
+
+
 def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
                  cls_file: Path, net_classes: dict, diff_pairs: list,
                  steps: list, log=print) -> None:
@@ -1935,7 +1938,7 @@ def _closed_loop(kicad_cli: str, kipy: str, pcb_path: Path,
             _clear_fb.append(1)
             return gap_v
 
-    _clear_fb = []      # 间距项降级计数(响亮, 环末报入 steps)
+    _clear_fb = _CLEAR_FB   # 间距项降级计数(模块级共享, 环末报入 steps)
 
     def _grind_micro(qo, pairs, report, plans, cls_of):
         """一磨山微步: 预测排序选 (残差,算子) -> _gated_step -> 记账。
@@ -2617,9 +2620,9 @@ def auto_route(pcb_path: Path, max_iterations: int = 5, log=print) -> dict:
                      f"{round(100.0 * _auto / _routable, 1)}%")
     except Exception as _e:
         steps.append(f"scorecard skipped: {_e}")
-    if _clear_fb:
+    if _CLEAR_FB:
         # 响亮: w_clearance 间距项测量降级次数(空臂事故的报警器)
-        steps.append(f"w_clearance 间距项降级 {len(_clear_fb)} 次"
+        steps.append(f"w_clearance 间距项降级 {len(_CLEAR_FB)} 次"
                      f"(测量失败, 目标退纯缺口/开路数)")
     return {"iterations": it, **last, "clean": clean, "steps": steps,
             "automation_pct": locals().get("_auto_pct"),
