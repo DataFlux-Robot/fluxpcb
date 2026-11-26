@@ -89,6 +89,7 @@ def verify (r : Request) : Json :=
   Json.mkObj [
     ("digest", Json.str r.state.digest),
     ("computed_digest", Json.str (digestOf r.state)),
+    ("canonical", Json.str (canonical r.state)),
     ("drift", Json.bool drift),
     ("drift_before", Json.bool driftBefore),
     ("duplicate_ids", Json.bool dupIds),

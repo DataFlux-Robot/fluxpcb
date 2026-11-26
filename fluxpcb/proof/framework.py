@@ -40,7 +40,7 @@ def certify(board, rules=None, profile='lean+fab', domain_claims=(),
             route_nets=None, workdir=None, spec=None, store=None,
             process=None, robust=None, assembly=False,
             assembly_strict=False, trust=False, trust_strict=False,
-            log=print):
+            schematic=None, log=print):
     t0 = time.time()
     board = Path(board)
     if rules is None:
@@ -63,7 +63,32 @@ def certify(board, rules=None, profile='lean+fab', domain_claims=(),
                 'unformalized': route.get('unformalized', []), 'route': route,
                 'verify_seconds': route.get('seconds'),
                 'seconds': round(time.time() - t0, 1)}
-    st = S.extract(board, rules)
+    try:
+        st = S.extract(board, rules)
+    except Exception as e:  # noqa: BLE001 - a refused state is a verdict
+        extra, reasons = {}, [f'extract: {e}']
+        if schematic:
+            from . import schematic as sch_mod
+            netlist = schematic
+            if str(schematic).endswith('.kicad_sch'):
+                netlist = sch_mod.export_netlist(schematic)
+            sch = sch_mod.refine(netlist, board)
+            extra['schematic'] = sch
+            if not sch['ok']:
+                reasons += [f"schematic: {x}" for x in sch['reasons'][:6]]
+        if trust:
+            from . import kicad_text
+            tr = kicad_text.check(board)
+            extra['trust'] = tr
+            if not tr['ok']:
+                reasons.append('trust: ' + '; '.join(tr.get('reasons', [])
+                                                     or [f"{tr.get('n_mismatch')} mismatches"]))
+        return {'schema': SCHEMA, 'board': str(board), 'digest': None,
+                'profile': profile, 'rules': dict(rules),
+                'rule_source': rule_src, 'ok': False, 'reasons': reasons,
+                'summary': {}, 'claims': [], 'route': None,
+                'unformalized': [], 'trust': extra.get('trust'), **extra,
+                'verify_seconds': 0, 'seconds': round(time.time() - t0, 1)}
     dom = list(domain_claims or ())
     unformalized = []
     if spec:
@@ -111,6 +136,17 @@ def certify(board, rules=None, profile='lean+fab', domain_claims=(),
     obl = repair_mod.obligations(r)
     if margins:
         obl += repair_mod.margin_obligations(margins)
+    sch = None
+    if schematic:
+        from . import schematic as sch_mod
+        netlist = schematic
+        if str(schematic).endswith('.kicad_sch'):
+            netlist = sch_mod.export_netlist(schematic)
+        sch = sch_mod.refine(netlist, board)
+        if not sch['ok']:
+            r['ok'] = False
+            r['reasons'] = list(r['reasons']) + [
+                f"schematic: {x}" for x in sch['reasons'][:6]]
     tr = None
     if trust:
         from . import kicad_text
@@ -154,7 +190,7 @@ def certify(board, rules=None, profile='lean+fab', domain_claims=(),
             'digest': st['digest'], 'profile': profile,
             'rules': dict(rules), 'rule_source': rule_src,
             'process': process, 'margins': margins, 'assembly': asm,
-            'trust': tr,
+            'trust': tr, 'schematic': sch,
             'refinement': refinement,
             'obligations': obl, 'measure': repair_mod.measure(obl),
             'ok': r['ok'], 'reasons': r['reasons'],

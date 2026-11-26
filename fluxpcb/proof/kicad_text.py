@@ -111,9 +111,10 @@ def _copper_layers(node, names):
 
 
 def parse_board(path, copper_names):
-    """Return {uuid: item} for segments, arcs, vias and pads."""
+    """Return {uuid: item}, arcs, duplicate uuids for segments/arcs/vias/pads."""
     root = parse(Path(path).read_text(encoding='utf-8', errors='replace'))
     out = {}
+    dups = []
     arcs = []
     for node in root[1:]:
         h = _head(node)
@@ -122,6 +123,8 @@ def parse_board(path, copper_names):
             if uid is None:
                 continue
             u = uid[1]
+            if u in out:
+                dups.append(u)
             st, en = _child(node, 'start'), _child(node, 'end')
             if st is None or en is None:
                 continue
@@ -141,6 +144,8 @@ def parse_board(path, copper_names):
             if uid is None or at is None:
                 continue
             lay = _copper_layers(node, copper_names)
+            if uid[1] in out:
+                dups.append(uid[1])
             out[uid[1]] = {'kind': 'via', 'uuid': uid[1],
                            'net': (_child(node, 'net') or ['', ''])[1],
                            'x': _nm(at[1]), 'y': _nm(at[2]),
@@ -148,11 +153,11 @@ def parse_board(path, copper_names):
                            'drill': _nm(_num(node, 'drill')),
                            'layers': lay}
         elif h == 'footprint':
-            _footprint(node, out, copper_names)
-    return out, arcs
+            _footprint(node, out, copper_names, dups)
+    return out, arcs, dups
 
 
-def _footprint(fp, out, copper_names):
+def _footprint(fp, out, copper_names, dups):
     at = _child(fp, 'at')
     if at is None:
         return
@@ -190,6 +195,8 @@ def _footprint(fp, out, copper_names):
             ox, oy = _rot(float(off[1]), float(off[2]), prot)
             px, py = _nm(float(at[1]) + rx + ox), _nm(float(at[2]) + ry + oy)
         net = _child(pad, 'net')
+        if uid[1] in out:
+            dups.append(uid[1])
         out[uid[1]] = {'kind': 'pad', 'uuid': uid[1], 'ref': ref,
                        'value': value, 'number': pad[1] if len(pad) > 1 else '',
                        'type': pad[2] if len(pad) > 2 else '',
@@ -217,10 +224,12 @@ def compare(board_path, st=None, copper_names=None):
         from . import state as S
         st = S.extract(board_path, S.board_rules(board_path)[0])
     names = copper_names or st['layers']
-    text, arcs = parse_board(board_path, names)
+    text, arcs, dups = parse_board(board_path, names)
     by_id = {i['id']: i for i in st['items']}
     mism, missing, extra = [], [], []
     for u, t in text.items():
+        if u in dups:
+            continue                      # the duplicate report is the verdict
         if t['kind'] == 'pad' and t['npth']:
             # an NPTH pad has no copper in the plotted/geometry state but the
             # state keeps it as a hole item; compare only the hole
@@ -300,6 +309,9 @@ def compare(board_path, st=None, copper_names=None):
                              if t['kind'] in ('seg', 'arc')),
              'arcs': len(arcs), 'vias': sum(1 for t in text.values()
                                             if t['kind'] == 'via')}
+    if dups:
+        mism.append({'uuid': dups[0], 'field': 'duplicate_uuid',
+                     'text': len(dups), 'state': None})
     return {'ok': not mism and not missing and not extra,
             'mismatches': mism[:20], 'n_mismatch': len(mism),
             'missing': missing[:20], 'n_missing': len(missing),
@@ -308,7 +320,15 @@ def compare(board_path, st=None, copper_names=None):
 
 
 def check(board_path):
-    c = compare(board_path)
+    try:
+        c = compare(board_path)
+    except ValueError as e:
+        return {'ok': False, 'reasons': [str(e)], 'mismatches': [],
+                'n_mismatch': 1, 'missing': [], 'n_missing': 0,
+                'extra': [], 'n_extra': 0, 'arcs_approximated': 0,
+                'counts': {},
+                'theorem': {'id': 'TRUST:text', 'kernel': 'kicad_text',
+                            'version': '1', 'ok': False, 'digest': ''}}
     payload = {'mismatch': c['n_mismatch'], 'missing': c['n_missing'],
                'extra': c['n_extra'], 'arcs': c['arcs_approximated'],
                'counts': c['counts']}

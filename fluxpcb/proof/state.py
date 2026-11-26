@@ -308,6 +308,13 @@ def extract(board_path, rules=None):
                        for k in range(ch.PointCount())]
     except Exception:
         outline = []
+    from collections import Counter as _C
+    dup = [k for k, n in _C(i['id'] for i in items).items() if n > 1]
+    if dup:
+        # two items with one id make itemById ambiguous: no proof about them
+        # can be trusted, so refuse the state instead of picking one
+        raise ValueError(f'duplicate item ids ({len(dup)}): '
+                         + ','.join(sorted(dup)[:6]))
     st = {'schema': SCHEMA, 'board': str(board_path), 'layers': list(names),
           'items': items, 'rules': dict(rules or {}),
           'netPads': {n: sorted(v) for n, v in sorted(net_pads.items())},

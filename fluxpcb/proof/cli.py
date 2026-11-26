@@ -51,6 +51,8 @@ def main(argv=None):
                    help='cross-check the state against an independent text parser')
     z.add_argument('--trust-strict', action='store_true',
                    help='deny chord-approximated arcs')
+    z.add_argument('--schematic',
+                   help='schematic (.kicad_sch) or exported netlist (.net) to refine against')
     z.add_argument('--route-nets', help='comma-separated nets to re-route')
     z.add_argument('--workdir')
     z.add_argument('--out', required=True)
@@ -156,7 +158,8 @@ def main(argv=None):
                               process=a.process, robust=a.robust,
                               assembly=a.assembly,
                               assembly_strict=a.assembly_strict,
-                              trust=a.trust, trust_strict=a.trust_strict)
+                              trust=a.trust, trust_strict=a.trust_strict,
+                              schematic=a.schematic)
         framework.write(r, a.out)
         print(json.dumps({'ok': r['ok'], 'digest': r.get('digest'),
                           'profile': r.get('profile'),

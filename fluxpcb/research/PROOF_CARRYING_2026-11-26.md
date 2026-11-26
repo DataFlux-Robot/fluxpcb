@@ -579,3 +579,43 @@ state 逐项对账。
 所以这条腿的价值是双向的：它验证 state，也验证自己；两次错误都是“工具噪声”，不是
 “模型通过”。边界：只覆盖 KiCad 10 语法；zone 不解析；焊盘不比多边形；圆弧在 state 里
 仍是弦（strict 会拒）。
+
+## 十九、第四枪：schematic → PCB netlist（源头细化）（2026-11-26）
+
+`proof/schematic.py` 把顶层从“手写 spec”换成**原理图本身**：kicad-cli 导出 pin 级网表，
+PCB 侧读 (ref, pad 号) → net，证明两者的**分区等价**——不比网名，因为改名正是布局允许
+做的事。
+
+义务：
+
+| 义务 | 含义 |
+|---|---|
+| `SCH:<net>` | 原理图一个网的所有 pin 都在 PCB 上，且落在**同一个** PCB 网（无开路/无再分裂） |
+| `PCB:<net>` | 一个 PCB 网没有把两个原理图网并在一起（无短路） |
+| `PIN:<r>:<p>` | 原理图 pin 在板上有对应 pad 号（否则是未放置） |
+| `COMP:<ref>` / `VALUE:<ref>` | 器件在位；值一致（大小写/空格归一） |
+| `FOOTPRINT:<ref>` | 原理图符号有 footprint 指派 |
+| `EXTRA:<ref>` | 板上有带网 pad、但原理图没有的未标注封装 |
+
+判定分两层：`partition_ok`（铜的分区是否实现原理图）与 `identity_ok`（BOM/位号/封装
+是否可审计）；`ok = 两者都过`。
+
+### H7 飞控实测（33 器件 / 219 网 / 68 个多 pin 网 vs PCB 33 位号 / 74 网 / 484 pad）
+
+- `partition_failed = 29`：U3 的 5 个 pin 在 PCB 上按位号找不到（U3 是 `ICM-45686`，
+  原理图符号没有 footprint）；`J10.S1` 屏蔽 pin 没有对应 pad。
+- `identity_failed = 34`：**33 个符号全部没有 footprint 指派**；板上有一个未标注封装
+  `REF**`（value `LGA14_2P5X3X0P91_IVS`，fp `ICM-42688-P`，14 pad，其中 8 个带网）
+  ——**原理图要 ICM-45686，板上放的是 ICM-42688-P**，且位号未标注。
+- 布局层本身（在重复 id 守卫之前）已报 47 条 CONN unknown、2 refuted、2 invalid：
+  这块 H7 并不是“只差工艺”。
+- **重复 UUID**：U4 与 U5 的 10 个 pad 共享 uuid（坐标差正好是 U5→U4 的平移）。
+  `state.extract` 现在**拒绝**这种 state：`itemById` 会二选一，任何关于这些项的证明都
+  不可信。信任三角同样报 duplicate。
+
+结论：H7 板不是“benchmark 强、复杂板弱”的问题，而是**源头与布局的身份没有闭合**：
+无 footprint 指派、IMU 型号不一致且位号未标注、10 个重复 UUID。要可加工/可审计，先修
+这些，再谈 DRC/布线质量。
+
+边界：网表导出依赖 kicad-cli（受信工具）；符号无 footprint 时无法验 identity；netlist
+version E 的字段解析只覆盖 comps/nets/nodes；重复 UUID 现在被拒绝而不是“取第一个”。

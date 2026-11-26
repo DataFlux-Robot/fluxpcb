@@ -65,3 +65,12 @@ def test_a_shifted_pad_is_a_mismatch(tmp_path):
 def test_quoted_strings_with_spaces():
     toks = list(kicad_text.tokenize('(a "hello world" b)'))
     assert toks == ['(', 'a', 'hello world', 'b', ')']
+
+
+def test_duplicate_uuid_is_reported(tmp_path):
+    dup = BOARD.replace('(uuid "via-1")', '(uuid "seg-1")')
+    p = tmp_path / 'dup.kicad_pcb'
+    p.write_text(dup, encoding='utf-8')
+    r = kicad_text.compare(str(p), st=_state())
+    assert not r['ok']
+    assert any(m['field'] == 'duplicate_uuid' for m in r['mismatches'])
