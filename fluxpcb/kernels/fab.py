@@ -161,7 +161,7 @@ def width_worst(st, scope, rule):
         if ids is not None and i['id'] not in ids:
             continue
         sh = i['shape']
-        if sh['kind'] != 'seg':
+        if sh['kind'] != 'seg' or i.get('graphic'):
             continue
         if sh['w'] < rule and (worst is None or sh['w'] < worst[0]):
             worst = (sh['w'], i['id'])
@@ -187,6 +187,8 @@ def annular_worst(st, scope, rule):
         if drill is None or drill < 0 or i.get('npth'):
             continue
         sh = i['shape']
+        if sh['kind'] not in ('circle', 'poly'):
+            continue
         dy = i.get('drill_y')
         if dy is not None and dy >= 0 and sh['kind'] == 'poly':
             if _slot_exceeds(sh, drill, dy):
@@ -362,7 +364,7 @@ def width_min_value(st, scope=None):
         if ids is not None and i['id'] not in ids:
             continue
         sh = i['shape']
-        if sh['kind'] == 'seg' and (best is None or sh['w'] < best[0]):
+        if sh['kind'] == 'seg' and not i.get('graphic') and                 (best is None or sh['w'] < best[0]):
             best = (sh['w'], i['id'])
     return best
 
@@ -377,6 +379,8 @@ def annular_min_value(st, scope=None):
         if drill is None or drill < 0 or i.get('npth'):
             continue
         sh = i['shape']
+        if sh['kind'] not in ('circle', 'poly'):
+            continue
         dy = i.get('drill_y')
         if dy is not None and dy >= 0 and sh['kind'] == 'poly':
             if _slot_exceeds(sh, drill, dy):

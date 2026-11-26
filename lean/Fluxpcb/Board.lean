@@ -30,6 +30,8 @@ structure Item where
   span : String := ""
   /-- A non-plated hole: it is a hole, not copper. -/
   npth : Bool := false
+  /-- Copper graphics (logos, drawing shapes): copper, but not a track. -/
+  graphic : Bool := false
 deriving Repr, Inhabited, BEq
 
 structure State where
@@ -106,8 +108,12 @@ def itemOf (j : Json) : Except String Item := do
   let npth ← match j.getObjVal? "npth" with
     | .ok v => pure ((Json.getBool? v).toOption.getD false)
     | .error _ => pure false
+  let graphic ← match j.getObjVal? "graphic" with
+    | .ok v => pure ((Json.getBool? v).toOption.getD false)
+    | .error _ => pure false
   pure { id := id, net := net, layers := layers, shape := sh,
-         drill := drill, drillY := drillY, span := span, npth := npth }
+         drill := drill, drillY := drillY, span := span, npth := npth,
+         graphic := graphic }
 
 def jsonInt (v : Json) : Int :=
   (Json.getInt? v).toOption.getD 0
@@ -171,7 +177,8 @@ def canonical (s : State) : String :=
         s!"|d={i.drill}" ++ (if i.drillY >= 0 then s!",{i.drillY}" else "")
        else "") ++
       (if i.span != "" then s!"|s={i.span}" else "") ++
-      (if i.npth then "|npth" else "")) ++
+      (if i.npth then "|npth" else "") ++
+      (if i.graphic then "|gr" else "")) ++
     rules.map (fun (k, v) => s!"r|{k}={v}") ++
     nets.map (fun (n, ids) => s!"n|{n}:{String.intercalate "," ids.toList}") ++
     fps.map (fun (n, ids) => s!"f|{n}:{String.intercalate "," ids.toList}") ++

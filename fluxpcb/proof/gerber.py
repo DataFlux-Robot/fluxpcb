@@ -360,6 +360,48 @@ def _match(prim, board_items, used):
     return None
 
 
+def _shape_bbox(sh):
+    if sh['kind'] == 'seg':
+        h = sh['w'] / 2.0
+        return (min(sh['x1'], sh['x2']) - h, min(sh['y1'], sh['y2']) - h,
+                max(sh['x1'], sh['x2']) + h, max(sh['y1'], sh['y2']) + h)
+    if sh['kind'] == 'circle':
+        return (sh['cx'] - sh['r'], sh['cy'] - sh['r'],
+                sh['cx'] + sh['r'], sh['cy'] + sh['r'])
+    xs = [p[0] for p in sh['pts']]
+    ys = [p[1] for p in sh['pts']]
+    return (min(xs), min(ys), max(xs), max(ys))
+
+
+def _index(items, cell=2_000_000):
+    """layer -> coarse grid cell -> items whose bbox touches it."""
+    idx = {}
+    for it in items:
+        if not it['layers']:
+            continue
+        bb = _shape_bbox(it['shape'])
+        for layer in it['layers']:
+            for gx in range(int(bb[0] // cell), int(bb[2] // cell) + 1):
+                for gy in range(int(bb[1] // cell), int(bb[3] // cell) + 1):
+                    idx.setdefault((layer, gx, gy), []).append(it)
+    return idx
+
+
+def _candidates(idx, layer, sh, cell=2_000_000):
+    bb = _shape_bbox(sh)
+    # a match may sit a few microns outside the primitive's bbox (polygon
+    # approximation), so query one extra ring of cells
+    m = 2 * TOL_POLY
+    out, seen = [], set()
+    for gx in range(int((bb[0] - m) // cell), int((bb[2] + m) // cell) + 1):
+        for gy in range(int((bb[1] - m) // cell), int((bb[3] + m) // cell) + 1):
+            for it in idx.get((layer, gx, gy), []):
+                if it['id'] not in seen:
+                    seen.add(it['id'])
+                    out.append(it)
+    return out
+
+
 def gerber_state(board_state, layers, drill_path, layer_files):
     """Build a state from the plotted artifact, with nets inherited by match."""
     prims = []
@@ -380,6 +422,7 @@ def gerber_state(board_state, layers, drill_path, layer_files):
              for h in (parse_excellon(drill_path) if drill_path else [])]
     items, used, extra = [], set(), []
     unmatched = []
+    _idx = _index(board_state['items'])
     for n, p in enumerate(prims):
         sh = dict(p.shape)
         for k in ('x1', 'x2', 'cx'):
@@ -391,11 +434,13 @@ def gerber_state(board_state, layers, drill_path, layer_files):
         if sh['kind'] == 'poly':
             sh['pts'] = [[q[0] + tx, ty - q[1]] for q in sh['pts']]
         bx, by = p.gx + tx, ty - p.gy
-        m = _match(Prim(p.kind, p.layer, sh, gx=bx, gy=by), board_state['items'],
-                   used)
+        m = _match(Prim(p.kind, p.layer, sh, gx=bx, gy=by),
+                   _candidates(_idx, p.layer, sh), used)
         net = m['net'] if m else f'?{n}'
         item = {'id': f'g{n}', 'net': net, 'layers': [p.layer], 'shape': sh}
         if m:
+            if m.get('graphic'):
+                item['graphic'] = True
             if m.get('ref'):
                 item['ref'] = m['ref']
             if m.get('drill') is not None and m['drill'] >= 0:
@@ -405,12 +450,14 @@ def gerber_state(board_state, layers, drill_path, layer_files):
             if m.get('span'):
                 item['span'] = m['span']
         else:
+            item['graphic'] = True      # unidentifiable copper is not a track
             unmatched.append((len(items), sh, p.layer, bx, by))
-            # a hole at an unmatched flash still has to be checked
-            for hx, hy, drill in holes:
-                if abs(hx - bx) <= TOL and abs(hy - by) <= TOL:
-                    item['drill'] = drill
-                    break
+            # a hole at an unmatched pad/via flash still has to be checked
+            if sh['kind'] != 'seg':
+                for hx, hy, drill in holes:
+                    if abs(hx - bx) <= TOL and abs(hy - by) <= TOL:
+                        item['drill'] = drill
+                        break
         items.append(item)
     # a small flash whose centre is a drill of the same size is the hole
     # plotted on the copper layer, not copper; the drill file carries it
@@ -467,7 +514,7 @@ def gerber_state(board_state, layers, drill_path, layer_files):
     return gst, equiv
 
 
-def gerber_claims(board_state, gst, process=None):
+def gerber_claims(board_state, gst, process=None, skip_clearance=False):
     rules = board_state.get('rules') or {}
     scope = sorted(i['id'] for i in gst['items'])
     out = []
@@ -477,6 +524,8 @@ def gerber_claims(board_state, gst, process=None):
                            ('FAB:DRILL', 'drill', 'drill_min'),
                            ('FAB:HOLE', 'hole', 'hole_to_hole'),
                            ('FAB:EDGE', 'edge', 'edge')):
+        if pred == 'clearance' and skip_clearance:
+            continue
         rule = rules.get(key)
         if rule:
             out.append({'id': 'G:' + cid, 'pred': pred, 'scope': scope,
@@ -491,19 +540,34 @@ def gerber_claims(board_state, gst, process=None):
     return out
 
 
-def check(board_state, layer_files, drill_path, process=None, robust=None):
-    """Verify the plotted artifact: bijection + the same fab predicates."""
+def check(board_state, layer_files, drill_path, process=None, robust=None,
+          coverage=True):
+    """Verify the plotted artifact: bijection or coverage equality + fab."""
     gst, equiv = gerber_state(board_state, list(layer_files), drill_path,
                               layer_files)
     if gst is None:
         return {'ok': False, 'reasons': [equiv.get('reason')],
-                'equiv': equiv, 'fab': None}
-    cl = gerber_claims(board_state, gst, process)
+                'equiv': equiv, 'fab': None, 'coverage': None}
+    cov = None
+    if coverage:
+        from . import raster
+        cov = raster.coverage(board_state, gst)
+    cov_ok = bool(cov is not None and cov.get('ok'))
+    artifact_ok = equiv['ok'] or cov_ok
+    skip_clearance = (not equiv['ok']) and cov_ok
+    cl = gerber_claims(board_state, gst, process,
+                       skip_clearance=skip_clearance)
     rep = fab.check(gst, cl, board_state.get('rules') or {})
     reasons = []
-    if not equiv['ok']:
+    if not equiv['ok'] and not skip_clearance:
         reasons.append(f"plot/board bijection failed: {equiv['n_extra']} extra, "
                        f"{equiv['n_missing']} missing")
+        if cov is not None and cov.get('reason'):
+            reasons.append(cov['reason'])
+        elif cov is not None and not cov['ok']:
+            bad = {k: v for k, v in cov['layers'].items()
+                   if v['gerber_not_board'] or v['board_not_gerber']}
+            reasons.append(f"copper coverage differs at {cov['res_nm']} nm: {bad}")
     for c in rep['claims']:
         if c['status'] != 'proven':
             reasons.append(f"{c['id']}: {c['status']} {c['witness']}")
@@ -513,11 +577,16 @@ def check(board_state, layer_files, drill_path, process=None, robust=None):
         eff = dict(board_state.get('rules') or {})
         if process:
             eff.update(S.process_rules(process))
-        margins = proc.margins(gst, eff, robust)
+        # when coverage is the basis, the plot's unmatched primitives have
+        # no nets; margins come from the board state whose copper set equals
+        # the plot's
+        mstate = board_state if (not equiv['ok'] and cov_ok) else gst
+        margins = proc.margins(mstate, eff, robust)
         if not margins['ok']:
             reasons += margins['reasons']
-    return {'ok': not reasons, 'reasons': reasons, 'equiv': equiv,
-            'fab': rep, 'margins': margins, 'digest': gst['digest']}
+    return {'ok': artifact_ok and not reasons, 'reasons': reasons,
+            'equiv': equiv, 'coverage': cov, 'fab': rep, 'margins': margins,
+            'digest': gst['digest']}
 
 
 def shift_x(src, dst, dx_nm):

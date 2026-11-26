@@ -120,6 +120,8 @@ def item_line(i):
         line += f"|s={i['span']}"
     if i.get('npth'):
         line += "|npth"
+    if i.get('graphic'):
+        line += "|gr"
     return line
 
 
@@ -263,6 +265,91 @@ def extract(board_path, rules=None):
                           'shape': {'kind': 'seg', 'x1': int(s.x), 'y1': int(s.y),
                                     'x2': int(e.x), 'y2': int(e.y),
                                     'w': int(t.GetWidth())}})
+    # copper graphics (logos, drawing shapes on F.Cu/B.Cu) are copper too:
+    # KiCad plots them, the fab checks them, and skipping them left the fab
+    # kernel blind to real copper on 12 benchmark boards
+    def _graphics(shapes, ref=None):
+        for sp in shapes:
+            if sp.GetClass() != 'PCB_SHAPE':
+                continue
+            lid = sp.GetLayer()
+            if lid not in lids:
+                continue
+            lname = names[lids.index(lid)]
+            uid = _uuid(sp)
+            w = int(sp.GetWidth() or 0)
+            t = sp.GetShape()
+            try:
+                filled = sp.GetFillMode() != 0
+            except Exception:
+                filled = False
+            parts = []
+            try:
+                if t == pcbnew.SHAPE_T_SEGMENT:
+                    a, c = sp.GetStart(), sp.GetEnd()
+                    parts.append({'kind': 'seg', 'x1': int(a.x), 'y1': int(a.y),
+                                  'x2': int(c.x), 'y2': int(c.y), 'w': w})
+                elif t == pcbnew.SHAPE_T_RECT:
+                    a, c = sp.GetStart(), sp.GetEnd()
+                    x0, x1 = sorted((int(a.x), int(c.x)))
+                    y0, y1 = sorted((int(a.y), int(c.y)))
+                    pts = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]
+                    if filled:
+                        parts.append({'kind': 'poly', 'pts': pts})
+                    if w:
+                        for k in range(4):
+                            p, q = pts[k], pts[(k + 1) % 4]
+                            parts.append({'kind': 'seg', 'x1': p[0], 'y1': p[1],
+                                          'x2': q[0], 'y2': q[1], 'w': w})
+                    else:
+                        parts.append({'kind': 'poly', 'pts': pts})
+                elif t == pcbnew.SHAPE_T_CIRCLE:
+                    cc = sp.GetCenter()
+                    r = int(sp.GetRadius())
+                    if filled:
+                        parts.append({'kind': 'circle', 'cx': int(cc.x),
+                                      'cy': int(cc.y), 'r': r})
+                    if w:
+                        n = 48
+                        for k in range(n):
+                            a0 = 2 * math.pi * k / n
+                            a1 = 2 * math.pi * (k + 1) / n
+                            parts.append({'kind': 'seg',
+                                          'x1': int(cc.x + r * math.cos(a0)),
+                                          'y1': int(cc.y + r * math.sin(a0)),
+                                          'x2': int(cc.x + r * math.cos(a1)),
+                                          'y2': int(cc.y + r * math.sin(a1)),
+                                          'w': w})
+                elif t == pcbnew.SHAPE_T_POLY:
+                    poly = sp.GetPolyShape()
+                    if poly.OutlineCount() > 0:
+                        ch = poly.Outline(0)
+                        pts = [[int(ch.CPoint(k).x), int(ch.CPoint(k).y)]
+                               for k in range(ch.PointCount())]
+                        if filled:
+                            parts.append({'kind': 'poly', 'pts': pts})
+                        if w:
+                            for k in range(len(pts)):
+                                p, q = pts[k], pts[(k + 1) % len(pts)]
+                                parts.append({'kind': 'seg', 'x1': p[0], 'y1': p[1],
+                                              'x2': q[0], 'y2': q[1], 'w': w})
+                elif t == pcbnew.SHAPE_T_ARC:
+                    a, c = sp.GetStart(), sp.GetEnd()
+                    parts.append({'kind': 'seg', 'x1': int(a.x), 'y1': int(a.y),
+                                  'x2': int(c.x), 'y2': int(c.y), 'w': w})
+            except Exception:
+                continue
+            net = f'~{uid}'
+            for k, sh in enumerate(parts):
+                it = {'id': f'{uid}:{k}' if len(parts) > 1 else uid,
+                      'net': net, 'layers': [lname], 'shape': sh,
+                      'graphic': True}
+                if ref:
+                    it['ref'] = ref
+                items.append(it)
+                if ref:
+                    footprints.setdefault(ref, set()).add(it['id'])
+
     net_pads, footprints = {}, {}
     for fp in b.GetFootprints():
         ref = str(fp.GetReference())
@@ -306,6 +393,9 @@ def extract(board_path, rules=None):
             if not anon:
                 net_pads.setdefault(net, set()).add(uid)
             footprints.setdefault(ref, set()).add(uid)
+    _graphics(b.GetDrawings())
+    for fp in b.GetFootprints():
+        _graphics(fp.GraphicalItems(), str(fp.GetReference()))
     outline = []
     try:
         poly = pcbnew.SHAPE_POLY_SET()
