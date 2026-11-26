@@ -1,0 +1,94 @@
+{
+ "schema": "fluxpcb-module-2",
+ "module_id": "power.ap7361.3v3",
+ "version": "2.0.0",
+ "function": "3.3 V LDO (AP7361) from a fused 5 V rail: fuse, reverse/clamp diode, input/output bulk, ADC divider",
+ "contract": {
+  "roles": {
+   "regulator": [
+    "U2"
+   ],
+   "fuse": [
+    "F1"
+   ],
+   "diode": [
+    "D6"
+   ],
+   "input_cap": [
+    "C2"
+   ],
+   "output_cap": [
+    "C3",
+    "C4"
+   ],
+   "divider": [
+    "R5",
+    "R6"
+   ]
+  }
+ },
+ "expects": [
+  "VPP",
+  "+5V",
+  "+3V3",
+  "GND",
+  "Net-(R5-Pad1)"
+ ],
+ "lemma_refs": [
+  "connectivity",
+  "pads",
+  "fab.clearance",
+  "fab.width",
+  "frame"
+ ],
+ "params": {
+  "input_net": "VPP",
+  "output_net": "+3V3"
+ },
+ "deps": [],
+ "instances": [
+  {
+   "board": "E:/DATA/vscode/ZCODE/z_lab/fp/full4_run/runs/2e2020504a2c/0344_mavbridge_mavbridge/0344_mavbridge_mavbridge.kicad_pcb",
+   "board_fp": "c85b8aaf3f4a0929",
+   "rules": {
+    "clearance": 200000,
+    "track_min": 150000
+   },
+   "digest": "3372585090535364461",
+   "refs": [
+    "C2",
+    "C3",
+    "C4",
+    "D6",
+    "F1",
+    "R5",
+    "R6",
+    "U2"
+   ],
+   "boundary": [
+    "+3V3",
+    "+5V",
+    "GND",
+    "Net-(R5-Pad1)",
+    "VPP"
+   ],
+   "internal": [],
+   "proof": {
+    "ok": true,
+    "summary": {
+     "proven": 7,
+     "carried": 0,
+     "derived": 0,
+     "unknown": 0,
+     "refuted": 0,
+     "invalid": 0,
+     "foreign": 0,
+     "disabled": 0
+    },
+    "digest": "d586d320dfdeee2a",
+    "seconds": 0.17
+   },
+   "date": "2026-11-26"
+  }
+ ]
+}

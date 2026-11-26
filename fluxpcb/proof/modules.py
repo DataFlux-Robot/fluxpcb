@@ -119,7 +119,13 @@ def prove(board, contract, rules):
           if c['claim'].split(':', 1)[1] in set(contract.internal)]
     r = gate.verify(mst, cl, cs,
                     obligations={c['id']: c['pred'] for c in cl})
+    theorem = {'id': f"{contract.name}@{S.board_fp(mst)[:8]}",
+               'contract': contract.as_dict(), 'claims': cl,
+               'digest': mst['digest'], 'board_fp': S.board_fp(mst),
+               'lemma_refs': ['connectivity', 'pads', 'fab.clearance',
+                              'fab.width', 'frame']}
     return {'module': contract.name, 'contract': contract.as_dict(),
+            'theorem': theorem,
             'board': str(board), 'digest': mst['digest'],
             'ok': r['ok'], 'summary': gate.report_summary(r),
             'claims': [{'id': c['id'], 'status': c['status'],
@@ -147,13 +153,39 @@ def check_boundary(st, proofs, contracts):
     return reasons
 
 
-def merge(board, contract_paths, rules, proofs=None):
-    """Compose: prove the shared nets on the full board + check the boundary."""
+def merge(board, contract_paths, rules, proofs=None, theorems=None, state=None):
+    """Compose: prove the shared nets on the full board + check the boundary.
+
+    `theorems` are the ModuleProof theorems: each is validated against the
+    module state recomputed from the current board (digest + board_fp), and
+    its internal-net claims are then *carried* — the merge does not re-derive
+    certificates the module already proved.
+    """
     t = time.time()
-    st = S.extract(board, rules)
+    st = state if state is not None else S.extract(board, rules)
     contracts = [load(st, p) for p in contract_paths]
     if proofs is None:
         proofs = [prove(board, c, rules) for c in contracts]
+    reasons = []
+    covered, carried = set(), []
+    if theorems:
+        by_name = {}
+        for th in theorems:
+            name = (th.get('contract') or {}).get('name')
+            by_name[name] = th
+        for c in contracts:
+            th = by_name.get(c.name)
+            if th is None:
+                reasons.append(f'{c.name}: no theorem supplied')
+                continue
+            mst = module_state(st, c)
+            if th.get('board_fp') != S.board_fp(mst) or                     th.get('digest') != mst['digest']:
+                reasons.append(f'{c.name}: stale theorem (module state changed)')
+                continue
+            for cl_ in th.get('claims') or []:
+                if cl_['pred'] == 'connected':
+                    covered.add(cl_['id'])
+                    carried.append((cl_['id'], list(cl_.get('scope') or [])))
     cl = []
     for c in contracts:
         mst = module_state(st, c)
@@ -168,15 +200,18 @@ def merge(board, contract_paths, rules, proofs=None):
                        'pads': list(pads),
                        'scope': sorted(i['id'] for i in st['items'] if i['net'] == net)})
     cl += claim_mod.bench_claims(st, include_fab=True)[-3:]
-    cs = certs.connectivity_certs(st)
-    r = gate.verify(st, cl, cs,
+    cs = [c for c in certs.connectivity_certs(st)
+          if c['claim'] not in covered]
+    r = gate.verify(st, cl, cs, carried=carried,
                     obligations={c['id']: c['pred'] for c in cl})
-    reasons = check_boundary(st, proofs, contracts)
+    reasons += check_boundary(st, proofs, contracts)
     return {'ok': r['ok'] and not reasons, 'reasons': r['reasons'] + reasons,
+            'carried': len(carried), 'reused': sorted(covered),
             'boundary': {n: sum(len(p['pads'].get(n, [])) for p in proofs)
                          for n in sorted({x for c in contracts for x in c.boundary})},
             'summary': gate.report_summary(r),
             'modules': [{'name': p['module'], 'ok': p['ok'],
-                         'summary': p['summary'], 'seconds': p['seconds']}
+                         'summary': p.get('summary'),
+                         'seconds': p.get('seconds')}
                         for p in proofs],
             'seconds': round(time.time() - t, 2)}

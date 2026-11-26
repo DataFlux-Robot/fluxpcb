@@ -1,0 +1,149 @@
+{
+ "schema": "fluxpcb-module-2",
+ "module_id": "core.esp12e",
+ "version": "2.0.0",
+ "function": "ESP-12E core with its headers (DF13 Pixhawk, UART, programming), UART protection, boot button and test points",
+ "contract": {
+  "roles": {
+   "module": [
+    "U1"
+   ],
+   "header": [
+    "P1",
+    "P2",
+    "P3"
+   ],
+   "led": [
+    "D1",
+    "D2",
+    "D3",
+    "D4"
+   ],
+   "resistor": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "R7",
+    "R8",
+    "R9",
+    "R10",
+    "R11"
+   ],
+   "button": [
+    "SW1"
+   ],
+   "testpoint": [
+    "W1",
+    "W2",
+    "W3",
+    "W4",
+    "W5",
+    "W6",
+    "W7",
+    "W8",
+    "W9"
+   ]
+  }
+ },
+ "expects": [
+  "VPP",
+  "+5V",
+  "+3V3",
+  "GND",
+  "Net-(R5-Pad1)"
+ ],
+ "lemma_refs": [
+  "connectivity",
+  "pads",
+  "fab.clearance",
+  "fab.width",
+  "frame"
+ ],
+ "params": {
+  "input_net": "+3V3"
+ },
+ "deps": [
+  "power.ap7361.3v3"
+ ],
+ "instances": [
+  {
+   "board": "E:/DATA/vscode/ZCODE/z_lab/fp/full4_run/runs/2e2020504a2c/0344_mavbridge_mavbridge/0344_mavbridge_mavbridge.kicad_pcb",
+   "board_fp": "b7b634f834a31fd0",
+   "rules": {
+    "clearance": 200000,
+    "track_min": 150000
+   },
+   "digest": "11550177177768094762",
+   "refs": [
+    "D1",
+    "D2",
+    "D3",
+    "D4",
+    "P1",
+    "P2",
+    "P3",
+    "R1",
+    "R10",
+    "R11",
+    "R2",
+    "R3",
+    "R4",
+    "R7",
+    "R8",
+    "R9",
+    "SW1",
+    "U1",
+    "W1",
+    "W2",
+    "W3",
+    "W4",
+    "W5",
+    "W6",
+    "W7",
+    "W8",
+    "W9"
+   ],
+   "boundary": [
+    "+3V3",
+    "+5V",
+    "GND",
+    "Net-(R5-Pad1)",
+    "VPP"
+   ],
+   "internal": [
+    "/CH_PD",
+    "/DBG_TX",
+    "/GPIO0",
+    "/GPIO12",
+    "/GPIO13",
+    "/GPIO14",
+    "/GPIO16",
+    "Net-(D1-Pad1)",
+    "Net-(D2-Pad1)",
+    "Net-(D3-Pad2)",
+    "Net-(D4-Pad2)",
+    "Net-(R11-Pad1)",
+    "Net-(R3-Pad1)",
+    "RXD",
+    "TXD"
+   ],
+   "proof": {
+    "ok": true,
+    "summary": {
+     "proven": 22,
+     "carried": 0,
+     "derived": 0,
+     "unknown": 0,
+     "refuted": 0,
+     "invalid": 0,
+     "foreign": 0,
+     "disabled": 0
+    },
+    "digest": "f4c386b8dde5a4d5",
+    "seconds": 1.76
+   },
+   "date": "2026-11-26"
+  }
+ ]
+}
