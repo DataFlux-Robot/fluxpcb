@@ -15,7 +15,7 @@ import shutil
 import time
 from pathlib import Path
 
-from . import certs, claims as claim_mod, conjectures, gate, state as S
+from . import certs, claims as claim_mod, conjectures, gate, step, state as S
 
 _STRIP = '''\
 import json, sys
@@ -58,7 +58,8 @@ def _strip(kipy: str, board: Path, nets, workdir: Path) -> int:
 
 
 def route_scope(board, nets, rules, workdir=None, profile='lean+fab',
-                domain_claims=(), carry=True, spec=None, passes=2, log=print):
+                domain_claims=(), carry=True, spec=None, passes=2,
+                mode='publish', log=print):
     """Rip `nets`' copper, route them incrementally, and gate the Step."""
     from .. import routing
     t0 = time.time()
@@ -109,16 +110,26 @@ def route_scope(board, nets, rules, workdir=None, profile='lean+fab',
         for c in claim_mod.bench_claims(before):
             if c['id'] in proven and not (set(c.get('scope') or []) & touched):
                 carried.append((c['id'], list(c.get('scope') or [])))
-    try:
-        r = gate.commit_step(before, after, touched, cl, cs, carried=carried,
-                             rules=rules, profile=profile,
-                             domain_claims=dom)
-        ok, reasons = True, []
-    except gate.GateDenied as e:
-        r = gate.verify(after, cl, cs, before=before, touched=touched,
-                        carried=carried, rules=rules, profile=profile,
-                        domain_claims=dom)
-        ok, reasons = False, list(r['reasons'])
+    if mode == 'preserve':
+        # a repair step on a board that already has unknowns: no proof may be
+        # lost and no proven process predicate may regress, but pre-existing
+        # unknowns/refutations do not block the candidate; the caller checks
+        # the descent measure
+        pr = step.preserve(before, after, rules, profile=profile,
+                           domain_claims=dom, before_report=before_report)
+        r = pr['report']
+        ok, reasons = bool(pr['ok']), list(pr['reasons'])
+    else:
+        try:
+            r = gate.commit_step(before, after, touched, cl, cs,
+                                 carried=carried, rules=rules, profile=profile,
+                                 domain_claims=dom)
+            ok, reasons = True, []
+        except gate.GateDenied as e:
+            r = gate.verify(after, cl, cs, before=before, touched=touched,
+                            carried=carried, rules=rules, profile=profile,
+                            domain_claims=dom)
+            ok, reasons = False, list(r['reasons'])
     return {'ok': ok, 'reasons': reasons, 'board': str(dst),
             'step': {'before_digest': before['digest'],
                      'after_digest': after['digest'],

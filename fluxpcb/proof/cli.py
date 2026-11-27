@@ -6,7 +6,7 @@ import json
 import os
 import sys
 
-from . import compare, framework, library, modules, spec as spec_mod, state as S
+from . import compare, framework, library, modules, repair_loop, spec as spec_mod, state as S
 
 
 def _rules(path):
@@ -57,6 +57,13 @@ def main(argv=None):
     z.add_argument('--route-nets', help='comma-separated nets to re-route')
     z.add_argument('--workdir')
     z.add_argument('--out', required=True)
+    rp = sub.add_parser('repair')
+    rp.add_argument('--board', required=True)
+    rp.add_argument('--rules')
+    rp.add_argument('--rounds', type=int, default=3)
+    rp.add_argument('--passes', type=int, default=1)
+    rp.add_argument('--workdir')
+    rp.add_argument('--out', required=True)
     cp = sub.add_parser('compare')
     cp.add_argument('--a', required=True)
     cp.add_argument('--b', required=True)
@@ -106,6 +113,18 @@ def main(argv=None):
         with open(a.out, 'w', encoding='utf-8') as f:
             json.dump(r, f, indent=1, ensure_ascii=False)
         print(json.dumps(r, indent=1, ensure_ascii=False))
+        return 0 if r['ok'] else 3
+    if a.cmd == 'repair':
+        r = repair_loop.repair_loop(a.board, rules, rounds=a.rounds,
+                                    passes=a.passes, workdir=a.workdir)
+        with open(a.out, 'w', encoding='utf-8') as f:
+            json.dump(r, f, indent=1, ensure_ascii=False)
+        print(json.dumps({'ok': r['ok'],
+                          'rounds': [{'n_open': x.get('n_open'),
+                                      'measure': x.get('measure'),
+                                      'after': x.get('after')}
+                                     for x in r['rounds']],
+                          'seconds': r['seconds']}, ensure_ascii=False))
         return 0 if r['ok'] else 3
     if a.cmd == 'compare':
         print(json.dumps(compare.compare_files(a.a, a.b), indent=1,

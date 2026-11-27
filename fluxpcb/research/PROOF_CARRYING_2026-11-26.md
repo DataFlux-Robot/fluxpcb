@@ -812,3 +812,42 @@ pad 铜）；0098/0092 是板/图 pad 形状不一致；0065/0066/0078/0084 是�
 6. 出厂文件：一个顶层铜图形的绘图与模型不一致。
 
 框架对这颗板的每一层都给出了可执行的拒绝理由，而不是一个“效果一般”的分数。
+
+## 二十五、第七枪：证明驱动的修复循环，以及在 H7 上的失败（2026-11-27）
+
+### 25.1 机制
+
+`proof/repair_loop.py`：每轮读当前板，把未证的义务（主要是开路网）变成目标，只把这些
+网交给 router lemma（`route_scope` 撕开这些网、固定其余铜、增量 FR），再全量重证。
+只有 `measure`（义务数 + 负余量元组）**严格下降**才采纳；否则停止并把剩余义务作为
+core 报出。`route_scope` 新增 `mode='preserve'`：对已有 unknown/refuted 的板，publish
+会拒绝一切步骤，而 repair 只要求“不丢已证、不新增脏工艺谓词”，预存的问题不阻塞候选。
+
+CLI：`fluxpcb.proof.cli repair --board ... --rounds N --passes M`。
+
+### 25.2 H7 实测：路由器在 BGA 修复上崩溃
+
+H7 副本（1147 项，6 层）：
+
+- 第 0 轮：**51 条义务、49 条开路网**（比之前的 47 多 2，层键修正后的准确值）；
+- `route_scope`：DSN 里 **184 段 fix**（25 个已连通网保留，49 个开路网待布，open 铜也
+  保护），电源层标记为 `type power`；
+- **Freerouting 崩溃**：`rc=1073807364`，日志
+  `Exception in mazeSearchAlgo.find_connection: java.lang.NullPointerException`
+  （与 H7 p4 运行的 NPE 同类），没有 `.scr` 产出；
+- 循环停止：**没有候选、没有下降、没有伪造改善**；耗时 984 s。
+
+结论：H7 现在的实现瓶颈被精确定位在**路由器后端**——6 层 BGA 的“只布 49 条开路网、
+其余固定”这种问题形态会让 Freerouting 2.5 的迷宫搜索 NPE。证明层本身工作正常：它
+算出了 51 条义务、撕/固定的范围、失败原因，并且没有把一次崩溃当成“通过”。
+
+### 25.3 下一步（按价值）
+
+1. **给 repair loop 加 tactic 链**：FR 失败 → in-process A* / `route_embedded` /
+   direct_link（每个候选都过同一个 preserve 门 + measure 下降），而不是停在第一个
+   后端崩溃上。
+2. **zone/铺铜抽取**：`flux run` 的 H7 有 6 个铺铜区，连通性大量依赖它们；p4 板
+   zones=0，但真实 H7 不是。zone 的“多边形带洞”需要进 state/Lean/fab。
+3. 对 FR 的 NPE 做最小复现（固定 49 网 + 固定铜的 DSN），交给上游或换后端。
+
+边界：这一枪交付的是**机制和一个诚实的失败**，不是“H7 能布通了”。
