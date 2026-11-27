@@ -393,3 +393,11 @@ def test_maintain_reuses_untouched_claims(tmp_path):
     assert m2['ok'], m2['reasons']
     assert 'CONN:N' not in m2['carried']
     assert 'CONN:N' in {c['id'] for c in m2['claims'] if c['status'] == 'proven'}
+
+
+def test_duplicate_copper_layer_names_get_layer_ids():
+    from fluxpcb.proof.state import _unique_layer_keys
+    assert _unique_layer_keys(['top', 'gnd', 'pwr', 'pwr', 'gnd', 'bot'],
+                              [0, 4, 6, 8, 10, 2]) == \
+        ['top', 'gnd#4', 'pwr#6', 'pwr#8', 'gnd#10', 'bot']
+    assert _unique_layer_keys(['F.Cu', 'B.Cu'], [0, 31]) == ['F.Cu', 'B.Cu']

@@ -780,3 +780,35 @@ pad 铜）；0098/0092 是板/图 pad 形状不一致；0065/0066/0078/0084 是�
 - **K5 355/355**（铜图形进入 state 后仍与 DRC 判据逐格一致；耗时 281 s）。
 - 全套件（下一步复跑）。
 - 测试：覆盖率 50 µm 负控/1 格容差、孔标记、宏形状/闪点。
+
+## 二十四、H7 飞控实测（2026-11-27）
+
+对象：`projects/h743-fc` 的 6 层 H7 板（1147 项 / 74 网 / 492 pad），在
+`z_lab/fp/h7fix/` 的副本上（10 个重复 pad UUID 已 `ResetUuid`，未标注的 `REF**` 改为
+`U3`）。证书：`certify --schematic ... --trust --assembly --process jlc --robust jlc-1oz`。
+
+**这一测抓到一个新的可靠性 bug：重复的铜层名。** 这颗板的 6 层里有两层叫
+`ground_copper`、两层叫 `power_copper`；state 原来用**层名**做层身份，于是物理上不同
+的两层在 clearance/连通里被当成同一层。现在 `_copper_names` 用 `CuStack()` 的**堆叠
+顺序**，并对重名层追加物理层号（`ground_copper#4`、`power_copper#6`…）。
+同时发现 `kicad-cli --layers` 对重名层会去重（只导出 2/4 个内层），必须**不传
+`--layers` 导出全部**，再按 `FileFunction Copper,L<k>` 映射。
+
+| 层 | 结果 |
+|---|---|
+| 布局（lean+fab） | **26 proven / 51 unknown / 1 refuted**：47 条 CONN 未证（板本身未连通）、1 条真实间距 101.7 µm < 150 µm（ground 层 3V3 走线 vs I2C1_SCL 过孔） |
+| 原理图细化 | partition_failed 2（`J10.S1` 屏蔽 pin 无 pad）；identity_failed 34（33 个符号无 footprint；`VALUE:U3` 原理图 ICM-45686 vs 板上 ICM-42688-P） |
+| 信任三角 | **1147/1147，0 mismatch**（文本解析器与 state 一致） |
+| 装配 | 30 个 courtyard：**10 对相交**（D1/R1、J1/J2、J10/U8…），**2 个出界**（J10、J9），3 个无 courtyard |
+| 工艺窗口（JLC） | clearance −28.3 µm、width −20 µm、annular −60 µm、hole_to_hole +101.9 µm、edge −50 µm —— **五项全部不鲁棒** |
+| 出厂文件 | 六层全导出后：双向包含 **1 extra / 1 missing**，覆盖率仅 top_copper 缺 672 格（0.02%）；缺的是**一个顶层铜图形**（图上描边与 state 形状不一致），它压到 I2C2_SCL 走线，fab 核据此拒绝 |
+
+**结论**：H7 不可直接加工，也不是“再跑一次布线”能解决的。按顺序的阻塞项：
+1. 身份：33 个符号无 footprint、IMU 型号/位号不一致、10 个重复 UUID（副本已修）；
+2. 连通：47 条网未证（板本身未连通）；
+3. 真实间距 101.7 µm（ground 层）；
+4. 装配：10 对 courtyard 相交、2 个出界；
+5. 工艺窗口：五项余量全负；
+6. 出厂文件：一个顶层铜图形的绘图与模型不一致。
+
+框架对这颗板的每一层都给出了可执行的拒绝理由，而不是一个“效果一般”的分数。

@@ -174,11 +174,31 @@ def board_fp(st):
 
 # ------------------------------------------------------------------ extract
 def _copper_names(board):
+    """(layer ids in stack order, unique keys).
+
+    The stack order is what the Gerber `L<k>` headers number, so it must come
+    from CuStack(), not from the layer-id order.  Custom stacks can give two
+    physical layers the same name (H7: two `ground_copper` and two
+    `power_copper`); a name alone would conflate them in every geometric
+    predicate, so duplicated names get the layer id appended.
+    """
     import pcbnew
-    n = board.GetCopperLayerCount()
-    ids = ([pcbnew.F_Cu] + [getattr(pcbnew, f'In{k}_Cu') for k in range(1, n - 1)]
-           + [pcbnew.B_Cu]) if n > 2 else [pcbnew.F_Cu, pcbnew.B_Cu]
-    return ids, [board.GetLayerName(l) for l in ids]
+    try:
+        ids = list(board.GetEnabledLayers().CuStack())
+    except Exception:
+        n = board.GetCopperLayerCount()
+        ids = ([pcbnew.F_Cu] + [getattr(pcbnew, f'In{k}_Cu')
+                                for k in range(1, n - 1)]
+               + [pcbnew.B_Cu]) if n > 2 else [pcbnew.F_Cu, pcbnew.B_Cu]
+    names = [board.GetLayerName(l) for l in ids]
+    return ids, _unique_layer_keys(names, ids)
+
+
+def _unique_layer_keys(names, ids):
+    """Disambiguate duplicate copper layer names by the physical layer id."""
+    from collections import Counter
+    dup = {n for n, c in Counter(names).items() if c > 1}
+    return [f'{n}#{l}' if n in dup else n for n, l in zip(names, ids)]
 
 
 def _uuid(obj):
@@ -237,6 +257,7 @@ def extract(board_path, rules=None):
 
     b = pcbnew.LoadBoard(str(board_path))
     lids, names = _copper_names(b)
+    key_of = dict(zip(lids, names))
     items = []
     for t in b.GetTracks():
         nc = t.GetNetCode()
@@ -261,7 +282,8 @@ def extract(board_path, rules=None):
         else:
             s, e = t.GetStart(), t.GetEnd()
             items.append({'id': uid, 'net': net,
-                          'layers': [b.GetLayerName(t.GetLayer())],
+                          'layers': [key_of.get(t.GetLayer(),
+                                                b.GetLayerName(t.GetLayer()))],
                           'shape': {'kind': 'seg', 'x1': int(s.x), 'y1': int(s.y),
                                     'x2': int(e.x), 'y2': int(e.y),
                                     'w': int(t.GetWidth())}})
@@ -275,7 +297,7 @@ def extract(board_path, rules=None):
             lid = sp.GetLayer()
             if lid not in lids:
                 continue
-            lname = names[lids.index(lid)]
+            lname = key_of.get(lid, names[lids.index(lid)])
             uid = _uuid(sp)
             w = int(sp.GetWidth() or 0)
             t = sp.GetShape()
@@ -361,7 +383,7 @@ def extract(board_path, rules=None):
             anon = not net
             if anon:
                 net = f'~{uid}'
-            layers = [b.GetLayerName(l) for l in lids if pad.IsOnLayer(l)]
+            layers = [key_of[l] for l in lids if pad.IsOnLayer(l)]
             if not layers:
                 continue
             lid0 = next((l for l in lids if pad.IsOnLayer(l)), None)
