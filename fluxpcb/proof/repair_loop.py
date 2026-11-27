@@ -42,6 +42,17 @@ def open_nets(st, report=None):
     return sorted(set(out))
 
 
+def missing_pads(st):
+    """Pads outside their net's spanning tree — the pad-level progress key.
+
+    The net-level count cannot see a net getting closer (GND losing eight of
+    its eighteen islands) or one open net being robbed to pay another; this
+    key can.  It is deterministic (the tree starts at the first pad of each
+    net in extraction order)."""
+    return sum(len(c.get("missing") or [])
+               for c in certs.connectivity_certs(st))
+
+
 def _report(st, rules):
     cl = claim_mod.bench_claims(st)
     return gate.verify(st, cl, certs.connectivity_certs(st), rules=rules)
@@ -84,9 +95,12 @@ def repair_loop(board, rules, rounds=3, passes=1, workdir=None,
         st = S.extract(src, rules)
         rep = _report(st, rules)
         obl = repair.obligations(rep)
-        m = repair.measure(obl)
+        pads = missing_pads(st)
+        m = repair.measure(obl, pads)
         nets = open_nets(st, rep)
-        rod = {'round': r, 'digest': st['digest'], 'measure': [m[0], list(m[1])],
+        rod = {'round': r, 'digest': st['digest'],
+               'measure': [m[0], m[1], list(m[2])],
+               'missing_pads': pads,
                'open_nets': nets[:80], 'n_open': len(nets),
                'summary': gate.report_summary(rep)}
         rounds_log.append(rod)
@@ -112,15 +126,17 @@ def repair_loop(board, rules, rounds=3, passes=1, workdir=None,
             st2 = S.extract(cand, rules)
             rep2 = _report(st2, rules)
             obl2 = repair.obligations(rep2)
-            m2 = repair.measure(obl2)
+            pads2 = missing_pads(st2)
+            m2 = repair.measure(obl2, pads2)
             att.update({'carried': int(res['step']['carried'] or 0),
                         'touched': res['step']['touched'],
-                        'measure': [m2[0], list(m2[1])],
+                        'measure': [m2[0], m2[1], list(m2[2])],
+                        'missing_pads': pads2,
                         'n_open': len(open_nets(st2, rep2)),
                         'summary': gate.report_summary(rep2)})
-            log(f"round {r}/{tactic}: measure {m[0]} -> {m2[0]}, "
-                f"open {len(nets)} -> {att['n_open']}")
-            if not repair.terminates(obl, obl2):
+            log(f"round {r}/{tactic}: measure {m[0]}/{pads} -> "
+                f"{m2[0]}/{pads2}, open {len(nets)} -> {att['n_open']}")
+            if not repair.terminates(obl, obl2, pads, pads2):
                 att['reason'] = 'no strict descent; candidate not adopted'
                 log(f"round {r}/{tactic}: {att['reason']}")
                 continue
@@ -151,7 +167,8 @@ def repair_loop(board, rules, rounds=3, passes=1, workdir=None,
                         'carried': rod['tactics'][-1]['carried'],
                         'touched': rod['tactics'][-1]['touched']}
         rod['after'] = {'digest': st2['digest'],
-                        'measure': [m2[0], list(m2[1])],
+                        'measure': [m2[0], m2[1], list(m2[2])],
+                        'missing_pads': pads2,
                         'n_open': len(open_nets(st2, rep2)),
                         'summary': gate.report_summary(rep2)}
     final = rounds_log[-1]

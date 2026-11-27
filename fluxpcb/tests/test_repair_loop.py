@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 
-from fluxpcb.proof import repair_loop
+from fluxpcb.proof import repair, repair_loop
 from test_proof_gate import _two_net_state
 
 
@@ -43,6 +43,8 @@ def test_chain_falls_back_after_a_backend_crash(monkeypatch, tmp_path):
                         lambda st, rules: _report(st['open']))
     monkeypatch.setattr(repair_loop, 'open_nets',
                         lambda st, rep=None: list(st['open']))
+    monkeypatch.setattr(repair_loop, 'missing_pads',
+                        lambda st: st.get('pads', len(st['open'])))
 
     def fake_scope(src, nets, rules, workdir=None, passes=1, mode='publish',
                    tactic='freerouting', log=print):
@@ -78,6 +80,8 @@ def test_chain_rejects_a_candidate_without_descent(monkeypatch, tmp_path):
                         lambda st, rules: _report(st['open']))
     monkeypatch.setattr(repair_loop, 'open_nets',
                         lambda st, rep=None: list(st['open']))
+    monkeypatch.setattr(repair_loop, 'missing_pads',
+                        lambda st: st.get('pads', len(st['open'])))
 
     def fake_scope(src, nets, rules, workdir=None, passes=1, mode='publish',
                    tactic='freerouting', log=print):
@@ -128,5 +132,23 @@ def test_embedded_backend_gets_the_board_clearance(monkeypatch, tmp_path):
 def test_keep_tactic_maps_to_the_embedded_backend():
     from fluxpcb.proof import router
     assert router._tactic_base('embedded_keep') == 'embedded'
+    assert router._tactic_base('freerouting_keep') == 'freerouting'
     assert router._tactic_base('embedded') == 'embedded'
     assert router._tactic_base('freerouting') == 'freerouting'
+
+
+def test_pad_level_progress_is_a_descent():
+    """Equal obligations, fewer missing pads: adopted.  The net-level count
+    alone would have called this a fixed point."""
+    obl = [{'kernel': 'lean', 'status': 'unknown', 'delta_nm': None}]
+    assert repair.terminates(obl, obl, 10, 9)
+    assert not repair.terminates(obl, obl, 9, 10)
+    assert not repair.terminates(obl, obl, 9, 9)
+
+
+def test_obligation_count_dominates_the_pad_key():
+    """A closed net wins even when another open net got worse: the pad key
+    only breaks ties, so a new obligation can never hide behind it."""
+    one = [{'kernel': 'lean', 'status': 'unknown', 'delta_nm': None}]
+    assert repair.terminates(one * 2, one, 1, 100)
+    assert not repair.terminates(one, one * 2, 100, 1)

@@ -1012,3 +1012,63 @@ after ratsnest 64 -> 64
 该 `fanout_pass` 已回退（代码不在仓库）：它不产生任何下降，且会让生产快速路径多出
 未证实的过孔。思路与数据留在这里，等真正的全局重布或 fanout-aware 起点落地时再一起
 接回来。
+
+## 二十七、H7 的 NPE 根因：DSN 层名重复（2026-11-27）
+
+### 27.1 观察
+
+H7 的铜栈用户层名是 `top_copper, ground_copper(4), power_copper(6),
+power_copper(8), ground_copper(10), bottom_copper(2)`——**两个 ground、两个 power**。
+KiCad 的 `ExportSpecctraDSN` 原样写名，DSN 的 `(layer ...)` 段就是：
+
+```
+(layer ground_copper (index 1) ...)
+(layer power_copper  (index 2) ...)
+(layer power_copper  (index 3) ...)
+(layer ground_copper (index 4) ...)
+```
+
+Freerouting 按**名字**给层建键（`dsn_rename_layers_numeric` 的 docstring 已记录它按名
+映射的 bug），两对层被混成一层；迷宫搜索在 984 s 时崩在
+`mazeSearchAlgo.find_connection NullPointerException`（rc=1073807364），没有 scr。
+`dsn_rename_layers_numeric` 本来就是为了消掉这一类问题，但它遇到重名层直接 `return 0`
+（注释写着 "caller falls back"）——fallback 正是崩溃的那条路。
+
+### 27.2 修复
+
+导出前在**内存里**把重名铜层改成唯一名（`name_l<layer-id>`），板文件不落盘、层 id 不变：
+
+- DSN 得到 6 个唯一层名，X2b 的数字重命名第一次对 H7 生效：
+  `0, 1, 2, 3, 4, 31`（已单独验证）；
+- `scr2kicad` 用标准名 `In1..In4` 解析数字层（`GetLayerID("In1.Cu")=4`，…，
+  `In4.Cu=10`），所以注入落回真实层 id；证明的 frame 看不到任何层改名；
+- 顺带修了 `dsn_inject_class_rules` 的返回值：单个 `Normal` 类时它返回 0，R2 的日志行
+  会凭空消失（块其实写进去了）。
+
+### 27.3 证据：NPE 消失
+
+| 运行 | DSN 层名 | 结果 |
+|---|---|---|
+| 修复前（第 25 节） | 重名 | 984 s NPE，无 scr |
+| 修复后 900 s 超时 | 唯一 → 数字 | **没有 NPE**，连续优化 767 s CPU 后被超时杀掉 |
+
+“从崩溃变成跑不完”是质变：证明层等的是一个能产出 scr 的 FR，而不是一个必崩的 FR。
+完整的 2400 s job（带 R2 `Normal` 类规则：clearance = 板规则 0.15 mm、width =
+`max(0.15, track_min)`，否则 FR 用自己的 0.1397 mm 默认值，必然低于 H7 的规则）正在跑，
+结果补在本节末尾。
+
+### 27.4 measure 细化：pad 级缺口
+
+第 26 节的 measure 按“有缺口的网数”排序，看不到一条已经开路的网在变好：H7 第 0 轮
+GND 从 18 对缺口降到 10 对、3V3 从 10 降到 9，义务数却一条没变。现在：
+
+```
+measure(obligations, missing_pads) = (义务数, 缺口 pad 数, 负余量元组)
+```
+
+- `missing_pads(st)`：每个网的生成树没有覆盖的 pad 数（从每网第一个 pad 起，确定性）；
+- 顺序仍是**义务数优先**：先保证不引入新义务，再让 pad 级进展打破平局。反过来把 pad
+  放第一会让“pad 变少但多出一条 unknown 义务”的候选混进来；
+- H7 数据：源板 187 个缺口 pad → 链路候选 **164**（−23），而网级只是 49 → 46；
+  最近的 46 开路候选（6 层 A*、狗骨）都是 164 → 164，所以它们仍被正确拒绝。
+- 测试：等义务数、pad 10→9 采纳；9→10 拒绝；义务数优先于 pad。

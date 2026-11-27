@@ -351,7 +351,8 @@ def dsn_reorder_nets(dsn_path: Path, priority_nets: list) -> int:
     return len(front)
 
 
-def dsn_inject_class_rules(dsn_path: Path, classes: dict, pairs: list) -> int:
+def dsn_inject_class_rules(dsn_path: Path, classes: dict, pairs: list,
+                           normal_rule=(150, 150)) -> int:
     """R2: per-class width/clearance rules + differential-pair coupling
     gaps into the DSN network section.
 
@@ -390,7 +391,7 @@ def dsn_inject_class_rules(dsn_path: Path, classes: dict, pairs: list) -> int:
     if buckets["normal"]:
         # FC_L13 诊断: normal 类从未注入 -> 普通网留 kicad_default
         # 吃 FR 默认 0.1397 -> 92 间距违例的根因
-        cls_block("Normal", buckets["normal"], 150, 150)
+        cls_block("Normal", buckets["normal"], normal_rule[0], normal_rule[1])
     for i, (a, b) in enumerate(pairs):
         cls_block(f"PAIR_{i}", [a, b], 150, 170)
         # coupling gap between the two members: large enough that the
@@ -441,7 +442,10 @@ def dsn_inject_class_rules(dsn_path: Path, classes: dict, pairs: list) -> int:
         return 0
     dsn_path.write_text(txt[:ins] + "".join(lines) + txt[ins:],
                         encoding="utf-8")
-    return len(lines) // 3
+    # number of written blocks: one per class (+2 per differential pair).
+    # (Was len(lines)//3, which returned 0 for a single "Normal" class and
+    # made the R2 log line vanish even though the block was written.)
+    return len(lines)
 
 
 def dsn_rename_layers_numeric(dsn_path: Path) -> int:
@@ -576,11 +580,38 @@ def _compute_route_sets(pcb_path: Path, kipy: str, log=print) -> tuple:
             set(frag.keys()) & set(all_board_nets))
 
 
+def _dsn_export_script(pcb_path, dsn):
+    """Export the DSN with unique copper-layer names.
+
+    H7's stack has two layers literally named ground_copper and two named
+    power_copper.  KiCad writes those names verbatim, so the DSN is
+    ambiguous: Freerouting keys layers by name, conflates the pairs and
+    NPEs in the maze search (H7: rc=1073807364, find_connection NPE).  The
+    rename happens in memory only -- the board file keeps its names, so
+    injected tracks land on the same layer ids and the proof frame does not
+    see a layer rename.
+    """
+    return "\n".join([
+        "import pcbnew",
+        "from collections import Counter",
+        f"b = pcbnew.LoadBoard(r'{pcb_path}')",
+        "cu = list(b.GetEnabledLayers().CuStack())",
+        "names = [b.GetLayerName(i) for i in cu]",
+        "dup = {n for n, c in Counter(names).items() if c > 1}",
+        "for i, n in zip(cu, names):",
+        "    if n in dup:",
+        "        b.SetLayerName(i, n + '_l' + str(i))",
+        f"ok = pcbnew.ExportSpecctraDSN(b, r'{dsn}')",
+        "print('DSN_OK' if ok else 'DSN_FAIL')",
+    ])
+
+
 def route_with_freerouting(pcb_path: Path, kipy: str, log=print,
                            incremental: bool = True,
                            priority_nets: list | None = None,
                            net_classes: dict | None = None,
-                           diff_pairs: list | None = None) -> dict:
+                           diff_pairs: list | None = None,
+                           normal_rule=None) -> dict:
     """Heavy-duty pass: pcbnew DSN export -> freerouting -> routed-DSN
     injection via dsn2kicad (SES import hangs headless; DSN write-back works).
 
@@ -601,9 +632,7 @@ def route_with_freerouting(pcb_path: Path, kipy: str, log=print,
     routed = work / ("routed-" + pcb_path.stem + ".dsn")
     if routed.exists():
         routed.unlink()                       # stale/0-byte protection
-    rc, out = _kipy_run(kipy,
-                        f"import pcbnew; b = pcbnew.LoadBoard(r'{pcb_path}'); "
-                        f"ok = pcbnew.ExportSpecctraDSN(b, r'{dsn}'); print('DSN_OK' if ok else 'DSN_FAIL')")
+    rc, out = _kipy_run(kipy, _dsn_export_script(pcb_path, dsn))
     # kipy subprocesses occasionally heap-crash on interpreter exit AFTER
     # writing the file, swallowing buffered stdout (observed: DSN on disk,
     # empty output) — trust the artifact over the pipe
@@ -671,7 +700,8 @@ def route_with_freerouting(pcb_path: Path, kipy: str, log=print,
     # routes at its built-in default gap (0.1397mm) below our 0.15 rule
     if net_classes:
         _ncls = dsn_inject_class_rules(dsn, net_classes,
-                                       diff_pairs or [])
+                                       diff_pairs or [],
+                                       normal_rule or (150, 150))
         if _ncls:
             log(f"  [route] R2 dsn-classes: {_ncls} 类规则注入"
                 f"({len(diff_pairs or [])} 差分对)")

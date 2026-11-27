@@ -57,18 +57,20 @@ def _strip(kipy: str, board: Path, nets, workdir: Path) -> int:
         raise RuntimeError(f'strip failed rc={rc}: {out.strip()[-200:]}')
 
 
-_KEEP_TACTICS = {'embedded_keep'}
+_KEEP_TACTICS = {'embedded_keep', 'freerouting_keep'}
 
 
 def _tactic_base(tactic):
     """Map a tactic name to its backend.  `_keep` variants route on the board
     as-is: no net is stripped, the backend only adds copper for the open
     pairs.  Use it for repairs on a half-routed board, where stripping the
-    target nets would also remove their good sections."""
-    return 'embedded' if tactic in _KEEP_TACTICS else tactic
+    target nets would also remove their good sections (and for FR, which
+    continues from the protected open stubs, the Z1 recipe)."""
+    return tactic[:-5] if tactic.endswith('_keep') else tactic
 
 
-def _route_backend(tactic, kicad_cli, kipy, dst, workdir, rules, passes, log):
+def _route_backend(tactic, kicad_cli, kipy, dst, workdir, rules, passes, log,
+                   net_classes=None, normal_rule=None):
     """Run one routing tactic on the stripped board; the gate judges it.
 
     `freerouting`: the incremental FR session (fix-marked, DSN round trip).
@@ -105,7 +107,9 @@ def _route_backend(tactic, kicad_cli, kipy, dst, workdir, rules, passes, log):
     fr = {}
     for attempt in range(max(1, passes)):
         fr = routing.route_with_freerouting(dst, kipy, log=log,
-                                            incremental=True)
+                                            incremental=True,
+                                            net_classes=net_classes,
+                                            normal_rule=normal_rule)
         if not fr.get('ok'):
             fr['mode'] = 'freerouting'
             return fr
@@ -144,8 +148,18 @@ def route_scope(board, nets, rules, workdir=None, profile='lean+fab',
         dropped = 0                  # additive repair: keep every track
     else:
         dropped = _strip(kipy, dst, nets, workdir)
+    # tell FR the fab rule instead of its built-in 0.1397mm default: every
+    # net in the "normal" class at the board's clearance (R2 recipe)
+    net_classes = {n: 'normal' for n in (before.get('netPads') or {})
+                   if n and not n.startswith('~')}
+    normal_rule = None
+    if rules.get('clearance'):
+        ceil_um = lambda nm: -(-int(nm) // 1000)      # noqa: E731
+        normal_rule = (max(150, ceil_um(rules.get('track_min') or 150000)),
+                       ceil_um(rules['clearance']))
     fr = _route_backend(_tactic_base(tactic), kicad_cli, kipy, dst, workdir,
-                        rules, passes, log)
+                        rules, passes, log, net_classes=net_classes,
+                        normal_rule=normal_rule)
     if not fr.get('ok'):
         return {'ok': False, 'error': fr.get('error'), 'tactic': tactic,
                 'mode': fr.get('mode'), 'seconds':

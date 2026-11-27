@@ -6,9 +6,11 @@ much), and the pair
 
     (number of obligations, sorted negative margins)
 
-is a lexicographic measure over integers.  A committed step that lowers it
-is progress; a loop that terminates only on an empty obligation set is a
-descent over a well-founded order, not a hope.
+is a lexicographic measure over integers: (obligations, missing pads, sorted
+negative margins).  The pad key sees partial progress inside an open net —
+GND losing eight of its eighteen islands is not a net closure, but it is
+strictly less work than before — and it stops a candidate from robbing one
+open net to pay another with the net-level count unchanged.
 
 This module does not change the gate; it makes the gate's output usable by a
 planner and gives the loop a termination argument to check.
@@ -60,16 +62,21 @@ def margin_obligations(report):
     return out
 
 
-def measure(obligations):
-    """Lexicographic (count, sorted negative deltas) over integers."""
+def measure(obligations, missing_pads=None):
+    """Lexicographic (obligations, missing pads, sorted negative deltas).
+
+    `missing_pads` is optional so the gate/step callers that only have the
+    obligation list keep working; with it, the second key is the pad-level
+    progress of the same state."""
     deltas = sorted((o.get('delta_nm') or 0) for o in obligations
                     if o.get('delta_nm') is not None)
-    return (len(obligations), tuple(deltas))
+    pads = 0 if missing_pads is None else int(missing_pads)
+    return (len(obligations), pads, tuple(deltas))
 
 
-def terminates(before, after):
+def terminates(before, after, pads_before=None, pads_after=None):
     """A step is progress when the measure strictly decreases."""
-    return measure(after) < measure(before)
+    return measure(after, pads_after) < measure(before, pads_before)
 
 
 def summary(obligations):
