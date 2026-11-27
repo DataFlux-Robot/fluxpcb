@@ -63,7 +63,8 @@ def main(argv=None):
     rp.add_argument('--rounds', type=int, default=3)
     rp.add_argument('--passes', type=int, default=1)
     rp.add_argument('--workdir')
-    rp.add_argument('--tactics', default='freerouting,embedded,embedded_keep',
+    rp.add_argument('--tactics',
+                    default='freerouting,embedded,pathfinder_keep,pathfinder,embedded_keep',
                     help='comma-separated backend chain, tried in order')
     rp.add_argument('--drc-guard', action='store_true',
                     help='adopt a candidate only if the external DRC error '

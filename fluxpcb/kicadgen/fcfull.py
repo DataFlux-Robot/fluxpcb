@@ -21,16 +21,27 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from fluxpcb.kicadgen.pcb import Board, Fp, parse
+from fluxpcb.kicadgen.pcb import Board, Fp, find_kicad_footprints, parse
 from fluxpcb.kicadgen.parts_lib import P
 from fluxpcb.kicadgen.schematic import Pin, Schematic, SymDef, SymInst
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 FCLIB = ROOT / "reference" / "fculib"
-KICAD_FPS = Path(r"C:/Users/zhang/AppData/Local/Programs/KiCad/10.0/share/kicad/footprints")
+KICAD_FPS = find_kicad_footprints()
 
 W, H = 50.0, 50.0
 SLUG = "h743-fc"
+
+# JLC 6-layer standard free-tier BGA fab rules (non-VIPPO 0.40/0.20mm dogbone
+# via at 0.80mm BGA 4-ball centers: gap = 0.5657 - 0.15(pad_r) - 0.20(via_r)
+# = 0.2157mm >= 0.127mm, or 0.1657mm >= 0.127mm even on 0.40mm BGA pads).
+JLC_6L_BGA_RULES = {
+    "clearance": 127_000,
+    "track_min": 127_000,
+    "annular": 100_000,
+    "edge": 300_000,
+    "drill_min": 200_000,
+}
 
 # TIM3_CH1 re-purposed as the BMI088 gyro CSB2 gpio (FC_PWM_MAP covers only
 # TIM1/TIM4); every other signal comes straight from FC_WANT
@@ -77,20 +88,82 @@ def gen_hdr3x08(out_path: Path) -> Path:
     return out_path
 
 
-def mcu_ball_nets(project_dir: Path | None = None) -> dict[str, str]:
+def _signal_destinations(pl: dict[str, tuple[float, float, float]]) -> dict[str, tuple[float, float]]:
+    """Net -> approximate board (x, y) mm of its non-MCU destination(s)."""
+    def mid(*refs: str) -> tuple[float, float]:
+        xs = [pl[r][0] for r in refs if r in pl]
+        ys = [pl[r][1] for r in refs if r in pl]
+        return (sum(xs) / len(xs), sum(ys) / len(ys))
+
+    d: dict[str, tuple[float, float]] = {}
+    for s in ("SPI1_SCK", "SPI1_MISO", "SPI1_MOSI", "SPI1_NSS", "IMU1_INT", "IMU1_CS2"):
+        d[s] = mid("U2")
+    for s in ("SPI2_SCK", "SPI2_MISO", "SPI2_MOSI", "SPI2_NSS", "IMU2_INT1"):
+        d[s] = mid("U3")
+    for s in ("I2C1_SCL", "I2C1_SDA"):
+        d[s] = mid("U4", "U5")
+    d["BARO1_INT"] = mid("U4")
+    d["BARO2_INT"] = mid("U5")
+    for s in ("I2C2_SCL", "I2C2_SDA"):
+        d[s] = mid("U6", "J1")
+    d["MAG_INT"] = mid("U6")
+    for s in ("FDCAN1_TX", "FDCAN1_RX"):
+        d[s] = mid("U8")
+    for s in ("FDCAN2_TX", "FDCAN2_RX"):
+        d[s] = mid("U9")
+    for ref, u in (("J1", "USART1"), ("J2", "USART2"), ("J3", "USART3"),
+                   ("J4", "USART6"), ("J5", "UART4"), ("J6", "UART7"),
+                   ("J7", "UART8"), ("J8", "UART5")):
+        d[f"{u}_TX"] = mid(ref)
+        d[f"{u}_RX"] = mid(ref)
+    for s in ("SDMMC1_CK", "SDMMC1_CMD", "SDMMC1_D0", "SDMMC1_D1", "SDMMC1_D2", "SDMMC1_D3"):
+        d[s] = mid("J17")
+    for i in range(1, 9):
+        # spread across J11's 8-column PWM header x-span
+        jx, jy, _ = pl["J11"]
+        d[f"PWM_CH{i}"] = (jx + (i - 4.5) * 2.54, jy)
+    for s in ("ADC1_INP10", "ADC1_INP11"):
+        d[s] = mid("J14")
+    for s in ("USB_DP", "USB_DM"):
+        d[s] = mid("J10")
+    for s in ("SWDIO", "SWCLK", "NRST"):
+        d[s] = mid("J9")
+    d["OSC_IN"] = mid("Y1")
+    d["OSC_OUT"] = mid("Y1")
+    d["OSC32_IN"] = mid("Y2")
+    d["OSC32_OUT"] = mid("Y2")
+    d["LED_ACT"] = mid("D1")
+    d["BOOT0"] = mid("J16")
+    return d
+
+
+def mcu_ball_nets(project_dir: Path | None = None,
+                  spatial: bool = True) -> dict[str, str]:
     """ball -> net for every used MCU ball (FC_WANT + TIM3_CS2 + power).
 
     C4 contract: FC_PIN_OVERRIDE.json ({net: new_ball}, written by the
     closed loop's reassign_pins action) swaps escape-crossing nets to
     better balls. Both board() and schematic() read through this single
-    function, so the two can never diverge again (kernel catch #2)."""
+    function, so the two can never diverge again (kernel catch #2).
+
+    When spatial=True (default), uses destination-aware MCMF pin allocation
+    against placement() so signals face their target peripherals and prefer
+    outer BGA rings instead of jamming into rows A-E."""
     from fluxpcb.kicadgen import mcu_db
     pins = mcu_db.load_st_xml(mcu_db.MCU_CONFIG["h743"]["xml"])
     pwm = dict(mcu_db.FC_PWM_MAP)
     pwm.update(FC_LOCAL_PWM)
+    ball_xy = dest_xy = None
+    if spatial:
+        pl = placement()
+        ux, uy, _ = pl["U1"]
+        ball_xy = mcu_db.ball_positions("h743", pins, cx=ux, cy=uy, pitch=0.8)
+        dest_xy = _signal_destinations(pl)
     ball_nets = mcu_db.build_ball_nets("h743", pins,
                                        want=mcu_db.FC_WANT + list(FC_LOCAL_PWM),
-                                       pwm_map=pwm)
+                                       pwm_map=pwm,
+                                       ball_xy=ball_xy,
+                                       dest_xy=dest_xy)
     import json as _json
     _base = project_dir if project_dir else Path(__file__).resolve().parents[2]
     for cand in (_base / "FC_PIN_OVERRIDE.json",):
@@ -182,50 +255,51 @@ def validate_placement(place=None) -> list:
 
 
 def placement() -> dict[str, tuple[float, float, float]]:
-    """50x50 square: MCU + sensor cluster center-left, CAN pair right band,
-    power top-right, TF card top-left, UART stack on the left edge, PWM rail
-    along the bottom, USB/CAN/ADC/GND on the right edge."""
+    """50x50 square: courtyard-clean (0 overlaps, >=0.35mm edge margin on all
+    33 footprints including rotated J10/J12/J13/J14/J15). MCU center, sensor
+    cluster center-left, CAN pair lower-right clear of BGA escape corridor,
+    power/xtal top-right, TF card top-left, UART stack left/bottom, PWM rail
+    bottom-left, USB/CAN/ADC/SWD right edge."""
     return {
         "U1":   (26.0, 24.0, 0.0),    # STM32H743 TFBGA240 center
-        "U2":   (16.5, 18.5, 0.0),    # BMI088 (SPI1) — LGA-16
-        "U3":   (16.5, 28.5, 0.0),    # ICM-45686 (SPI2) — LGA-14
-        "U4":   (18.5, 12.0, 0.0),    # BMP388 #1
-        "U5":   (13.5, 34.5, 0.0),    # BMP388 #2
-        "U6":   (10.0, 37.5, 0.0),    # IST8310 mag (away from USB/CAN)
-        "U7":   (36.5, 5.0, 0.0),     # AP2112K LDO (top-right)
-        # routability (route_diag evidence): U8/U9 sat on the right-edge ball
-        # escape corridor (0.9mm hole keepouts sealed E15/K14/M14/R16/P16
-        # PWM/UART balls) — moved into the bottom band clear of the ring
-        "U8":   (30.5, 41.3, 0.0),    # SN65HVD230 CAN1 (bottom band)
-        "U9":   (38.0, 41.3, 0.0),    # SN65HVD230 CAN2 (bottom band)
-        "CV1":  (33.0, 33.0, 0.0),    # VCAP 2.2uF
-        "CV2":  (36.5, 33.0, 0.0),    # VCAP 2.2uF
-        "FB1":  (43.5, 33.0, 0.0),    # VDDA ferrite
-        "Y1":   (35.0, 9.5, 0.0),     # 24MHz
-        "Y2":   (35.0, 14.5, 0.0),    # 32.768k
-        "D1":   (28.0, 3.5, 0.0),     # status LED
-        "R1":   (30.8, 3.5, 0.0),     # LED resistor
-        # left edge: GPS/TELEM1/TELEM2 (1x06 1.27) + GND post (1x05 1.27)
-        "J1":   (2.5, 20.2, 0.0),
-        "J2":   (2.5, 28.0, 0.0),
-        "J3":   (2.5, 35.6, 0.0),
-        "J15":  (2.5, 43.4, 0.0),     # GND x5
+        "U2":   (16.0, 19.0, 0.0),    # BMI088 (SPI1) — LGA-16
+        "U3":   (15.5, 28.5, 0.0),    # ICM-45686 (SPI2) — LGA-14
+        "U4":   (20.0, 12.8, 0.0),    # BMP388 #1
+        "U5":   (12.0, 34.5, 0.0),    # BMP388 #2
+        "U6":   (7.5, 36.5, 0.0),     # IST8310 mag (away from USB/CAN)
+        "U7":   (36.5, 5.5, 0.0),     # AP2112K LDO (top-right)
+        # CAN transceivers clear of BGA right escape corridor and bottom headers
+        "U8":   (33.5, 39.6, 0.0),    # SN65HVD230 CAN1
+        "U9":   (41.5, 39.0, 0.0),    # SN65HVD230 CAN2
+        "CV1":  (22.0, 34.5, 0.0),    # VCAP 2.2uF
+        "CV2":  (26.0, 34.5, 0.0),    # VCAP 2.2uF
+        "FB1":  (30.5, 34.5, 0.0),    # VDDA ferrite
+        "Y1":   (36.5, 10.2, 0.0),    # 24MHz
+        "Y2":   (36.5, 14.5, 0.0),    # 32.768k
+        "D1":   (25.5, 2.5, 0.0),     # status LED
+        "R1":   (29.2, 2.5, 0.0),     # LED resistor
+        # left edge: GPS/TELEM1/TELEM2 (1x06 1.27), clear of J17 and J11
+        "J1":   (2.2, 17.4, 0.0),
+        "J2":   (2.2, 26.4, 0.0),
+        "J3":   (2.2, 35.4, 0.0),
+        # top-right edge: GND x5 horizontal (clear of U7 and edge)
+        "J15":  (42.5, 2.2, 90.0),
         # bottom edge: PWM rail (3x08 2.54) + UART4/7/8/RC/USART6 headers
-        "J11":  (15.0, 44.5, 0.0),    # PWM 3x08 (courtyard 22.4x7.6)
-        "J5":   (28.5, 45.0, 0.0),
-        "J6":   (32.0, 45.0, 0.0),
-        "J7":   (35.5, 45.0, 0.0),
-        "J8":   (39.0, 45.0, 0.0),
-        "J4":   (43.0, 44.8, 0.0),
+        "J11":  (16.0, 44.6, 0.0),    # PWM 3x08 (courtyard 22.3x9.6)
+        "J5":   (29.2, 44.5, 0.0),
+        "J6":   (32.6, 44.5, 0.0),
+        "J7":   (36.0, 44.5, 0.0),
+        "J8":   (39.4, 44.5, 0.0),
+        "J4":   (42.8, 44.5, 0.0),
         # right edge, top to bottom: USB-C/CAN1/CAN2/ADC/SWD (1.27 pitch)
-        "J10":  (46.4, 16.0, 90.0),   # USB-C
-        "J12":  (44.2, 25.5, 90.0),   # CAN1
-        "J13":  (44.2, 31.0, 90.0),   # CAN2
-        "J14":  (44.2, 37.0, 90.0),   # ADC
-        "J9":   (47.0, 44.0, 0.0),    # SWD 2x05 1.27 rot0 (3.4x6.9)
-        # top edge: TF card (13.75x17mm) + debug header
-        "J16":  (21.0, 3.5, 0.0),     # DEBUG/BOOT 1x03
-        "J17":  (8.5, 9.5, 0.0),      # microSD (pads x 1.6..15.4, y 1..18)
+        "J10":  (45.2, 14.5, 90.0),   # USB-C (flush within 0.66mm of right edge)
+        "J12":  (44.4, 23.0, 90.0),   # CAN1
+        "J13":  (44.4, 27.5, 90.0),   # CAN2
+        "J14":  (44.4, 32.0, 90.0),   # ADC
+        "J9":   (46.5, 43.2, 0.0),    # SWD 2x05 1.27 rot0 (clear of y=50 edge)
+        # top edge: TF card (15.7x15mm) + debug header
+        "J16":  (19.5, 2.5, 0.0),     # DEBUG/BOOT 1x03
+        "J17":  (8.6, 8.2, 0.0),      # microSD (top-left edge, clear of U2)
     }
 
 
@@ -254,12 +328,12 @@ def placement_refined() -> dict:
 
 
 def _stitch_anchors(pl):
-    """Power-plane stitching anchors — safe open spots."""
+    """Power-plane stitching anchors — verified clear of all footprint courtyards."""
     return [
-        (pl["U7"][0] + 1.27, pl["U7"][1] - 1.27, "3V3"),   # LDO out
-        (pl["U1"][0] + 8.0, pl["U1"][1] + 8.0, "3V3"),     # BGA 3V3 side
-        (pl["J10"][0] - 1.27, pl["J10"][1] - 3.0, "5V"),   # USB 5V
-        (pl["U7"][0] - 1.27, pl["U7"][1] + 1.27, "5V"),    # LDO in
+        (pl["U7"][0] + 3.0, pl["U7"][1] + 0.5, "3V3"),    # LDO out (clear of U7/J10/J15)
+        (pl["U1"][0] + 8.5, pl["U1"][1] + 8.5, "3V3"),    # BGA 3V3 corner (clear of U1/FB1/U8)
+        (pl["J10"][0] - 5.7, pl["J10"][1] + 6.3, "5V"),   # USB 5V corridor (clear of J10/J12)
+        (pl["U7"][0] - 3.7, pl["U7"][1], "5V"),           # LDO in (clear of R1/U7/Y1)
     ]
 
 

@@ -6,12 +6,35 @@ skeleton (layers/stackup/nets/outline) generated per target stackup.
 """
 from __future__ import annotations
 
+import os
 import re
 import uuid as uuidlib
 from pathlib import Path
 
-KICAD_FP_DIR = Path(r"C:\Users\zhang\AppData\Local\Programs\KiCad\10.0"
-                    r"\share\kicad\footprints")
+
+def find_kicad_footprints() -> Path:
+    """Resolve official KiCad .pretty footprint root across OS/versions."""
+    env = os.environ.get("FLUXPCB_KICAD_FOOTPRINTS") or os.environ.get("KICAD_FOOTPRINT_DIR")
+    if env and Path(env).exists():
+        return Path(env)
+    candidates = [
+        Path(r"C:\Users\zhang\AppData\Local\Programs\KiCad\10.0\share\kicad\footprints"),
+        Path(r"C:\Program Files\KiCad\10.0\share\kicad\footprints"),
+        Path(r"C:\Program Files\KiCad\9.0\share\kicad\footprints"),
+        Path("/usr/share/kicad/footprints"),
+        Path("/usr/local/share/kicad/footprints"),
+        Path("/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints"),
+    ]
+    home = Path.home()
+    for ver in ("10.0", "9.0", "8.0"):
+        candidates.append(home / "AppData/Local/Programs/KiCad" / ver / "share/kicad/footprints")
+    for c in candidates:
+        if c.exists():
+            return c
+    return candidates[0]
+
+
+KICAD_FP_DIR = find_kicad_footprints()
 
 
 def uid() -> str:
@@ -72,6 +95,50 @@ def render(items, depth=0) -> str:
     return f"{pad}(\n{inner}\n{pad})"
 
 
+def _regen_uuids(node):
+    """Replace every (uuid ...) / (tstamp ...) in a parsed footprint tree.
+
+    Prevents duplicate pad/shape UUIDs when two footprints share one .kicad_mod
+    (e.g. U4/U5 BMP388 on h743-fc produced 10 duplicate pad UUIDs that caused
+    proof.state.extract to reject the board).
+    """
+    for kind, v in node:
+        if kind != "n" or not v:
+            continue
+        if v[0] in (("a", "uuid"), ("a", "tstamp")) and len(v) >= 2:
+            v[1] = ("s", uid()) if v[0] == ("a", "uuid") else ("a", uid())
+        else:
+            _regen_uuids(v)
+
+
+def _rot_xy(x: float, y: float, rot: int) -> tuple[float, float]:
+    """KiCad CCW rotation in Y-down PCB coordinates (matches pad baking)."""
+    if rot == 90:
+        return y, -x
+    if rot == 180:
+        return -x, -y
+    if rot == 270:
+        return -y, x
+    return x, y
+
+
+def _rotate_graphic_points(node, rot: int):
+    """Rotate start/end/center/mid/xy coordinate pairs in footprint graphics."""
+    for kind, v in node:
+        if kind != "n" or not v:
+            continue
+        head = v[0][1] if v[0][0] == "a" else None
+        if head in ("start", "end", "center", "mid", "xy") and len(v) >= 3:
+            try:
+                x, y = _rot_xy(float(v[1][1]), float(v[2][1]), rot)
+                v[1] = ("a", _f(x))
+                v[2] = ("a", _f(y))
+            except ValueError:
+                pass
+        else:
+            _rotate_graphic_points(v, rot)
+
+
 def _find(items, head):
     for k, v in items:
         if k == "n" and v and v[0][1] == head:
@@ -109,18 +176,26 @@ class Fp:
         saver does and avoids transform ambiguity in DRC.
         """
         tree = self.tree
+        _regen_uuids(tree)
         layer_i = next(i for i, (k, v) in enumerate(tree) if k == "n" and v[0][1] == "layer")
         tree.insert(layer_i + 1, ("n", [("a", "uuid"), ("s", uid())]))
         tree.insert(layer_i + 2, ("n", [("a", "at"), ("a", _f(self.x)),
                                         ("a", _f(self.y)), ("a", "0")]))
-        # Reference / Value
+        # Reference / Value (both KiCad 8+ property and legacy KiCad 6/7 fp_text)
         for prop in _find_all(tree, "property"):
             key = prop[1][1]
             if key == "Reference":
                 prop[2] = ("s", self.ref)
             elif key == "Value":
                 prop[2] = ("s", self.value)
-        # bake rotation into pads
+        for fpt in _find_all(tree, "fp_text"):
+            if len(fpt) >= 3:
+                key = fpt[1][1]
+                if key == "reference":
+                    fpt[2] = ("s", self.ref)
+                elif key == "value":
+                    fpt[2] = ("s", self.value)
+        # bake rotation into pads AND footprint graphics (courtyard/silk/fab)
         rot = int(self.rot) % 360
         if rot:
             for pad in _find_all(tree, "pad"):
@@ -130,14 +205,8 @@ class Fp:
                     head = node[1][0][1] if node[1] and node[1][0][0] == "a" else None
                     if head == "at":
                         vals = [it for it in node[1][1:]]
-                        x, y = float(vals[0][1]), float(vals[1][1])
+                        x, y = _rot_xy(float(vals[0][1]), float(vals[1][1]), rot)
                         ang = float(vals[2][1]) if len(vals) > 2 else 0.0
-                        if rot == 90:
-                            x, y = y, -x
-                        elif rot == 180:
-                            x, y = -x, -y
-                        elif rot == 270:
-                            x, y = -y, x
                         new = [("a", "at"), ("a", _f(x)), ("a", _f(y))]
                         if len(vals) > 2:            # original pad had an angle
                             new.append(("a", _f((ang + rot) % 360)))
@@ -148,6 +217,9 @@ class Fp:
                         if rot in (90, 270):
                             w, h = h, w
                         node[1][:] = [("a", "size"), ("a", _f(w)), ("a", _f(h))]
+            for gtype in ("fp_line", "fp_rect", "fp_circle", "fp_arc", "fp_poly"):
+                for gnode in _find_all(tree, gtype):
+                    _rotate_graphic_points(gnode, rot)
         # pad nets
         for pad in _find_all(tree, "pad"):
             num = pad[1][1]
@@ -260,14 +332,16 @@ class Board:
 
     def _zone(self, net_name: str, layer: str) -> str:
         n = self.nets.get(net_name, 0)
-        w, h = _f(self.w), _f(self.h)
+        inset = 0.35
+        x0, y0 = _f(inset), _f(inset)
+        x1, y1 = _f(self.w - inset), _f(self.h - inset)
         return (f'\t(zone (net {n}) (net_name "{net_name}") '
                 f'(layer "{layer}") (uuid "{uid()}") (hatch edge 0.508) '
                 f'(connect_pads (clearance 0.25)) (min_thickness 0.2) '
                 f'(filled_areas_thickness no) '
                 f'(fill (thermal_gap 0.5) (thermal_bridge_width 0.5)) '
-                f'(polygon (pts (xy 0.2 0.2) (xy {w} -0.2) (xy {w} {h}) '
-                f'(xy 0.2 {h}))))')
+                f'(polygon (pts (xy {x0} {y0}) (xy {x1} {y0}) (xy {x1} {y1}) '
+                f'(xy {x0} {y1}))))')
 
     def ground_zones(self, net_name: str = "GND") -> list[str]:
         """Full-board GND pours on F.Cu/B.Cu, plus the inner ground layers
@@ -295,9 +369,10 @@ class Board:
         """Plane-stitching vias (net, F..B through) at explicit anchors."""
         out = []
         for x, y, net in points:
+            n = self.nets.get(net, 0)
             out.append(
                 f'\t(via (at {_f(x)} {_f(y)}) (size 0.6) (drill 0.3) '
-                f'(layers "F.Cu" "B.Cu") (net "{net}") '
+                f'(layers "F.Cu" "B.Cu") (net {n}) '
                 f'(uuid "{uid()}"))')
         return out
 
