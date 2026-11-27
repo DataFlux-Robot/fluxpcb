@@ -124,6 +124,17 @@ the control that makes it flip.  The pipeline on this path is rule-based: no LLM
 
 2 boards of D3-C remain (`0496`, `0599`); the numbers above are from commit `d90e1a5`.
 
+### 2-layer hybrid engine (2026-11-21): 100% / 0 on both boards
+
+| Board | Connections | Completion | DRC errors | Time | Koppar (baseline) |
+|-------|-------------|------------|------------|------|-------------------|
+| pic-programmer | 125 | **100%** | **0** | **15.8s** | 100% · 0 · 17s |
+| rp2040-minimal | 150 | **100%** | **0** | **34.7s** | 100% · 0 · 11.7s |
+
+Matches Koppar on both boards, and beats its wall clock on pic-programmer; compared with
+Freerouting alone, rp2040 rises from 86% / 4 DRC errors to 100% / 0.  Board-true DSN rules
+(rp2040: 0.127 mm), project snapshot/restore, and the seven repair operators did the work.
+
 ### Older run: 8-board NCER study (2026-10, superseded)
 
 | Board | Layers | Connections | Completion | DRC | Time | Koppar (baseline) |

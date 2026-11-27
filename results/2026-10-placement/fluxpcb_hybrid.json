@@ -1,30 +1,30 @@
 {
   "tool": "fluxpcb_hybrid",
-  "capS": 450,
-  "generatedAt": "2026-11-21T11:19:13",
+  "capS": 300,
+  "generatedAt": "2026-11-21T15:44:33",
   "boards": [
     {
       "board": "pic-programmer",
       "layers": 2,
       "ratsnest": 125,
-      "seconds": 15.3,
+      "seconds": 15.8,
       "timedOut": false,
-      "finishedAtS": 15.5,
+      "finishedAtS": 16.0,
       "completionPct": 100.0,
       "unconnected": 0,
       "vias": 0,
-      "routeSeconds": 13.9,
-      "engine": "freerouting(passes=3)",
+      "routeSeconds": 13.3,
+      "engine": "freerouting(passes=3,board_rules=True)",
       "repair": {
         "operators": [
           "copper_text_to_silk",
           "width_cascade_surgery",
           "policy_waiver_probe"
         ],
-        "repaired": 20,
-        "failed": 5
+        "repaired": 19,
+        "failed": 2
       },
-      "trackMm": 1933.696,
+      "trackMm": 1924.795,
       "viasInPinPads": 0,
       "drc": {
         "errors": 0,
@@ -36,29 +36,28 @@
       "board": "rp2040-minimal",
       "layers": 2,
       "ratsnest": 150,
-      "seconds": 423.2,
+      "seconds": 34.7,
       "timedOut": false,
-      "finishedAtS": 423.5,
-      "completionPct": 74.0,
-      "unconnected": 39,
-      "vias": 23,
-      "routeSeconds": 420.7,
-      "engine": "freerouting(passes=15)",
+      "finishedAtS": 34.9,
+      "completionPct": 100.0,
+      "unconnected": 0,
+      "vias": 39,
+      "routeSeconds": 31.1,
+      "engine": "freerouting(passes=6,board_rules=True)",
       "repair": {
         "operators": [
-          "plane_bridge"
+          "width_cascade_surgery",
+          "policy_waiver_probe"
         ],
-        "repaired": 6,
-        "failed": 0
+        "repaired": 2,
+        "failed": 2
       },
-      "trackMm": 676.073,
+      "trackMm": 1436.48,
       "viasInPinPads": 0,
       "drc": {
-        "errors": 1,
-        "errorsByType": {
-          "hole_clearance": 1
-        },
-        "unconnectedItems": 39
+        "errors": 0,
+        "errorsByType": {},
+        "unconnectedItems": 0
       }
     }
   ]

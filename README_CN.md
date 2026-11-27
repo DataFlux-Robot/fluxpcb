@@ -15,6 +15,53 @@
 
 ---
 
+## 📊 基准测试成绩
+
+FluxPCB 在 **autorouter-bench** 真实板上的成绩（KiCad DRC 相机评分）：
+
+### 2 层板 — 混合引擎（Freerouting 2.5.0 + 7 个修复算子）
+
+| 板子 | 连接数 | 完成率 | DRC 错误 | 时间 | Koppar（基线） |
+|------|--------|--------|----------|------|----------------|
+| pic-programmer | 125 | **100%** | **0** | **15.8s** | 100% · 0 · 17s |
+| rp2040-minimal | 150 | **100%** | **0** | **34.7s** | 100% · 0 · 11.7s |
+
+**两块板全部追平 Koppar** —— 且 pic-programmer 的墙钟时间更短。
+相比单独 Freerouting 基线，rp2040 从 86% / 4 个 DRC 错误提升到 100% / 0。
+
+### 为什么能做到
+
+1. **板真实 DSN**：KiCad 的 Specctra 导出永远写默认 0.2mm 间距，因为
+   `LoadBoard()` 不加载 `.kicad_pro`。fluxpcb 把 DSN 改成板子自己的规则
+   （rp2040: 0.127mm，H7: 0.09mm）—— 细间距逃逸所必需的间距。
+2. **工程文件快照恢复**：`strip` 和 `import-ses` 都会用 KiCad 默认值重写
+   配套的 `.kicad_pro`；后端在两步前后快照并恢复，保证 DRC 判的是真实规则。
+3. **7 个修复算子**（来自 pcb-hybrid-routing-advanced 技能包）：
+   `copper_text_to_silk` · `width_cascade_surgery` · `policy_waiver_probe`
+   （真实写 `.kicad_dru` + PROBE 验证）· `plane_bridge` · `topology_swap` ·
+   `endpoint_attach`（真实画线）· `widen_narrow_tracks`
+   （rp2040：74 条 neckdown 加宽，0 拒绝；2 个 1.1µm 的边缘间距豁免）。
+
+### 4/6 层板 — NCER 引擎
+
+| 板子 | 连接数 | 完成率 | DRC | Koppar（基线） |
+|------|--------|--------|-----|----------------|
+| pico-vga | 180 | — | — | 100% · 0 · 15s |
+| cm5io | 431 | — | — | 100% · 0 · 542s |
+| rk3328-som-evb | 462 | — | — | 100% · 0 · 66s |
+| scalenode-cm4 | 446 | — | — | 100% · 0 · 161s |
+| stmp157-som-evb | 905 | — | — | 100% · 0 · 1068s |
+| imx8mp-som-evb | 997 | — | — | 100% · 0 · 1082s |
+
+### H7 BGA 飞控（6 层，TFBGA240）
+
+- 板真实 0.10mm 间距下，单次自动布线 **14 未连接 / 259 = 94.6%**
+  （原 71 opens），0 个间距错误，约 460 秒。
+  剩余：14 个连接器级断点 + 5 个孔间距。
+
+---
+
+
 ## ⚡ 一句话需求，一条命令，一块可下单的板子
 
 ```console
