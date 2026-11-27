@@ -57,9 +57,71 @@ def _strip(kipy: str, board: Path, nets, workdir: Path) -> int:
         raise RuntimeError(f'strip failed rc={rc}: {out.strip()[-200:]}')
 
 
+_KEEP_TACTICS = {'embedded_keep'}
+
+
+def _tactic_base(tactic):
+    """Map a tactic name to its backend.  `_keep` variants route on the board
+    as-is: no net is stripped, the backend only adds copper for the open
+    pairs.  Use it for repairs on a half-routed board, where stripping the
+    target nets would also remove their good sections."""
+    return 'embedded' if tactic in _KEEP_TACTICS else tactic
+
+
+def _route_backend(tactic, kicad_cli, kipy, dst, workdir, rules, passes, log):
+    """Run one routing tactic on the stripped board; the gate judges it.
+
+    `freerouting`: the incremental FR session (fix-marked, DSN round trip).
+    `embedded`: the in-process L/Z/A* router.  It is the fallback for boards
+    where the DSN round trip or FR's optimizer crashes -- a backend failure
+    is then a tactic failure, not the end of the proof.
+    """
+    from .. import routing
+    if tactic == 'embedded':
+        rs = routing.ratsnest_state(kipy, dst, log=log)
+        if not rs:
+            return {'ok': False, 'mode': 'embedded',
+                    'error': 'ratsnest audit failed'}
+        pairs = rs.get('pairs') or []
+        if not pairs:
+            return {'ok': False, 'mode': 'embedded',
+                    'error': 'no open pairs after strip'}
+        cls = workdir / 'route_classes.json'
+        clearance = (rules.get('clearance') or 200000) / 1e6
+        cls.write_text(json.dumps({'classes': {},
+                                   'clearance_mm': clearance}),
+                       encoding='utf-8')
+        pairs_file = dst.parent / 'ratsnest_pairs.txt'
+        try:
+            rc, out = routing._kipy(kipy, routing._EMBEDDED, str(dst),
+                                    str(pairs_file), str(cls), timeout=1200)
+        except Exception as e:                 # timeout, spawn failure, ...
+            return {'ok': False, 'mode': 'embedded',
+                    'error': f'embedded router failed: {e}'}
+        line = [l for l in out.splitlines() if 'ROUTES_ADDED' in l]
+        return {'ok': rc == 0, 'mode': 'embedded', 'pairs': len(pairs),
+                'summary': line[-1][:400] if line else out[-300:],
+                'error': None if rc == 0 else out[-300:]}
+    fr = {}
+    for attempt in range(max(1, passes)):
+        fr = routing.route_with_freerouting(dst, kipy, log=log,
+                                            incremental=True)
+        if not fr.get('ok'):
+            fr['mode'] = 'freerouting'
+            return fr
+        if attempt + 1 >= max(1, passes):
+            break
+        probe = S.extract(dst, rules)
+        if not any(c.get('missing') for c in certs.connectivity_certs(probe)):
+            break
+        log(f'  [proof] pass {attempt + 1}: opens left, another FR pass')
+    fr['mode'] = 'freerouting'
+    return fr
+
+
 def route_scope(board, nets, rules, workdir=None, profile='lean+fab',
                 domain_claims=(), carry=True, spec=None, passes=2,
-                mode='publish', log=print):
+                mode='publish', tactic='freerouting', log=print):
     """Rip `nets`' copper, route them incrementally, and gate the Step."""
     from .. import routing
     t0 = time.time()
@@ -78,20 +140,16 @@ def route_scope(board, nets, rules, workdir=None, profile='lean+fab',
     kicad_cli, kipy = routing.find_kicad()
     if not kipy:
         return {'ok': False, 'error': 'KiCad python not found'}
-    dropped = _strip(kipy, dst, nets, workdir)
-    fr = {}
-    for attempt in range(max(1, passes)):
-        fr = routing.route_with_freerouting(dst, kipy, log=log,
-                                            incremental=True)
-        if not fr.get('ok'):
-            return {'ok': False, 'error': fr.get('error'), 'seconds':
+    if tactic in _KEEP_TACTICS:
+        dropped = 0                  # additive repair: keep every track
+    else:
+        dropped = _strip(kipy, dst, nets, workdir)
+    fr = _route_backend(_tactic_base(tactic), kicad_cli, kipy, dst, workdir,
+                        rules, passes, log)
+    if not fr.get('ok'):
+        return {'ok': False, 'error': fr.get('error'), 'tactic': tactic,
+                'mode': fr.get('mode'), 'seconds':
                     round(time.time() - t0, 1), 'dropped': dropped}
-        if attempt + 1 >= max(1, passes):
-            break
-        probe = S.extract(dst, rules)
-        if not any(c.get('missing') for c in certs.connectivity_certs(probe)):
-            break
-        log(f'  [proof] pass {attempt + 1}: opens left, another FR pass')
     after = S.extract(dst, rules)
     dom = list(domain_claims)
     unformalized = []
@@ -140,7 +198,8 @@ def route_scope(board, nets, rules, workdir=None, profile='lean+fab',
             'claims': _rows(r),
             'unformalized': unformalized,
             'digest': after['digest'],
-            'fr': {k: v for k, v in fr.items() if k != 'stats'},
+            'fr': {k: v for k, v in fr.items() if k not in ('stats',)},
+            'tactic': tactic, 'mode': fr.get('mode'),
             'seconds': round(time.time() - t0, 1)}
 
 

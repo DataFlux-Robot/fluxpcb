@@ -63,6 +63,12 @@ def main(argv=None):
     rp.add_argument('--rounds', type=int, default=3)
     rp.add_argument('--passes', type=int, default=1)
     rp.add_argument('--workdir')
+    rp.add_argument('--tactics', default='freerouting,embedded,embedded_keep',
+                    help='comma-separated backend chain, tried in order')
+    rp.add_argument('--drc-guard', action='store_true',
+                    help='adopt a candidate only if the external DRC error '
+                         'count does not increase (needed while zones are '
+                         'not modelled)')
     rp.add_argument('--out', required=True)
     cp = sub.add_parser('compare')
     cp.add_argument('--a', required=True)
@@ -115,8 +121,10 @@ def main(argv=None):
         print(json.dumps(r, indent=1, ensure_ascii=False))
         return 0 if r['ok'] else 3
     if a.cmd == 'repair':
+        tactics = [t.strip() for t in a.tactics.split(',') if t.strip()]
         r = repair_loop.repair_loop(a.board, rules, rounds=a.rounds,
-                                    passes=a.passes, workdir=a.workdir)
+                                    passes=a.passes, workdir=a.workdir,
+                                    tactics=tactics, drc_guard=a.drc_guard)
         with open(a.out, 'w', encoding='utf-8') as f:
             json.dump(r, f, indent=1, ensure_ascii=False)
         print(json.dumps({'ok': r['ok'],

@@ -15,18 +15,29 @@ CLS = sys.argv[3] if len(sys.argv) > 3 else ""
 
 board = pcbnew.LoadBoard(PCB)
 mm = 1000000  # KiCad nm units
+COPPER_LIDS = list(board.GetEnabledLayers().CuStack())
+INNER_LIDS = [l for l in COPPER_LIDS if l not in (pcbnew.F_Cu, pcbnew.B_Cu)]
 
-CLEAR_MM = 0.25          # center-line clearance to other-net copper
 _PTH = getattr(pcbnew, "PAD_ATTRIB_PTH",
              getattr(pcbnew, "PAD_ATTRIB_THROUGH_HOLE", 3))  # K10 rename
 TRACK_W = 0.2
 
-_NET_CLASS = {}
+_RULES = {}
 try:
     with open(CLS) as _f:
-        _NET_CLASS = json.load(_f).get("classes", {})
+        _RULES = json.load(_f)
 except (OSError, ValueError):
     pass
+_NET_CLASS = _RULES.get("classes", {}) if isinstance(_RULES, dict) else {}
+# centre-line clearance that yields an *edge* gap of `clearance_mm`: the
+# historical 0.25 baseline assumed 0.1 mm half-widths on both sides, so
+# CLEAR_MM = gap + 0.2.  A caller that knows the board's fab rule passes it
+# in the classes file; the default preserves the old 0.05 mm gap.
+try:
+    _CLEAR_GAP = float(_RULES.get("clearance_mm", 0.05))
+except (TypeError, ValueError, AttributeError):
+    _CLEAR_GAP = 0.05
+CLEAR_MM = _CLEAR_GAP + 0.2
 _WIDTHS = {"critical": 0.15, "normal": 0.2, "power": 0.4}
 
 
@@ -185,6 +196,7 @@ def add_track(sx, sy, ex, ey, layer_id, net):
     t.SetLayer(layer_id)
     t.SetNet(net)
     board.Add(t)
+    _invalidate_via_obs()
     return t
 
 
@@ -215,6 +227,7 @@ def add_via(x, y, net, nc):
     v.SetDrill(int(0.3 * mm))
     v.SetNet(net)
     board.Add(v)
+    _invalidate_via_obs()
     return v
 
 
@@ -291,24 +304,6 @@ def power_via_pass(fragmented):
     BGA balls), else at a 0.6mm offset (0.5mm-pitch LGA pads), else skipped."""
     added = 0
     segs_f, rects_f = collect_obstacles(pcbnew.F_Cu)
-    segs_b, rects_b = collect_obstacles(pcbnew.B_Cu)
-
-    def _via2_ok(x, y, nc):
-        # a power via lands on BOTH layers: full two-layer clearance (a GND
-        # via-in-pad punching through a B.Cu signal track was the top short
-        # source on pass 2+ of the h743-fc board)
-        for segs, rects in ((segs_f, rects_f), (segs_b, rects_b)):
-            for net2, a, b, extra in segs:
-                if net2 == nc:
-                    continue
-                if seg_seg_dist((x, y), (x, y), a, b) < 0.45 + extra:
-                    return False
-            for net2, rect in rects:
-                if net2 == nc:
-                    continue
-                if pt_rect_dist(x, y, rect) < 0.55:
-                    return False
-        return True
     have = set()
     for item in board.GetTracks():
         if is_via(item):
@@ -331,11 +326,7 @@ def power_via_pass(fragmented):
                     key = (round(x + dx, 2), round(y + dy, 2))
                     if key in have:
                         continue
-                    if not via_ok(x + dx, y + dy, nc, rects_f):
-                        continue
-                    if not _hole_ok(x + dx, y + dy):
-                        continue
-                    if not _via2_ok(x + dx, y + dy, nc):
+                    if not via_layer_ok(x + dx, y + dy, nc):
                         continue
                     # offset vias need a stub track to touch the pad
                     if dx or dy:
@@ -372,19 +363,56 @@ def edge_ok(x1, y1, x2, y2):
     return True
 
 
-def via_ok(x, y, net_code, rects):
-    """A via needs pad-edge clearance 0.3(own radius)+0.25 = 0.55mm, plus
-    0.25mm edge spacing to every drilled hole (hole-to-hole DRC rule)."""
+_VIA_OBS = None
+_OBS = {}
+
+
+def obs(layer_id):
+    """Per-layer obstacles, cached until copper is added (a pair tries up to
+    23 L/Z strategies; without the cache each re-scanned the whole board)."""
+    key = int(layer_id)
+    if key not in _OBS:
+        _OBS[key] = collect_obstacles(layer_id)
+    return _OBS[key]
+
+
+def _via_obs():
+    """Obstacles for every copper layer, cached between copper additions.
+
+    A via is a barrel of copper on *all* copper layers, but the L-route and
+    power passes only looked at F/B; on a 6-layer board the inner-layer
+    tracks were invisible, so vias punched through them (the H7 candidate's
+    12 shorts + 12 clearance errors were all via-vs-inner-track)."""
+    global _VIA_OBS
+    if _VIA_OBS is None:
+        _VIA_OBS = [collect_obstacles(l) for l in COPPER_LIDS]
+    return _VIA_OBS
+
+
+def _invalidate_via_obs():
+    global _VIA_OBS
+    _VIA_OBS = None
+    _OBS.clear()
+
+
+def via_layer_ok(x, y, nc):
+    """Full via validity: board edge, holes, and every copper layer."""
     if not (EDGE[0] + EDGE_KEEP <= x <= EDGE[2] - EDGE_KEEP and
             EDGE[1] + EDGE_KEEP <= y <= EDGE[3] - EDGE_KEEP):
         return False
     if HOLES and not _hole_ok(x, y):
         return False
-    for net, rect in rects:
-        if net == net_code:
-            continue
-        if pt_rect_dist(x, y, rect) < 0.55:
-            return False
+    for segs, rects in _via_obs():
+        for net, a, b, extra in segs:
+            if net == nc:
+                continue
+            if seg_seg_dist((x, y), (x, y), a, b) < 0.45 + extra:
+                return False
+        for net, rect in rects:
+            if net == nc:
+                continue
+            if pt_rect_dist(x, y, rect) < 0.55:
+                return False
     return True
 
 
@@ -396,13 +424,13 @@ def _via_candidates(x, y, lay, other, nc, rects_o, rects_s):
     if lay == other or _on_tht_pad(x, y, nc):
         return [(x, y)]
     cands = []
-    if via_ok(x, y, nc, rects_o) and via_ok(x, y, nc, rects_s):
+    if via_layer_ok(x, y, nc):
         cands.append((x, y))
     offs = ((0.7, 0), (-0.7, 0), (0, 0.7), (0, -0.7),
             (1.1, 0), (-1.1, 0), (0, 1.1), (0, -1.1))
     for dx, dy in offs:
         vx, vy = x + dx, y + dy
-        if via_ok(vx, vy, nc, rects_o) and via_ok(vx, vy, nc, rects_s):
+        if via_layer_ok(vx, vy, nc):
             cands.append((vx, vy))
     return cands
 
@@ -625,6 +653,22 @@ def route_astar(x1, y1, l1, x2, y2, l2, net, nc, net_name):
             except AttributeError:
                 continue
 
+    # inner-layer copper does not block F/B tracks, but a via lands on it:
+    # mark it into via_block only (margin=-1 leaves occ untouched)
+    for _lid in INNER_LIDS:
+        for item in board.GetTracks():
+            try:
+                if is_via(item) or item.GetLayer() != _lid:
+                    continue
+                if item.GetNetCode() == nc:
+                    continue
+                s, e = item.GetStart(), item.GetEnd()
+                hw = item.GetWidth() / mm / 2
+                _mark(grids, nx, ny, _lid, s.x / mm, s.y / mm,
+                      e.x / mm, e.y / mm, -1, 1, via_r=0.55 + hw)
+            except AttributeError:
+                continue
+
     def free(lay, gx, gy):
         i = _cell_idx(gx, gy, nx, ny)
         return i >= 0 and (occ[lay][i] in (0, 255))
@@ -793,31 +837,37 @@ with open(PAIRS) as f:
             continue
         nc = net.GetNetCode()
 
+        # conn_audit's pairs carry 0=F.Cu / 1=B.Cu; pads live on outer
+        # layers, so the anchor layer is always one of the two.
+        start_lid = pcbnew.F_Cu if l1 == 0 else pcbnew.B_Cu
+        end_lid = pcbnew.F_Cu if l2 == 0 else pcbnew.B_Cu
         strategies = []
-        for lay in {l1, l2}:
+        # every copper layer is a candidate: a through via at the pad lets a
+        # pair use an inner layer (a 6-layer BGA cannot be closed on F/B)
+        for lay in COPPER_LIDS:
             strategies.append((lay, x2, y1))    # L: horizontal-first
             strategies.append((lay, x1, y2))    # L: vertical-first
             strategies.append((lay, (x1 + x2) / 2, y1))  # Z-ish
         # lane offsets: parallel same-row pins (USB pairs, bus groups) would
         # otherwise run collinear H-first legs into each other — stagger them
         for off in (1.27, -1.27, 2.54):
-            strategies.append((l1, x2, y1 + off))
-        # opposite-layer with via at the far end
-        other = 1 - l1
+            strategies.append((start_lid, x2, y1 + off))
+        # opposite outer layer with via at the far end
+        other = pcbnew.B_Cu if start_lid == pcbnew.F_Cu else pcbnew.F_Cu
         strategies.append((other, x2, y1))
         strategies.append((other, x1, y2))
 
         routed = False
-        for lay, mx, my in strategies:
-            lid = pcbnew.F_Cu if lay == 0 else pcbnew.B_Cu
-            segs, rects = collect_obstacles(lid)
+        for lid, mx, my in strategies:
+            segs, rects = obs(lid)
+            segs = list(segs)          # clear() may grow it with leg1
             if not edge_ok(x1, y1, x2, y2) or not edge_ok(mx, my, mx, my):
                 continue
-            need_via_start = (lay != l1)
-            need_via_end = (lay != l2)
-            if need_via_start and not via_ok(x1, y1, nc, rects):
+            need_via_start = (lid != start_lid)
+            need_via_end = (lid != end_lid)
+            if need_via_start and not via_layer_ok(x1, y1, nc):
                 continue
-            if need_via_end and not via_ok(x2, y2, nc, rects):
+            if need_via_end and not via_layer_ok(x2, y2, nc):
                 continue
             w_self = track_w(net_name)
             own = max(0.0, w_self / 2 - 0.1)
@@ -830,9 +880,9 @@ with open(PAIRS) as f:
                 continue
             add_track(x1, y1, mx, my, lid, net)
             add_track(mx, my, x2, y2, lid, net)
-            if lay != l1:  # needed a layer switch: via at start
+            if lid != start_lid:  # needed a layer switch: via at start
                 add_via(x1, y1, net, nc)
-            if lay != l2:
+            if lid != end_lid:
                 add_via(x2, y2, net, nc)
             routed = True
             added += 1
