@@ -1129,3 +1129,35 @@ DRC 违规。端到端 `repair --tactics freerouting_keep --drc-guard` 正在用
 
 边界：DRC 的 22/24 噪声说明外部裁判在脏板上只能作为“签名级”证据；定理层（preserve
 门 + measure）仍是采纳的最终依据。
+
+### 27.8 端到端复现（`repair --tactics freerouting_keep --drc-guard`）
+
+同一路径由 repair loop 自己跑通（2257.6 s）：
+
+```
+drc_guard: 22 error-severity violation(s) before
+round 0: 48 obligations, 46 open nets
+  [route] X2b dsn-rename: 6 层名→KiCad id
+  [route] R2 dsn-classes: 1 类规则注入
+  [route] freerouting scr: ok
+  [route] scr注入: wires=46 segs=89 vias=8 skipped=0 unknown_layer=0
+round 0/freerouting_keep: measure 48/164 -> 47/53, open 46 -> 45
+adopted: projection dropped=1, DRC 25 -> 24, new_violations=0
+```
+
+终态：`proj_r0_freerouting_keep/board.kicad_pcb`，47 条义务 / 45 条开路网 / **53** 个
+缺口 pad（27 proven、46 unknown、1 refuted——refuted 仍是那条预存的 0.1017 mm）。
+`touched=97` 是候选的对称差；投影后的真实步是 96 项（JSON 里 `projection.dropped=1`）。
+
+### 27.9 这一枪的边界
+
+- FR 对这块 6 层板的 Z1 修复需要 **约 34 分钟**（2400 s 预算内完成）；900 s 不够。
+  修复前的 NPE 是**层名重复**触发的，不是问题规模本身。
+- DRC 在这块脏板上非确定（同板 22/24），所以外部裁判只能作为**签名级**证据；采纳仍由
+  preserve 门 + 严格下降决定。投影把“裁判拒绝”变成“删除它点名的候选新增项再重证”，
+  这不是放宽标准：投影后的每一步仍过同一道门。
+- 45 条开路网 / 53 个缺口 pad 仍是 core。GND 只剩 2 个、3V3 只剩 5 个缺口——下一轮
+  FR（或对这两条网做专门的平面/扇出修复）是最直接的下一步；再往下才是全局重布。
+- 118 台架的回归尚未重跑：本轮改动中 DSN 唯一层名只在“层名重复”时触发（H7 这类板），
+  类规则默认值不变；`route_embedded` 的 6 层 A*/全层过孔检查会影响生产快速路径的
+  行为，必须用同一 arm（`gate_ripup~full4r0`）抽样复跑后才能宣称无回归。
