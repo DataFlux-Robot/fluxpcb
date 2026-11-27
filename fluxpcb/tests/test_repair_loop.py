@@ -32,8 +32,8 @@ def test_chain_falls_back_after_a_backend_crash(monkeypatch, tmp_path):
     board.write_text('(kicad_pcb)', encoding='utf-8')
     cand = tmp_path / 'cand_embedded.kicad_pcb'
     cand.write_text('(kicad_pcb)', encoding='utf-8')
-    states = {board.name: {'digest': 'd0', 'open': ['M', 'P']},
-              cand.name: {'digest': 'd1', 'open': ['M']}}
+    states = {board.name: {'digest': 'd0', 'open': ['M', 'P'], 'items': []},
+              cand.name: {'digest': 'd1', 'open': ['M'], 'items': []}}
     seen = []
 
     monkeypatch.setattr(repair_loop.S, 'extract',
@@ -73,7 +73,7 @@ def test_chain_rejects_a_candidate_without_descent(monkeypatch, tmp_path):
     board.write_text('(kicad_pcb)', encoding='utf-8')
     cand = tmp_path / 'cand.kicad_pcb'
     cand.write_text('(kicad_pcb)', encoding='utf-8')
-    same = {'digest': 'd1', 'open': ['M', 'P']}
+    same = {'digest': 'd1', 'open': ['M', 'P'], 'items': []}
     monkeypatch.setattr(repair_loop.S, 'extract',
                         lambda p, rules: dict(same))
     monkeypatch.setattr(repair_loop, '_report',
@@ -152,3 +152,14 @@ def test_obligation_count_dominates_the_pad_key():
     one = [{'kernel': 'lean', 'status': 'unknown', 'delta_nm': None}]
     assert repair.terminates(one * 2, one, 1, 100)
     assert not repair.terminates(one, one * 2, 100, 1)
+
+
+def test_new_violation_ids_names_only_added_items():
+    """The referee's refusal is constructive: only items the candidate added
+    are eligible for deletion; pre-existing copper is never touched."""
+    report = {'violations': [
+        {'severity': 'error', 'items': [{'uuid': 'a'}, {'uuid': 'new1'}]},
+        {'severity': 'warning', 'items': [{'uuid': 'warn'}]},
+        {'severity': 'error', 'items': [{'uuid': 'pre'}]}]}
+    assert repair_loop._new_violation_ids(report, {'a', 'pre'}) == {'new1'}
+    assert repair_loop._new_violation_ids({'violations': []}, {'a'}) == set()

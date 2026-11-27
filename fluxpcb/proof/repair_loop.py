@@ -24,7 +24,8 @@ import shutil
 import time
 from pathlib import Path
 
-from . import certs, claims as claim_mod, gate, repair, router, state as S
+from . import (certs, claims as claim_mod, gate, repair, router, step,
+               state as S)
 
 DEFAULT_TACTICS = ('freerouting', 'embedded', 'embedded_keep')
 
@@ -58,15 +59,89 @@ def _report(st, rules):
     return gate.verify(st, cl, certs.connectivity_certs(st), rules=rules)
 
 
-def _drc_errors(board, workdir, tag):
-    """Error-severity count from kicad-cli DRC, or (None, error)."""
+def _drc_report(board, workdir, tag):
+    """kicad-cli DRC as (report, error).  The report, not just a count: on a
+    dirty board the count itself is not reproducible (H7 measured 22 and 24
+    error-severity violations on the same unchanged board, back to back), so
+    the guard has to look at *which* items a violation names."""
     from .. import repair_drc
     d = repair_drc.run_drc(str(board), str(Path(workdir) / f'drc_{tag}.json'))
     if not d.get('ok'):
         return None, d.get('error', 'drc failed')
-    errs = [v for v in d.get('violations', [])
-            if str(v.get('severity', '')).lower() == 'error']
-    return len(errs), None
+    return d, None
+
+
+def _drc_error_count(report):
+    return sum(1 for v in (report or {}).get('violations', [])
+               if str(v.get('severity', '')).lower() == 'error')
+
+
+def _drc_errors(board, workdir, tag):
+    """Error-severity count from kicad-cli DRC, or (None, error)."""
+    d, err = _drc_report(board, workdir, tag)
+    return (None, err) if d is None else (_drc_error_count(d), None)
+
+
+def _new_violation_ids(report, before_ids):
+    """UUIDs of *added* items that appear in error-severity violations.
+
+    The external referee does not only veto a candidate: it names the objects
+    that fail.  Deleting only those objects (never pre-existing copper) and
+    re-proving the projection is a constructive reading of the refusal.
+    """
+    out = set()
+    for v in (report or {}).get('violations', []):
+        if str(v.get('severity', '')).lower() != 'error':
+            continue
+        for it in v.get('items', []):
+            u = it.get('uuid')
+            if u and u not in before_ids:
+                out.add(u)
+    return out
+
+
+def _delete_new_items(board_path, uuids, out_path):
+    """Delete the given track/via UUIDs and save with the project preserved."""
+    import pcbnew
+    from .. import repair_drc
+    b = pcbnew.LoadBoard(str(board_path))
+    n = 0
+    for t in list(b.GetTracks()):
+        u = t.m_Uuid.AsString() if hasattr(t, 'm_Uuid') else str(t.GetUuid())
+        if u in uuids:
+            b.Delete(t)
+            n += 1
+    repair_drc.save_preserving_project(b, str(out_path))
+    return n
+
+
+def _project_new_violations(cand, before_st, report, out_dir, rules,
+                            before_rep):
+    """Drop the candidate's referee-refuted items and re-gate the projection."""
+    before_ids = {i['id'] for i in before_st['items']}
+    drop = _new_violation_ids(report, before_ids)
+    if not drop:
+        return None
+    out_dir.mkdir(parents=True, exist_ok=True)
+    dst = out_dir / Path(cand).name
+    for ext in ('.kicad_pro', '.kicad_prl'):
+        s = Path(cand).with_suffix(ext)
+        if s.exists():
+            shutil.copyfile(s, dst.with_suffix(ext))
+    k = _delete_new_items(cand, drop, dst)
+    if not k:
+        return None
+    st3 = S.extract(dst, rules)
+    rep3 = _report(st3, rules)
+    m3 = repair.measure(repair.obligations(rep3), missing_pads(st3))
+    pr = step.preserve(before_st, st3, rules, before_report=before_rep)
+    if not pr.get('ok'):
+        return None
+    report3, err = _drc_report(dst, out_dir, 'after')
+    if report3 is None:
+        return None
+    bad3 = _new_violation_ids(report3, before_ids)
+    return (dst, st3, rep3, m3, _drc_error_count(report3), k, bad3)
 
 
 def repair_loop(board, rules, rounds=3, passes=1, workdir=None,
@@ -142,14 +217,36 @@ def repair_loop(board, rules, rounds=3, passes=1, workdir=None,
                 continue
             # only a descending candidate is worth the external DRC run
             if drc_guard:
-                n2, err = _drc_errors(cand, work, f'r{r}_{tactic}')
-                att['drc_errors'] = n2
-                if n2 is None:
+                report2, err = _drc_report(cand, work, f'r{r}_{tactic}')
+                if report2 is None:
                     att['reason'] = f'DRC failed: {err}'
                     log(f"round {r}/{tactic}: {att['reason']}")
                     continue
-                if drc_before is not None and n2 > drc_before:
-                    att['reason'] = (f'DRC regressed {drc_before} -> {n2}; '
+                n2 = _drc_error_count(report2)
+                before_ids = {i['id'] for i in st['items']}
+                bad = _new_violation_ids(report2, before_ids)
+                att['drc_errors'] = n2
+                att['new_violations'] = len(bad)
+                if bad:
+                    proj = _project_new_violations(
+                        cand, st, report2, work / f'proj_r{r}_{tactic}',
+                        rules, rep)
+                    if proj is not None:
+                        board3, st3, rep3, m3, n3, k, bad3 = proj
+                        att['projection'] = {
+                            'dropped': k, 'drc_errors': n3,
+                            'new_violations': len(bad3),
+                            'measure': [m3[0], m3[1], list(m3[2])]}
+                        if (not bad3 and repair.terminates(
+                                obl, repair.obligations(rep3),
+                                pads, m3[1])):
+                            adopted = (tactic, board3, st3, rep3, m3)
+                            att['adopted'] = True
+                            att['projected'] = True
+                            drc_before = n3
+                            break
+                    att['reason'] = (f'{len(bad)} error-severity violation(s) '
+                                     f'involving candidate-added items; '
                                      f'candidate not adopted')
                     log(f"round {r}/{tactic}: {att['reason']}")
                     continue
@@ -165,7 +262,10 @@ def repair_loop(board, rules, rounds=3, passes=1, workdir=None,
         rod['route'] = {'ok': True, 'tactic': tactic,
                         'seconds': rod['tactics'][-1]['seconds'],
                         'carried': rod['tactics'][-1]['carried'],
-                        'touched': rod['tactics'][-1]['touched']}
+                        # the adopted step may be the projection, which has
+                        # one fewer added item than the tactic's candidate
+                        'touched': len({i['id'] for i in st['items']} ^
+                                       {i['id'] for i in st2['items']})}
         rod['after'] = {'digest': st2['digest'],
                         'measure': [m2[0], m2[1], list(m2[2])],
                         'missing_pads': pads2,
