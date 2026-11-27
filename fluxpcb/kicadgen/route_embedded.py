@@ -17,6 +17,14 @@ board = pcbnew.LoadBoard(PCB)
 mm = 1000000  # KiCad nm units
 COPPER_LIDS = list(board.GetEnabledLayers().CuStack())
 INNER_LIDS = [l for l in COPPER_LIDS if l not in (pcbnew.F_Cu, pcbnew.B_Cu)]
+LAYER_I = {lid: i for i, lid in enumerate(COPPER_LIDS)}
+F_I = LAYER_I.get(pcbnew.F_Cu, 0)
+B_I = LAYER_I.get(pcbnew.B_Cu, len(COPPER_LIDS) - 1)
+L = len(COPPER_LIDS)
+
+
+def lid_of(i):
+    return COPPER_LIDS[i]
 
 _PTH = getattr(pcbnew, "PAD_ATTRIB_PTH",
              getattr(pcbnew, "PAD_ATTRIB_THROUGH_HOLE", 3))  # K10 rename
@@ -485,43 +493,22 @@ def route_with_offset_vias(x1, y1, l1, x2, y2, l2, net, nc, net_name):
 
 
 # ---------------------------------------------------------------- A* maze
-# Final fallback per pair: grid A* over both signal layers. The L/Z/offset
-# strategies are shape-guesses; a 240-ball BGA needs actual maze routing
-# (Freerouting times out headless on these boards).
+# Final fallback per pair: grid A* over every copper layer, with through-via
+# switches.  The L/Z/offset strategies are shape-guesses; a 6-layer BGA needs
+# actual maze routing (Freerouting times out headless on these boards).
 _ASTAR_GRID = 0.2          # mm per cell (BGA pitch 0.8 = 4 cells)
 _ASTAR_CLEAR = 0.16        # occupancy margin beyond copper edge
 
 
-def _via_full_ok(x, y, nc, segs_f, segs_b, rects_f, rects_b):
-    """Via candidate with the FULL clearance story: the 0.6mm annulus must
-    clear other-net copper on BOTH layers (a via lands on both). The grid
-    margins are tuned for tracks; a via needs 0.3(half)+0.15+half(other)."""
-    if not _hole_ok(x, y):
-        return False
-    for segs in (segs_f, segs_b):
-        for net, a, b, extra in segs:
-            if net == nc:
-                continue
-            if seg_seg_dist((x, y), (x, y), a, b) < 0.45 + extra:
-                return False
-    for rects in (rects_f, rects_b):
-        for net, rect in rects:
-            if net == nc:
-                continue
-            if pt_rect_dist(x, y, rect) < 0.55:
-                return False
-    return True
-
-
 def _astar_grids():
-    """Occupancy + via-block grids for F.Cu/B.Cu.
+    """Occupancy + via-block grids, one plane per copper layer.
     occ: 0 free, 255 same-net-ok, 1 blocked (track margins)
     via_block: True where a 0.6mm-annulus via would violate other-net copper
     (0.55mm to pad edges, 0.45mm+half to track centers) or another hole."""
     nx = int((EDGE[2] - EDGE[0]) / _ASTAR_GRID) + 1
     ny = int((EDGE[3] - EDGE[1]) / _ASTAR_GRID) + 1
-    occ = [bytearray(nx * ny) for _ in range(2)]
-    via_block = [bytearray(nx * ny) for _ in range(2)]
+    occ = [bytearray(nx * ny) for _ in range(L)]
+    via_block = [bytearray(nx * ny) for _ in range(L)]
     hole_block = bytearray(nx * ny)
     return occ, via_block, hole_block, nx, ny
 
@@ -532,15 +519,11 @@ def _cell_idx(gx, gy, nx, ny):
     return gy * nx + gx
 
 
-def _mark(grids, nx, ny, layer_id, x0, y0, x1, y1, margin, tag,
-          via_r=None):
-    """Rasterize a copper shape (segment) into occ (+ via_block at via_r)."""
-    if layer_id == pcbnew.F_Cu:
-        lay = 0
-    elif layer_id == pcbnew.B_Cu:
-        lay = 1
-    else:
-        lay = -1               # via: both layers
+def _mark(grids, nx, ny, lays, x0, y0, x1, y1, margin, tag, via_r=None):
+    """Rasterize a copper shape (segment) into occ (+ via_block at via_r).
+
+    `lays` is a list of layer indices.  A track marks its own layer; a via
+    marks every copper layer (its barrel spans the stack)."""
     gx0 = int((min(x0, x1) - margin) / _ASTAR_GRID)
     gx1 = int((max(x0, x1) + margin) / _ASTAR_GRID) + 1
     gy0 = int((min(y0, y1) - margin) / _ASTAR_GRID)
@@ -551,7 +534,7 @@ def _mark(grids, nx, ny, layer_id, x0, y0, x1, y1, margin, tag,
     gy0b = int((min(y0, y1) - m2) / _ASTAR_GRID)
     gy1b = int((max(y0, y1) + m2) / _ASTAR_GRID) + 1
     occ, via_block = grids
-    for lay_i in ((0, 1) if lay < 0 else (lay,)):
+    for lay_i in lays:
         g, vb = occ[lay_i], via_block[lay_i]
         for gx in range(max(0, gx0b), min(nx, gx1b)):
             cx = (gx + 0.5) * _ASTAR_GRID
@@ -566,9 +549,9 @@ def _mark(grids, nx, ny, layer_id, x0, y0, x1, y1, margin, tag,
     return None
 
 
-def _mark_own(grids, nx, ny, layer_id, x0, y0, x1, y1, half_w):
+def _mark_own(grids, nx, ny, lays, x0, y0, x1, y1, half_w):
     """Same-net copper: passable AND a potential goal."""
-    _mark(grids, nx, ny, layer_id, x0, y0, x1, y1, half_w, 255)
+    _mark(grids, nx, ny, lays, x0, y0, x1, y1, half_w, 255)
 
 
 def _mark_holes(hole_block, nx, ny, x, y, r=0.6):
@@ -594,16 +577,23 @@ def hw_of(item):
 
 
 def route_astar(x1, y1, l1, x2, y2, l2, net, nc, net_name):
-    """Grid A* with via moves. Returns True when the pair got connected.
-    Via-validity comes from precomputed via_block grids — a per-node scan
-    of every obstacle timed out (400k nodes x 1k obstacles)."""
+    """Grid A* over every copper layer, with through-via layer switches.
+
+    State is (layer, cell); a via at a cell connects all copper layers (one
+    VIA_COST per switch).  Via validity comes from precomputed via_block
+    planes: other-net copper on every layer, holes, and inner-layer tracks.
+    The 2-layer search could not reach the inner layers a 6-layer BGA needs.
+    """
     import heapq
     w_self = track_w(net_name)
     own = w_self / 2 + _ASTAR_CLEAR
-    segs_f, rects_f = collect_obstacles(pcbnew.F_Cu)
     VIA_R = 0.55                 # via center to other-net copper edge
     occ, via_block, hole_block, nx, ny = _astar_grids()
-    grids = (occ, via_block)     # _mark() unpacks this pair
+    grids = (occ, via_block)
+    # conn_audit's pairs carry 0=F.Cu / 1=B.Cu; pads live on outer layers
+    start_i = F_I if l1 == 0 else B_I
+    end_i = F_I if l2 == 0 else B_I
+    start_lid, end_lid = lid_of(start_i), lid_of(end_i)
 
     # obstacles: other-net copper; own-net copper marked passable (255)
     for item in board.GetTracks():
@@ -612,21 +602,24 @@ def route_astar(x1, y1, l1, x2, y2, l2, net, nc, net_name):
             if is_via(item):
                 p = item.GetPosition()
                 if inc == nc:
-                    _mark_own(grids, nx, ny, None, p.x / mm, p.y / mm,
+                    _mark_own(grids, nx, ny, range(L), p.x / mm, p.y / mm,
                               p.x / mm, p.y / mm, 0.3)
                 else:
-                    _mark(grids, nx, ny, None, p.x / mm, p.y / mm,
+                    _mark(grids, nx, ny, range(L), p.x / mm, p.y / mm,
                           p.x / mm, p.y / mm, 0.3 + own, 1, via_r=0.85)
                     _mark_holes(hole_block, nx, ny, p.x / mm, p.y / mm, r=0.9)
                 continue
-            lid = item.GetLayer()
+            li = LAYER_I.get(item.GetLayer())
+            if li is None:
+                continue
             s, e = item.GetStart(), item.GetEnd()
             if inc == nc:
-                _mark_own(grids, nx, ny, lid, s.x / mm, s.y / mm,
+                _mark_own(grids, nx, ny, [li], s.x / mm, s.y / mm,
                           e.x / mm, e.y / mm, 0.1)
             else:
-                _mark(grids, nx, ny, lid, s.x / mm, s.y / mm,
-                      e.x / mm, e.y / mm, 0.1 + own, 1, via_r=0.55 + hw_of(item))
+                _mark(grids, nx, ny, [li], s.x / mm, s.y / mm,
+                      e.x / mm, e.y / mm, 0.1 + own, 1,
+                      via_r=0.55 + hw_of(item))
         except AttributeError:
             continue
     for fp in board.GetFootprints():
@@ -634,14 +627,15 @@ def route_astar(x1, y1, l1, x2, y2, l2, net, nc, net_name):
             try:
                 inc = pad.GetNetCode()
                 cx, cy, hw, hh, ang = pad_rect(pad)
-                for lid in (pcbnew.F_Cu, pcbnew.B_Cu):
+                for lid in COPPER_LIDS:
                     if not pad.IsOnLayer(lid):
                         continue
+                    li = LAYER_I[lid]
                     if inc == nc:
-                        _mark_own(grids, nx, ny, lid, cx - hw, cy, cx + hw, cy,
-                                  max(hw, hh) + 0.3)
+                        _mark_own(grids, nx, ny, [li], cx - hw, cy,
+                                  cx + hw, cy, max(hw, hh) + 0.3)
                     else:
-                        _mark(grids, nx, ny, lid, cx - hw, cy, cx + hw, cy,
+                        _mark(grids, nx, ny, [li], cx - hw, cy, cx + hw, cy,
                               max(hw, hh) + own, 1,
                               via_r=VIA_R + max(hw, hh))
                 if inc != nc and pad.GetAttribute() == _PTH:
@@ -653,32 +647,17 @@ def route_astar(x1, y1, l1, x2, y2, l2, net, nc, net_name):
             except AttributeError:
                 continue
 
-    # inner-layer copper does not block F/B tracks, but a via lands on it:
-    # mark it into via_block only (margin=-1 leaves occ untouched)
-    for _lid in INNER_LIDS:
-        for item in board.GetTracks():
-            try:
-                if is_via(item) or item.GetLayer() != _lid:
-                    continue
-                if item.GetNetCode() == nc:
-                    continue
-                s, e = item.GetStart(), item.GetEnd()
-                hw = item.GetWidth() / mm / 2
-                _mark(grids, nx, ny, _lid, s.x / mm, s.y / mm,
-                      e.x / mm, e.y / mm, -1, 1, via_r=0.55 + hw)
-            except AttributeError:
-                continue
-
-    def free(lay, gx, gy):
+    def free(lay_i, gx, gy):
         i = _cell_idx(gx, gy, nx, ny)
-        return i >= 0 and (occ[lay][i] in (0, 255))
+        return i >= 0 and (occ[lay_i][i] in (0, 255))
 
-    def cell_via_ok(lay, gx, gy):
+    def cell_via_ok(gx, gy):
         i = _cell_idx(gx, gy, nx, ny)
-        return (i >= 0 and not via_block[lay][i] and not hole_block[i]
-                and not via_block[1 - lay][i])
+        if i < 0 or hole_block[i]:
+            return False
+        return all(not via_block[li][i] for li in range(L))
 
-    def to_cell(x, y, lay):
+    def to_cell(x, y, lay_i):
         gx, gy = int(x / _ASTAR_GRID), int(y / _ASTAR_GRID)
         # nearest free cell within a small window (pad anchors are often
         # inside their own copper, which is marked 255=passable anyway)
@@ -686,11 +665,11 @@ def route_astar(x1, y1, l1, x2, y2, l2, net, nc, net_name):
             for dx in range(-r, r + 1):
                 for dy in (range(-r, r + 1) if abs(dx) == r else (0,)):
                     gx2, gy2 = gx + dx, gy + dy
-                    if free(lay, gx2, gy2):
+                    if free(lay_i, gx2, gy2):
                         return gx2, gy2
         return None
 
-    start = to_cell(x1, y1, 0)          # start layer F.Cu anchor
+    start = to_cell(x1, y1, start_i)
     if start is None:
         return False
     # goal cells: same-net copper NEAR THE TARGET ANCHOR ONLY — the source
@@ -700,18 +679,16 @@ def route_astar(x1, y1, l1, x2, y2, l2, net, nc, net_name):
     rad = int(3.0 / _ASTAR_GRID)
     gx0, gx1 = int(tgx) - rad, int(tgx) + rad
     gy0, gy1 = int(tgy) - rad, int(tgy) + rad
-    for lay in (0, 1):
-        for gx in range(max(1, gx0), min(nx - 1, gx1)):
-            for gy in range(max(1, gy0), min(ny - 1, gy1)):
-                i = gy * nx + gx
-                if occ[lay][i] == 255:
-                    goal_keys.add((lay, gx, gy))
+    for gx in range(max(1, gx0), min(nx - 1, gx1)):
+        for gy in range(max(1, gy0), min(ny - 1, gy1)):
+            if occ[end_i][gy * nx + gx] == 255:
+                goal_keys.add((end_i, gx, gy))
     if not goal_keys:
         return False
 
     sx, sy = start
-    open_heap = [(0.0, 0, (0, sx, sy))]
-    came, gscore = {}, {(0, sx, sy): 0.0}
+    open_heap = [(0.0, 0, (start_i, sx, sy))]
+    came, gscore = {}, {(start_i, sx, sy): 0.0}
     counter = 0
     VIA_COST = 30.0
     found = None
@@ -738,26 +715,29 @@ def route_astar(x1, y1, l1, x2, y2, l2, net, nc, net_name):
                 hx = abs(gx2 - int(tgx)) + abs(gy2 - int(tgy))
                 heapq.heappush(open_heap, (cur + step + hx * _ASTAR_GRID,
                                            counter, nk))
-        # via move — O(1) grid lookup (annulus validity precomputed)
-        nk = (1 - lay, gx, gy)
-        if (free(1 - lay, gx, gy) and cell_via_ok(1 - lay, gx, gy)
-                and gscore.get(nk, 1e18) > cur + VIA_COST):
-            gscore[nk] = cur + VIA_COST
-            came[nk] = (lay, gx, gy)
-            counter += 1
-            heapq.heappush(open_heap, (cur + VIA_COST, counter, nk))
+        # through via: a single barrel connects every copper layer
+        if cell_via_ok(gx, gy):
+            for tgt in range(L):
+                if tgt == lay or not free(tgt, gx, gy):
+                    continue
+                nk = (tgt, gx, gy)
+                if gscore.get(nk, 1e18) > cur + VIA_COST:
+                    gscore[nk] = cur + VIA_COST
+                    came[nk] = (lay, gx, gy)
+                    counter += 1
+                    heapq.heappush(open_heap, (cur + VIA_COST, counter, nk))
         if counter > 400000:
             return False
     if not found:
         return False
 
-    # reconstruct: (lay, gx, gy) chain -> segments + vias
+    # reconstruct: (lay, gx, gy) chain -> per-layer runs + vias
     chain = []
     node = found
-    while node and node != (0, sx, sy):
+    while node and node != (start_i, sx, sy):
         chain.append(node)
         node = came.get(node)
-    chain.append((0, sx, sy))
+    chain.append((start_i, sx, sy))
     chain.reverse()
     # BOTH stubs (pad anchors -> first/last cell centers) are clearance-
     # checked BEFORE anything is committed — a goal cell can sit up to
@@ -765,53 +745,47 @@ def route_astar(x1, y1, l1, x2, y2, l2, net, nc, net_name):
     # never actually touches it and the ratsnest open stays
     fx, fy = (chain[0][1] + 0.5) * _ASTAR_GRID, (chain[0][2] + 0.5) * _ASTAR_GRID
     lx, ly = (chain[-1][1] + 0.5) * _ASTAR_GRID, (chain[-1][2] + 0.5) * _ASTAR_GRID
-    end_lay = chain[-1][0]
-    lid = lambda lay: pcbnew.F_Cu if lay == 0 else pcbnew.B_Cu
-    segs_e, rects_e = collect_obstacles(lid(end_lay))
-    if not clear(x1, y1, fx, fy, pcbnew.F_Cu, nc, segs_f, rects_f, w_self):
+    segs_s, rects_s = obs(start_lid)
+    segs_e, rects_e = obs(end_lid)
+    if not clear(x1, y1, fx, fy, start_lid, nc, segs_s, rects_s, w_self):
         return False           # would short; leave the pair for the next pass
-    if not clear(lx, ly, x2, y2, lid(end_lay), nc, segs_e, rects_e, w_self):
+    if not clear(lx, ly, x2, y2, end_lid, nc, segs_e, rects_e, w_self):
         return False
-    add_track(x1, y1, fx, fy, pcbnew.F_Cu, net)
-    add_track(lx, ly, x2, y2, lid(end_lay), net)
-    # merge collinear runs
-    segs = []
-    for k, (lay, gx, gy) in enumerate(chain):
-        px, py = (gx + 0.5) * _ASTAR_GRID, (gy + 0.5) * _ASTAR_GRID
-        segs.append((lay, px, py))
-    out, via_pts = [], []
-    k = 0
-    while k < len(segs) - 1:
-        lay, px, py = segs[k]
-        lay2, qx, qy = segs[k + 1]
-        if lay2 != lay:
-            via_pts.append((lay, px, py))
-            out.append((lay, px, py, qx, qy))       # vertical via cell
-            out.append((lay2, px, py, qx, qy))
-            k += 1
-            continue
-        # extend while collinear on the same layer
-        j = k + 1
-        while j < len(segs) - 1:
-            l3, ax, ay = segs[j]
-            l4, bx, by = segs[j + 1]
-            if l3 != lay or l4 != lay:
-                break
-            cross = (bx - px) * (qy - py) - (by - py) * (qx - px)
-            if abs(cross) > 1e-6:
-                break
-            j += 1
-        layE, ex, ey = segs[j]
-        out.append((lay, px, py, ex, ey))
-        k = j
-    for lay, ax, ay, bx, by in out:
-        add_track(ax, ay, bx, by, lid(lay), net)
-    for lay, vx, vy in via_pts:
-        add_via(vx, vy, net, nc)
-    # stub to the target copper: the goal cell sits ON same-net copper, the
-    # track already touches it by construction
+    add_track(x1, y1, fx, fy, start_lid, net)
+    add_track(lx, ly, x2, y2, end_lid, net)
+    # split into same-layer runs; the via sits at the shared boundary cell
+    runs, cur = [], [chain[0]]
+    for node in chain[1:]:
+        if node[0] != cur[-1][0]:
+            runs.append(cur)
+            cur = [node]
+        else:
+            cur.append(node)
+    runs.append(cur)
+    for run in runs:
+        lay = run[0][0]
+        k = 0
+        while k < len(run) - 1:
+            px = (run[k][1] + 0.5) * _ASTAR_GRID
+            py = (run[k][2] + 0.5) * _ASTAR_GRID
+            qx = (run[k + 1][1] + 0.5) * _ASTAR_GRID
+            qy = (run[k + 1][2] + 0.5) * _ASTAR_GRID
+            j = k + 1
+            while j < len(run) - 1:
+                bx = (run[j + 1][1] + 0.5) * _ASTAR_GRID
+                by = (run[j + 1][2] + 0.5) * _ASTAR_GRID
+                cross = (bx - px) * (qy - py) - (by - py) * (qx - px)
+                if abs(cross) > 1e-6:
+                    break
+                j += 1
+            ex = (run[j][1] + 0.5) * _ASTAR_GRID
+            ey = (run[j][2] + 0.5) * _ASTAR_GRID
+            add_track(px, py, ex, ey, lid_of(lay), net)
+            k = j
+    for a in runs[:-1]:
+        add_via((a[-1][1] + 0.5) * _ASTAR_GRID,
+                (a[-1][2] + 0.5) * _ASTAR_GRID, net, nc)
     return True
-
 
 added = failed = skipped = 0
 # read pairs first: their nets define what is fragmented RIGHT NOW (the
