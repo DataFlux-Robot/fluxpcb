@@ -57,7 +57,8 @@ def _strip(kipy: str, board: Path, nets, workdir: Path) -> int:
         raise RuntimeError(f'strip failed rc={rc}: {out.strip()[-200:]}')
 
 
-_KEEP_TACTICS = {'embedded_keep', 'freerouting_keep'}
+_KEEP_TACTICS = {'embedded_keep', 'freerouting_keep',
+                 'freerouting_full'}
 
 # names that should be treated as power rails by the in-process router: its
 # power pass ties an SMD pad to the inner layers with a via, which is exactly
@@ -81,11 +82,13 @@ def _tactic_base(tactic):
     pairs.  Use it for repairs on a half-routed board, where stripping the
     target nets would also remove their good sections (and for FR, which
     continues from the protected open stubs, the Z1 recipe)."""
+    if tactic == 'freerouting_full':
+        return 'freerouting'
     return tactic[:-5] if tactic.endswith('_keep') else tactic
 
 
 def _route_backend(tactic, kicad_cli, kipy, dst, workdir, rules, passes, log,
-                   net_classes=None, normal_rule=None):
+                   net_classes=None, normal_rule=None, incremental=True):
     """Run one routing tactic on the stripped board; the gate judges it.
 
     `freerouting`: the incremental FR session (fix-marked, DSN round trip).
@@ -122,7 +125,7 @@ def _route_backend(tactic, kicad_cli, kipy, dst, workdir, rules, passes, log,
     fr = {}
     for attempt in range(max(1, passes)):
         fr = routing.route_with_freerouting(dst, kipy, log=log,
-                                            incremental=True,
+                                            incremental=incremental,
                                             net_classes=net_classes,
                                             normal_rule=normal_rule)
         if not fr.get('ok'):
@@ -174,7 +177,10 @@ def route_scope(board, nets, rules, workdir=None, profile='lean+fab',
                        ceil_um(rules['clearance']))
     fr = _route_backend(_tactic_base(tactic), kicad_cli, kipy, dst, workdir,
                         rules, passes, log, net_classes=net_classes,
-                        normal_rule=normal_rule)
+                        normal_rule=normal_rule,
+                        # freerouting_full: no fix-marking, FR may rip up the
+                        # existing copper and re-plan the whole board
+                        incremental=(tactic != 'freerouting_full'))
     if not fr.get('ok'):
         return {'ok': False, 'error': fr.get('error'), 'tactic': tactic,
                 'mode': fr.get('mode'), 'seconds':

@@ -133,6 +133,7 @@ def test_keep_tactic_maps_to_the_embedded_backend():
     from fluxpcb.proof import router
     assert router._tactic_base('embedded_keep') == 'embedded'
     assert router._tactic_base('freerouting_keep') == 'freerouting'
+    assert router._tactic_base('freerouting_full') == 'freerouting'
     assert router._tactic_base('embedded') == 'embedded'
     assert router._tactic_base('freerouting') == 'freerouting'
 
