@@ -1161,3 +1161,28 @@ adopted: projection dropped=1, DRC 25 -> 24, new_violations=0
 - 118 台架的回归尚未重跑：本轮改动中 DSN 唯一层名只在“层名重复”时触发（H7 这类板），
   类规则默认值不变；`route_embedded` 的 6 层 A*/全层过孔检查会影响生产快速路径的
   行为，必须用同一 arm（`gate_ripup~full4r0`）抽样复跑后才能宣称无回归。
+
+### 27.10 剩余 53 个缺口是谁
+
+从采纳后的板子直接点名（cert 的 `missing` + state 的 item）：
+
+- **连接器 THT 引脚**：J1–J17 的若干 pin（USART3、UART4/5/7/8、PWM_CH1/2/3/5、ADC1_INP10/11、
+  I2C2_SCL、SDMMC1_D1…），每个网缺 1 个；
+- **BGA/LGA 焊盘**：U1–U9、Y1/Y2（SPI1/SPI2、SDMMC1、SWD、OSC、I2C1、IMU1_CS2、3V3 的 5 个）；
+- 电源网只剩 GND 2 个、3V3 5 个。
+
+### 27.11 电源类修复探针（负结果）
+
+给 `route_scope` 的 embedded 后端补上了“fragmented 网里的电源类”判定（名称启发：
+GND/3V3/5V/VDD/VDDA/VCAP…），这样 `route_embedded` 的 `power_via_pass` 才会在证明路径
+里真正执行（此前 classes 永远为空，这个 pass 从未跑过）。在 45 开路/53 缺口板上跑
+`embedded_keep`（375 s）：
+
+```
+measure 47/53 -> 47/53, open 45 -> 45; no strict descent
+```
+
+即：给 GND/3V3 的 BGA 焊盘补 via 并没有闭合那 7 个电源缺口——它们要么需要连到**另一
+岛的铜**（不是同一焊盘的层间连接），要么被 0.36 mm 栅格余量挡住。连接器引脚同样没被
+A* 接上。结论：剩下的 53 个缺口需要 FR 的全局视野（第二轮）或针对连接器/BGA 的
+fanout-aware 修复，而不是再调 embedded 的局部参数。

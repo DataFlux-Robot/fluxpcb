@@ -59,6 +59,21 @@ def _strip(kipy: str, board: Path, nets, workdir: Path) -> int:
 
 _KEEP_TACTICS = {'embedded_keep', 'freerouting_keep'}
 
+# names that should be treated as power rails by the in-process router: its
+# power pass ties an SMD pad to the inner layers with a via, which is exactly
+# what the last few GND/3V3 pads on a BGA board need
+_POWER_HINTS = ('GND', 'VSS', 'VCC', 'VDD', 'VBAT', 'VDDA', 'VCAP',
+                '3V3', '5V', '12V', '1V8', '2V5', 'AGND', 'PGND')
+
+
+def _classes_from_pairs(pairs):
+    out = {}
+    for line in pairs:
+        name = line.split('|', 1)[0].strip()
+        if name and any(h in name.upper() for h in _POWER_HINTS):
+            out[name] = 'power'
+    return out
+
 
 def _tactic_base(tactic):
     """Map a tactic name to its backend.  `_keep` variants route on the board
@@ -90,7 +105,7 @@ def _route_backend(tactic, kicad_cli, kipy, dst, workdir, rules, passes, log,
                     'error': 'no open pairs after strip'}
         cls = workdir / 'route_classes.json'
         clearance = (rules.get('clearance') or 200000) / 1e6
-        cls.write_text(json.dumps({'classes': {},
+        cls.write_text(json.dumps({'classes': _classes_from_pairs(pairs),
                                    'clearance_mm': clearance}),
                        encoding='utf-8')
         pairs_file = dst.parent / 'ratsnest_pairs.txt'
