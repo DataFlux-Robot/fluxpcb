@@ -162,27 +162,57 @@ Return JSON with fields:
         return True
 
     def _rule_dispatch(self, task: NetTask) -> Optional[DispatchPlan]:
-        """Rule-based dispatch (deterministic)."""
+        """Rule-based dispatch (deterministic), honoring lowered NetClassRules."""
         plan = DispatchPlan(net=task.net, planner=Planner.RULE)
+        base_w = 0.127
+        if self.rules is not None:
+            base_w = float((getattr(self.rules, 'widths', None) or {}).get('normal', base_w))
+            plan.neck_width_mm = base_w
 
-        # Apply class-specific rules
-        if task.cls == SignalClass.DIFFERENTIAL:
+        # Check lowered differential pair specs first (Component 4 -> Component 7)
+        diff_match = None
+        if self.rules is not None:
+            for dp in getattr(self.rules, 'diff_pairs', None) or []:
+                if task.net == dp.get('p') or task.net == dp.get('n'):
+                    diff_match = dp
+                    break
+
+        if diff_match is not None:
             plan.routing_type = RoutingType.DIFF_PAIR
-            plan.track_width = 0.127
+            plan.track_width = float(diff_match.get('w_mm', base_w))
+            plan.diff_partner = diff_match['n'] if task.net == diff_match['p'] else diff_match['p']
+            plan.diff_gap_mm = float(diff_match.get('s_mm', 0.18))
+            plan.max_skew_mm = float(diff_match.get('max_skew_mm', 0.5))
+            plan.target_z_ohm = float(diff_match.get('z_target', 90.0))
+            plan.layer_pref = list(diff_match.get('prefer_layers') or [0])
+            plan.rationale = (
+                f"Lowered diff-pair {diff_match.get('name')}: "
+                f"Zdiff={plan.target_z_ohm}ohm w={plan.track_width}mm "
+                f"s={plan.diff_gap_mm}mm skew<={plan.max_skew_mm}mm"
+            )
+        elif task.cls == SignalClass.DIFFERENTIAL:
+            plan.routing_type = RoutingType.DIFF_PAIR
+            plan.track_width = base_w
+            plan.diff_gap_mm = 0.18
+            plan.max_skew_mm = 0.5
+            plan.layer_pref = [0]
             plan.rationale = "Differential pair rules"
         elif task.cls == SignalClass.POWER:
             plan.routing_type = RoutingType.POWER
-            plan.track_width = 0.4
-            plan.rationale = "Power net rules"
+            net_w = (getattr(self.rules, 'net_widths_mm', None) or {}).get(task.net) if self.rules else None
+            cls_w = (getattr(self.rules, 'widths', None) or {}).get('power', 0.4) if self.rules else 0.4
+            plan.track_width = float(net_w or cls_w or 0.4)
+            plan.rationale = f"Power net trunk width={plan.track_width}mm (neck={plan.neck_width_mm}mm)"
         elif task.cls == SignalClass.CLOCK:
             plan.routing_type = RoutingType.EQUAL_LENGTH
-            plan.track_width = 0.127
+            plan.track_width = base_w
             plan.rationale = "Clock signal rules"
         elif task.cls == SignalClass.CRITICAL:
-            plan.track_width = 0.127
+            plan.track_width = base_w
             plan.rationale = "Critical signal rules"
         else:
-            plan.track_width = 0.127
+            net_w = (getattr(self.rules, 'net_widths_mm', None) or {}).get(task.net) if self.rules else None
+            plan.track_width = float(net_w or base_w)
             plan.rationale = "Normal signal rules"
 
         # BGA fanout style based on pitch

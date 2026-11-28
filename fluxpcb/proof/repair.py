@@ -44,9 +44,26 @@ def obligations(report):
     for c in (report.get('domain') or {}).get('claims', []):
         if c.get('status') in ('derived', 'disabled'):
             continue
-        out.append({'claim': c['id'], 'kernel': 'domain',
+        targets = []
+        ev_in = (c.get('evidence') or {}).get('inputs') or {}
+        for k in ('net', 'p_net', 'n_net'):
+            v = c.get(k) or ev_in.get(k)
+            if v and v not in targets:
+                targets.append(str(v))
+        delta_nm = None
+        pred = c.get('pred', '')
+        if pred in ('signal.skew', 'signal.coupled') and c.get('measured') is not None:
+            skew = c.get('skew_mm') if pred == 'signal.coupled' else c.get('measured')
+            lim = c.get('limit') or ev_in.get('max_skew_mm')
+            if skew is not None and lim is not None and skew > lim:
+                delta_nm = int(round((skew - lim) * 1e6))
+        elif pred in ('power.drop', 'power.drop_path', 'power.j') and c.get('measured') is not None:
+            lim = c.get('limit')
+            if lim is not None and c['measured'] > lim:
+                delta_nm = int(round((c['measured'] - lim) * 1000))
+        out.append({'claim': c['id'], 'kernel': 'domain', 'pred': pred,
                     'status': c.get('status'), 'witness': c.get('witness', ''),
-                    'targets': [], 'delta_nm': None})
+                    'targets': targets, 'delta_nm': delta_nm})
     return out
 
 

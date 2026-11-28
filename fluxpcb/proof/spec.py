@@ -124,11 +124,19 @@ def obligations(spec, st):
                     'witness': '' if not same else
                     f'{a} and {b} share pads'})
     for i in spec.interfaces:
-        net = i.get('net')
-        ok = net in (st.get('netPads') or {})
-        out.append({'id': f"IFACE:{i.get('name') or net}", 'kind': 'interface',
-                    'net': net, 'type': i.get('type', ''), 'ok': ok,
-                    'witness': '' if ok else f'net {net} has no pads'})
+        conns = i.get('connections')
+        if conns:
+            missing = [n for n in conns if n not in (st.get('netPads') or {})]
+            ok = not missing
+            out.append({'id': f"IFACE:{i.get('name') or conns[0]}", 'kind': 'interface',
+                        'nets': list(conns), 'type': i.get('type', ''), 'ok': ok,
+                        'witness': '' if ok else f'missing nets: {",".join(missing)}'})
+        else:
+            net = i.get('net')
+            ok = net in (st.get('netPads') or {})
+            out.append({'id': f"IFACE:{i.get('name') or net}", 'kind': 'interface',
+                        'net': net, 'type': i.get('type', ''), 'ok': ok,
+                        'witness': '' if ok else f'net {net} has no pads'})
     return out
 
 

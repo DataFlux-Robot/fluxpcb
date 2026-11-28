@@ -177,6 +177,8 @@ class NetClassRules:
     rules: dict[str, dict] = field(default_factory=dict)
     clearances: dict[str, float] = field(default_factory=dict)
     widths: dict[str, float] = field(default_factory=dict)
+    diff_pairs: list[dict] = field(default_factory=list)
+    net_widths_mm: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -195,6 +197,11 @@ class DispatchPlan:
     via_type: ViaType = ViaType.THROUGH
     via_size: tuple[float, float] = (0.5, 0.3)  # (diameter, drill) mm
     track_width: float = 0.127
+    neck_width_mm: float = 0.127
+    diff_partner: str = ""
+    diff_gap_mm: float = 0.0
+    max_skew_mm: float = 0.0
+    target_z_ohm: float = 0.0
     layer_pref: list[int] = field(default_factory=list)
     routing_type: RoutingType = RoutingType.NORMAL
     bga_fanout_style: BGAFanoutStyle = BGAFanoutStyle.DOGBONE

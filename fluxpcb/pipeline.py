@@ -177,21 +177,47 @@ class RoutePipeline:
         )
 
         # Component 4: Design agent (stackup/placement/routing plan)
+        # Auto-discover spec.yaml beside the board if caller did not pass spec
+        spec_dict = self.config.get('spec') or {}
+        if not spec_dict and board_path:
+            from pathlib import Path
+            bp = Path(board_path)
+            for cand_dir in (bp.parent, bp.parent.parent, bp.parent.parent.parent):
+                sf = cand_dir / 'spec.yaml'
+                if sf.exists():
+                    try:
+                        import yaml as _yaml
+                        spec_dict = _yaml.safe_load(sf.read_text(encoding='utf-8')) or {}
+                    except Exception:
+                        spec_dict = {}
+                    break
         from .design_agent.pcb_design_agent import PCBDesignAgent
-        self.design_agent = PCBDesignAgent(self.config.get('spec', {}), board_state)
+        self.design_agent = PCBDesignAgent(spec_dict, board_state)
         design_plan = self.design_agent.plan()
         self._active_components.add(4)
 
+        # Wire Component 4 lowered NetClassRules (diff pairs + power widths) into Component 7
+        if self.dispatch is not None:
+            self.dispatch.rules = design_plan.net_class_rules
+
         # Component 9: Router (unified wrapper with route(tasks, plans, guide) interface)
-        import sys as _sys
-        _sys.path.insert(0, 'E:/DATA/vscode/ZCODE/flux-neurotransmitter/fluxpcb/kicadgen')
-        _sys.path.insert(0, 'E:/DATA/vscode/ZCODE/autorouter-bench/tools')
-        import routegrid as rg
-        lids = rg.signal_layer_ids(b)
+        from pathlib import Path
+        kg_dir = str(Path(__file__).resolve().parent / 'kicadgen')
+        if kg_dir not in sys.path:
+            sys.path.insert(0, kg_dir)
+        lids = list(b.GetEnabledLayers().CuStack())
 
         from .router.unified import Router, RouterConfig
         engine = self.config.get('engine', 'auto')
-        self.router = Router(b, lids, RouterConfig(timeout_s=timeout_s, engine=engine))
+        rcfg = RouterConfig(
+            timeout_s=timeout_s,
+            engine=engine,
+            allow_vippo=bool(self.config.get('allow_vippo', False)),
+            pf_mode=str(self.config.get('pf_mode', 'keep')),
+            pf_max_iters=int(self.config.get('pf_max_iters', 24)),
+            rules=self.config.get('rules'),
+        )
+        self.router = Router(b, lids, rcfg)
         self._active_components.add(9)
 
         # Component 3: DevRouteLoop (CORE: route→verify→repair)
@@ -209,31 +235,41 @@ class RoutePipeline:
         self._active_components.add(3)
 
         # Run the dev loop (route→verify→repair until convergence)
-        dev_result = self.dev_loop.run(max_iter=5)
+        max_iter = int(self.config.get('max_iter', 5))
+        dev_result = self.dev_loop.run(max_iter=max_iter)
 
         # Extract routing results
+        total_expected = sum(max(0, len(pads)-1) for pads in net_pads.values() if len(pads) >= 2)
         if dev_result.route_result:
+            rr = dev_result.route_result
+            if rr.metrics.get('engine') == 'pathfinder':
+                unconnected = int(rr.opens)
+                completion_pct = float(rr.completion_pct)
+                routed_pairs = max(0, total_expected - unconnected)
+            else:
+                routed_pairs = len(rr.routed)
+                unconnected = max(0, total_expected - routed_pairs)
+                completion_pct = 100.0 * routed_pairs / total_expected if total_expected > 0 else 0.0
             result_dict = {
-                'routed_pairs': len(dev_result.route_result.routed),
-                'opens': dev_result.route_result.opens,
-                'vias': dev_result.route_result.vias,
-                'completion_pct': dev_result.route_result.completion_pct,
+                'routed_pairs': routed_pairs,
+                'opens': unconnected,
+                'vias': rr.vias,
+                'completion_pct': completion_pct,
+                'metrics': rr.metrics,
             }
         else:
             # Fallback: run NCER directly if dev loop produced nothing
             from .router.ncer import NCERRouter as _NCER
             _ncer = _NCER(b, lids)
             result_dict = _ncer.run(net_pads, timeout_s)
-
-        # Calculate completion
-        routed_pairs = result_dict.get('routed_pairs', len(dev_result.route_result.routed) if dev_result.route_result else 0)
-        total_expected = sum(max(0, len(pads)-1) for pads in net_pads.values() if len(pads) >= 2)
-        completion_pct = 100.0 * routed_pairs / total_expected if total_expected > 0 else 0.0
+            routed_pairs = result_dict.get('routed_pairs', 0)
+            unconnected = max(0, total_expected - routed_pairs)
+            completion_pct = 100.0 * routed_pairs / total_expected if total_expected > 0 else 0.0
 
         # Component 8: Feedback (already used in dev loop, summarize)
         feedback_event = self.feedback.observe(
             action={'pipeline': 'route'},
-            result={'opens': total_expected - routed_pairs, 'shorts': 0, 'drc_errors': 0},
+            result={'opens': unconnected, 'shorts': 0, 'drc_errors': 0},
         )
 
         # Component 10: Verify + repair (skill-package operators)

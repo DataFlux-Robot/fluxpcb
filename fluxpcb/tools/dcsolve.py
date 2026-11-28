@@ -34,21 +34,28 @@ def parse_copper(pcb_path: Path):
     """[(layer, kind, points|seg, width, net)] from a .kicad_pcb file."""
     txt = pcb_path.read_text(encoding="utf-8", errors="replace")
     items = []
+    # Map KiCad 7/8/9 top-level integer net table (net N "NAME") -> NAME
+    net_by_id = {m.group(1): m.group(2)
+                 for m in re.finditer(r'^\s*\(net\s+(\d+)\s+"([^"]*)"\)', txt, re.M)}
+
+    def _resolve_net(raw_net: str) -> str:
+        raw_net = raw_net.strip().strip('"')
+        return net_by_id.get(raw_net, raw_net)
 
     for blk in _sexpr_blocks(txt, "segment"):
         m = re.search(r"\(start ([-\d.]+) ([-\d.]+)\)\s*\(end ([-\d.]+) ([-\d.]+)\)"
                       r"[\s\S]{0,120}?\(width ([\d.]+)\)[\s\S]{0,80}?\(layer \"(\w+)\.Cu\""
-                      r"[\s\S]{0,80}?\(net \"([^\"]*)\"", blk)
+                      r"[\s\S]{0,80}?\(net\s+(\"[^\"]*\"|\d+)\)", blk)
         if m:
             items.append(("seg", m.group(6), (_f(m.group(1)), _f(m.group(2))),
-                          (_f(m.group(3)), _f(m.group(4))), _f(m.group(5)), m.group(7)))
+                          (_f(m.group(3)), _f(m.group(4))), _f(m.group(5)), _resolve_net(m.group(7))))
 
     for blk in _sexpr_blocks(txt, "via"):
         m = re.search(r"\(at ([-\d.]+) ([-\d.]+)[\s\S]{0,120}?\(size ([\d.]+)\)"
-                      r"[\s\S]{0,120}?\(net \"([^\"]*)\"", blk)
+                      r"[\s\S]{0,120}?\(net\s+(\"[^\"]*\"|\d+)\)", blk)
         if m:
             items.append(("via", "ALL", (_f(m.group(1)), _f(m.group(2))),
-                          None, _f(m.group(3)), m.group(4)))
+                          None, _f(m.group(3)), _resolve_net(m.group(4))))
 
     for blk in _sexpr_blocks(txt, "footprint"):
         ref = re.search(r'\(\s*property\s*"Reference"\s*"([^"]+)"', blk)

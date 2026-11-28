@@ -218,11 +218,17 @@ class CommRuntime:
         try:
             track_count = 0
             via_count = 0
+            geom_sig = []
             for t in board.GetTracks():
                 if type(t).__name__ == 'PCB_VIA':
                     via_count += 1
+                    p = t.GetPosition()
+                    geom_sig.append(('v', int(p.x), int(p.y), int(t.GetNetCode())))
                 else:
                     track_count += 1
+                    s, e = t.GetStart(), t.GetEnd()
+                    geom_sig.append(('t', int(s.x), int(s.y), int(e.x), int(e.y),
+                                     int(t.GetWidth()), int(t.GetLayer()), int(t.GetNetCode())))
             fp.track_count = track_count
             fp.via_count = via_count
 
@@ -245,8 +251,12 @@ class CommRuntime:
                 else:
                     fp.zone_state = "mixed"
 
-            hash_input = f"{fp.track_count}:{fp.via_count}:{fp.pad_count}:{fp.net_count}"
-            fp.board_hash = hashlib.sha256(hash_input.encode()).hexdigest()[:16]
+            geom_sig.sort()
+            h = hashlib.sha256()
+            h.update(f"{fp.track_count}:{fp.via_count}:{fp.pad_count}:{fp.net_count}:{fp.zone_state}".encode())
+            for item in geom_sig:
+                h.update(repr(item).encode())
+            fp.board_hash = h.hexdigest()[:16]
         except Exception:
             fp.board_hash = "unknown"
 

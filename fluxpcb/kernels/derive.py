@@ -127,7 +127,7 @@ def _via_resistance_ohm(drill_mm, length_mm=1.6, plating_mm=0.025):
 
 
 def power_drop_path(st, net, current_a, v_rail=None, source=None, sinks=None,
-                    t_mm=0.035):
+                    t_mm=0.035, source_ref=None, sink_refs=None):
     """Worst-path rail drop from the routed copper graph (Dijkstra).
 
     The graph is the net's items; two items are adjacent when their copper
@@ -142,12 +142,23 @@ def power_drop_path(st, net, current_a, v_rail=None, source=None, sinks=None,
     if not pads:
         return {'status': 'unknown',
                 'needed_information': ['pads on ' + str(net)]}
-    src = [source] if source else [pads[0]]
-    snk = list(sinks) if sinks else [p for p in pads if p not in src]
+    by_id = {i['id']: i for i in items}
+    if not source and source_ref:
+        src = [p for p in pads if by_id.get(p, {}).get('ref') == source_ref]
+        if not src:
+            src = [pads[0]]
+    else:
+        src = [source] if source else [pads[0]]
+    if not sinks and sink_refs:
+        sref_set = set(sink_refs)
+        snk = [p for p in pads if by_id.get(p, {}).get('ref') in sref_set and p not in src]
+        if not snk:
+            snk = [p for p in pads if p not in src]
+    else:
+        snk = list(sinks) if sinks else [p for p in pads if p not in src]
     if not snk:
         return {'status': 'unknown', 'needed_information': ['sink pads']}
     from ..proof import geom
-    by_id = {i['id']: i for i in items}
     adj = {i['id']: [] for i in items}
     for a in range(len(items)):
         for b in range(a + 1, len(items)):
@@ -271,3 +282,163 @@ def diff_skew(st, p_net, n_net):
                          'inputs_hash': _hash([p_net, n_net, round(lp, 3),
                                                round(ln, 3)]),
                          'result': round(abs(lp - ln), 6)}}
+
+
+def zdiff_edge_coupled(width_mm, s_mm, h_mm, er, t_mm=0.035,
+                       kind='microstrip'):
+    """IPC-2141 edge-coupled differential impedance Zdiff (ohm)."""
+    missing = [k for k, v in (('width_mm', width_mm), ('s_mm', s_mm),
+                              ('h_mm', h_mm), ('er', er)) if not v]
+    if missing:
+        return {'status': 'unknown', 'needed_information': missing}
+    from ..tools.ipc2141 import (edge_coupled_microstrip_zdiff,
+                                 edge_coupled_stripline_zdiff)
+    if kind == 'stripline':
+        zodd, zdiff = edge_coupled_stripline_zdiff(
+            float(width_mm), float(s_mm), float(h_mm), float(er), float(t_mm))
+        model = 'IPC-2141 edge-coupled stripline'
+    else:
+        zodd, zdiff = edge_coupled_microstrip_zdiff(
+            float(width_mm), float(s_mm), float(h_mm), float(er), float(t_mm))
+        model = 'IPC-2141 edge-coupled microstrip'
+    return {'status': 'derived', 'measured': round(zdiff, 2), 'units': 'ohm',
+            'z_odd_ohm': round(zodd, 2),
+            'evidence': {'model': model, 'model_version': '1',
+                         'inputs': {'w': width_mm, 's': s_mm, 'h': h_mm,
+                                    'er': er, 't': t_mm},
+                         'inputs_hash': _hash([kind, width_mm, s_mm, h_mm, er, t_mm]),
+                         'result': round(zdiff, 4)}}
+
+
+def ipc_min_width_mm(current_a: float, t_mm: float = 0.035,
+                     temp_rise_c: float = 10.0, internal: bool = False) -> float:
+    """IPC-2221/2152 conservative minimum trace width (mm) for current_a."""
+    if not current_a or current_a <= 0:
+        return 0.0
+    k = 0.024 if internal else 0.048
+    area_mil2 = (float(current_a) / (k * (float(temp_rise_c) ** 0.44))) ** (1.0 / 0.725)
+    t_mil = max(float(t_mm) / 0.0254, 0.5)
+    w_mil = area_mil2 / t_mil
+    return round(w_mil * 0.0254, 4)
+
+
+def diff_coupling(st, p_net, n_net, target_s_mm=None, max_skew_mm=None,
+                  max_via_diff=0, min_coupled_pct=60.0):
+    """Real geometric audit of a routed differential pair:
+    measures length skew, via symmetry, layer match, trunk width, coupled
+    parallel fraction, and average edge-to-edge spacing along coupled runs."""
+    if not p_net or not n_net:
+        return {'status': 'unknown', 'needed_information': ['p_net', 'n_net']}
+
+    def _collect(net):
+        segs, vias, layers = [], 0, set()
+        for it in st['items']:
+            if it.get('net') != net or 'ref' in it:
+                continue
+            sh = it.get('shape') or {}
+            if sh.get('kind') == 'seg':
+                x1, y1, x2, y2 = sh['x1']/1e6, sh['y1']/1e6, sh['x2']/1e6, sh['y2']/1e6
+                L = math.hypot(x2 - x1, y2 - y1)
+                if L < 1e-4:
+                    continue
+                w = (sh.get('w') or 0) / 1e6
+                ly = (it.get('layers') or [0])[0]
+                segs.append((x1, y1, x2, y2, L, w, ly))
+                layers.add(ly)
+            elif sh.get('kind') == 'circle' and (it.get('drill') or 0) > 0:
+                vias += 1
+        return segs, vias, sorted(layers)
+
+    sp, vp, lp_lays = _collect(p_net)
+    sn, vn, ln_lays = _collect(n_net)
+    if not sp or not sn:
+        return {'status': 'unknown',
+                'needed_information': ['routed copper on both pair nets']}
+
+    len_p = sum(s[4] for s in sp)
+    len_n = sum(s[4] for s in sn)
+    skew = abs(len_p - len_n)
+    via_diff = abs(vp - vn)
+    w_p = sum(s[5] * s[4] for s in sp) / len_p
+    w_n = sum(s[5] * s[4] for s in sn) / len_n
+    w_avg = 0.5 * (w_p + w_n)
+
+    def _wmedian(pairs):
+        if not pairs:
+            return None
+        pairs = sorted(pairs, key=lambda x: x[0])
+        tot = sum(w_ for _, w_ in pairs)
+        acc = 0.0
+        for val, w_ in pairs:
+            acc += w_
+            if acc >= 0.5 * tot:
+                return val
+        return pairs[-1][0]
+
+    # Measure parallel coupled length & dominant coupled trunk width/gap
+    max_cc = w_avg + (float(target_s_mm) if target_s_mm else 0.25) + 0.35
+    coupled_len = 0.0
+    coupled_gaps = []
+    coupled_widths = []
+    for x1, y1, x2, y2, L, wp, ly in sp:
+        ux, uy = (x2 - x1) / L, (y2 - y1) / L
+        mx, my = 0.5 * (x1 + x2), 0.5 * (y1 + y2)
+        best_cc = None
+        best_wn = 0.0
+        for a1, b1, a2, b2, Ln, wn, lyn in sn:
+            if lyn != ly:
+                continue
+            vx, vy = (a2 - a1) / Ln, (b2 - b1) / Ln
+            if abs(ux * vx + uy * vy) < 0.92:  # within ~23 deg parallel
+                continue
+            # Perpendicular distance from midpoint of p-seg to n-seg
+            dx, dy = mx - a1, my - b1
+            proj = dx * vx + dy * vy
+            if proj < -0.5 or proj > Ln + 0.5:
+                continue
+            px, py = a1 + max(0.0, min(Ln, proj)) * vx, b1 + max(0.0, min(Ln, proj)) * vy
+            cc = math.hypot(mx - px, my - py)
+            if cc <= max_cc and (best_cc is None or cc < best_cc):
+                best_cc = cc
+                best_wn = wn
+        if best_cc is not None:
+            coupled_len += L
+            gap_here = max(0.0, best_cc - 0.5 * (wp + best_wn))
+            coupled_gaps.append((gap_here, L))
+            coupled_widths.append((0.5 * (wp + best_wn), L))
+
+    coupled_pct = min(100.0, 100.0 * coupled_len / max(1e-6, min(len_p, len_n)))
+    avg_gap_mm = _wmedian(coupled_gaps) if coupled_gaps else None
+    w_trunk = _wmedian(coupled_widths) if coupled_widths else w_avg
+
+    reasons = []
+    if max_skew_mm is not None and skew > float(max_skew_mm):
+        reasons.append(f'skew {skew:.3f}mm > {max_skew_mm}mm')
+    if via_diff > int(max_via_diff):
+        reasons.append(f'asymmetric vias ({vp} vs {vn})')
+    if coupled_pct < float(min_coupled_pct):
+        reasons.append(f'coupled {coupled_pct:.1f}% < {min_coupled_pct:.0f}%')
+
+    ok = not reasons
+    return {
+        'status': 'derived' if ok else 'refuted',
+        'ok': ok,
+        'measured': round(coupled_pct, 1),
+        'units': '%',
+        'skew_mm': round(skew, 3),
+        'L_p_mm': round(len_p, 3),
+        'L_n_mm': round(len_n, 3),
+        'vias_p': vp, 'vias_n': vn, 'via_diff': via_diff,
+        'layers_p': lp_lays, 'layers_n': ln_lays,
+        'width_mm': round(w_trunk, 4),
+        'avg_gap_mm': round(avg_gap_mm, 4) if avg_gap_mm is not None else None,
+        'witness': '; '.join(reasons),
+        'evidence': {
+            'model': 'coupled parallel differential geometry + via symmetry + skew',
+            'model_version': '1',
+            'inputs': {'p_net': p_net, 'n_net': n_net, 'target_s_mm': target_s_mm,
+                       'max_skew_mm': max_skew_mm, 'min_coupled_pct': min_coupled_pct},
+            'inputs_hash': _hash([p_net, n_net, round(len_p, 3), round(len_n, 3), vp, vn]),
+            'result': round(coupled_pct, 3),
+        },
+    }

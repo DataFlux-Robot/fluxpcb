@@ -15,7 +15,7 @@ from . import derive
 DOMAIN_PREDS = {
     'power': ('power.drop', 'power.drop_path', 'power.j'),
     'thermal': ('thermal.tj',),
-    'signal': ('signal.z0', 'signal.skew'),
+    'signal': ('signal.z0', 'signal.zdiff', 'signal.skew', 'signal.coupled'),
 }
 PROFILES = {
     'lean+fab': ('lean', 'fab'),
@@ -55,7 +55,8 @@ def _run_one(c, st=None):
             d = derive.power_drop_path(
                 st, p.get('net'), p.get('current_a'), p.get('v_rail'),
                 source=p.get('source'), sinks=p.get('sinks'),
-                t_mm=p.get('t_mm', 0.035))
+                t_mm=p.get('t_mm', 0.035),
+                source_ref=p.get('source_ref'), sink_refs=p.get('sink_refs'))
     elif pred == 'power.drop':
         d = derive.power_drop(p.get('current_a'), p.get('length_mm'),
                               p.get('width_mm'), p.get('t_mm', 0.035),
@@ -101,16 +102,39 @@ def _run_one(c, st=None):
             d['limit'] = target
             d['dev_pct'] = round(100 * (d['measured'] - target) / target, 2)
             d['ok'] = abs(d['dev_pct']) <= tol
+    elif pred == 'signal.zdiff':
+        d = derive.zdiff_edge_coupled(
+            p.get('width_mm'), p.get('s_mm'), p.get('h_mm'), p.get('er'),
+            p.get('t_mm', 0.035), kind=p.get('kind', 'microstrip'))
+        target = p.get('target_ohm')
+        if d['status'] == 'derived' and target:
+            tol = p.get('tol_pct', 15.0)
+            d['limit'] = target
+            d['dev_pct'] = round(100 * (d['measured'] - target) / target, 2)
+            d['ok'] = abs(d['dev_pct']) <= tol
+            if not d['ok']:
+                d['status'] = 'refuted'
+                d['witness'] = f"Zdiff {d['measured']}ohm vs {target}ohm ({d['dev_pct']}% > +-{tol}%)"
     elif pred == 'signal.skew':
         if st is None:
             d = {'status': 'unknown', 'needed_information': ['board state']}
         else:
             d = derive.diff_skew(st, p.get('p_net'), p.get('n_net'))
+    elif pred == 'signal.coupled':
+        if st is None:
+            d = {'status': 'unknown', 'needed_information': ['board state']}
+        else:
+            d = derive.diff_coupling(
+                st, p.get('p_net'), p.get('n_net'),
+                target_s_mm=p.get('s_mm'),
+                max_skew_mm=p.get('max_skew_mm'),
+                max_via_diff=p.get('max_via_diff', 0),
+                min_coupled_pct=p.get('min_coupled_pct', 60.0))
     else:
         d = {'status': 'unknown', 'needed_information': [f'no derivation for {pred}']}
     limit = c.get('limit') if c.get('limit') is not None else p.get('limit')
     if d.get('status') == 'derived' and limit is not None:
-        over = d['measured'] > limit if c.get('pred') != 'signal.z0' \
+        over = d['measured'] > limit if c.get('pred') not in ('signal.z0', 'signal.zdiff', 'signal.coupled') \
             else not d.get('ok', True)
         if over:
             d['status'] = 'refuted'

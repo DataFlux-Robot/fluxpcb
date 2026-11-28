@@ -71,12 +71,15 @@ class PCBDesignAgent:
         )
 
     def _solve_stackup(self) -> StackupPlan:
-        """Solve stackup and impedance targets.
-
-        Uses IPC-2141 for impedance calculation.
-        """
-        layers = self.spec.get('layers', 2)
-        er = self.spec.get('er', 4.5)
+        """Solve stackup and impedance targets from spec (both flat & project spec.yaml)."""
+        cons = self.spec.get('constraints') if isinstance(self.spec.get('constraints'), dict) else {}
+        layers = self.spec.get('layers') or cons.get('layers') or 2
+        if self.board:
+            try:
+                layers = self.board.GetCopperLayerCount()
+            except Exception:
+                pass
+        er = self.spec.get('er') or cons.get('er') or 4.4
 
         # Default layer order
         if layers == 2:
@@ -85,7 +88,7 @@ class PCBDesignAgent:
             copper = [0.035, 0.035]  # mm
         elif layers == 6:
             layer_order = ['F.Cu', 'In1.Cu', 'In2.Cu', 'In3.Cu', 'In4.Cu', 'B.Cu']
-            dielectric = [0.1, 0.2, 0.8, 0.2, 0.1]
+            dielectric = [0.21, 0.30, 0.21, 0.30, 0.21]
             copper = [0.035] * 6
         elif layers == 8:
             layer_order = ['F.Cu', 'In1.Cu', 'In2.Cu', 'In3.Cu', 'In4.Cu', 'In5.Cu', 'In6.Cu', 'B.Cu']
@@ -93,18 +96,33 @@ class PCBDesignAgent:
             copper = [0.035] * 8
         else:
             layer_order = [f'L{i}.Cu' for i in range(layers)]
-            dielectric = [1.6 / (layers - 1)] * (layers - 1)
+            dielectric = [1.6 / max(1, layers - 1)] * max(1, layers - 1)
             copper = [0.035] * layers
 
-        # Impedance targets
+        # Impedance targets from spec interfaces (differential & single-ended)
         impedance_targets = []
-        target_ohms = self.spec.get('impedance_ohms', 50)
-        if target_ohms:
-            impedance_targets.append({
-                'target_ohms': target_ohms,
-                'tolerance': 0.1,  # ±10%
-                'type': 'single_ended',
-            })
+        try:
+            from ..proof.conjectures import extract_diff_pairs
+            for dp in extract_diff_pairs(self.spec):
+                impedance_targets.append({
+                    'name': dp['name'],
+                    'p': dp['p'], 'n': dp['n'],
+                    'target_ohms': dp['target_ohm'],
+                    'tolerance': dp['tol_pct'] / 100.0,
+                    's_mm': dp['s_mm'], 'h_mm': dp['h_mm'],
+                    'type': 'differential',
+                    'style': dp['style'],
+                })
+        except Exception:
+            pass
+        if not impedance_targets:
+            target_ohms = self.spec.get('impedance_ohms', 50)
+            if target_ohms:
+                impedance_targets.append({
+                    'target_ohms': target_ohms,
+                    'tolerance': 0.1,  # ±10%
+                    'type': 'single_ended',
+                })
 
         return StackupPlan(
             layers=layers,
@@ -254,8 +272,30 @@ class PCBDesignAgent:
         widths['power'] = 0.4
         rules['power']['track_width_mm'] = 0.4
 
+        # Constraint lowering from spec.yaml -> per-net widths & coupled diff pairs
+        diff_pairs: list[dict] = []
+        net_widths_mm: dict[str, float] = {}
+        try:
+            from ..proof.conjectures import lower_constraints
+            rules_nm = {
+                'clearance': int(round(defaults['clearance_mm'] * 1e6)),
+                'track_min': int(round(defaults['track_width_mm'] * 1e6)),
+            }
+            board_nets = set(self.board_state.net_pads.keys()) if self.board_state.net_pads else None
+            lowered = lower_constraints(self.spec or {}, rules=rules_nm, board_nets=board_nets)
+            diff_pairs = lowered.get('diff_pairs') or []
+            net_widths_mm = lowered.get('net_widths_mm') or {}
+            if diff_pairs:
+                widths['differential'] = diff_pairs[0]['w_mm']
+                rules['differential']['track_width_mm'] = diff_pairs[0]['w_mm']
+                rules['differential']['diff_gap_mm'] = diff_pairs[0]['s_mm']
+        except Exception:
+            pass
+
         return NetClassRules(
             rules=rules,
             clearances=clearances,
             widths=widths,
+            diff_pairs=diff_pairs,
+            net_widths_mm=net_widths_mm,
         )

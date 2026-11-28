@@ -21,21 +21,29 @@ class SignalClassifierSubagent:
 
     name = "signal_classifier"
 
-    # Naming conventions for classification
-    DIFF_PAIR_PREFIXES = [
-        'USB_DP', 'USB_DM', 'CAN_H', 'CAN_L', 'CAN1_H', 'CAN1_L',
-        'CAN2_H', 'CAN2_L', 'TX+', 'TX-', 'RX+', 'RX-',
-        'DP', 'DM', 'D+', 'D-', 'P', 'N',
-    ]
+    # Unambiguous differential-pair tokens (single-letter 'P'/'N' removed:
+    # previously caused VCAP, NRST, PWM_CH1, OSC_IN to be misclassified as diff!)
+    DIFF_PAIR_EXACT = (
+        'USB_DP', 'USB_DM', 'USB_D+', 'USB_D-', 'CAN_H', 'CAN_L',
+        'CAN1_H', 'CAN1_L', 'CAN2_H', 'CAN2_L',
+    )
+    DIFF_PAIR_SUFFIXES = (
+        '_DP', '_DM', '_D+', '_D-', '_TX+', '_TX-', '_RX+', '_RX-',
+        'TX+', 'TX-', 'RX+', 'RX-', '_H', '_L', '+', '-',
+    )
+    _PAIR_MATES = (
+        ('_DP', '_DM'), ('_D+', '_D-'), ('_P', '_N'),
+        ('_H', '_L'), ('+', '-'), ('DP', 'DM'),
+    )
 
     CLOCK_PATTERNS = [
         'CLK', 'CLOCK', 'XTAL', 'OSC', 'HSE', 'LSE', 'MCO',
-        'SDMMC_CK', 'SDMMC_CMD',
+        'SDMMC_CK', 'SDMMC1_CK', 'SDMMC_CMD', 'SPI1_SCK', 'SPI2_SCK',
     ]
 
     POWER_PATTERNS = [
-        'VCC', 'VDD', 'VSS', 'GND', '3V3', '5V', '1V8', '1V2',
-        'VBAT', 'VCAP', 'VDDA', 'VDDA', 'VEE', 'AVCC',
+        'VCC', 'VDD', 'VSS', 'GND', '3V3', '5V', '1V8', '1V2', '12V',
+        'VBAT', 'VCAP', 'VDDA', 'VEE', 'AVCC', 'VBUS', '+3V3', '+5V',
     ]
 
     CRITICAL_PATTERNS = [
@@ -43,38 +51,61 @@ class SignalClassifierSubagent:
         'JTAG', 'TCK', 'TMS', 'TDI', 'TDO',
     ]
 
+    def find_diff_pairs(self, nets: list[str]) -> list[tuple[str, str]]:
+        """Return confirmed (P, N) net pairs where BOTH mates exist in `nets`."""
+        by_upper = {n.upper(): n for n in nets if n}
+        pairs, used = [], set()
+        for p_suf, n_suf in self._PAIR_MATES:
+            for nu, orig in sorted(by_upper.items()):
+                if orig in used or not nu.endswith(p_suf):
+                    continue
+                stem = nu[:-len(p_suf)]
+                if not stem:
+                    continue
+                mate_u = stem + n_suf
+                if mate_u in by_upper and by_upper[mate_u] != orig and by_upper[mate_u] not in used:
+                    # Guard against generic power nets like +5V / -5V or V+ / V-
+                    if any(pk in stem for pk in ('GND', 'VCC', 'VDD', 'VSS')):
+                        continue
+                    pairs.append((orig, by_upper[mate_u]))
+                    used.add(orig)
+                    used.add(by_upper[mate_u])
+        return pairs
+
     def classify(self, nets: list[str]) -> dict[str, SignalClass]:
-        """Classify nets into signal classes.
-
-        Args:
-            nets: List of net names
-
-        Returns:
-            dict mapping net name to SignalClass
-        """
+        """Classify nets into signal classes (pair-aware for differentials)."""
+        paired = set()
+        for p, n in self.find_diff_pairs(nets):
+            paired.add(p)
+            paired.add(n)
         result = {}
         for net in nets:
-            result[net] = self._classify_single(net)
+            if net in paired:
+                result[net] = SignalClass.DIFFERENTIAL
+            else:
+                result[net] = self._classify_single(net)
         return result
 
     def _classify_single(self, net: str) -> SignalClass:
         """Classify a single net."""
         net_upper = net.upper()
 
-        # Check for differential pairs
-        for prefix in self.DIFF_PAIR_PREFIXES:
-            if net_upper.startswith(prefix) or net_upper.endswith(prefix):
+        # Check for power nets first so +5V / +3V3 are never mistaken for diff
+        for pattern in self.POWER_PATTERNS:
+            if net_upper == pattern or net_upper.startswith(pattern + '_') or net_upper.endswith('_' + pattern) or net_upper.startswith('+' + pattern):
+                return SignalClass.POWER
+
+        # Check for unambiguous differential pair tokens
+        if net_upper in self.DIFF_PAIR_EXACT:
+            return SignalClass.DIFFERENTIAL
+        for suf in self.DIFF_PAIR_SUFFIXES:
+            if len(net_upper) > len(suf) and net_upper.endswith(suf):
                 return SignalClass.DIFFERENTIAL
 
         # Check for clock signals
         for pattern in self.CLOCK_PATTERNS:
             if pattern in net_upper:
                 return SignalClass.CLOCK
-
-        # Check for power nets
-        for pattern in self.POWER_PATTERNS:
-            if net_upper.startswith(pattern) or net_upper.endswith(pattern):
-                return SignalClass.POWER
 
         # Check for critical signals
         for pattern in self.CRITICAL_PATTERNS:

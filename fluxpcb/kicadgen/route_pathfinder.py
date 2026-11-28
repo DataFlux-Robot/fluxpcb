@@ -185,10 +185,15 @@ class ExactBoard:
     CELL_NM = 1_000_000
 
     def __init__(self, n_layers: int, clear_nm: int, hole_nm: int, edge_nm: int,
-                 outline: list[tuple[int, int]]):
+                 outline: list[tuple[int, int]],
+                 net_clear_nm: dict[int, int] | None = None,
+                 hole_clear_nm: int = 0):
         self.nl = n_layers
         self.clear_nm = clear_nm
+        self.net_clear_nm: dict[int, int] = dict(net_clear_nm or {})
+        self.max_net_clear_nm = max([clear_nm] + list(self.net_clear_nm.values()))
         self.hole_nm = hole_nm
+        self.hole_clear_nm = hole_clear_nm
         self.edge_nm = edge_nm
         self.outline = outline
         self.outline_edges = (list(zip(outline, outline[1:] + outline[:1]))
@@ -260,6 +265,17 @@ class ExactBoard:
     def _edge_ok_pt(self, px: int, py: int, hw: int) -> bool:
         if not self.outline_edges:
             return True
+        if self.edge_nm <= 0:
+            # When copper_edge_clearance is unconstrained (0), allow castellated /
+            # board-edge pads whose centers lie slightly on or outside Edge.Cuts.
+            if _geom.pt_in_poly((px, py), self.outline):
+                return True
+            tol2 = 1_500_000 * 1_500_000
+            for a, b in self.outline_edges:
+                num, den = _geom.pt_seg_d2((px, py), a, b)
+                if num <= tol2 * den:
+                    return True
+            return False
         if not _geom.pt_in_poly((px, py), self.outline):
             return False
         need = self.edge_nm + hw
@@ -276,8 +292,8 @@ class ExactBoard:
         hw = (w + 1) // 2
         if not self._edge_ok_pt(x1, y1, hw) or not self._edge_ok_pt(x2, y2, hw):
             return ["__edge__"]
-        rule = self.clear_nm
-        reach = hw + rule
+        nc_rule = max(self.clear_nm, self.net_clear_nm.get(net_code, 0))
+        reach = hw + max(nc_rule, self.max_net_clear_nm)
         bx0 = min(x1, x2) - reach
         by0 = min(y1, y2) - reach
         bx1 = max(x1, x2) + reach
@@ -287,6 +303,27 @@ class ExactBoard:
         seen = set()
         found = []
         a, b = (x1, y1), (x2, y2)
+        if self.hole_clear_nm > 0:
+            h_reach = hw + self.hole_clear_nm + 1_000_000
+            seen_h = set()
+            for gx in range((min(x1, x2) - h_reach) // c, (max(x1, x2) + h_reach) // c + 1):
+                for gy in range((min(y1, y2) - h_reach) // c, (max(y1, y2) + h_reach) // c + 1):
+                    for hid in self.hole_buckets.get((gx, gy), ()):
+                        if hid in seen_h:
+                            continue
+                        seen_h.add(hid)
+                        h = self.holes.get(hid)
+                        if h is None:
+                            continue
+                        hx, hy, hdr, hnc, _, hown = h
+                        if hown == ignore_owner or (hnc != 0 and hnc == net_code):
+                            continue
+                        num, den = _geom.pt_seg_d2((hx, hy), a, b)
+                        if not _dist_ok(num, den, w + hdr, self.hole_clear_nm):
+                            if not find_all:
+                                return [hown]
+                            if hown not in found:
+                                found.append(hown)
         for gx in range(bx0 // c, bx1 // c + 1):
             for gy in range(by0 // c, by1 // c + 1):
                 for iid in bk.get((gx, gy), ()):
@@ -301,6 +338,7 @@ class ExactBoard:
                         continue
                     if ibb[2] < bx0 or ibb[0] > bx1 or ibb[3] < by0 or ibb[1] > by1:
                         continue
+                    rule = max(nc_rule, self.net_clear_nm.get(inc, 0))
                     hit = False
                     k = sh[0]
                     if k == 0:
@@ -353,8 +391,8 @@ class ExactBoard:
                             return [hown]
                         if hown not in found:
                             found.append(hown)
-        rule = self.clear_nm
-        reach = r + rule
+        nc_rule = max(self.clear_nm, self.net_clear_nm.get(net_code, 0))
+        reach = r + max(nc_rule, self.max_net_clear_nm)
         bx0, by0, bx1, by1 = cx - reach, cy - reach, cx + reach, cy + reach
         for li in range(self.nl):
             bk = self.buckets[li]
@@ -373,6 +411,7 @@ class ExactBoard:
                             continue
                         if ibb[2] < bx0 or ibb[0] > bx1 or ibb[3] < by0 or ibb[1] > by1:
                             continue
+                        rule = max(nc_rule, self.net_clear_nm.get(inc, 0))
                         hit = False
                         k = sh[0]
                         if k == 0:
@@ -400,17 +439,89 @@ class ExactBoard:
 
 
 # ---------------------------------------------------------------- board helpers
-def _read_pro_via_min_nm(pcb_path: Path) -> int:
+def _read_pro_rules_nm(pcb_path: Path) -> dict[str, int]:
+    """Read exact design rules and Default netclass from companion .kicad_pro (nm)."""
     pro = pcb_path.with_suffix(".kicad_pro")
     if not pro.exists():
-        return 0
+        return {}
     try:
         data = json.loads(pro.read_text(encoding="utf-8"))
-        rules = (data.get("board") or {}).get("design_settings", {}).get("rules") or {}
-        v = float(rules.get("min_via_diameter") or 0.0)
-        return int(round(v * MM))
     except (OSError, ValueError, TypeError):
-        return 0
+        return {}
+    out: dict[str, int] = {}
+    rules = (data.get("board") or {}).get("design_settings", {}).get("rules") or {}
+    sev = (data.get("board") or {}).get("design_settings", {}).get("rule_severities") or {}
+    keymap = (
+        ("clearance", "min_clearance"),
+        ("track_min", "min_track_width"),
+        ("via_min", "min_via_diameter"),
+        ("drill_min", "min_through_hole_diameter"),
+        ("annular", "min_via_annular_width"),
+        ("edge", "min_copper_edge_clearance"),
+        ("hole_to_hole", "min_hole_to_hole"),
+    )
+    for dst, src in keymap:
+        if src in rules and rules[src] is not None:
+            try:
+                out[dst] = int(round(float(rules[src]) * MM))
+            except (ValueError, TypeError):
+                pass
+    # Only enforce min_hole_clearance when the project treats hole_clearance as an error
+    if sev.get("hole_clearance") == "error" and rules.get("min_hole_clearance"):
+        try:
+            out["hole_clearance"] = int(round(float(rules["min_hole_clearance"]) * MM))
+        except (ValueError, TypeError):
+            pass
+    # Also respect Default netclass & per-netclass clearances (KiCad enforces max(classA, classB))
+    ns = data.get("net_settings") or {}
+    cls_clear: dict[str, int] = {}
+    net_clear_exact: dict[str, int] = {}
+    net_clear_patterns: list[tuple[str, int]] = []
+    for nc in (ns.get("classes") or []):
+        cname = nc.get("name") or ""
+        try:
+            c_val = int(round(float(nc.get("clearance") or 0) * MM))
+        except (ValueError, TypeError):
+            c_val = 0
+        if cname and c_val > 0:
+            cls_clear[cname] = c_val
+        if cname == "Default":
+            for dst, src in (("nc_clearance", "clearance"),
+                             ("nc_track", "track_width"),
+                             ("nc_via_diam", "via_diameter"),
+                             ("nc_via_drill", "via_drill")):
+                if src in nc and nc[src] is not None:
+                    try:
+                        val = int(round(float(nc[src]) * MM))
+                        if val > 0:
+                            out[dst] = val
+                    except (ValueError, TypeError):
+                        pass
+        for nm in (nc.get("nets") or []):
+            if nm and c_val > 0:
+                net_clear_exact[nm] = max(net_clear_exact.get(nm, 0), c_val)
+    for nm, cnames in (ns.get("netclass_assignments") or {}).items():
+        if isinstance(cnames, str):
+            cnames = [cnames]
+        for cn in (cnames or []):
+            c_val = cls_clear.get(cn, 0)
+            if c_val > 0:
+                net_clear_exact[nm] = max(net_clear_exact.get(nm, 0), c_val)
+    for pat_obj in (ns.get("netclass_patterns") or []):
+        pat = pat_obj.get("pattern") or ""
+        cn = pat_obj.get("netclass") or ""
+        c_val = cls_clear.get(cn, 0)
+        if pat and c_val > 0:
+            net_clear_patterns.append((pat, c_val))
+    if net_clear_exact:
+        out["net_clear_exact"] = net_clear_exact
+    if net_clear_patterns:
+        out["net_clear_patterns"] = net_clear_patterns
+    return out
+
+
+def _read_pro_via_min_nm(pcb_path: Path) -> int:
+    return _read_pro_rules_nm(pcb_path).get("via_min", 0)
 
 
 def _board_outline_nm(board) -> list[tuple[int, int]]:
@@ -549,32 +660,98 @@ class SixLayerPathFinder:
         self.f_i = self.lid_to_i.get(pcbnew.F_Cu, 0)
         self.b_i = self.lid_to_i.get(pcbnew.B_Cu, self.nl - 1)
 
-        # Rules (nm)
+        # Rules (nm): merge explicit cfg["rules"] with companion .kicad_pro rules
         r = cfg.get("rules") or {}
-        self.clear_nm = int(r.get("clearance") or 150_000)
-        self.track_min_nm = int(r.get("track_min") or 127_000)
-        self.annular_nm = int(r.get("annular") or 100_000)
-        self.drill_min_nm = int(r.get("drill_min") or 200_000)
-        self.edge_nm = int(r.get("edge") or 300_000)
-        self.hole_nm = int(r.get("hole_to_hole") or 250_000)
-        pro_via_min = _read_pro_via_min_nm(self.pcb_path)
-        self.via_min_nm = max(int(r.get("via_min") or 0), pro_via_min, 400_000)
+        pro_r = _read_pro_rules_nm(self.pcb_path)
 
-        # Legal geometry primitives (+2 um safety margin)
-        self.safe_clear_nm = self.clear_nm + 2_000
+        def _pick_rule(key: str, default: int, allow_zero: bool = False) -> int:
+            if key in r and r[key] is not None:
+                v = int(r[key])
+                if allow_zero or v > 0:
+                    return v
+            if key in pro_r and pro_r[key] is not None:
+                v = int(pro_r[key])
+                if allow_zero or v > 0:
+                    return v
+            return default
+
+        self.clear_nm = max(_pick_rule("clearance", 150_000),
+                            int(pro_r.get("nc_clearance", 0)) if not r.get("clearance") else 0)
+        # KiCad DRC enforces min_track_width / min_via_diameter / min_through_hole_diameter,
+        # NOT Default netclass authoring preferences (e.g. 0.70mm track or 0.889mm via).
+        # Only fall back to Default netclass when the DRC rule floor is unconstrained (0).
+        rule_track = _pick_rule("track_min", 0, allow_zero=True)
+        if rule_track > 0:
+            self.track_min_nm = rule_track
+        else:
+            nc_t = int(pro_r.get("nc_track", 0))
+            self.track_min_nm = min(nc_t, 250_000) if nc_t > 0 else 150_000
+        self.annular_nm = _pick_rule("annular", 100_000, allow_zero=True)
+        rule_drill = _pick_rule("drill_min", 0, allow_zero=True)
+        if rule_drill > 0:
+            self.drill_min_nm = rule_drill
+        else:
+            nc_dr = int(pro_r.get("nc_via_drill", 0))
+            self.drill_min_nm = nc_dr if nc_dr > 0 else 200_000
+        self.edge_nm = _pick_rule("edge", 300_000, allow_zero=True)
+        self.hole_nm = _pick_rule("hole_to_hole", 250_000, allow_zero=True)
+        rule_via_min = max(int(r.get("via_min") or 0), int(pro_r.get("via_min") or 0))
+        if rule_via_min > 0:
+            self.via_min_nm = max(rule_via_min, 400_000)
+        else:
+            nc_vd = int(pro_r.get("nc_via_diam", 0))
+            self.via_min_nm = max(nc_vd, 400_000) if nc_vd > 0 else 400_000
+
+        # Legal geometry primitives (+5 um safety margin covers KiCad roundrect chord tol)
+        self.safe_clear_nm = self.clear_nm + 5_000
         self.track_w_nm = self.track_min_nm + 2_000
         self.via_drill_nm = max(self.drill_min_nm, 200_000)
         self.via_diam_nm = max(self.via_min_nm,
-                               self.via_drill_nm + 2 * self.annular_nm)
+                               self.via_drill_nm + 2 * max(self.annular_nm, 50_000))
         self.via_r_nm = (self.via_diam_nm + 1) // 2
+
+        self.net_by_code = {}
+        self.code_by_name = {}
+        for nc in range(1, board.GetNetInfo().GetNetCount() + 1):
+            n = board.FindNet(nc)
+            if n and n.GetNetname():
+                self.net_by_code[nc] = n
+                self.code_by_name[n.GetNetname()] = nc
+
+        # Resolve per-netclass clearance overrides from .kicad_pro (e.g. guide_W0.35 = 0.25mm)
+        import fnmatch as _fnm
+        self.net_clear_nm: dict[int, int] = {}
+        nc_exact = pro_r.get("net_clear_exact") or {}
+        nc_pats = pro_r.get("net_clear_patterns") or []
+        for nm, nc in self.code_by_name.items():
+            c_ov = nc_exact.get(nm, 0)
+            for pat, cv in nc_pats:
+                if _fnm.fnmatchcase(nm, pat):
+                    c_ov = max(c_ov, cv)
+            if c_ov > self.clear_nm:
+                self.net_clear_nm[nc] = c_ov + 5_000
+        hole_clr_raw = _pick_rule("hole_clearance", 0, allow_zero=True)
+        self.hole_clear_nm = (hole_clr_raw + 5_000) if hole_clr_raw > 0 else 0
 
         self.outline = _board_outline_nm(board)
         xs = [p[0] for p in self.outline]
         ys = [p[1] for p in self.outline]
-        self.bx0, self.by0, self.bx1, self.by1 = min(xs), min(ys), max(xs), max(ys)
+        pad_pad = 1_500_000 if self.edge_nm <= 0 else 0
+        self.bx0, self.by0 = min(xs) - pad_pad, min(ys) - pad_pad
+        self.bx1, self.by1 = max(xs) + pad_pad, max(ys) + pad_pad
 
         self.bgas = self._detect_bgas()
-        self.grid_nm = int(round(float(cfg.get("grid_mm", 0.20)) * MM))
+        if "grid_mm" in cfg and cfg["grid_mm"]:
+            grid_mm = float(cfg["grid_mm"])
+        else:
+            span_mm = max(self.bx1 - self.bx0, self.by1 - self.by0) / MM
+            if self.bgas or span_mm <= 90.0:
+                grid_mm = 0.20
+            elif span_mm <= 150.0:
+                grid_mm = 0.25
+            else:
+                grid_mm = 0.32
+        self.grid_nm = int(round(grid_mm * MM))
         if self.bgas:
             b0 = self.bgas[0]
             self.ox = b0["x0"] - ((b0["x0"] - self.bx0) // self.grid_nm + 1) * self.grid_nm
@@ -589,14 +766,28 @@ class SixLayerPathFinder:
         self.pref_h = [i % 2 == 0 for i in range(self.nl)]
 
         self.zone_layers = set()
+        self.plane_layer_nets: dict[int, str] = {}
         for z in board.Zones():
+            zn = z.GetNetname() if hasattr(z, "GetNetname") else ""
             for lid in self.lids:
                 if z.IsOnLayer(lid):
-                    self.zone_layers.add(self.lid_to_i[lid])
+                    li = self.lid_to_i[lid]
+                    self.zone_layers.add(li)
+                    if zn and li != self.f_i and li != self.b_i:
+                        self.plane_layer_nets[li] = zn
+        for lname, netname in (cfg.get("plane_layers") or {}).items():
+            lid = board.GetLayerID(str(lname))
+            if lid in self.lid_to_i:
+                li = self.lid_to_i[lid]
+                self.zone_layers.add(li)
+                self.plane_layer_nets[li] = str(netname)
 
         self.exact = ExactBoard(self.nl, self.safe_clear_nm,
-                                self.hole_nm + 4_000,
-                                self.edge_nm + 4_000, self.outline)
+                                self.hole_nm + (4_000 if self.hole_nm > 0 else 0),
+                                self.edge_nm + (4_000 if self.edge_nm > 0 else 0),
+                                self.outline,
+                                net_clear_nm=self.net_clear_nm,
+                                hole_clear_nm=self.hole_clear_nm)
         self.fixed_owner = [array.array("i", [0]) * self.nn for _ in range(self.nl)]
         self.fixed_via_owner = array.array("i", [0]) * self.nn
 
@@ -613,13 +804,18 @@ class SixLayerPathFinder:
             max(self.via_diam_nm + self.safe_clear_nm,
                 self.via_drill_nm + self.hole_nm + 4_000))
 
-        self.net_by_code = {}
-        self.code_by_name = {}
-        for nc in range(1, board.GetNetInfo().GetNetCount() + 1):
-            n = board.FindNet(nc)
-            if n and n.GetNetname():
-                self.net_by_code[nc] = n
-                self.code_by_name[n.GetNetname()] = nc
+        # Domain synthesis specs lowered from Component 4/7 (diff pairs + power widths)
+        self.diff_pairs_cfg: list[dict] = list(cfg.get("diff_pairs") or [])
+        self.net_widths_nm: dict[int, int] = {}
+        for nm, w_mm in (cfg.get("net_widths_mm") or {}).items():
+            nc = self.code_by_name.get(nm)
+            if nc and w_mm:
+                w_nm = int(round(float(w_mm) * MM))
+                if w_nm > self.track_w_nm:
+                    self.net_widths_nm[nc] = w_nm
+        self.diff_pair_stats: list[dict] = []
+        self.power_widened_segs = 0
+        self.plane_stitch_vias = 0
 
         self.added_segs = 0
         self.added_vias = 0
@@ -699,8 +895,9 @@ class SixLayerPathFinder:
     def _rasterize_fixed_shape(self, layers: tuple[int, ...], sh: tuple,
                                nc: int, mark_via: bool = True):
         bb = _shape_bbox(sh)
-        t_reach = self.track_w_nm // 2 + self.safe_clear_nm
-        v_reach = self.via_r_nm + self.safe_clear_nm
+        clr = max(self.safe_clear_nm, self.net_clear_nm.get(nc, 0))
+        t_reach = self.track_w_nm // 2 + clr
+        v_reach = self.via_r_nm + clr
         reach = max(t_reach, v_reach) if mark_via else t_reach
         gx0 = max(0, (bb[0] - reach - self.ox) // self.grid_nm)
         gx1 = min(self.nx - 1, (bb[2] + reach - self.ox) // self.grid_nm + 1)
@@ -714,28 +911,28 @@ class SixLayerPathFinder:
                 if k == 0:
                     num, den = _geom.pt_seg_d2((cx, cy), (sh[1], sh[2]), (sh[3], sh[4]))
                     hw = sh[5]
-                    if not _dist_ok(num, den, hw + self.track_w_nm, self.safe_clear_nm):
+                    if not _dist_ok(num, den, hw + self.track_w_nm, clr):
                         for li in layers:
                             self._mark_fixed_cell(li, gx, gy, nc)
-                    if mark_via and not _dist_ok(num, den, hw + self.via_diam_nm, self.safe_clear_nm):
+                    if mark_via and not _dist_ok(num, den, hw + self.via_diam_nm, clr):
                         self._mark_fixed_via_cell(gx, gy, nc)
                 elif k == 1:
                     dx, dy = cx - sh[1], cy - sh[2]
                     d2 = dx * dx + dy * dy
-                    rt = sh[3] + self.track_w_nm // 2 + self.safe_clear_nm
+                    rt = sh[3] + self.track_w_nm // 2 + clr
                     if d2 < rt * rt:
                         for li in layers:
                             self._mark_fixed_cell(li, gx, gy, nc)
                     if mark_via:
-                        rv = sh[3] + self.via_r_nm + self.safe_clear_nm
+                        rv = sh[3] + self.via_r_nm + clr
                         if d2 < rv * rv:
                             self._mark_fixed_via_cell(gx, gy, nc)
                 else:
                     num, den = _pt_poly_d2((cx, cy), sh[1])
-                    if not _dist_ok(num, den, self.track_w_nm, self.safe_clear_nm):
+                    if not _dist_ok(num, den, self.track_w_nm, clr):
                         for li in layers:
                             self._mark_fixed_cell(li, gx, gy, nc)
-                    if mark_via and not _dist_ok(num, den, self.via_diam_nm, self.safe_clear_nm):
+                    if mark_via and not _dist_ok(num, den, self.via_diam_nm, clr):
                         self._mark_fixed_via_cell(gx, gy, nc)
 
     def _rasterize_fixed_hole(self, cx: int, cy: int, drill_nm: int):
@@ -755,17 +952,27 @@ class SixLayerPathFinder:
     def _mark_board_edges(self):
         hw = self.track_w_nm // 2
         vr = self.via_r_nm
-        need_t2 = (self.edge_nm + 4_000 + hw) ** 2
-        need_v2 = (self.edge_nm + 4_000 + vr) ** 2
+        need_t2 = (self.edge_nm + 4_000 + hw) ** 2 if self.edge_nm > 0 else 0
+        need_v2 = (self.edge_nm + 4_000 + vr) ** 2 if self.edge_nm > 0 else 0
+        out_tol2 = 1_500_000 * 1_500_000
         for gx in range(self.nx):
             cx = self.ox + gx * self.grid_nm
             for gy in range(self.ny):
                 cy = self.oy + gy * self.grid_nm
                 if not _geom.pt_in_poly((cx, cy), self.outline):
+                    if self.edge_nm <= 0:
+                        near_edge = any(
+                            _geom.pt_seg_d2((cx, cy), a, b)[0] <= out_tol2 * _geom.pt_seg_d2((cx, cy), a, b)[1]
+                            for a, b in self.exact.outline_edges
+                        )
+                        if near_edge:
+                            continue
                     idx = gy * self.nx + gx
                     for li in range(self.nl):
                         self.fixed_owner[li][idx] = -1
                     self.fixed_via_owner[idx] = -1
+                    continue
+                if self.edge_nm <= 0:
                     continue
                 for a, b in self.exact.outline_edges:
                     num, den = _geom.pt_seg_d2((cx, cy), a, b)
@@ -2156,6 +2363,888 @@ class SixLayerPathFinder:
                 break
         return closed
 
+    # ---- Phase 0: Coupled Differential Pair Router + Exact-nm Accordion Meander
+    def _offset_polyline_nm(self, pts: list[tuple[int, int]], offset_nm: int) -> list[tuple[int, int]]:
+        """Offset an octilinear polyline by signed distance `offset_nm` using
+        exact miter intersections so P and N stay strictly parallel around every bend."""
+        if len(pts) < 2:
+            return list(pts)
+        edges = []
+        for k in range(len(pts) - 1):
+            dx = pts[k + 1][0] - pts[k][0]
+            dy = pts[k + 1][1] - pts[k][1]
+            L = math.hypot(dx, dy)
+            if L < 1.0:
+                continue
+            tx, ty = dx / L, dy / L
+            nx, ny = -ty, tx
+            edges.append((pts[k], pts[k + 1], tx, ty, nx, ny))
+        if not edges:
+            return list(pts)
+        out = [(int(round(edges[0][0][0] + offset_nm * edges[0][4])),
+                int(round(edges[0][0][1] + offset_nm * edges[0][5])))]
+        for k in range(len(edges) - 1):
+            _, p1, _, _, n1x, n1y = edges[k]
+            _, _, _, _, n2x, n2y = edges[k + 1]
+            dot = n1x * n2x + n1y * n2y
+            denom = 1.0 + dot
+            if denom < 0.25:
+                mx, my = n1x, n1y
+            else:
+                scale = min(1.5, 1.0 / denom)
+                mx, my = (n1x + n2x) * scale, (n1y + n2y) * scale
+            out.append((int(round(p1[0] + offset_nm * mx)),
+                        int(round(p1[1] + offset_nm * my))))
+        out.append((int(round(edges[-1][1][0] + offset_nm * edges[-1][4])),
+                    int(round(edges[-1][1][1] + offset_nm * edges[-1][5]))))
+        return out
+
+    def _smooth_grid_xy(self, path: list[tuple[int, int]]) -> list[tuple[int, int]]:
+        """Collapse collinear grid steps into clean octilinear nm waypoints."""
+        if len(path) < 2:
+            return [self.cell_xy(p[0], p[1]) for p in path]
+        out = [self.cell_xy(path[0][0], path[0][1])]
+        prev_d = (path[1][0] - path[0][0], path[1][1] - path[0][1])
+        for k in range(1, len(path) - 1):
+            d = (path[k + 1][0] - path[k][0], path[k + 1][1] - path[k][1])
+            if d != prev_d:
+                out.append(self.cell_xy(path[k][0], path[k][1]))
+                prev_d = d
+        out.append(self.cell_xy(path[-1][0], path[-1][1]))
+        return out
+
+    def _bridge_same_fp_diff_pads(self, nc_p: int, nc_n: int, li: int, w_nm: int) -> None:
+        """Bridge same-footprint duplicate diff-pair pads (e.g. USB-C A6/B6 and
+        A7/B7) on opposite sides of the pad row with zero vias and zero crossings."""
+        by_fp_p = defaultdict(list)
+        by_fp_n = defaultdict(list)
+        for it in self.net_items_map.get(nc_p, ()):
+            if it[3] and li in it[1]:
+                by_fp_p[it[4]["ref"]].append(it[4])
+        for it in self.net_items_map.get(nc_n, ()):
+            if it[3] and li in it[1]:
+                by_fp_n[it[4]["ref"]].append(it[4])
+        for ref in set(by_fp_p) & set(by_fp_n):
+            ps, ns = by_fp_p[ref], by_fp_n[ref]
+            if len(ps) < 2 and len(ns) < 2:
+                continue
+            all_p = ps + ns
+            xs = [m["cx"] for m in all_p]
+            ys = [m["cy"] for m in all_p]
+            vertical_row = (max(ys) - min(ys)) >= (max(xs) - min(xs))
+            # Try opposite U-detours: P on side +1, N on side -1 (or vice versa)
+            for sgn_p in (-1, 1):
+                sgn_n = -sgn_p
+                plan = []
+                ok_both = True
+                for nc_cur, pads_cur, sgn in ((nc_p, ps, sgn_p), (nc_n, ns, sgn_n)):
+                    if len(pads_cur) < 2:
+                        continue
+                    pads_cur = sorted(pads_cur, key=lambda m: (m["cy"], m["cx"]) if vertical_row else (m["cx"], m["cy"]))
+                    for k in range(len(pads_cur) - 1):
+                        a, b = pads_cur[k], pads_cur[k + 1]
+                        bridged = False
+                        for off_um in (1_050_000, 1_250_000, 1_500_000, 1_800_000, 900_000):
+                            if vertical_row:
+                                ox = a["cx"] + sgn * off_um
+                                segs = [
+                                    (a["cx"], a["cy"], ox, a["cy"]),
+                                    (ox, a["cy"], ox, b["cy"]),
+                                    (ox, b["cy"], b["cx"], b["cy"]),
+                                ]
+                            else:
+                                oy = a["cy"] + sgn * off_um
+                                segs = [
+                                    (a["cx"], a["cy"], a["cx"], oy),
+                                    (a["cx"], oy, b["cx"], oy),
+                                    (b["cx"], oy, b["cx"], b["cy"]),
+                                ]
+                            if all(self.exact.seg_clear(x1, y1, x2, y2, w_nm, li, nc_cur)[0]
+                                   for x1, y1, x2, y2 in segs):
+                                for x1, y1, x2, y2 in segs:
+                                    plan.append((nc_cur, x1, y1, x2, y2))
+                                bridged = True
+                                break
+                        if not bridged:
+                            ok_both = False
+                            break
+                    if not ok_both:
+                        break
+                if ok_both and plan:
+                    for nc_cur, x1, y1, x2, y2 in plan:
+                        self._emit_fixed_seg(x1, y1, x2, y2, w_nm, li, nc_cur)
+                    break
+
+    def _coupled_centerline_astar(self, li: int, nc_p: int, nc_n: int,
+                                  start_xy: tuple[int, int], goal_xy: tuple[int, int],
+                                  env_r_nm: int) -> list[tuple[int, int]] | None:
+        """Single-layer 8-direction A* for a coupled differential pair centerline."""
+        sx, sy = self.xy_cell(*start_xy)
+        gx, gy = self.xy_cell(*goal_xy)
+        nx, ny = self.nx, self.ny
+        if not (2 <= sx < nx - 2 and 2 <= sy < ny - 2 and 2 <= gx < nx - 2 and 2 <= gy < ny - 2):
+            return None
+        f_own = self.fixed_owner[li]
+        # Inflate foreign fixed obstacles by coupled envelope radius + miter/grid safety!
+        extra_r = max(0, env_r_nm - (self.track_w_nm // 2 + self.safe_clear_nm))
+        halo = self._disk_offsets(extra_r) if extra_r > 0 else [(0, 0)]
+
+        def cell_ok(x: int, y: int) -> bool:
+            if (x == sx and y == sy) or (x == gx and y == gy):
+                return True
+            for dx, dy in halo:
+                x2, y2 = x + dx, y + dy
+                if x2 < 1 or y2 < 1 or x2 >= nx - 1 or y2 >= ny - 1:
+                    return False
+                fo = f_own[y2 * nx + x2]
+                if fo != 0 and fo != nc_p and fo != nc_n:
+                    return False
+            return True
+
+        ok_cache: dict[tuple[int, int], bool] = {}
+
+        def is_ok(x: int, y: int) -> bool:
+            v = ok_cache.get((x, y))
+            if v is None:
+                v = cell_ok(x, y)
+                ok_cache[(x, y)] = v
+            return v
+
+        def heur(x: int, y: int) -> float:
+            dx, dy = abs(gx - x), abs(gy - y)
+            return 1.1 * (max(dx, dy) + 0.4142 * min(dx, dy))
+
+        heap = [(heur(sx, sy), 0, (sx, sy), None)]
+        gscore = {(sx, sy): 0.0}
+        came = {}
+        cnt = 0
+        steps = ((1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),
+                 (1, 1, 1.4142), (1, -1, 1.4142), (-1, 1, 1.4142), (-1, -1, 1.4142))
+        exps = 0
+        found = None
+        while heap and exps < 80_000:
+            _, _, u, prev_dir = heapq.heappop(heap)
+            if u == (gx, gy):
+                found = u
+                break
+            exps += 1
+            cur_g = gscore[u]
+            ux, uy = u
+            for dx, dy, step_d in steps:
+                x2, y2 = ux + dx, uy + dy
+                if x2 < 2 or y2 < 2 or x2 >= nx - 2 or y2 >= ny - 2:
+                    continue
+                if not is_ok(x2, y2):
+                    continue
+                turn_pen = 0.0 if (prev_dir is None or prev_dir == (dx, dy)) else 0.45
+                ng = cur_g + step_d + turn_pen
+                nb = (x2, y2)
+                if ng < gscore.get(nb, 1e18):
+                    gscore[nb] = ng
+                    came[nb] = u
+                    cnt += 1
+                    heapq.heappush(heap, (ng + heur(x2, y2), cnt, nb, (dx, dy)))
+        if found is None:
+            return None
+        path = []
+        cur = found
+        while cur in came:
+            path.append(cur)
+            cur = came[cur]
+        path.append(cur)
+        path.reverse()
+        return path
+
+    def _find_neck_escape_chain(self, p0: tuple[int, int], p1: tuple[int, int],
+                                li: int, nc: int, sw: int) -> list[tuple[tuple[int, int], tuple[int, int], int]] | None:
+        """Find a clean 1-, 2-, or 3-segment octilinear escape chain from fine-pitch
+        pad p0 to open anchor p1 at width sw (handles BGA interior diagonal-to-channel)."""
+        x0, y0 = p0
+        x1, y1 = p1
+        if (x0, y0) == (x1, y1):
+            return []
+        # 1) Direct segment
+        if self.exact.seg_clear(x0, y0, x1, y1, sw, li, nc)[0]:
+            return [(p0, p1, sw)]
+
+        dx, dy = x1 - x0, y1 - y0
+        adx, ady = abs(dx), abs(dy)
+        sx = 1 if dx >= 0 else -1
+        sy = 1 if dy >= 0 else -1
+
+        # 2) Clean 2-segment octilinear (45-deg + H/V or H/V + 45-deg or L-bend)
+        diag = min(adx, ady)
+        knees_2 = []
+        if diag > 0:
+            knees_2.append((x0 + sx * diag, y0 + sy * diag))
+            knees_2.append((x1 - sx * diag, y1 - sy * diag))
+        knees_2.append((x1, y0))
+        knees_2.append((x0, y1))
+        for km in knees_2:
+            if km != p0 and km != p1:
+                if (self.exact.seg_clear(x0, y0, km[0], km[1], sw, li, nc)[0] and
+                        self.exact.seg_clear(km[0], km[1], x1, y1, sw, li, nc)[0]):
+                    return [(p0, km, sw), (km, p1, sw)]
+
+        # 3) 3-segment BGA / fine-pitch diagonal channel escape:
+        # step 45° into the inter-ball channel (half-pitch = 0.35..0.55 mm),
+        # slide along the channel toward p1, then connect into p1!
+        for d_slot in (400_000, 450_000, 350_000, 500_000, 550_000, 300_000):
+            for dsx in (1, -1):
+                for dsy in (1, -1):
+                    k1 = (x0 + dsx * d_slot, y0 + dsy * d_slot)
+                    if not self.exact.seg_clear(x0, y0, k1[0], k1[1], sw, li, nc)[0]:
+                        continue
+                    # Slide horizontally or vertically along channel toward p1
+                    for k2 in ((x1, k1[1]), (k1[0], y1),
+                               (x1 - sx * abs(y1 - k1[1]), k1[1]),
+                               (k1[0], y1 - sy * abs(x1 - k1[0]))):
+                        if k2 == k1 or k2 == p1:
+                            continue
+                        if (self.exact.seg_clear(k1[0], k1[1], k2[0], k2[1], sw, li, nc)[0] and
+                                self.exact.seg_clear(k2[0], k2[1], x1, y1, sw, li, nc)[0]):
+                            return [(p0, k1, sw), (k1, k2, sw), (k2, p1, sw)]
+        return None
+
+    def _chains_pn_clear(self, p_chain: list, n_chain: list) -> bool:
+        for a1, b1, w1 in p_chain:
+            for a2, b2, w2 in n_chain:
+                d2_n, d2_d = _seg_seg_d2(a1, b1, a2, b2)
+                min_sep = (w1 + w2) // 2 + self.safe_clear_nm
+                if _frac_lt(d2_n, d2_d, min_sep * min_sep, 1):
+                    return False
+        return True
+
+    def _find_diff_escape_pair(self, pa: dict, na: dict, li: int,
+                               nc_p: int, nc_n: int, w_nm: int, cc_nm: int,
+                               towards_xy: tuple[int, int]) -> list[tuple[list, list, tuple[int, int], tuple[int, int]]]:
+        """Find clean parallel escape anchor pairs (p_segs, n_segs, pe, ne) on layer `li`
+        for pads (pa, na), supporting both 1-seg direct escapes and 2/3-seg BGA channel
+        neck-downs into open coupled space."""
+        px, py = pa["cx"], pa["cy"]
+        nx_, ny_ = na["cx"], na["cy"]
+        mx, my = (px + nx_) // 2, (py + ny_) // 2
+        vx, vy = towards_xy[0] - mx, towards_xy[1] - my
+        vnorm = math.hypot(vx, vy) or 1.0
+        ux, uy = vx / vnorm, vy / vnorm
+
+        # Candidate outward escape unit vectors sorted by alignment toward destination
+        base_dirs = [
+            (ux, uy),
+            (pa["out_dir"][0], pa["out_dir"][1]),
+            (1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, -1.0),
+            (0.7071, 0.7071), (0.7071, -0.7071), (-0.7071, 0.7071), (-0.7071, -0.7071),
+        ]
+        # Sort remaining directions after (ux, uy) by dot product with (ux, uy)
+        cand_dirs = [base_dirs[0]] + sorted(
+            base_dirs[1:],
+            key=lambda d: -(d[0] * ux + d[1] * uy) / (math.hypot(d[0], d[1]) or 1.0)
+        )
+        stub_widths = [w_nm] if w_nm <= self.track_w_nm else [w_nm, self.track_w_nm]
+        results = []
+        half_cc = cc_nm // 2
+        env_check_r = half_cc + w_nm // 2 + self.safe_clear_nm
+
+        def _anchor_open(pe, ne, dx, dy):
+            # Verify both anchors sit in open space where full-width coupled trunk can launch
+            fwd = 250_000
+            pe2 = (int(round(pe[0] + dx * fwd)), int(round(pe[1] + dy * fwd)))
+            ne2 = (int(round(ne[0] + dx * fwd)), int(round(ne[1] + dy * fwd)))
+            if not self.exact.seg_clear(pe[0], pe[1], pe2[0], pe2[1], w_nm, li, nc_p)[0]:
+                return False
+            if not self.exact.seg_clear(ne[0], ne[1], ne2[0], ne2[1], w_nm, li, nc_n)[0]:
+                return False
+            return True
+
+        # Stage A: Clean 1-segment straight escape into open space
+        for dx, dy in cand_dirs:
+            dn = math.hypot(dx, dy)
+            if dn < 0.1:
+                continue
+            dx, dy = dx / dn, dy / dn
+            rx, ry = -dy, dx
+            dot_pn = (px - nx_) * rx + (py - ny_) * ry
+            sgn = 1 if dot_pn >= 0 else -1
+            rx, ry = rx * sgn, ry * sgn
+            for dist_um in (1_800_000, 2_400_000, 1_400_000, 3_000_000, 1_000_000):
+                cx_e = int(round(mx + dx * dist_um))
+                cy_e = int(round(my + dy * dist_um))
+                pe = (int(round(cx_e + rx * half_cc)), int(round(cy_e + ry * half_cc)))
+                ne = (int(round(cx_e - rx * half_cc)), int(round(cy_e - ry * half_cc)))
+                if not _anchor_open(pe, ne, dx, dy):
+                    continue
+                for sw in stub_widths:
+                    if not self.exact.seg_clear(px, py, pe[0], pe[1], sw, li, nc_p)[0]:
+                        continue
+                    if not self.exact.seg_clear(nx_, ny_, ne[0], ne[1], sw, li, nc_n)[0]:
+                        continue
+                    p_ch = [((px, py), pe, sw)]
+                    n_ch = [((nx_, ny_), ne, sw)]
+                    if not self._chains_pn_clear(p_ch, n_ch):
+                        continue
+                    results.append((p_ch, n_ch, pe, ne))
+                    break
+                if len(results) >= 6:
+                    break
+            if len(results) >= 6:
+                break
+
+        if len(results) >= 2:
+            return results
+
+        # Stage B: 2/3-segment fine-pitch / BGA diagonal-channel neck-down escape!
+        sw_neck = self.track_w_nm
+        for dx, dy in cand_dirs:
+            dn = math.hypot(dx, dy)
+            if dn < 0.1:
+                continue
+            dx, dy = dx / dn, dy / dn
+            rx, ry = -dy, dx
+            for sgn in (1, -1):
+                rrx, rry = rx * sgn, ry * sgn
+                for dist_um in (2_200_000, 2_800_000, 3_400_000, 4_200_000):
+                    cx_e = int(round(mx + dx * dist_um))
+                    cy_e = int(round(my + dy * dist_um))
+                    pe = (int(round(cx_e + rrx * half_cc)), int(round(cy_e + rry * half_cc)))
+                    ne = (int(round(cx_e - rrx * half_cc)), int(round(cy_e - rry * half_cc)))
+                    if not _anchor_open(pe, ne, dx, dy):
+                        continue
+                    p_ch = self._find_neck_escape_chain((px, py), pe, li, nc_p, sw_neck)
+                    if not p_ch:
+                        continue
+                    n_ch = self._find_neck_escape_chain((nx_, ny_), ne, li, nc_n, sw_neck)
+                    if not n_ch:
+                        continue
+                    if not self._chains_pn_clear(p_ch, n_ch):
+                        continue
+                    results.append((p_ch, n_ch, pe, ne))
+                    break
+                if len(results) >= 6:
+                    break
+            if len(results) >= 6:
+                break
+        return results
+
+    def _tune_diff_pair_meander(self, dp_name: str, nc_p: int, nc_n: int,
+                                li: int, w_nm: int, s_nm: int, max_skew_nm: int,
+                                p_recs: list[tuple], n_recs: list[tuple]) -> dict:
+        """Exact-nm 45-degree accordion/trombone meander tuner:
+        adds verified serpentine bumps on the shorter net pointing AWAY from
+        its partner until |L(P) - L(N)| <= max_skew_nm."""
+        def total_len(recs):
+            return sum(math.hypot(r[3] - r[1], r[4] - r[2]) for r in recs)
+
+        bumps = 0
+        for _ in range(16):
+            lp = total_len(p_recs)
+            ln = total_len(n_recs)
+            diff = abs(lp - ln)
+            if diff <= max_skew_nm:
+                break
+            if lp < ln:
+                s_nc, s_recs, o_recs = nc_p, p_recs, n_recs
+            else:
+                s_nc, s_recs, o_recs = nc_n, n_recs, p_recs
+
+            # Sort candidate segments longest first (skip tiny fan-in stubs < 1.0mm)
+            cands = sorted(
+                range(len(s_recs)),
+                key=lambda k: math.hypot(s_recs[k][3] - s_recs[k][1], s_recs[k][4] - s_recs[k][2]),
+                reverse=True,
+            )
+            inserted = False
+            for idx in cands:
+                obj, x1, y1, x2, y2, sw, own = s_recs[idx]
+                L = math.hypot(x2 - x1, y2 - y1)
+                if L < 1_050_000:
+                    continue
+                ux, uy = (x2 - x1) / L, (y2 - y1) / L
+                nx_, ny_ = -uy, ux
+                mx, my = 0.5 * (x1 + x2), 0.5 * (y1 + y2)
+
+                # Determine outward side pointing AWAY from partner net!
+                best_d, best_dot = 1e18, 0.0
+                for _, ox1, oy1, ox2, oy2, _, _ in o_recs:
+                    omx, omy = 0.5 * (ox1 + ox2), 0.5 * (oy1 + oy2)
+                    d = math.hypot(omx - mx, omy - my)
+                    if d < best_d:
+                        best_d = d
+                        best_dot = (omx - mx) * nx_ + (omy - my) * ny_
+                out_sides = [-1, 1] if best_dot > 0 else [1, -1]
+
+                # Bevel b_nm and top_w_nm keep adjacent bump legs >= sw + safe_clear
+                min_leg_gap = sw + max(self.safe_clear_nm, 140_000) + 40_000
+                top_w = max(min_leg_gap, 320_000)
+                b_nm = 200_000
+                base_span = 2 * b_nm + top_w
+                if L < base_span + 350_000:
+                    continue
+
+                # Solve exact amplitude for needed delta:
+                # extra = 2 * amp - (2 - sqrt(2)) * b_nm  =>  amp = (diff + 0.5858*b_nm)/2
+                amp_ideal = int(round((diff + (2.0 - math.sqrt(2.0)) * b_nm) / 2.0))
+                amp_cap = min(1_350_000, max(260_000, amp_ideal))
+                amps = sorted({
+                    amp_cap,
+                    min(amp_cap, 900_000),
+                    min(amp_cap, 600_000),
+                    min(amp_cap, 420_000),
+                    min(amp_cap, 280_000),
+                }, reverse=True)
+
+                for sgn in out_sides:
+                    dnx, dny = nx_ * sgn, ny_ * sgn
+                    for amp in amps:
+                        if amp < 240_000:
+                            continue
+                        bb = min(b_nm, amp)
+                        span = 2 * bb + top_w
+                        if L < span + 300_000:
+                            continue
+                        t_start = 0.5 * (L - span)
+                        p_a = (int(round(x1 + ux * t_start)),
+                               int(round(y1 + uy * t_start)))
+                        p_b = (int(round(x1 + ux * (t_start + bb) + dnx * bb)),
+                               int(round(y1 + uy * (t_start + bb) + dny * bb)))
+                        p_c = (int(round(x1 + ux * (t_start + bb) + dnx * amp)),
+                               int(round(y1 + uy * (t_start + bb) + dny * amp)))
+                        p_d = (int(round(x1 + ux * (t_start + bb + top_w) + dnx * amp)),
+                               int(round(y1 + uy * (t_start + bb + top_w) + dny * amp)))
+                        p_e = (int(round(x1 + ux * (t_start + bb + top_w) + dnx * bb)),
+                               int(round(y1 + uy * (t_start + bb + top_w) + dny * bb)))
+                        p_f = (int(round(x1 + ux * (t_start + span))),
+                               int(round(y1 + uy * (t_start + span))))
+                        chain_pts = [(x1, y1), p_a, p_b, p_c, p_d, p_e, p_f, (x2, y2)]
+                        new_segs = []
+                        for k in range(len(chain_pts) - 1):
+                            a_, b_ = chain_pts[k], chain_pts[k + 1]
+                            if a_ != b_:
+                                new_segs.append((a_[0], a_[1], b_[0], b_[1]))
+                        if not new_segs:
+                            continue
+                        # Verify every new segment in ExactBoard (ignoring old segment's own id!)
+                        all_ok = True
+                        for sx1, sy1, sx2, sy2 in new_segs:
+                            ok_s, _ = self.exact.seg_clear(sx1, sy1, sx2, sy2, sw, li, s_nc,
+                                                           ignore_owner=own)
+                            if not ok_s:
+                                all_ok = False
+                                break
+                        if not all_ok:
+                            continue
+                        # Swap old segment for meander segments cleanly!
+                        self.exact.remove_owner(own)
+                        self.board.Delete(obj)
+                        self.net_items_map[s_nc] = [
+                            it for it in self.net_items_map[s_nc] if it[4].get("owner") != own]
+                        del s_recs[idx]
+                        for k_sub, (sx1, sy1, sx2, sy2) in enumerate(new_segs):
+                            sub_own = f"{own}_m{bumps}_{k_sub}"
+                            new_obj = self._emit_seg_raw(sx1, sy1, sx2, sy2, sw, li, s_nc,
+                                                         owner=sub_own, mark_fixed_grid=True)
+                            if new_obj is not None:
+                                s_recs.append((new_obj, sx1, sy1, sx2, sy2, sw, sub_own))
+                        bumps += 1
+                        inserted = True
+                        break
+                    if inserted:
+                        break
+                if inserted:
+                    break
+            if not inserted:
+                break
+
+        lp_f, ln_f = total_len(p_recs) / MM, total_len(n_recs) / MM
+        return {
+            "name": dp_name,
+            "L_p_mm": round(lp_f, 3),
+            "L_n_mm": round(ln_f, 3),
+            "skew_mm": round(abs(lp_f - ln_f), 3),
+            "meander_bumps": bumps,
+        }
+
+    def run_diff_pairs(self, open_names: list[str]) -> set[str]:
+        """Phase 0: Route lowered differential pairs FIRST as tightly coupled,
+        same-layer parallel pairs with exact-nm meander length matching."""
+        closed_nets: set[str] = set()
+        if not self.diff_pairs_cfg:
+            return closed_nets
+        open_set = set(open_names)
+        for dp_idx, dp in enumerate(self.diff_pairs_cfg):
+            p_name, n_name = dp.get("p"), dp.get("n")
+            if not p_name or not n_name:
+                continue
+            if p_name not in open_set and n_name not in open_set:
+                continue
+            nc_p = self.code_by_name.get(p_name)
+            nc_n = self.code_by_name.get(n_name)
+            if not nc_p or not nc_n:
+                continue
+            w_nm = max(self.track_w_nm, int(round(float(dp.get("w_mm", 0.16)) * MM)))
+            s_nm = max(self.safe_clear_nm + 4_000, int(round(float(dp.get("s_mm", 0.18)) * MM)))
+            max_skew_nm = int(round(float(dp.get("max_skew_mm", 0.5)) * MM))
+            cc_nm = w_nm + s_nm
+            half_cc = cc_nm // 2
+            pref_layers = list(dp.get("prefer_layers") or [self.f_i])
+            # Add fallback signal layers (avoiding inner plane layers)
+            for li in range(self.nl):
+                if li not in pref_layers and li not in self.plane_layer_nets:
+                    pref_layers.append(li)
+
+            # Bridge duplicate pads on same footprint first (e.g. USB-C A6/B6, A7/B7)
+            self._bridge_same_fp_diff_pads(nc_p, nc_n, pref_layers[0], self.track_w_nm)
+
+            # Group pads by footprint to find the two endpoints of the diff pair
+            fp_p = defaultdict(list)
+            fp_n = defaultdict(list)
+            for it in self.net_items_map.get(nc_p, ()):
+                if it[3]:
+                    fp_p[it[4]["ref"]].append(it[4])
+            for it in self.net_items_map.get(nc_n, ()):
+                if it[3]:
+                    fp_n[it[4]["ref"]].append(it[4])
+            shared_fps = sorted(set(fp_p) & set(fp_n))
+            if len(shared_fps) < 2:
+                continue
+            ref_a, ref_b = shared_fps[0], shared_fps[1]
+
+            # Build sorted candidate adjacent (pa, na) pad pairs on each footprint
+            ca = (sum(m["cx"] for m in fp_p[ref_a] + fp_n[ref_a]) // len(fp_p[ref_a] + fp_n[ref_a]),
+                  sum(m["cy"] for m in fp_p[ref_a] + fp_n[ref_a]) // len(fp_p[ref_a] + fp_n[ref_a]))
+            cb = (sum(m["cx"] for m in fp_p[ref_b] + fp_n[ref_b]) // len(fp_p[ref_b] + fp_n[ref_b]),
+                  sum(m["cy"] for m in fp_p[ref_b] + fp_n[ref_b]) // len(fp_p[ref_b] + fp_n[ref_b]))
+            cands_a = sorted(
+                [(p_, n_) for p_ in fp_p[ref_a] for n_ in fp_n[ref_a]],
+                key=lambda pn: (math.hypot(pn[0]["cx"] - pn[1]["cx"], pn[0]["cy"] - pn[1]["cy"]),
+                                math.hypot(pn[0]["cx"] - cb[0], pn[0]["cy"] - cb[1]))
+            )[:4]
+            cands_b = sorted(
+                [(p_, n_) for p_ in fp_p[ref_b] for n_ in fp_n[ref_b]],
+                key=lambda pn: (math.hypot(pn[0]["cx"] - pn[1]["cx"], pn[0]["cy"] - pn[1]["cy"]),
+                                math.hypot(pn[0]["cx"] - ca[0], pn[0]["cy"] - ca[1]))
+            )[:4]
+
+            routed_ok = False
+            for li in pref_layers:
+                for pa, na in cands_a:
+                    if li not in pa["layers"] or li not in na["layers"]:
+                        continue
+                    esc_a_list = self._find_diff_escape_pair(pa, na, li, nc_p, nc_n, w_nm, cc_nm, cb)
+                    if not esc_a_list:
+                        continue
+                    for pb, nb in cands_b:
+                        if li not in pb["layers"] or li not in nb["layers"]:
+                            continue
+                        esc_b_list = self._find_diff_escape_pair(pb, nb, li, nc_p, nc_n, w_nm, cc_nm, ca)
+                        if not esc_b_list:
+                            continue
+                        env_margins = (
+                            half_cc + w_nm // 2 + self.safe_clear_nm + int(0.45 * half_cc) + self.grid_nm,
+                            half_cc + w_nm // 2 + self.safe_clear_nm + self.grid_nm,
+                        )
+                        for env_r in env_margins:
+                            for (p_esc_a, n_esc_a, pa_e, na_e) in esc_a_list[:4]:
+                                for (p_esc_b, n_esc_b, pb_e, nb_e) in esc_b_list[:4]:
+                                    mid_a = ((pa_e[0] + na_e[0]) // 2, (pa_e[1] + na_e[1]) // 2)
+                                    mid_b = ((pb_e[0] + nb_e[0]) // 2, (pb_e[1] + nb_e[1]) // 2)
+                                    grid_c = self._coupled_centerline_astar(li, nc_p, nc_n, mid_a, mid_b, env_r)
+                                    if not grid_c or len(grid_c) < 2:
+                                        continue
+                                    c_pts = self._smooth_grid_xy(grid_c)
+                                    # Align start/end of centerline smoothly to exact mid_a / mid_b
+                                    if len(c_pts) >= 2:
+                                        c_pts[0] = mid_a
+                                        c_pts[-1] = mid_b
+                                    poly_plus = self._offset_polyline_nm(c_pts, +half_cc)
+                                    poly_minus = self._offset_polyline_nm(c_pts, -half_cc)
+
+                                    # Choose non-crossing polarity matching pad entry/exit sides!
+                                    d_direct = (math.hypot(pa_e[0] - poly_plus[0][0], pa_e[1] - poly_plus[0][1]) +
+                                                math.hypot(na_e[0] - poly_minus[0][0], na_e[1] - poly_minus[0][1]) +
+                                                math.hypot(pb_e[0] - poly_plus[-1][0], pb_e[1] - poly_plus[-1][1]) +
+                                                math.hypot(nb_e[0] - poly_minus[-1][0], nb_e[1] - poly_minus[-1][1]))
+                                    d_swap = (math.hypot(pa_e[0] - poly_minus[0][0], pa_e[1] - poly_minus[0][1]) +
+                                              math.hypot(na_e[0] - poly_plus[0][0], na_e[1] - poly_plus[0][1]) +
+                                              math.hypot(pb_e[0] - poly_minus[-1][0], pb_e[1] - poly_minus[-1][1]) +
+                                              math.hypot(nb_e[0] - poly_plus[-1][0], nb_e[1] - poly_plus[-1][1]))
+                                    p_trunk, n_trunk = (poly_plus, poly_minus) if d_direct <= d_swap else (poly_minus, poly_plus)
+
+                                    p_segs = list(p_esc_a) + [(pa_e, p_trunk[0], w_nm)]
+                                    for k in range(len(p_trunk) - 1):
+                                        p_segs.append((p_trunk[k], p_trunk[k + 1], w_nm))
+                                    p_segs.append((p_trunk[-1], pb_e, w_nm))
+                                    # Reverse b escape chain so segments walk pb_e -> pb
+                                    for a_, b_, sw_ in reversed(p_esc_b):
+                                        p_segs.append((b_, a_, sw_))
+
+                                    n_segs = list(n_esc_a) + [(na_e, n_trunk[0], w_nm)]
+                                    for k in range(len(n_trunk) - 1):
+                                        n_segs.append((n_trunk[k], n_trunk[k + 1], w_nm))
+                                    n_segs.append((n_trunk[-1], nb_e, w_nm))
+                                    for a_, b_, sw_ in reversed(n_esc_b):
+                                        n_segs.append((b_, a_, sw_))
+
+                                    # Exact-nm check of P against fixed board, N against fixed board, AND P against N!
+                                    p_segs = [(a_, b_, sw_) for a_, b_, sw_ in p_segs if a_ != b_]
+                                    n_segs = [(a_, b_, sw_) for a_, b_, sw_ in n_segs if a_ != b_]
+                                    if not all(self.exact.seg_clear(a_[0], a_[1], b_[0], b_[1], sw_, li, nc_p)[0]
+                                               for a_, b_, sw_ in p_segs):
+                                        continue
+                                    if not all(self.exact.seg_clear(a_[0], a_[1], b_[0], b_[1], sw_, li, nc_n)[0]
+                                               for a_, b_, sw_ in n_segs):
+                                        continue
+                                    if not self._chains_pn_clear(p_segs, n_segs):
+                                        continue
+
+                                    # Commit P and N with individual segment owners so meander tuner can edit cleanly!
+                                    p_recs, n_recs = [], []
+                                    for k_s, (a_, b_, sw_) in enumerate(p_segs):
+                                        own = f"dp{dp_idx}_p_{k_s}"
+                                        obj = self._emit_seg_raw(a_[0], a_[1], b_[0], b_[1], sw_, li, nc_p,
+                                                                 owner=own, mark_fixed_grid=True)
+                                        if obj is not None:
+                                            p_recs.append((obj, a_[0], a_[1], b_[0], b_[1], sw_, own))
+                                    for k_s, (a_, b_, sw_) in enumerate(n_segs):
+                                        own = f"dp{dp_idx}_n_{k_s}"
+                                        obj = self._emit_seg_raw(a_[0], a_[1], b_[0], b_[1], sw_, li, nc_n,
+                                                                 owner=own, mark_fixed_grid=True)
+                                        if obj is not None:
+                                            n_recs.append((obj, a_[0], a_[1], b_[0], b_[1], sw_, own))
+
+                                    # Tune exact meander length matching (tight <=0.35mm target)!
+                                    mstat = self._tune_diff_pair_meander(
+                                        dp.get("name", f"{p_name}/{n_name}"), nc_p, nc_n, li,
+                                        w_nm, s_nm, min(max_skew_nm, 350_000), p_recs, n_recs)
+                                    mstat["layer"] = self.board.GetLayerName(self.lids[li])
+                                    mstat["w_mm"] = round(w_nm / MM, 3)
+                                    mstat["s_mm"] = round(s_nm / MM, 3)
+                                    mstat["vias"] = 0
+                                    self.diff_pair_stats.append(mstat)
+
+                                    if len(_compute_net_islands(self.net_items_map[nc_p])) < 2:
+                                        closed_nets.add(p_name)
+                                    if len(_compute_net_islands(self.net_items_map[nc_n])) < 2:
+                                        closed_nets.add(n_name)
+                                    routed_ok = True
+                                    break
+                                if routed_ok:
+                                    break
+                            if routed_ok:
+                                break
+                        if routed_ok:
+                            break
+                    if routed_ok:
+                        break
+                if routed_ok:
+                    break
+        return closed_nets
+
+    # ---- Phase 7: Exact-nm Power Trunk Widening + Automatic Local Neck-Down
+    def run_power_widening(self) -> int:
+        """Upgrade power-net routed segments from track_min up to target trunk width
+        (e.g. 5V -> 0.45-0.50mm, 3V3/GND -> 0.35mm), automatically splitting long
+        segments with short local neck-downs near fine-pitch BGA/LGA pads so
+        ExactBoard guarantees ZERO new clearance or edge violations."""
+        if not self.net_widths_nm:
+            return 0
+        widened = 0
+        for t in list(self.board.GetTracks()):
+            if t.Type() == pcbnew.PCB_VIA_T:
+                continue
+            nc = int(t.GetNetCode())
+            target_w = self.net_widths_nm.get(nc)
+            if not target_w:
+                continue
+            cur_w = int(t.GetWidth())
+            if cur_w >= target_w - 5_000:
+                continue
+            li = self.lid_to_i.get(t.GetLayer())
+            if li is None:
+                continue
+            s, e = t.GetStart(), t.GetEnd()
+            x1, y1, x2, y2 = int(s.x), int(s.y), int(e.x), int(e.y)
+            L = math.hypot(x2 - x1, y2 - y1)
+            if L < 150_000:
+                continue
+
+            # Candidate step-down widths from target down to > cur_w
+            w_steps = [w for w in (target_w, 450_000, 400_000, 350_000, 300_000, 250_000, 200_000)
+                       if cur_w + 15_000 < w <= target_w]
+            if not w_steps:
+                continue
+
+            # 1) Try full-segment widening first!
+            best_full = None
+            for cand_w in w_steps:
+                ok, _ = self.exact.seg_clear(x1, y1, x2, y2, cand_w, li, nc)
+                if ok:
+                    best_full = cand_w
+                    break
+            if best_full is not None:
+                t.SetWidth(int(best_full))
+                self.exact.add_item(nc, (li,), (0, x1, y1, x2, y2, best_full), owner=f"wide_{widened}")
+                widened += 1
+                continue
+
+            # 2) Segment blocked only near tight pad/via end -> split with local neck-down!
+            if L < 950_000:
+                continue
+            ux, uy = (x2 - x1) / L, (y2 - y1) / L
+            split_done = False
+            for cand_w in w_steps:
+                for n1_um, n2_um in ((0, 500_000), (500_000, 0),
+                                     (450_000, 450_000), (650_000, 650_000)):
+                    if L < n1_um + n2_um + 350_000:
+                        continue
+                    mx1 = int(round(x1 + ux * n1_um)) if n1_um else x1
+                    my1 = int(round(y1 + uy * n1_um)) if n1_um else y1
+                    mx2 = int(round(x2 - ux * n2_um)) if n2_um else x2
+                    my2 = int(round(y2 - uy * n2_um)) if n2_um else y2
+                    ok_mid, _ = self.exact.seg_clear(mx1, my1, mx2, my2, cand_w, li, nc)
+                    if not ok_mid:
+                        continue
+                    # Replace original segment with neck(s) + wide trunk!
+                    self.board.Delete(t)
+                    pieces = []
+                    if n1_um:
+                        pieces.append((x1, y1, mx1, my1, cur_w))
+                    pieces.append((mx1, my1, mx2, my2, cand_w))
+                    if n2_um:
+                        pieces.append((mx2, my2, x2, y2, cur_w))
+                    for px1, py1, px2, py2, pw in pieces:
+                        if px1 == px2 and py1 == py2:
+                            continue
+                        nt = pcbnew.PCB_TRACK(self.board)
+                        nt.SetStart(pcbnew.VECTOR2I(px1, py1))
+                        nt.SetEnd(pcbnew.VECTOR2I(px2, py2))
+                        nt.SetWidth(int(pw))
+                        nt.SetLayer(self.lids[li])
+                        nt.SetNet(self.net_by_code[nc])
+                        self.board.Add(nt)
+                        self.exact.add_item(nc, (li,), (0, px1, py1, px2, py2, pw), owner=f"wide_{widened}")
+                    widened += 1
+                    split_done = True
+                    break
+                if split_done:
+                    break
+        self.power_widened_segs = widened
+        return widened
+
+    # ---- Plane-Layer Direct Pad Stitching (when solid plane exists for a rail)
+    def run_plane_stitching(self, open_names: list[str]) -> None:
+        """If an inner plane layer is dedicated to a rail (e.g. In1.Cu = GND),
+        drop clean short fanout vias on single-layer pads of that rail so they
+        connect directly to the solid plane instead of long thin traces."""
+        if not self.plane_layer_nets:
+            return
+        open_set = set(open_names)
+        plane_nets = set(self.plane_layer_nets.values())
+        for nm in sorted(plane_nets & open_set):
+            nc = self.code_by_name.get(nm)
+            if not nc:
+                continue
+            items = self.net_items_map.get(nc, [])
+            isls = _compute_net_islands(items)
+            for isl in isls:
+                if any(len(items[i][1]) > 1 for i in isl):
+                    continue
+                if self._rescue_single_island_via(nc, self.net_items_map[nc], isl):
+                    self.plane_stitch_vias += 1
+
+    def _trim_dangling_stubs(self) -> int:
+        """Remove strictly degree-1 dead-end track stubs whose free endpoint does
+        not touch any same-net pad, via, or interior of another track segment."""
+        # Collect pads and vias per net
+        pads_by_nc: dict[int, list[tuple[tuple[int, ...], tuple]]] = defaultdict(list)
+        for nc, items in self.net_items_map.items():
+            for _, lays, sh, is_pad, _ in items:
+                if is_pad:
+                    pads_by_nc[nc].append((lays, sh))
+        vias_by_nc: dict[int, list[tuple[int, int, int]]] = defaultdict(list)
+        segs: list = []
+        for t in list(self.board.GetTracks()):
+            nc = int(t.GetNetCode())
+            if nc == 0:
+                continue
+            if t.Type() == pcbnew.PCB_VIA_T:
+                q = t.GetPosition()
+                vias_by_nc[nc].append((int(q.x), int(q.y), int(t.GetWidth(pcbnew.F_Cu)) // 2))
+            else:
+                segs.append(t)
+
+        def _anchored(pt: tuple[int, int], li: int, nc: int, self_seg) -> bool:
+            px, py = pt
+            # Touch a same-net via?
+            for vx, vy, vr in vias_by_nc.get(nc, ()):
+                if (px - vx) ** 2 + (py - vy) ** 2 <= (vr + 25_000) ** 2:
+                    return True
+            # Touch a same-net pad on this layer?
+            pt_sh = (1, px, py, 20_000)
+            for lays, psh in pads_by_nc.get(nc, ()):
+                if li in lays and _shapes_touch_nm(pt_sh, psh):
+                    return True
+            return False
+
+        removed = 0
+        for _ in range(8):
+            deg: dict[tuple[int, int, int, int], int] = defaultdict(int)
+            for t in segs:
+                li = self.lid_to_i.get(t.GetLayer())
+                if li is None:
+                    continue
+                nc = int(t.GetNetCode())
+                s, e = t.GetStart(), t.GetEnd()
+                deg[(nc, li, int(s.x), int(s.y))] += 1
+                deg[(nc, li, int(e.x), int(e.y))] += 1
+            # Also check T-junction onto interior of another same-net segment!
+            by_nl: dict[tuple[int, int], list] = defaultdict(list)
+            for t in segs:
+                li = self.lid_to_i.get(t.GetLayer())
+                if li is not None:
+                    by_nl[(int(t.GetNetCode()), li)].append(t)
+
+            to_del = []
+            for t in segs:
+                li = self.lid_to_i.get(t.GetLayer())
+                if li is None:
+                    continue
+                nc = int(t.GetNetCode())
+                s, e = t.GetStart(), t.GetEnd()
+                p1, p2 = (int(s.x), int(s.y)), (int(e.x), int(e.y))
+                d1 = deg[(nc, li, p1[0], p1[1])]
+                d2 = deg[(nc, li, p2[0], p2[1])]
+                dangling = False
+                for p, d in ((p1, d1), (p2, d2)):
+                    if d > 1:
+                        continue
+                    if _anchored(p, li, nc, t):
+                        continue
+                    # Check if endpoint touches interior of any other segment on same net & layer
+                    hits_other = False
+                    for o in by_nl[(nc, li)]:
+                        if o is t:
+                            continue
+                        os_, oe_ = o.GetStart(), o.GetEnd()
+                        ow = int(o.GetWidth())
+                        num, den = _geom.pt_seg_d2(p, (int(os_.x), int(os_.y)), (int(oe_.x), int(oe_.y)))
+                        rad = ow // 2 + 20_000
+                        if num <= rad * rad * den:
+                            hits_other = True
+                            break
+                    if not hits_other:
+                        dangling = True
+                        break
+                if dangling:
+                    to_del.append(t)
+            if not to_del:
+                break
+            del_set = set(id(x) for x in to_del)
+            for t in to_del:
+                self.board.Delete(t)
+                removed += 1
+            segs = [t for t in segs if id(t) not in del_set]
+        return removed
+
     # ---- Main Solve
     def solve(self, target_nets: set[str] | None = None) -> dict:
         open_names = self.ingest_board(target_nets)
@@ -2163,13 +3252,20 @@ class SixLayerPathFinder:
             return {"ok": True, "open_before": 0, "open_after": 0,
                     "segs_added": 0, "vias_added": 0, "seconds": round(time.time() - self.t0, 2)}
 
-        # Phase 1: BGA fanout
-        self.run_bga_fanout(open_names)
+        # Phase 0: Coupled differential pairs FIRST (before BGA fanout & signals!)
+        diff_closed = self.run_diff_pairs(open_names)
+        rem_open_for_fanout = [nm for nm in open_names if nm not in diff_closed]
 
-        # Build exact islands and continuous access ports for every open net
+        # Phase 1: BGA fanout + plane stitching
+        self.run_bga_fanout(rem_open_for_fanout)
+        self.run_plane_stitching(rem_open_for_fanout)
+
+        # Build exact islands and continuous access ports for every still-open net
         net_work = {}
         power_names = []
         for name in open_names:
+            if name in diff_closed:
+                continue
             nc = self.code_by_name.get(name)
             if not nc:
                 continue
@@ -2182,19 +3278,11 @@ class SixLayerPathFinder:
                 continue
             ports_list = [self._island_ports(nc, items, isl) for isl in isls]
             valid_ports = [p for p in ports_list if p]
-            if len(valid_ports) >= 2:
-                net_work[name] = {
-                    "nc": nc,
-                    "n_islands": len(isls),
-                    "ports": valid_ports,
-                }
-            else:
-                # Keep as rescue candidate in Phase 4!
-                net_work[name] = {
-                    "nc": nc,
-                    "n_islands": len(isls),
-                    "ports": valid_ports,
-                }
+            net_work[name] = {
+                "nc": nc,
+                "n_islands": len(isls),
+                "ports": valid_ports,
+            }
 
         # Phase 2: Fast Active-Cell 6-Layer PathFinder Negotiation (SIGNALS ONLY!)
         sig_nets = sorted(net_work.keys(),
@@ -2398,7 +3486,13 @@ class SixLayerPathFinder:
                     rec["touched_t_list"].clear()
                     rec["touched_v_list"].clear()
 
+        # Phase 7: Exact-nm Power Trunk Widening + Local Neck-Down
+        self.run_power_widening()
+
         # Final exact connectivity audit
+        # Safe dangling track stub trim (removes only degree-1 dead-end segments not on pads/vias)
+        self._trim_dangling_stubs()
+
         open_after = 0
         missing_after = 0
         for nc, items in self.net_items_map.items():
@@ -2421,6 +3515,9 @@ class SixLayerPathFinder:
             "missing_pads_after": missing_after,
             "committed_nets": len(self.committed_records),
             "swaps_ok": self.swaps_ok,
+            "diff_pairs": self.diff_pair_stats,
+            "power_widened_segs": self.power_widened_segs,
+            "plane_stitch_vias": self.plane_stitch_vias,
             "fanout_vias": self.fanout_vias,
             "fanout_segs": self.fanout_segs,
             "segs_added": self.added_segs,

@@ -36,10 +36,12 @@ class RouterConfig:
     escape_first: bool = True
     power_plane: bool = True
     grid_resolution_mm: float = 0.16
-    # Engine selection: "ncer" (default, deep search) or "freerouting"
-    # (fast bulk router; SKILL.md step 6c). "auto" picks freerouting for
-    # 2-layer boards and ncer otherwise.
+    # Engine selection: "ncer" (default, deep search), "pathfinder", or "freerouting"
     engine: str = "ncer"
+    allow_vippo: bool = False
+    pf_mode: str = "keep"
+    pf_max_iters: int = 24
+    rules: Optional[dict] = None
 
 
 class Router:
@@ -66,7 +68,76 @@ class Router:
             layers = self.board.GetCopperLayerCount()
         except Exception:
             layers = 2
-        return "freerouting" if layers <= 2 else "ncer"
+        if layers >= 4:
+            return "pathfinder"
+        try:
+            from .freerouting import FreeroutingBackend
+            ok, _ = FreeroutingBackend().available()
+            if ok:
+                return "freerouting"
+        except Exception:
+            pass
+        return "pathfinder"
+
+    def _lower_dispatch_to_pf_cfg(
+        self,
+        dispatch_plans: dict[str, DispatchPlan],
+        route_guide: Optional[RouteGuidePlan] = None,
+    ) -> dict:
+        """Lower Component 7 DispatchPlans into PathFinder domain cfg."""
+        from pathlib import Path
+        net_widths_mm: dict[str, float] = {}
+        diff_pairs: list[dict] = []
+        seen_pairs = set()
+        for net, dp in (dispatch_plans or {}).items():
+            if dp.routing_type == RoutingType.DIFF_PAIR and dp.diff_partner:
+                pair_key = tuple(sorted((net, dp.diff_partner)))
+                if pair_key not in seen_pairs:
+                    seen_pairs.add(pair_key)
+                    diff_pairs.append({
+                        'name': f'{net}/{dp.diff_partner}',
+                        'p': net,
+                        'n': dp.diff_partner,
+                        'w_mm': float(dp.track_width or 0.16),
+                        's_mm': float(dp.diff_gap_mm or 0.18),
+                        'max_skew_mm': float(dp.max_skew_mm or 0.5),
+                        'z_target': float(dp.target_z_ohm or 90.0),
+                        'prefer_layers': list(dp.layer_pref or [0]),
+                    })
+            elif dp.track_width and dp.track_width >= 0.24:
+                # Only widen nets explicitly planned wider than standard signal traces
+                # (e.g. power/ground trunks from Component 4/7 lowering).
+                net_widths_mm[net] = float(dp.track_width)
+
+        cfg: dict[str, Any] = {
+            'mode': self.config.pf_mode or 'keep',
+            'time_budget_s': min(240, max(30, int(self.config.timeout_s * 0.7))),
+            'max_iters': int(self.config.pf_max_iters or 24),
+            'allow_vippo': bool(self.config.allow_vippo),
+            'diff_pairs': diff_pairs,
+            'net_widths_mm': net_widths_mm,
+        }
+        if self.config.rules:
+            cfg['rules'] = dict(self.config.rules)
+        else:
+            # Let SixLayerPathFinder read .kicad_pro directly when present; only fall
+            # back to DesignSettings if there is no project file beside the board.
+            bp = Path(self.board.GetFileName() or "")
+            if not (bp.name and bp.with_suffix(".kicad_pro").exists()):
+                try:
+                    ds = self.board.GetDesignSettings()
+                    if ds.m_MinClearance > 0 and ds.m_TrackMinWidth > 0:
+                        cfg['rules'] = {
+                            'clearance': int(ds.m_MinClearance),
+                            'track_min': int(ds.m_TrackMinWidth),
+                            'annular': int(ds.m_ViasMinAnnularWidth),
+                            'drill_min': int(ds.m_MinThroughDrill),
+                            'edge': int(ds.m_CopperEdgeClearance),
+                            'via_min': int(ds.m_ViasMinSize),
+                        }
+                except Exception:
+                    pass
+        return cfg
 
     def route(
         self,
@@ -74,19 +145,37 @@ class Router:
         dispatch_plans: dict[str, DispatchPlan],
         route_guide: Optional[RouteGuidePlan] = None,
     ) -> RouteResult:
-        """Route all net tasks.
-
-        Args:
-            net_tasks: Ordered list of 2-pin tasks
-            dispatch_plans: Per-net routing params from Component 7
-            route_guide: Corridors and via regions from Component 4
-
-        Returns:
-            RouteResult with completion metrics
-        """
+        """Route all net tasks, honoring Component 7 DispatchPlans."""
         t0 = time.time()
 
         engine = self._pick_engine()
+
+        # ── PathFinder domain-aware backend (2L..6L+ BGA + diff-pair + power width) ──
+        if engine == "pathfinder":
+            from pathlib import Path
+            kg = str(Path(__file__).resolve().parent.parent / "kicadgen")
+            if kg not in sys.path:
+                sys.path.insert(0, kg)
+            import route_pathfinder as _rp
+            board_path = Path(self.board.GetFileName() or "board.kicad_pcb")
+            cfg = self._lower_dispatch_to_pf_cfg(dispatch_plans, route_guide)
+            pf = _rp.SixLayerPathFinder(self.board, board_path, cfg)
+            res = pf.solve()
+            elapsed = time.time() - t0
+            ob = int(res.get('open_before', 0))
+            oa = int(res.get('open_after', 0))
+            comp = 100.0 if ob == 0 else max(0.0, 100.0 * (ob - oa) / ob)
+            return RouteResult(
+                routed=[{'engine': 'pathfinder', 'committed_nets': res.get('committed_nets', 0)}],
+                opens=oa,
+                shorts=0,
+                vias=int(res.get('vias_added', 0)),
+                drc_errors=0,
+                completion_pct=round(comp, 2),
+                seconds=elapsed,
+                fingerprint=self.fingerprint,
+                metrics={'engine': 'pathfinder', **res},
+            )
 
         # ── Freerouting backend ─────────────────────────────────────
         if engine == "freerouting":

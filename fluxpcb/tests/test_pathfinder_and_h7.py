@@ -232,3 +232,116 @@ class TestLLMReasoningEffort:
         assert captured["body"]["reasoning_effort"] == "max"
         assert captured["body"]["stream"] is True
         assert "max_tokens" not in captured["body"]
+
+
+# ----------------------------------------------------------- 12-Component Domain Fixes
+class TestFluxpcbDomainFixes:
+    def test_spec_lowering_and_conjectures_on_h7_spec(self):
+        import yaml
+        from fluxpcb.proof import conjectures
+        sp = yaml.safe_load((REPO / "projects" / "h743-fc" / "spec.yaml").read_text(encoding="utf-8"))
+        board_nets = {"USB_DP", "USB_DM", "CAN1_H", "CAN1_L", "CAN2_H", "CAN2_L",
+                      "5V", "3V3", "GND", "VCAP", "VDDA"}
+        lc = conjectures.lower_constraints(sp, board_nets=board_nets)
+        dp_by_name = {d["name"]: d for d in lc["diff_pairs"]}
+        assert set(dp_by_name) == {"usb", "can1", "can2"}
+        assert dp_by_name["usb"]["p"] == "USB_DP" and dp_by_name["usb"]["n"] == "USB_DM"
+        assert dp_by_name["usb"]["z_target"] == 90.0
+        assert dp_by_name["usb"]["w_mm"] > 0.25
+        assert dp_by_name["can1"]["z_target"] == 120.0
+        assert lc["net_widths_mm"]["5V"] >= 0.45
+        assert lc["net_widths_mm"]["3V3"] >= 0.35
+        assert lc["net_widths_mm"]["GND"] >= 0.35
+
+        # Compile conjectures on a synthetic minimal state containing 5V pads
+        fake_st = {"items": [], "netPads": {"5V": ["p1", "p2"], "3V3": ["p3", "p4"]}, "rules": {}}
+        claims, _ = conjectures.from_spec(sp, fake_st)
+        cids = {c["id"] for c in claims}
+        for req in ("POWER:DROP:3V3", "POWER:J:3V3", "POWER:DROP:5V", "POWER:J:5V",
+                    "SIGNAL:ZDIFF:usb", "SIGNAL:SKEW:usb", "SIGNAL:COUPLED:usb",
+                    "SIGNAL:ZDIFF:can1", "SIGNAL:COUPLED:can1",
+                    "SIGNAL:ZDIFF:can2", "SIGNAL:COUPLED:can2"):
+            assert req in cids, f"missing domain conjecture {req}"
+
+    def test_domain_kernels_zdiff_ampacity_and_coupling(self):
+        from fluxpcb.kernels import derive
+        z_usb = derive.zdiff_edge_coupled(0.3048, 0.20, 0.20, 4.4, 0.035, kind="microstrip")
+        assert z_usb["status"] == "derived"
+        assert 85.0 <= z_usb["measured"] <= 95.0
+        z_can = derive.zdiff_edge_coupled(0.1646, 0.18, 0.21, 4.4, 0.035, kind="microstrip")
+        assert 114.0 <= z_can["measured"] <= 126.0
+        assert derive.ipc_min_width_mm(0.5, t_mm=0.035, temp_rise_c=10.0) > 0.10
+
+        # Coupled vs uncoupled differential pair audit
+        st_good = {
+            "items": [
+                {"net": "USB_DP", "layers": ["F.Cu"], "shape": {"kind": "seg", "x1": 0, "y1": 0, "x2": 10_000_000, "y2": 0, "w": 304_800}},
+                {"net": "USB_DM", "layers": ["F.Cu"], "shape": {"kind": "seg", "x1": 0, "y1": 504_800, "x2": 10_000_000, "y2": 504_800, "w": 304_800}},
+            ]
+        }
+        good = derive.diff_coupling(st_good, "USB_DP", "USB_DM", target_s_mm=0.20, max_skew_mm=0.5)
+        assert good["ok"] is True and good["measured"] >= 95.0 and good["skew_mm"] == 0.0
+        assert abs(good["avg_gap_mm"] - 0.20) < 0.005
+
+        st_bad = {
+            "items": [
+                {"net": "USB_DP", "layers": ["F.Cu"], "shape": {"kind": "seg", "x1": 0, "y1": 0, "x2": 10_000_000, "y2": 0, "w": 129_000}},
+                {"net": "USB_DP", "layers": ["F.Cu", "In1.Cu"], "drill": 200_000, "shape": {"kind": "circle", "cx": 5_000_000, "cy": 0, "r": 200_000}},
+                {"net": "USB_DM", "layers": ["F.Cu"], "shape": {"kind": "seg", "x1": 0, "y1": 5_000_000, "x2": 8_000_000, "y2": 5_000_000, "w": 129_000}},
+            ]
+        }
+        bad = derive.diff_coupling(st_bad, "USB_DP", "USB_DM", target_s_mm=0.20, max_skew_mm=0.5)
+        assert bad["ok"] is False and bad["via_diff"] == 1 and bad["skew_mm"] == 2.0
+
+    def test_classifier_no_false_diff_positives_and_comm_fingerprint_tracks_widths(self):
+        from fluxpcb.subagents.classifier import SignalClassifierSubagent
+        from fluxpcb.contracts import SignalClass
+        from fluxpcb.runtime.comm import CommRuntime
+        clf = SignalClassifierSubagent()
+        nets = ["USB_DP", "USB_DM", "CAN1_H", "CAN1_L", "VCAP", "NRST", "PWM_CH1", "OSC_IN", "5V", "GND"]
+        cls_map = clf.classify(nets)
+        assert cls_map["USB_DP"] == SignalClass.DIFFERENTIAL
+        assert cls_map["USB_DM"] == SignalClass.DIFFERENTIAL
+        assert cls_map["CAN1_H"] == SignalClass.DIFFERENTIAL
+        assert cls_map["CAN1_L"] == SignalClass.DIFFERENTIAL
+        for non_diff in ("VCAP", "NRST", "PWM_CH1", "OSC_IN", "5V", "GND"):
+            assert cls_map[non_diff] != SignalClass.DIFFERENTIAL, f"false DIFFERENTIAL on {non_diff}"
+        assert set(clf.find_diff_pairs(nets)) == {("USB_DP", "USB_DM"), ("CAN1_H", "CAN1_L")}
+
+        # CommRuntime fingerprint must change when track width changes (same track count!)
+        class _Pt:
+            def __init__(self, x, y): self.x, self.y = x, y
+        class _Track:
+            def __init__(self, w): self._w = w
+            def Type(self): return 0
+            def GetStart(self): return _Pt(1000, 2000)
+            def GetEnd(self): return _Pt(5000, 2000)
+            def GetWidth(self): return self._w
+            def GetLayer(self): return 0
+            def GetNetCode(self): return 1
+        class _Board:
+            def __init__(self, w): self._t = [_Track(w)]
+            def GetTracks(self): return self._t
+            def GetFootprints(self): return []
+            def Zones(self): return []
+            def GetNetCount(self): return 2
+            def GetCopperLayerCount(self): return 6
+        comm = CommRuntime()
+        fp1 = comm._compute_fingerprint(_Board(129_000))
+        fp2 = comm._compute_fingerprint(_Board(450_000))
+        assert fp1.board_hash != fp2.board_hash, "fingerprint missed track width mutation!"
+
+        # Per-netclass pairwise clearance in ExactBoard
+        import sys
+        kg = str(REPO / "fluxpcb" / "kicadgen")
+        if kg not in sys.path:
+            sys.path.insert(0, kg)
+        import route_pathfinder as rp
+        outline = [(0, 0), (50_000_000, 0), (50_000_000, 50_000_000), (0, 50_000_000)]
+        eb = rp.ExactBoard(n_layers=2, clear_nm=200_000, hole_nm=200_000,
+                           edge_nm=0, outline=outline, net_clear_nm={2: 260_000})
+        eb.add_item(1, (0,), (0, 10_000_000, 10_000_000, 20_000_000, 10_000_000, 200_000), owner="net:1")
+        # Distance between centers = 430um -> edge-to-edge gap = 230um:
+        # Legal for default net 3 (>= 200um), REFUSED for high-clearance net 2 (< 260um)!
+        assert eb.seg_clear(10_000_000, 10_430_000, 20_000_000, 10_430_000, 200_000, 0, 3)[0] is True
+        assert eb.seg_clear(10_000_000, 10_430_000, 20_000_000, 10_430_000, 200_000, 0, 2)[0] is False

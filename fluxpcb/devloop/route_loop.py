@@ -154,13 +154,15 @@ class DevRouteLoop:
             )
             trajectory.events.append(feedback_event)
 
+            # Always preserve the latest routing/verification result (even if not yet converged)
+            result.route_result = route_result
+            result.verification = verification
+
             # Check convergence
             if (route_result.opens == 0 and
                     route_result.shorts == 0 and
                     route_result.drc_errors == 0):
                 result.converged = True
-                result.route_result = route_result
-                result.verification = verification
                 break
 
             # Repair: rip-up and reroute failed nets

@@ -147,8 +147,9 @@ class FeedbackRuntime:
                 'reason': 'high_opens',
             })
 
-    def suggest_repairs(self, result: Any) -> list[dict]:
-        """Suggest repairs based on routing result."""
+    def suggest_repairs(self, result: Any,
+                        verification: Optional[VerificationReport] = None) -> list[dict]:
+        """Suggest repairs based on routing result AND domain verification findings."""
         suggestions = []
 
         if isinstance(result, RouteResult):
@@ -173,6 +174,32 @@ class FeedbackRuntime:
                 'strategy': 'increase_clearance',
                 'reason': f'{shorts} shorts detected',
             })
+
+        if verification is not None:
+            for vr in getattr(verification, 'results', None) or []:
+                if vr.status not in ('fail', 'warning'):
+                    continue
+                for f in vr.findings or []:
+                    msg = str(f.get('issue') or f.get('witness') or f)
+                    net = f.get('net') or f.get('net_class') or '*'
+                    if 'skew' in msg.lower() or '等长' in msg:
+                        suggestions.append({
+                            'net': net,
+                            'strategy': 'tune_meander',
+                            'reason': msg,
+                        })
+                    elif 'coupled' in msg.lower() or 'zdiff' in msg.lower() or '阻抗' in msg:
+                        suggestions.append({
+                            'net': net,
+                            'strategy': 'reroute_diff_pair',
+                            'reason': msg,
+                        })
+                    elif 'ir-drop' in msg.lower() or '压降' in msg or '电流' in msg or 'jmax' in msg.lower():
+                        suggestions.append({
+                            'net': net,
+                            'strategy': 'widen_power',
+                            'reason': msg,
+                        })
 
         return suggestions
 

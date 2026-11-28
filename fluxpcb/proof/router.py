@@ -91,7 +91,7 @@ def _tactic_base(tactic):
 
 def _route_backend(tactic, kicad_cli, kipy, dst, workdir, rules, passes, log,
                    net_classes=None, normal_rule=None, incremental=True,
-                   raw_tactic=None, target_nets=None):
+                   raw_tactic=None, target_nets=None, lowered_constraints=None):
     """Run one routing tactic on the stripped board; the gate judges it.
 
     `freerouting`: the incremental FR session (fix-marked, DSN round trip).
@@ -99,8 +99,8 @@ def _route_backend(tactic, kicad_cli, kipy, dst, workdir, rules, passes, log,
     where the DSN round trip or FR's optimizer crashes -- a backend failure
     is then a tactic failure, not the end of the proof.
     `pathfinder`: the 6-layer fanout-aware PathFinder negotiated-congestion
-    router with exact-nm verification (handles BGA dogbone/VIPPO + multi-island
-    rip-up-and-reroute without Freerouting).
+    router with exact-nm verification, coupled differential pairs, meander
+    length matching, and per-net power trace widening.
     """
     from .. import routing
     if tactic == 'pathfinder':
@@ -112,6 +112,13 @@ def _route_backend(tactic, kicad_cli, kipy, dst, workdir, rules, passes, log,
             'max_iters': max(16, 12 * max(1, passes)),
             'time_budget_s': max(90, 90 * max(1, passes)),
         }
+        if lowered_constraints:
+            if lowered_constraints.get('diff_pairs'):
+                cfg['diff_pairs'] = lowered_constraints['diff_pairs']
+            if lowered_constraints.get('net_widths_mm'):
+                cfg['net_widths_mm'] = lowered_constraints['net_widths_mm']
+            if lowered_constraints.get('plane_layers'):
+                cfg['plane_layers'] = lowered_constraints['plane_layers']
         if target_nets and pf_mode != 'full':
             cfg['target_nets'] = sorted(target_nets)
         cfg_file.write_text(json.dumps(cfg), encoding='utf-8')
@@ -210,13 +217,18 @@ def route_scope(board, nets, rules, workdir=None, profile='lean+fab',
         ceil_um = lambda nm: -(-int(nm) // 1000)      # noqa: E731
         normal_rule = (max(150, ceil_um(rules.get('track_min') or 150000)),
                        ceil_um(rules['clearance']))
+    lowered = None
+    if spec:
+        board_nets = set((before.get('netPads') or {}).keys())
+        lowered = conjectures.lower_constraints(spec, rules=rules, board_nets=board_nets)
     fr = _route_backend(_tactic_base(tactic), kicad_cli, kipy, dst, workdir,
                         rules, passes, log, net_classes=net_classes,
                         normal_rule=normal_rule,
                         # freerouting_full: no fix-marking, FR may rip up the
                         # existing copper and re-plan the whole board
                         incremental=(tactic != 'freerouting_full'),
-                        raw_tactic=tactic, target_nets=nets)
+                        raw_tactic=tactic, target_nets=nets,
+                        lowered_constraints=lowered)
     if not fr.get('ok'):
         return {'ok': False, 'error': fr.get('error'), 'tactic': tactic,
                 'mode': fr.get('mode'), 'seconds':
