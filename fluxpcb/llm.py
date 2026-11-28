@@ -16,9 +16,13 @@ class LLMAdapter:
         self.provider = os.environ.get("FLUXNT_LLM_PROVIDER", "none").lower()
         self.model = os.environ.get("FLUXNT_LLM_MODEL", "")
         self.api_key_env = os.environ.get("FLUXNT_LLM_API_KEY_ENV", "")
-        # openai-compatible endpoints (GLM/bigmodel, vLLM, ...) — W-round
+        # openai-compatible endpoints (GLM/bigmodel, DeepSeek, vLLM, ...) — W-round
         self.base_url = os.environ.get(
             "FLUXNT_LLM_BASEURL", "https://api.openai.com/v1").rstrip("/")
+        # reasoning effort for thinking/reasoning models (e.g. deepseek-v4-pro: max/high)
+        self.reasoning_effort = os.environ.get(
+            "FLUXNT_LLM_REASONING_EFFORT", "").strip().lower()
+        self.max_tokens = int(os.environ.get("FLUXNT_LLM_MAX_TOKENS", "0") or "0")
 
     @property
     def online(self) -> bool:
@@ -65,6 +69,11 @@ class LLMAdapter:
         }
         if schema:
             body["response_format"] = {"type": "json_object"}
+        if self.reasoning_effort:
+            body["reasoning_effort"] = self.reasoning_effort
+            body["stream"] = True
+        if self.max_tokens > 0:
+            body["max_tokens"] = self.max_tokens
         # ollama 本地模型专属字段(关思考+输出上限) — 仅本地端点携带,
         # 远程 OpenAI 兼容端点会因未知字段报 400(实测)
         if ("127.0.0.1" in self.base_url or "localhost" in self.base_url):
@@ -77,9 +86,40 @@ class LLMAdapter:
             headers={"Authorization": f"Bearer {key}",
                      "Content-Type": "application/json"})
         _tmo = int(os.environ.get("FLUXNT_LLM_TIMEOUT", "300"))
+        if body.get("stream"):
+            text_parts, reason_parts = [], []
+            with urllib.request.urlopen(req, timeout=_tmo) as r:
+                for raw in r:
+                    line = raw.decode("utf-8", errors="replace").strip()
+                    if not line.startswith("data:"):
+                        continue
+                    payload = line[5:].strip()
+                    if payload == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(payload)
+                    except ValueError:
+                        continue
+                    choices = chunk.get("choices") or []
+                    if not choices:
+                        continue
+                    delta = choices[0].get("delta") or {}
+                    if delta.get("content"):
+                        text_parts.append(delta["content"])
+                    if delta.get("reasoning_content"):
+                        reason_parts.append(delta["reasoning_content"])
+            out = {"ok": True, "text": "".join(text_parts), "error": ""}
+            if reason_parts:
+                out["reasoning"] = "".join(reason_parts)
+            return out
         with urllib.request.urlopen(req, timeout=_tmo) as r:
             data = json.loads(r.read())
-        return {"ok": True, "text": data["choices"][0]["message"]["content"], "error": ""}
+        msg = data["choices"][0]["message"]
+        text = msg.get("content") or ""
+        out = {"ok": True, "text": text, "error": ""}
+        if msg.get("reasoning_content"):
+            out["reasoning"] = msg["reasoning_content"]
+        return out
 
     def _anthropic(self, system: str, prompt: str) -> dict:
         import urllib.request

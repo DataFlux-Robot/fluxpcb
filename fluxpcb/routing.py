@@ -23,6 +23,7 @@ import subprocess
 from pathlib import Path
 
 _EMBEDDED = Path(__file__).resolve().parent / "kicadgen" / "route_embedded.py"
+_PATHFINDER = Path(__file__).resolve().parent / "kicadgen" / "route_pathfinder.py"
 _CLEANUP = Path(__file__).resolve().parent / "kicadgen" / "shorts_cleanup.py"
 _SESSION = Path(__file__).resolve().parent / "kicadgen" / "route_session.py"
 _FLUXROUTER = Path(__file__).resolve().parent / "kicadgen" / "fluxrouter.py"
@@ -70,20 +71,47 @@ CALIBRATED_SEVERITIES = {
 }
 
 
+def _find_pcbnew_python(cli_dir: Path) -> str | None:
+    """Locate a Python interpreter that can import pcbnew."""
+    import os
+    import sys
+    env_py = os.environ.get("KICAD_PYTHON") or os.environ.get("FLUXPCB_KICAD_PYTHON")
+    cands = []
+    if env_py:
+        cands.append(env_py)
+    for name in ("python.exe", "python3", "python"):
+        p = cli_dir / name
+        if p.exists():
+            cands.append(str(p))
+    for p in (sys.executable, "/usr/bin/python3", "/usr/local/bin/python3"):
+        if p and p not in cands and Path(p).exists():
+            cands.append(p)
+    for cand in cands:
+        # Windows KiCad ships its own python.exe beside kicad-cli.exe
+        if cand.lower().endswith("python.exe") and Path(cand).parent == cli_dir:
+            return cand
+        try:
+            r = subprocess.run([cand, "-c", "import pcbnew"],
+                               capture_output=True, timeout=10)
+            if r.returncode == 0:
+                return cand
+        except (OSError, subprocess.SubprocessError):
+            continue
+    return None
+
+
 def find_kicad() -> tuple[str | None, str | None]:
     """Locate (kicad-cli, KiCad python). PATH first, then default install."""
     import shutil
     exe = shutil.which("kicad-cli")
     if exe:
-        py = Path(exe).parent / "python.exe"
-        return exe, str(py) if py.exists() else None
+        return exe, _find_pcbnew_python(Path(exe).parent)
     for base in (r"C:\Program Files\KiCad\10.0\bin",
                  r"C:\Users\zhang\AppData\Local\Programs\KiCad\10.0\bin",
                  "/usr/bin", "/usr/local/bin", "/Applications/KiCad/KiCad.app/Contents/MacOS"):
         cand = Path(base) / ("kicad-cli.exe" if "\\" in base or base[1:2] == ":" else "kicad-cli")
         if cand.exists():
-            py = cand.parent / ("python.exe" if cand.suffix == ".exe" else "python")
-            return str(cand), (str(py) if py.exists() else None)
+            return str(cand), _find_pcbnew_python(cand.parent)
     return None, None
 
 

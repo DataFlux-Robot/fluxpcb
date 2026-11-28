@@ -58,7 +58,7 @@ def _strip(kipy: str, board: Path, nets, workdir: Path) -> int:
 
 
 _KEEP_TACTICS = {'embedded_keep', 'freerouting_keep',
-                 'freerouting_full'}
+                 'freerouting_full', 'pathfinder_keep', 'pathfinder_full'}
 
 # names that should be treated as power rails by the in-process router: its
 # power pass ties an SMD pad to the inner layers with a via, which is exactly
@@ -84,19 +84,54 @@ def _tactic_base(tactic):
     continues from the protected open stubs, the Z1 recipe)."""
     if tactic == 'freerouting_full':
         return 'freerouting'
+    if tactic == 'pathfinder_full':
+        return 'pathfinder'
     return tactic[:-5] if tactic.endswith('_keep') else tactic
 
 
 def _route_backend(tactic, kicad_cli, kipy, dst, workdir, rules, passes, log,
-                   net_classes=None, normal_rule=None, incremental=True):
+                   net_classes=None, normal_rule=None, incremental=True,
+                   raw_tactic=None, target_nets=None):
     """Run one routing tactic on the stripped board; the gate judges it.
 
     `freerouting`: the incremental FR session (fix-marked, DSN round trip).
     `embedded`: the in-process L/Z/A* router.  It is the fallback for boards
     where the DSN round trip or FR's optimizer crashes -- a backend failure
     is then a tactic failure, not the end of the proof.
+    `pathfinder`: the 6-layer fanout-aware PathFinder negotiated-congestion
+    router with exact-nm verification (handles BGA dogbone/VIPPO + multi-island
+    rip-up-and-reroute without Freerouting).
     """
     from .. import routing
+    if tactic == 'pathfinder':
+        pf_mode = 'full' if raw_tactic == 'pathfinder_full' else 'keep'
+        cfg_file = workdir / 'pathfinder_cfg.json'
+        cfg = {
+            'rules': dict(rules or {}),
+            'mode': pf_mode,
+            'max_iters': max(16, 12 * max(1, passes)),
+            'time_budget_s': max(90, 90 * max(1, passes)),
+        }
+        if target_nets and pf_mode != 'full':
+            cfg['target_nets'] = sorted(target_nets)
+        cfg_file.write_text(json.dumps(cfg), encoding='utf-8')
+        try:
+            rc, out = routing._kipy(kipy, routing._PATHFINDER, str(dst),
+                                    str(cfg_file), timeout=900)
+        except Exception as e:
+            return {'ok': False, 'mode': 'pathfinder',
+                    'error': f'pathfinder failed: {e}'}
+        jlines = [l for l in out.splitlines() if l.strip().startswith('{')]
+        stats = {}
+        if jlines:
+            try:
+                stats = json.loads(jlines[-1])
+            except ValueError:
+                stats = {}
+        ok = (rc == 0) and bool(stats.get('ok', rc == 0))
+        return {'ok': ok, 'mode': 'pathfinder', 'stats': stats,
+                'summary': jlines[-1][:400] if jlines else out[-300:],
+                'error': None if ok else (stats.get('error') or out[-300:])}
     if tactic == 'embedded':
         rs = routing.ratsnest_state(kipy, dst, log=log)
         if not rs:
@@ -180,7 +215,8 @@ def route_scope(board, nets, rules, workdir=None, profile='lean+fab',
                         normal_rule=normal_rule,
                         # freerouting_full: no fix-marking, FR may rip up the
                         # existing copper and re-plan the whole board
-                        incremental=(tactic != 'freerouting_full'))
+                        incremental=(tactic != 'freerouting_full'),
+                        raw_tactic=tactic, target_nets=nets)
     if not fr.get('ok'):
         return {'ok': False, 'error': fr.get('error'), 'tactic': tactic,
                 'mode': fr.get('mode'), 'seconds':

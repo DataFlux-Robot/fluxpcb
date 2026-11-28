@@ -161,6 +161,123 @@ def allocate(want: list[str], pins: dict) -> dict[str, dict]:
             for pos, sig in owner.items()}
 
 
+def allocate_spatial(want: list[str], pins: dict,
+                     ball_xy: dict[str, tuple[float, float]],
+                     dest_xy: dict[str, tuple[float, float]],
+                     sig_to_net=None,
+                     ring_weight: float = 3.5) -> dict[str, dict]:
+    """Destination-aware min-cost max-flow AF pin allocator.
+
+    Replaces alphabetical ball selection (`sorted(pins)` jammed 40+ signals
+    into the top-right A..E quadrant on H743) with exact bipartite min-cost
+    max-flow over ST XML alternate-function legality:
+      cost(signal, ball) = dist(ball, peripheral_centroid) + ring_weight * ring(ball)
+    Reserves power/NRST/BOOT0 balls automatically; falls back to `allocate`
+    if any signal cannot be matched.
+    """
+    import math
+    from collections import deque
+
+    reserved = set(power_balls(pins).keys())
+    for pos, info in pins.items():
+        if info["name"] in ("NRST", "BOOT0", "PDR_ON"):
+            reserved.add(pos)
+
+    xs = sorted({round(x, 3) for x, _ in ball_xy.values()})
+    ys = sorted({round(y, 3) for _, y in ball_xy.values()})
+    if not xs or not ys:
+        return allocate(want, pins)
+    x_idx = {v: i for i, v in enumerate(xs)}
+    y_idx = {v: i for i, v in enumerate(ys)}
+    nx, ny = len(xs), len(ys)
+    cx = (xs[0] + xs[-1]) / 2.0
+    cy = (ys[0] + ys[-1]) / 2.0
+
+    def ring_of(pos: str) -> int:
+        x, y = ball_xy[pos]
+        i = x_idx[round(x, 3)]
+        j = y_idx[round(y, 3)]
+        return min(i, j, nx - 1 - i, ny - 1 - j)
+
+    # Build unit-capacity SPFA min-cost max-flow graph
+    g: list[list[int]] = []
+    to: list[int] = []
+    cap: list[int] = []
+    cost: list[int] = []
+
+    def add_node() -> int:
+        g.append([])
+        return len(g) - 1
+
+    def add_edge(a: int, b: int, c: int, w: int) -> int:
+        g[a].append(len(to))
+        to.append(b); cap.append(c); cost.append(w)
+        g[b].append(len(to))
+        to.append(a); cap.append(0); cost.append(-w)
+        return len(to) - 2
+
+    src, snk = add_node(), add_node()
+    cands = {s: [pos for pos, info in pins.items()
+                 if s in info["signals"] and pos in ball_xy and pos not in reserved]
+             for s in want}
+    s_nodes = {s: add_node() for s in want}
+    all_balls = sorted({pos for lst in cands.values() for pos in lst})
+    b_nodes = {pos: add_node() for pos in all_balls}
+    for s in want:
+        add_edge(src, s_nodes[s], 1, 0)
+    for pos in all_balls:
+        add_edge(b_nodes[pos], snk, 1, 0)
+
+    edge_map = {}
+    for s in want:
+        net = sig_to_net(s) if sig_to_net else s
+        dx, dy = dest_xy.get(net, (cx, cy))
+        for pos in cands[s]:
+            bx, by = ball_xy[pos]
+            d = math.hypot(bx - dx, by - dy)
+            r = ring_of(pos)
+            w = int(round(d * 10.0 + r * ring_weight * 10.0))
+            edge_map[(s, pos)] = add_edge(s_nodes[s], b_nodes[pos], 1, w)
+
+    n = len(g)
+    flow = 0
+    while True:
+        dist = [math.inf] * n
+        inq = [False] * n
+        prev = [-1] * n
+        dist[src] = 0
+        dq = deque([src])
+        while dq:
+            a = dq.popleft()
+            inq[a] = False
+            for e in g[a]:
+                b = to[e]
+                if cap[e] > 0 and dist[a] + cost[e] < dist[b]:
+                    dist[b] = dist[a] + cost[e]
+                    prev[b] = e
+                    if not inq[b]:
+                        inq[b] = True
+                        dq.append(b)
+        if prev[snk] < 0:
+            break
+        b = snk
+        while b != src:
+            e = prev[b]
+            cap[e] -= 1
+            cap[e ^ 1] += 1
+            b = to[e ^ 1]
+        flow += 1
+
+    if flow < len(want):
+        return allocate(want, pins)
+
+    out = {}
+    for (s, pos), ei in edge_map.items():
+        if cap[ei] == 0:
+            out[s] = {"ball": pos, "pin": pins[pos]["name"], "type": pins[pos]["type"]}
+    return out
+
+
 def power_balls(pins: dict) -> dict[str, str]:
     """ball -> rail net from name prefixes. VDD*/VDDA/VBAT/VREF+->3V3
     (VREF- nets to GND), VSS*->GND, VCAP->VCAP (caps to GND)."""
@@ -192,50 +309,80 @@ def all_balls(pins: dict) -> list[str]:
     return sorted(pins, key=lambda p: (order[p[0]], int(p[1:])))
 
 
+def ball_positions(variant: str, pins: dict,
+                   cx: float = 0.0, cy: float = 0.0,
+                   pitch: float = 0.8) -> dict[str, tuple[float, float]]:
+    """Board-space (x, y) mm of every populated BGA ball (matches gen_footprint)."""
+    rows, c0, c1 = grid(pins)
+    nrows, ncols = len(rows), c1 - c0 + 1
+    a1x = cx - ((ncols - 1) / 2.0) * pitch
+    a1y = cy - ((nrows - 1) / 2.0) * pitch
+    row_i = {r: i for i, r in enumerate(rows)}
+    out: dict[str, tuple[float, float]] = {}
+    for pos in pins:
+        r = row_i[pos[0]]
+        c = int(pos[1:]) - c0
+        out[pos] = (a1x + c * pitch, a1y + r * pitch)
+    return out
+
+
+def _signal_to_net(sig: str, gpio: str = "",
+                   pwm_map: dict[str, str] | None = None) -> str:
+    if sig.startswith(("SPI1_", "SPI2_")):
+        return sig
+    if sig.startswith(("I2C", "FDCAN", "USART", "UART", "SDMMC", "ADC1_INP")):
+        return sig
+    if sig.startswith("TIM"):
+        if pwm_map and sig in pwm_map:
+            return pwm_map[sig]
+        return "PWM_" + sig.replace("TIM", "").replace("_CH", "")
+    if "DP" in sig or "DM" in sig:
+        return "USB_DP" if sig.endswith("DP") else "USB_DM"
+    if sig.endswith("SWDIO"):
+        return "SWDIO"
+    if sig.endswith("SWCLK"):
+        return "SWCLK"
+    if sig.endswith("OSC_IN"):
+        return "OSC_IN"
+    if sig.endswith("OSC_OUT"):
+        return "OSC_OUT"
+    if sig.endswith("OSC32_IN"):
+        return "OSC32_IN"
+    if sig.endswith("OSC32_OUT"):
+        return "OSC32_OUT"
+    return gpio or sig
+
+
 def build_ball_nets(variant: str, pins: dict,
                     want: list[str] | None = None,
-                    pwm_map: dict[str, str] | None = None) -> dict[str, str]:
+                    pwm_map: dict[str, str] | None = None,
+                    ball_xy: dict[str, tuple[float, float]] | None = None,
+                    dest_xy: dict[str, tuple[float, float]] | None = None,
+                    ring_weight: float = 2.0) -> dict[str, str]:
     """ball -> net for every used ball (peripherals + USB + SWD + NRST/BOOT +
     power domains). This is the single source for board pad nets and the
     schematic pin map.
 
     want: peripheral want-list (default PX4_WANT). pwm_map: TIM signal ->
     PWM net (default keeps the legacy PWM_<tim><ch> naming; FC_PWM_MAP gives
-    the Pixhawk-class PWM_CH1-8 channels)."""
+    the Pixhawk-class PWM_CH1-8 channels). When both ball_xy and dest_xy are
+    given, uses destination-aware MCMF allocate_spatial() instead of
+    alphabetical greedy allocation to eliminate BGA escape jams."""
     cfg = MCU_CONFIG[variant]
     want = list(want) if want is not None else list(PX4_WANT)
     want = want + USB_SIGNALS[variant] + SWD_SIGNALS
-    alloc = allocate(want, pins)
+    if ball_xy and dest_xy:
+        alloc = allocate_spatial(
+            want, pins, ball_xy=ball_xy, dest_xy=dest_xy,
+            sig_to_net=lambda s: _signal_to_net(s, "", pwm_map),
+            ring_weight=ring_weight,
+        )
+    else:
+        alloc = allocate(want, pins)
     nets: dict[str, str] = {}
     # peripherals -> functional nets
     for sig, a in alloc.items():
-        gpio = a["pin"]
-        if sig.startswith(("SPI1_", "SPI2_")):
-            nets[a["ball"]] = sig
-        elif sig.startswith(("I2C", "FDCAN", "USART", "UART", "SDMMC",
-                             "ADC1_INP")):
-            nets[a["ball"]] = sig       # net name = signal name
-        elif sig.startswith("TIM"):
-            if pwm_map and sig in pwm_map:
-                nets[a["ball"]] = pwm_map[sig]
-            else:
-                nets[a["ball"]] = "PWM_" + sig.replace("TIM", "").replace("_CH", "")
-        elif "DP" in sig or "DM" in sig:
-            nets[a["ball"]] = "USB_DP" if sig.endswith("DP") else "USB_DM"
-        elif sig.endswith("SWDIO"):
-            nets[a["ball"]] = "SWDIO"
-        elif sig.endswith("SWCLK"):
-            nets[a["ball"]] = "SWCLK"
-        elif sig.endswith("OSC_IN"):
-            nets[a["ball"]] = "OSC_IN"
-        elif sig.endswith("OSC_OUT"):
-            nets[a["ball"]] = "OSC_OUT"
-        elif sig.endswith("OSC32_IN"):
-            nets[a["ball"]] = "OSC32_IN"
-        elif sig.endswith("OSC32_OUT"):
-            nets[a["ball"]] = "OSC32_OUT"
-        else:
-            nets[a["ball"]] = gpio
+        nets[a["ball"]] = _signal_to_net(sig, a["pin"], pwm_map)
     # dedicated non-AF pins
     for pos, info in pins.items():
         n = info["name"]

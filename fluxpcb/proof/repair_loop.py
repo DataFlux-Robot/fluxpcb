@@ -27,7 +27,8 @@ from pathlib import Path
 from . import (certs, claims as claim_mod, gate, repair, router, step,
                state as S)
 
-DEFAULT_TACTICS = ('freerouting', 'embedded', 'embedded_keep')
+DEFAULT_TACTICS = ('freerouting', 'embedded', 'pathfinder_keep',
+                   'pathfinder', 'embedded_keep')
 
 
 def open_nets(st, report=None):

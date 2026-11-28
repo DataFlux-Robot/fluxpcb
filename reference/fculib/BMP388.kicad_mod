@@ -222,6 +222,34 @@
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(uuid "07b033ca-4e10-4ca3-8c87-388558f6621e")
 	)
+	(fp_line
+		(start -1.35 -1.35)
+		(end 1.35 -1.35)
+		(stroke (width 0.05) (type solid))
+		(layer "F.CrtYd")
+		(uuid "3e1b4a10-2c3d-4e5f-8a6b-111111111101")
+	)
+	(fp_line
+		(start 1.35 -1.35)
+		(end 1.35 1.35)
+		(stroke (width 0.05) (type solid))
+		(layer "F.CrtYd")
+		(uuid "3e1b4a10-2c3d-4e5f-8a6b-111111111102")
+	)
+	(fp_line
+		(start 1.35 1.35)
+		(end -1.35 1.35)
+		(stroke (width 0.05) (type solid))
+		(layer "F.CrtYd")
+		(uuid "3e1b4a10-2c3d-4e5f-8a6b-111111111103")
+	)
+	(fp_line
+		(start -1.35 1.35)
+		(end -1.35 -1.35)
+		(stroke (width 0.05) (type solid))
+		(layer "F.CrtYd")
+		(uuid "3e1b4a10-2c3d-4e5f-8a6b-111111111104")
+	)
 	(embedded_fonts no)
 	(model "${KIPRJMOD}/lib.3dshapes/SENSORM-SMD_BMP388.wrl"
 		(offset

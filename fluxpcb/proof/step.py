@@ -205,7 +205,8 @@ def publish(after, rules, profile='lean+fab', domain_claims=(), store=None,
     return out
 
 
-def audit(after, rules, profile='lean+fab', domain_claims=(), board_path=None):
+def audit(after, rules, profile='lean+fab', domain_claims=(), board_path=None,
+          process=None, robust=None):
     """Record a certificate without denying (a router candidate is not a design)."""
     cl = claim_mod.bench_claims(after)
     cs = certs.connectivity_certs(after)
